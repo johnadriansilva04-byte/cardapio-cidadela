@@ -54,7 +54,10 @@ export function CidadelaDashboard() {
             onClick={() =>
               update((prev) => ({
                 ...prev,
-                cidadela: { ...prev.cidadela, codes: [generatePromoCode(), ...prev.cidadela.codes] },
+                cidadela: {
+                  ...prev.cidadela,
+                  codes: [generatePromoCode(), ...prev.cidadela.codes],
+                },
               }))
             }
             className="text-tech rounded-md bg-[color:var(--olive)] px-3 py-1.5 text-[10px]"
@@ -98,7 +101,7 @@ export function CidadelaDashboard() {
                       cidadela: {
                         ...prev.cidadela,
                         codes: prev.cidadela.codes.map((code) =>
-                          code.code === c.code ? { ...code, used: !code.used } : code
+                          code.code === c.code ? { ...code, used: !code.used } : code,
                         ),
                       },
                     }))

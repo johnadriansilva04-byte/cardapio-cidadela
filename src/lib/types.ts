@@ -86,7 +86,11 @@ export const DEFAULT_STATE: AppState = {
   promo: { meta: 100, cidadelaDate: new Date().toISOString().slice(0, 10) },
   admin: { accessKey: "FEB-1944" },
   whatsapp: "5511999999999",
-  integrations: { geminiApiKey: "", n8nWebhookUrl: "http://localhost:5678/webhook/pracinha", cidadelaAuthUrl: "http://localhost:5678/webhook/cidadela" },
+  integrations: {
+    geminiApiKey: "",
+    n8nWebhookUrl: "http://localhost:5678/webhook/pracinha",
+    cidadelaAuthUrl: "http://localhost:5678/webhook/cidadela",
+  },
   cidadela: { codes: [], accessHistory: [], robots: [] },
   orders: [],
   conversation: [],

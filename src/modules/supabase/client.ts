@@ -5,18 +5,36 @@ const supabaseKey = "sb_publishable_qT04tnP1_XEbAZ5EHw02FQ_CFDtX_LM";
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+type Robot = {
+  name: string;
+  ideology: string;
+  personality: string;
+  strategy: string;
+  aggressiveness: number;
+  eloquence: number;
+  logic: number;
+  hp: number;
+};
+
+type BattleMessage = {
+  id: number;
+  player_id: string;
+  text: string;
+  timestamp: string;
+};
+
 export type Battle = {
   id: string;
   topic: string;
   player1_id: string;
   player1_name: string;
-  player1_robot: any;
+  player1_robot: Robot;
   player2_id: string | null;
   player2_name: string | null;
-  player2_robot: any | null;
+  player2_robot: Robot | null;
   status: "waiting" | "active" | "completed";
   current_round: number;
-  messages: any[];
+  messages: BattleMessage[];
   winner: string | null;
   created_at: string;
 };

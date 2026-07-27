@@ -16,7 +16,8 @@ export const Route = createFileRoute("/cidadela")({
       { title: "Cidadela — Mundo FEB" },
       {
         name: "description",
-        content: "Entre na Cidadela: mundo de inteligência artificial, testes de QI, arena de batalha de robôs e muito mais.",
+        content:
+          "Entre na Cidadela: mundo de inteligência artificial, testes de QI, arena de batalha de robôs e muito mais.",
       },
     ],
   }),
@@ -48,7 +49,7 @@ function CidadelaWorld() {
   async function tryUnlock(e: React.FormEvent) {
     e.preventDefault();
     const value = code.trim().toUpperCase();
-    
+
     if (value === state.admin.accessKey.toUpperCase()) {
       update((prev) => ({
         ...prev,
@@ -65,10 +66,10 @@ function CidadelaWorld() {
 
     setValidating(true);
     setError("");
-    
+
     try {
       const response = await validateCidadelaCode(state.integrations.cidadelaAuthUrl, value);
-      
+
       if (response.success && response.autenticado) {
         update((prev) => ({
           ...prev,
@@ -86,17 +87,21 @@ function CidadelaWorld() {
             ...prev,
             cidadela: {
               ...prev.cidadela,
-              accessHistory: [new Date().toISOString(), ...prev.cidadela.accessHistory].slice(0, 20),
+              accessHistory: [new Date().toISOString(), ...prev.cidadela.accessHistory].slice(
+                0,
+                20,
+              ),
             },
           }));
           setUnlocked(true);
           setCode("");
         } else {
-          const errorMsg = response.erro === "codigo_expirado" 
-            ? "Código expirado. Solicite um novo código."
-            : response.erro === "tentativas_excedidas"
-            ? "Muitas tentativas. Tente novamente em 5 minutos."
-            : "Código negado. Acesso restrito ao comando.";
+          const errorMsg =
+            response.erro === "codigo_expirado"
+              ? "Código expirado. Solicite um novo código."
+              : response.erro === "tentativas_excedidas"
+                ? "Muitas tentativas. Tente novamente em 5 minutos."
+                : "Código negado. Acesso restrito ao comando.";
           setError(errorMsg);
         }
       }
@@ -153,9 +158,7 @@ function CidadelaWorld() {
             <CobraFumando className="size-10 text-[color:var(--brass)]" />
           </div>
           <h1 className="text-stencil mt-6 text-3xl">CIDADELA</h1>
-          <p className="mt-2 text-center text-muted-foreground">
-            Mundo de honra, dignidade e brio
-          </p>
+          <p className="mt-2 text-center text-muted-foreground">Mundo de honra, dignidade e brio</p>
           <form onSubmit={tryUnlock} className="mt-8 w-full max-w-sm">
             <input
               value={code}
@@ -206,7 +209,9 @@ function CidadelaWorld() {
                   onClick={() => setActiveModule(module.id)}
                   className="group flex flex-col rounded-xl border border-border bg-secondary p-6 text-left transition-all hover:border-[color:var(--brass)] hover:shadow-lg"
                 >
-                  <h3 className="text-stencil text-lg group-hover:text-[color:var(--brass)]">{module.label}</h3>
+                  <h3 className="text-stencil text-lg group-hover:text-[color:var(--brass)]">
+                    {module.label}
+                  </h3>
                   <p className="mt-2 text-sm text-muted-foreground">{module.description}</p>
                 </button>
               ))}

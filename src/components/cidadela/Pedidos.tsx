@@ -85,7 +85,9 @@ export function GerenciadorPedidos() {
                   type="button"
                   onClick={() => setStatus(o.comanda, s)}
                   className={`text-tech rounded-md px-3 py-1.5 text-[9px] ${
-                    o.status === s ? "bg-[color:var(--brass)] text-[color:var(--matte)]" : "bg-secondary"
+                    o.status === s
+                      ? "bg-[color:var(--brass)] text-[color:var(--matte)]"
+                      : "bg-secondary"
                   }`}
                 >
                   {STATUS_LABEL[s]}

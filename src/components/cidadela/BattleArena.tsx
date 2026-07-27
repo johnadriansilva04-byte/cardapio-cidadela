@@ -21,6 +21,24 @@ type Robot = {
   hp: number;
 };
 
+type BattleState = {
+  topic: string;
+  status: string;
+  current_round: number;
+  player1_name: string;
+  player2_name: string;
+  player1_robot?: Robot;
+  player2_robot?: Robot;
+  messages: Message[];
+};
+
+type BattleMessage = {
+  id: number;
+  text: string;
+  robot?: string;
+  timestamp?: Date;
+};
+
 const TOPICS = [
   "A importância da honra militar",
   "O papel da disciplina na sociedade",
@@ -67,7 +85,7 @@ export function BattleArena() {
   const [selectedMyRobot, setSelectedMyRobot] = useState<RobotConfig | null>(null);
   const [inputArgument, setInputArgument] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [battle, setBattle] = useState<any>(null);
+  const [battle, setBattle] = useState<BattleState | null>(null);
   const [isMyTurn, setIsMyTurn] = useState(false);
 
   function startBattle() {
@@ -92,11 +110,14 @@ export function BattleArena() {
 
   function handleSendArgument() {
     if (!inputArgument.trim() || !isMyTurn) return;
-    setBattle((prev: any) => ({
-      ...prev,
-      messages: [...prev.messages, { id: Date.now(), text: inputArgument }],
-      current_round: prev.current_round + 1,
-    }));
+    setBattle((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        messages: [...prev.messages, { id: Date.now(), text: inputArgument }],
+        current_round: prev.current_round + 1,
+      };
+    });
     setInputArgument("");
     setIsMyTurn(false);
     setTimeout(() => setIsMyTurn(true), 1500);
@@ -204,7 +225,9 @@ export function BattleArena() {
         {isSearching && (
           <div className="mt-4 rounded-lg border-2 border-yellow-500 bg-secondary px-4 py-3 text-center">
             <p className="text-sm font-medium">Buscando oponente...</p>
-            <p className="text-xs text-muted-foreground">Aguardando outro jogador entrar na arena</p>
+            <p className="text-xs text-muted-foreground">
+              Aguardando outro jogador entrar na arena
+            </p>
           </div>
         )}
 
@@ -214,9 +237,7 @@ export function BattleArena() {
             {battle.status === "active" && (
               <p className="text-xs text-muted-foreground">Rodada {battle.current_round}/6</p>
             )}
-            {isMyTurn && (
-              <p className="text-xs text-green-400 font-medium">Sua vez!</p>
-            )}
+            {isMyTurn && <p className="text-xs text-green-400 font-medium">Sua vez!</p>}
           </div>
         )}
 
@@ -229,7 +250,11 @@ export function BattleArena() {
               disabled={battle?.status === "active" || isSearching}
               className="text-tech rounded-lg bg-[color:var(--brass)] px-4 py-2 text-sm text-[color:var(--matte)] disabled:opacity-50"
             >
-              {isSearching ? "Buscando..." : battle?.status === "active" ? "Em andamento" : "Iniciar Batalha"}
+              {isSearching
+                ? "Buscando..."
+                : battle?.status === "active"
+                  ? "Em andamento"
+                  : "Iniciar Batalha"}
             </button>
           </div>
 
@@ -239,7 +264,7 @@ export function BattleArena() {
                 Clique em "Iniciar Batalha" para buscar um oponente e começar o debate
               </p>
             )}
-            {battle?.messages.map((msg: any) => (
+            {battle?.messages.map((msg) => (
               <div
                 key={msg.id}
                 className="rounded-lg px-4 py-2 border-l-4 border-red-500 bg-red-500/10"
@@ -271,8 +296,9 @@ export function BattleArena() {
 
         <div className="mt-4 rounded-lg border border-border bg-secondary px-4 py-3">
           <p className="text-xs text-muted-foreground">
-            <strong>Como funciona:</strong> Cada argumento causa dano baseado em eloquência, lógica e agressividade. 
-            O robô com maior defesa reduz o dano recebido. 6 rodadas ou até um robô perder todo o HP.
+            <strong>Como funciona:</strong> Cada argumento causa dano baseado em eloquência, lógica
+            e agressividade. O robô com maior defesa reduz o dano recebido. 6 rodadas ou até um robô
+            perder todo o HP.
           </p>
         </div>
       </div>

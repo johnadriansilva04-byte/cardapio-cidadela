@@ -6,10 +6,12 @@ export function useBattleMatchmaking(myRobot: RobotConfig | null) {
   const [battle, setBattle] = useState<Battle | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isMyTurn, setIsMyTurn] = useState(false);
-  const [playerId] = useState(() => `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const [playerId] = useState(
+    () => `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  );
 
   useEffect(() => {
-    let subscription: any;
+    let subscription: ReturnType<typeof supabase.channel> | null = null;
 
     async function subscribeToWaitingBattles() {
       subscription = supabase
@@ -32,7 +34,7 @@ export function useBattleMatchmaking(myRobot: RobotConfig | null) {
                 setIsMyTurn(true);
               }
             }
-          }
+          },
         )
         .on(
           "postgres_changes",
@@ -45,14 +47,14 @@ export function useBattleMatchmaking(myRobot: RobotConfig | null) {
             if (battle && payload.new.id === battle.id) {
               const updatedBattle = payload.new as Battle;
               setBattle(updatedBattle);
-              
+
               if (updatedBattle.status === "active") {
                 const isPlayer1 = updatedBattle.player1_id === playerId;
                 const currentRound = updatedBattle.current_round;
                 setIsMyTurn(isPlayer1 ? currentRound % 2 === 1 : currentRound % 2 === 0);
               }
             }
-          }
+          },
         )
         .subscribe();
     }

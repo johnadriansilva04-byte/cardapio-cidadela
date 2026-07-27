@@ -65,7 +65,9 @@ export async function askPraxinha(opts: {
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt || buildSystemPrompt(menuSummary, storeName) }] },
+        systemInstruction: {
+          parts: [{ text: systemPrompt || buildSystemPrompt(menuSummary, storeName) }],
+        },
         contents: [
           ...window.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
           { role: "user", parts: [{ text: question }] },

@@ -29,7 +29,12 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fechar painel" className="text-white hover:text-gray-300">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar painel"
+            className="text-white hover:text-gray-300"
+          >
             <X className="size-5" />
           </button>
         </header>

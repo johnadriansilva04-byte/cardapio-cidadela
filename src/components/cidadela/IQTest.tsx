@@ -94,7 +94,9 @@ export function IQTest() {
         <div className="w-full max-w-lg rounded-xl border border-border bg-secondary p-8 text-center">
           <h2 className="text-stencil text-2xl">Resultado do Teste</h2>
           <div className="my-6">
-            <p className="text-6xl font-bold text-[color:var(--brass)]">{score}/{QUESTIONS.length}</p>
+            <p className="text-6xl font-bold text-[color:var(--brass)]">
+              {score}/{QUESTIONS.length}
+            </p>
             <p className="mt-2 text-lg text-muted-foreground">{getIQDescription(score)}</p>
           </div>
           <button
@@ -126,8 +128,8 @@ export function IQTest() {
                   index < currentQuestion
                     ? "bg-[color:var(--brass)]"
                     : index === currentQuestion
-                    ? "bg-[color:var(--olive)]"
-                    : "bg-muted"
+                      ? "bg-[color:var(--olive)]"
+                      : "bg-muted"
                 }`}
               />
             ))}

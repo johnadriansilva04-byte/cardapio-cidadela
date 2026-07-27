@@ -96,11 +96,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       <header className="relative">
         {/* Title Bar */}
         <div className="flex items-center justify-between px-4 py-3">
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/" })}
-            className="text-white"
-          >
+          <button type="button" onClick={() => navigate({ to: "/" })} className="text-white">
             <svg
               viewBox="0 0 24 24"
               className="size-6"
@@ -156,9 +152,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                 <path d="M8 11V7a4 4 0 0 1 8 0v4" />
               </svg>
             </div>
-            <span className="text-[9px] font-semibold text-cyan-400">
-              CONHEÇA A CIDADELA
-            </span>
+            <span className="text-[9px] font-semibold text-cyan-400">CONHEÇA A CIDADELA</span>
           </button>
 
           {/* Business Name and Slogan */}
@@ -166,9 +160,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
               {state.store.name}
             </h1>
-            <p className="mt-1 text-sm font-medium text-gray-300">
-              {state.store.slogan}
-            </p>
+            <p className="mt-1 text-sm font-medium text-gray-300">{state.store.slogan}</p>
           </div>
         </div>
 
@@ -283,10 +275,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       {/* Bottom Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-red-500/20 bg-black/95 backdrop-blur">
         <div className="flex items-center justify-around py-3">
-          <button
-            type="button"
-            className="flex flex-col items-center gap-1 transition-all"
-          >
+          <button type="button" className="flex flex-col items-center gap-1 transition-all">
             <div className="relative">
               <div className="absolute inset-0 rounded-full bg-red-500/20 animate-pulse" />
               <svg

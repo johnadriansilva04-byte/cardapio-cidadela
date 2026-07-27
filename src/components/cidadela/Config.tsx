@@ -104,9 +104,7 @@ export function ConfigOperacional() {
           <input
             className={`${field} mt-1`}
             value={state.payment.pixKey}
-            onChange={(e) =>
-              update((prev) => ({ ...prev, payment: { pixKey: e.target.value } }))
-            }
+            onChange={(e) => update((prev) => ({ ...prev, payment: { pixKey: e.target.value } }))}
           />
         </label>
         <label className="text-xs text-gray-300">

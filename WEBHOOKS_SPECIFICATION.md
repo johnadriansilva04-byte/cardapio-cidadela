@@ -3,6 +3,7 @@
 ## ⚠️ INSTRUÇÕES PARA IA ASSISTENTE
 
 ### COMPORTAMENTO OBRIGATÓRIO
+
 1. **ANTI-LOOP**: Quando detectar que o HUMANO entrou na conversa, PARE imediatamente de digitar. Não continue gerando respostas automaticamente.
 2. **TIMEOUT DE REPETIÇÃO**: Nunca repita a mesma mensagem ou instrução. Use um timeout de 30 segundos entre tentativas similares.
 3. **DETEÇÃO DE USUÁRIO**: Se o usuário enviar qualquer mensagem, interrompa todo processamento automático e aguarde instruções explícitas.
@@ -11,6 +12,7 @@
 ### ERROS QUE PODEM OCORRIR E COMO TRATAR
 
 #### Webhook 1 - Erros do Pedido
+
 - `network_error`: Falha de conexão com n8n → Tentar novamente após 5s (max 3 tentativas)
 - `timeout`: Webhook não respondeu em 15s → Enfileirar para sincronização offline
 - `invalid_payload`: Dados do pedido inválidos → Mostrar erro ao usuário e não enviar
@@ -20,6 +22,7 @@
 - `validation_error`: Campos obrigatórios faltando → Validar antes de enviar
 
 #### Webhook 2 - Erros do WhatsApp
+
 - `whatsapp_unavailable`: API WhatsApp fora do ar → Enfileirar mensagem
 - `invalid_number`: Número de telefone inválido → Validar formato antes
 - `message_too_long`: Mensagem excede limite → Truncar ou dividir
@@ -28,6 +31,7 @@
 - `credits_exhausted`: Créditos da API esgotados → Alertar administrador
 
 #### Webhook 3 - Erros de Autenticação
+
 - `invalid_code`: Código não existe no banco → Retornar erro específico
 - `code_expired`: Código expirou → Solicitar novo código
 - `too_many_attempts`: Muitas tentativas → Bloquear por 5 minutos
@@ -35,12 +39,14 @@
 - `token_generation_failed`: Falha ao gerar token → Retornar erro
 
 #### Erros Gerais
+
 - `offline_mode`: Sem conexão internet → Ativar modo offline
 - `storage_full`: Armazenamento local cheio → Alertar usuário
 - `cors_error**: Erro de CORS → Verificar configuração servidor
 - `parse_error`: Erro ao parsear JSON → Validar formato
 
 ### TRATAMENTO DE ERROS
+
 - Sempre logar erro com timestamp
 - Mostrar mensagem amigável ao usuário
 - Implementar retry com backoff exponencial
@@ -50,6 +56,7 @@
 ---
 
 ## VISÃO GERAL
+
 Este documento define 3 webhooks necessários para o funcionamento do Cardápio Digital PWA com integração WhatsApp e Cidadela.
 
 ---
@@ -57,19 +64,23 @@ Este documento define 3 webhooks necessários para o funcionamento do Cardápio 
 ## WEBHOOK 1: RECEBER PEDIDO DO CARDÁPIO (n8n)
 
 ### Propósito
+
 Receber pedidos do cardápio digital e processar para envio ao WhatsApp/impressora.
 
 ### Endpoint
+
 ```
 POST /webhook/cardapio/pedido
 ```
 
 ### Headers
+
 ```
 Content-Type: application/json
 ```
 
 ### Payload (JSON)
+
 ```json
 {
   "cliente": "string",
@@ -103,6 +114,7 @@ Content-Type: application/json
 ```
 
 ### Resposta Esperada
+
 ```json
 {
   "success": true,
@@ -112,6 +124,7 @@ Content-Type: application/json
 ```
 
 ### Fluxo de Processamento
+
 1. Receber payload do cardápio
 2. Validar dados do pedido
 3. Verificar campo `cidadela_access_type` para determinar tipo de acesso:
@@ -127,20 +140,24 @@ Content-Type: application/json
 ## WEBHOOK 2: ENVIAR MENSAGEM WHATSAPP
 
 ### Propósito
+
 Enviar mensagem formatada para o WhatsApp do restaurante.
 
 ### Endpoint
+
 ```
 POST /webhook/whatsapp/enviar
 ```
 
 ### Headers
+
 ```
 Content-Type: application/json
 Authorization: Bearer <TOKEN_WHATSAPP_API>
 ```
 
 ### Payload (JSON)
+
 ```json
 {
   "numero_destino": "string (formato: 5511999999999)",
@@ -151,6 +168,7 @@ Authorization: Bearer <TOKEN_WHATSAPP_API>
 ```
 
 ### Formato da Mensagem (Comanda)
+
 ```
 ==============================
    *NOVO PEDIDO - [NOME DA LOJA]*
@@ -178,6 +196,7 @@ Authorization: Bearer <TOKEN_WHATSAPP_API>
 ```
 
 ### Resposta Esperada
+
 ```json
 {
   "success": true,
@@ -187,6 +206,7 @@ Authorization: Bearer <TOKEN_WHATSAPP_API>
 ```
 
 ### Integrações Sugeridas
+
 - WhatsApp Business API (Meta)
 - Twilio API
 - MessageBird
@@ -197,19 +217,23 @@ Authorization: Bearer <TOKEN_WHATSAPP_API>
 ## WEBHOOK 3: AUTENTICAÇÃO CIDADELA
 
 ### Propósito
+
 Validar código de acesso ao painel Cidadela (área restrita).
 
 ### Endpoint
+
 ```
 POST /webhook/cidadela/auth
 ```
 
 ### Headers
+
 ```
 Content-Type: application/json
 ```
 
 ### Payload (JSON)
+
 ```json
 {
   "codigo": "string",
@@ -219,6 +243,7 @@ Content-Type: application/json
 ```
 
 ### Resposta Esperada (Sucesso)
+
 ```json
 {
   "success": true,
@@ -230,6 +255,7 @@ Content-Type: application/json
 ```
 
 ### Resposta Esperada (Erro)
+
 ```json
 {
   "success": false,
@@ -239,6 +265,7 @@ Content-Type: application/json
 ```
 
 ### Fluxo de Processamento
+
 1. Receber código do usuário
 2. Validar código contra banco de dados
 3. Verificar se código está ativo e não expirado
@@ -250,6 +277,7 @@ Content-Type: application/json
 ## CONFIGURAÇÃO NO n8n
 
 ### Workflow 1: Receber Pedido do Cardápio
+
 ```
 1. Webhook Node (POST /webhook/cardapio/pedido)
 2. Function Node (Validar dados)
@@ -261,6 +289,7 @@ Content-Type: application/json
 ```
 
 ### Workflow 2: Autenticação Cidadela
+
 ```
 1. Webhook Node (POST /webhook/cidadela/auth)
 2. Function Node (Validar código)
@@ -292,6 +321,7 @@ CIDADELA_AUTH_SECRET=chave_secreta_para_tokens
 ## TESTE DOS WEBHOOKS
 
 ### Teste Webhook 1 (Pedido)
+
 ```bash
 curl -X POST https://seu-n8n.com/webhook/cardapio/pedido \
   -H "Content-Type: application/json" \
@@ -318,6 +348,7 @@ curl -X POST https://seu-n8n.com/webhook/cardapio/pedido \
 ```
 
 ### Teste Webhook 2 (WhatsApp)
+
 ```bash
 curl -X POST https://seu-whatsapp-api.com/webhook/enviar \
   -H "Content-Type: application/json" \
@@ -331,6 +362,7 @@ curl -X POST https://seu-whatsapp-api.com/webhook/enviar \
 ```
 
 ### Teste Webhook 3 (Cidadela)
+
 ```bash
 curl -X POST https://seu-n8n.com/webhook/cidadela/auth \
   -H "Content-Type: application/json" \

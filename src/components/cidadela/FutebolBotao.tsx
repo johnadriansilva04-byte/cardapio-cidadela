@@ -37,12 +37,7 @@ export function FutebolBotao() {
     const currentPos = newPositions[team][playerIndex];
     const newPos = { x: currentPos.x + dx, y: currentPos.y + dy };
 
-    if (
-      newPos.x < 0 ||
-      newPos.x >= FIELD_WIDTH ||
-      newPos.y < 0 ||
-      newPos.y >= FIELD_HEIGHT
-    ) {
+    if (newPos.x < 0 || newPos.x >= FIELD_WIDTH || newPos.y < 0 || newPos.y >= FIELD_HEIGHT) {
       return;
     }
 
@@ -92,7 +87,10 @@ export function FutebolBotao() {
             </span>
           </div>
           <span className="text-tech text-sm">
-            Turno: <span className={turn === "red" ? "text-red-500" : "text-blue-500"}>{turn === "red" ? "Vermelho" : "Azul"}</span>
+            Turno:{" "}
+            <span className={turn === "red" ? "text-red-500" : "text-blue-500"}>
+              {turn === "red" ? "Vermelho" : "Azul"}
+            </span>
           </span>
           <button
             type="button"
@@ -104,7 +102,10 @@ export function FutebolBotao() {
         </div>
 
         <div className="relative rounded-lg border-2 border-border bg-green-900/20 p-4">
-          <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${FIELD_WIDTH}, 1fr)` }}>
+          <div
+            className="grid gap-1"
+            style={{ gridTemplateColumns: `repeat(${FIELD_WIDTH}, 1fr)` }}
+          >
             {Array.from({ length: FIELD_HEIGHT }).map((_, y) =>
               Array.from({ length: FIELD_WIDTH }).map((_, x) => {
                 const redPlayer = positions.red.findIndex((p) => p.x === x && p.y === y);
@@ -115,13 +116,17 @@ export function FutebolBotao() {
                   <div
                     key={`${x}-${y}`}
                     className={`aspect-square rounded border border-green-800/30 ${
-                      x === FIELD_WIDTH / 2 - 1 || x === FIELD_WIDTH / 2 ? "border-x-2 border-green-700/50" : ""
+                      x === FIELD_WIDTH / 2 - 1 || x === FIELD_WIDTH / 2
+                        ? "border-x-2 border-green-700/50"
+                        : ""
                     }`}
                   >
                     {redPlayer !== -1 && (
                       <button
                         type="button"
-                        onClick={() => setSelectedPlayer(selectedPlayer === redPlayer ? null : redPlayer)}
+                        onClick={() =>
+                          setSelectedPlayer(selectedPlayer === redPlayer ? null : redPlayer)
+                        }
                         className={`size-full rounded-full ${
                           selectedPlayer === redPlayer && turn === "red"
                             ? "bg-red-500 ring-2 ring-white"
@@ -132,7 +137,11 @@ export function FutebolBotao() {
                     {bluePlayer !== -1 && (
                       <button
                         type="button"
-                        onClick={() => setSelectedPlayer(selectedPlayer === bluePlayer + 100 ? null : bluePlayer + 100)}
+                        onClick={() =>
+                          setSelectedPlayer(
+                            selectedPlayer === bluePlayer + 100 ? null : bluePlayer + 100,
+                          )
+                        }
                         className={`size-full rounded-full ${
                           selectedPlayer === bluePlayer + 100 && turn === "blue"
                             ? "bg-blue-500 ring-2 ring-white"
@@ -147,7 +156,7 @@ export function FutebolBotao() {
                     )}
                   </div>
                 );
-              })
+              }),
             )}
           </div>
 

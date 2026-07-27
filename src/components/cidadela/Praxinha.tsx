@@ -17,7 +17,10 @@ export function PracinhaIA() {
   const menuSummary = useMemo(
     () =>
       state.categories
-        .map((c) => `${c.name}: ${c.items.map((i) => `${i.name} (R$${i.price.toFixed(2)})`).join(", ")}`)
+        .map(
+          (c) =>
+            `${c.name}: ${c.items.map((i) => `${i.name} (R$${i.price.toFixed(2)})`).join(", ")}`,
+        )
         .join(" | "),
     [state.categories],
   );
@@ -29,14 +32,17 @@ export function PracinhaIA() {
 
     const now = new Date().toISOString();
     const history = state.conversation;
-    
+
     const systemPrompt = selectedRobot
       ? `Você é ${selectedRobot.name}, um robô com ideologia ${selectedRobot.ideology}, personalidade ${selectedRobot.personality}, estratégia ${selectedRobot.strategy}. Agressividade: ${selectedRobot.aggressiveness}%, Eloquência: ${selectedRobot.eloquence}%, Lógica: ${selectedRobot.logic}%. Responda de acordo com sua personalidade e ideologia.`
       : "Você é o Pracinha IA, assistente da Cantina do Pracinha.";
 
     update((prev) => ({
       ...prev,
-      conversation: [...prev.conversation, { role: "user" as const, text: question, at: now }].slice(-40),
+      conversation: [
+        ...prev.conversation,
+        { role: "user" as const, text: question, at: now },
+      ].slice(-40),
     }));
     setInput("");
     setLoading(true);
@@ -69,7 +75,8 @@ export function PracinhaIA() {
           <div>
             <p className="text-stencil text-sm">PRACINHA IA</p>
             <p className="text-tech text-[9px] text-muted-foreground">
-              {selectedRobot ? selectedRobot.name : "Gemini 2.5 Flash"} · memória de {MEMORY_WINDOW} mensagens
+              {selectedRobot ? selectedRobot.name : "Gemini 2.5 Flash"} · memória de {MEMORY_WINDOW}{" "}
+              mensagens
             </p>
           </div>
         </div>
@@ -96,7 +103,10 @@ export function PracinhaIA() {
           <div className="space-y-1">
             <button
               type="button"
-              onClick={() => { setSelectedRobot(null); setShowRobotSelector(false); }}
+              onClick={() => {
+                setSelectedRobot(null);
+                setShowRobotSelector(false);
+              }}
               className="block w-full rounded px-2 py-1 text-left text-xs hover:bg-muted"
             >
               Pracinha IA (padrão)
@@ -105,7 +115,10 @@ export function PracinhaIA() {
               <button
                 key={index}
                 type="button"
-                onClick={() => { setSelectedRobot(robot); setShowRobotSelector(false); }}
+                onClick={() => {
+                  setSelectedRobot(robot);
+                  setShowRobotSelector(false);
+                }}
                 className="block w-full rounded px-2 py-1 text-left text-xs hover:bg-muted"
               >
                 {robot.name} ({robot.ideology})
@@ -139,7 +152,7 @@ export function PracinhaIA() {
       <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {state.conversation.length === 0 && (
           <p className="text-xs text-muted-foreground">
-            {selectedRobot 
+            {selectedRobot
               ? `Converse com ${selectedRobot.name}. Ele responde de acordo com sua personalidade e ideologia.`
               : "Crie um robô no Laboratório e converse com ele aqui, ou use o Pracinha IA padrão para perguntas sobre o cardápio."}
           </p>
@@ -156,14 +169,20 @@ export function PracinhaIA() {
             {m.text}
           </div>
         ))}
-        {loading && <p className="text-tech text-[10px] text-muted-foreground">{selectedRobot?.name || "Pracinha"} digitando…</p>}
+        {loading && (
+          <p className="text-tech text-[10px] text-muted-foreground">
+            {selectedRobot?.name || "Pracinha"} digitando…
+          </p>
+        )}
       </div>
 
       <form onSubmit={send} className="flex gap-2 border-t border-border p-3">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={selectedRobot ? `Fale com ${selectedRobot.name}…` : "Fale com o Pracinha IA…"}
+          placeholder={
+            selectedRobot ? `Fale com ${selectedRobot.name}…` : "Fale com o Pracinha IA…"
+          }
           className="flex-1 rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <button

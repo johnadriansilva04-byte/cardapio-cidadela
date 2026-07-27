@@ -11,13 +11,7 @@ const IDEOLOGIES = [
   "Tradition & Heritage",
 ];
 
-const PERSONALITIES = [
-  "Diplomatic",
-  "Aggressive",
-  "Analytical",
-  "Charismatic",
-  "Stoic",
-];
+const PERSONALITIES = ["Diplomatic", "Aggressive", "Analytical", "Charismatic", "Stoic"];
 
 const STRATEGIES = [
   "Logical Arguments",
@@ -152,9 +146,7 @@ export function RobotLab() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium">
-                Eloquência: {config.eloquence}%
-              </label>
+              <label className="block text-xs font-medium">Eloquência: {config.eloquence}%</label>
               <input
                 type="range"
                 min="0"
@@ -166,9 +158,7 @@ export function RobotLab() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium">
-                Lógica: {config.logic}%
-              </label>
+              <label className="block text-xs font-medium">Lógica: {config.logic}%</label>
               <input
                 type="range"
                 min="0"

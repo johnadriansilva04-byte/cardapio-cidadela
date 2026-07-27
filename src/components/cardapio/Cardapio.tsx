@@ -182,8 +182,8 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               }}
               className={`text-tech shrink-0 rounded-full px-4 py-2 text-[11px] transition-colors ${
                 activeCat === cat.name
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-muted"
+                  ? "bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+                  : "bg-slate-800 text-gray-300 hover:bg-slate-700"
               }`}
             >
               {cat.name}
@@ -195,7 +195,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       <main className="mx-auto max-w-5xl px-5">
         {state.categories.map((cat) => (
           <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-8">
-            <h2 className="text-xl font-semibold">{cat.name}</h2>
+            <h2 className="text-xl font-semibold text-white">{cat.name}</h2>
             <div className="mt-4 space-y-2">
               {cat.items.map((item) => (
                 <article

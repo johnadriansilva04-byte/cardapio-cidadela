@@ -119,7 +119,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         <div className="relative">
           {/* Cover Photo Banner */}
           <div
-            className="h-48 w-full bg-cover bg-center bg-no-repeat"
+            className="h-64 w-full bg-cover bg-center bg-no-repeat"
             style={{
               backgroundImage: state.store.coverPhoto
                 ? `url(${state.store.coverPhoto})`
@@ -139,7 +139,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           </div>
 
           {/* Robot Waiter - Below Name */}
-          <div className="absolute left-1/2 top-24 -translate-x-1/2 flex flex-col items-center animate-float">
+          <div className="absolute left-1/2 top-20 -translate-x-1/2 flex flex-col items-center animate-float">
             <style>
               {`
                 @keyframes float {
@@ -477,7 +477,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         </div>
       </nav>
 
-      <main className="px-4 pb-24 -mt-4">
+      <main className="px-4 pb-24">
         <div className="mx-auto max-w-xl">
           {state.categories.map((cat) => (
             <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-6">

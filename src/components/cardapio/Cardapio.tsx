@@ -139,9 +139,9 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             onClick={() => navigate({ to: "/cidadela" })}
             className="absolute right-4 top-16 z-50 transition-all hover:scale-105 active:scale-95"
           >
-            <div className="relative size-16 flex flex-col items-center justify-center rounded-full border-2 border-cyan-400 bg-black/70 shadow-[0_0_25px_rgba(34,211,238,0.6)]">
-              <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-400/50" />
-              <span className="relative text-[7px] font-bold text-cyan-300 tracking-tight leading-tight">
+            <div className="relative size-20 flex flex-col items-center justify-center rounded-full border-2 border-cyan-400 bg-black/70 shadow-[0_0_30px_rgba(34,211,238,0.7)]">
+              <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-400/60" />
+              <span className="relative text-[10px] font-bold text-cyan-300 tracking-tight leading-tight">
                 CONHEÇA A CIDADELA
               </span>
               <svg

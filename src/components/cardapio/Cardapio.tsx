@@ -130,121 +130,263 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           {/* Gradient Overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black" />
 
-          {/* Robot Waiter */}
-          <div className="absolute left-4 top-4 flex flex-col items-center">
+          {/* Robot Waiter - Centered */}
+          <div className="absolute left-1/2 top-4 -translate-x-1/2 flex flex-col items-center animate-float">
+            <style>
+              {`
+                @keyframes float {
+                  0%, 100% { transform: translateY(0px); }
+                  50% { transform: translateY(-10px); }
+                }
+                .animate-float {
+                  animation: float 3s ease-in-out infinite;
+                }
+              `}
+            </style>
             <svg
-              viewBox="0 0 100 120"
-              className="size-24"
+              viewBox="0 0 200 240"
+              className="size-40"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.5"
             >
-              {/* Robot Head */}
+              <defs>
+                <linearGradient id="metalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#4a5568" stopOpacity="0.8" />
+                  <stop offset="50%" stopColor="#718096" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#4a5568" stopOpacity="0.8" />
+                </linearGradient>
+                <linearGradient id="cyanGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#0891b2" stopOpacity="0.7" />
+                </linearGradient>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                  <feMerge>
+                    <feMergeNode in="coloredBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              {/* Robot Head - Detailed */}
+              <ellipse
+                cx="100"
+                cy="50"
+                rx="45"
+                ry="40"
+                className="stroke-gray-400"
+                fill="url(#metalGradient)"
+              />
+              <ellipse
+                cx="100"
+                cy="50"
+                rx="38"
+                ry="33"
+                className="stroke-cyan-400"
+                fill="rgba(15,23,42,0.8)"
+              />
+
+              {/* Eyes - Glowing */}
+              <ellipse
+                cx="85"
+                cy="45"
+                rx="12"
+                ry="8"
+                className="stroke-cyan-400"
+                fill="url(#cyanGlow)"
+                filter="url(#glow)"
+              />
+              <ellipse
+                cx="115"
+                cy="45"
+                rx="12"
+                ry="8"
+                className="stroke-cyan-400"
+                fill="url(#cyanGlow)"
+                filter="url(#glow)"
+              />
+              <circle cx="85" cy="45" r="3" className="fill-white" />
+              <circle cx="115" cy="45" r="3" className="fill-white" />
+
+              {/* Mouth - Digital Display */}
               <rect
-                x="30"
-                y="5"
-                width="40"
-                height="35"
-                rx="5"
+                x="85"
+                y="60"
+                width="30"
+                height="8"
+                rx="2"
                 className="stroke-red-400"
-                fill="rgba(239,68,68,0.1)"
-              />
-              {/* Eyes */}
-              <circle
-                cx="40"
-                cy="18"
-                r="4"
-                className="stroke-cyan-400"
-                fill="rgba(34,211,238,0.3)"
-              />
-              <circle
-                cx="60"
-                cy="18"
-                r="4"
-                className="stroke-cyan-400"
-                fill="rgba(34,211,238,0.3)"
-              />
-              {/* Mouth */}
-              <line x1="40" y1="30" x2="60" y2="30" className="stroke-red-400" />
-              {/* Antenna */}
-              <line x1="50" y1="5" x2="50" y2="0" className="stroke-yellow-400" />
-              <circle
-                cx="50"
-                cy="0"
-                r="3"
-                className="stroke-yellow-400"
-                fill="rgba(250,204,21,0.3)"
-              />
-              {/* Body (Waiter Suit) */}
-              <rect
-                x="25"
-                y="42"
-                width="50"
-                height="45"
-                rx="3"
-                className="stroke-gray-300"
-                fill="rgba(209,213,219,0.1)"
-              />
-              {/* Bow Tie */}
-              <polygon
-                points="50,42 45,48 50,54 55,48"
-                className="stroke-red-500"
                 fill="rgba(239,68,68,0.3)"
               />
-              {/* Arms */}
-              <line x1="25" y1="50" x2="10" y2="65" className="stroke-gray-300" />
-              <line x1="75" y1="50" x2="90" y2="65" className="stroke-gray-300" />
-              {/* Hands */}
-              <circle
-                cx="10"
-                cy="65"
-                r="5"
-                className="stroke-gray-400"
-                fill="rgba(156,163,175,0.2)"
-              />
-              <circle
-                cx="90"
-                cy="65"
-                r="5"
-                className="stroke-gray-400"
-                fill="rgba(156,163,175,0.2)"
-              />
-              {/* Tray */}
               <rect
-                x="75"
-                y="60"
-                width="25"
-                height="15"
-                rx="2"
+                x="87"
+                y="62"
+                width="8"
+                height="4"
+                rx="1"
+                className="fill-red-400 animate-pulse"
+              />
+              <rect
+                x="97"
+                y="62"
+                width="8"
+                height="4"
+                rx="1"
+                className="fill-red-400 animate-pulse"
+                style={{ animationDelay: "0.2s" }}
+              />
+              <rect
+                x="107"
+                y="62"
+                width="8"
+                height="4"
+                rx="1"
+                className="fill-red-400 animate-pulse"
+                style={{ animationDelay: "0.4s" }}
+              />
+
+              {/* Antenna */}
+              <line
+                x1="100"
+                y1="10"
+                x2="100"
+                y2="0"
                 className="stroke-yellow-400"
-                fill="rgba(250,204,21,0.2)"
+                strokeWidth="2"
               />
-              {/* Legs */}
-              <line x1="35" y1="87" x2="35" y2="115" className="stroke-gray-300" />
-              <line x1="65" y1="87" x2="65" y2="115" className="stroke-gray-300" />
+              <circle
+                cx="100"
+                cy="0"
+                r="5"
+                className="stroke-yellow-400 fill-yellow-400/30 animate-pulse"
+                filter="url(#glow)"
+              />
+
+              {/* Neck */}
+              <rect
+                x="90"
+                y="88"
+                width="20"
+                height="12"
+                rx="3"
+                className="stroke-gray-500"
+                fill="url(#metalGradient)"
+              />
+
+              {/* Body - Waiter Suit */}
+              <path
+                d="M60 100 L140 100 L145 180 L55 180 Z"
+                className="stroke-gray-300"
+                fill="url(#metalGradient)"
+              />
+              <path
+                d="M65 105 L135 105 L140 175 L60 175 Z"
+                className="stroke-gray-400"
+                fill="rgba(30,41,59,0.5)"
+              />
+
+              {/* Bow Tie */}
+              <polygon
+                points="100,100 90,110 100,120 110,110"
+                className="stroke-red-500 fill-red-500/40"
+              />
+              <circle cx="100" cy="110" r="3" className="stroke-red-600 fill-red-600" />
+
+              {/* Arms - Detailed with joints */}
+              <path
+                d="M60 110 Q40 130 35 160"
+                className="stroke-gray-400"
+                fill="none"
+                strokeWidth="3"
+              />
+              <path
+                d="M140 110 Q160 130 165 160"
+                className="stroke-gray-400"
+                fill="none"
+                strokeWidth="3"
+              />
+              <circle cx="35" cy="160" r="8" className="stroke-gray-500 fill-gray-500/30" />
+              <circle cx="165" cy="160" r="8" className="stroke-gray-500 fill-gray-500/30" />
+
+              {/* Tray - Detailed */}
+              <ellipse
+                cx="165"
+                cy="155"
+                rx="35"
+                ry="12"
+                className="stroke-yellow-400 fill-yellow-400/20"
+                strokeWidth="2"
+              />
+              <ellipse
+                cx="165"
+                cy="152"
+                rx="30"
+                ry="8"
+                className="stroke-yellow-300 fill-yellow-300/10"
+              />
+
+              {/* Text on Tray */}
+              <text
+                x="165"
+                y="154"
+                textAnchor="middle"
+                className="fill-cyan-300 font-bold tracking-tight"
+                style={{ fontSize: "6px" }}
+              >
+                Posso anotar o seu pedido?
+              </text>
+
+              {/* Legs - Detailed */}
+              <path d="M75 180 L70 230" className="stroke-gray-400" fill="none" strokeWidth="3" />
+              <path d="M125 180 L130 230" className="stroke-gray-400" fill="none" strokeWidth="3" />
+
               {/* Feet */}
-              <rect
-                x="30"
-                y="115"
-                width="10"
-                height="5"
-                rx="1"
-                className="stroke-gray-400"
-                fill="rgba(156,163,175,0.2)"
+              <ellipse
+                cx="70"
+                cy="235"
+                rx="12"
+                ry="6"
+                className="stroke-gray-500 fill-gray-500/30"
               />
+              <ellipse
+                cx="130"
+                cy="235"
+                rx="12"
+                ry="6"
+                className="stroke-gray-500 fill-gray-500/30"
+              />
+
+              {/* Chest Panel */}
               <rect
-                x="60"
-                y="115"
-                width="10"
-                height="5"
-                rx="1"
-                className="stroke-gray-400"
-                fill="rgba(156,163,175,0.2)"
+                x="85"
+                y="125"
+                width="30"
+                height="25"
+                rx="3"
+                className="stroke-cyan-400/50 fill-cyan-400/10"
+              />
+              <circle
+                cx="92"
+                cy="135"
+                r="3"
+                className="stroke-cyan-400 fill-cyan-400/40 animate-pulse"
+              />
+              <circle
+                cx="100"
+                cy="135"
+                r="3"
+                className="stroke-cyan-400 fill-cyan-400/40 animate-pulse"
+                style={{ animationDelay: "0.3s" }}
+              />
+              <circle
+                cx="108"
+                cy="135"
+                r="3"
+                className="stroke-cyan-400 fill-cyan-400/40 animate-pulse"
+                style={{ animationDelay: "0.6s" }}
               />
             </svg>
-            <span className="mt-2 text-[8px] font-bold text-red-400 tracking-wide">
-              SEU ROBÔ GARÇOM
-            </span>
           </div>
 
           {/* Cidadela Connection Element */}

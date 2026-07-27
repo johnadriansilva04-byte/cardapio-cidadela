@@ -151,17 +151,18 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                 </svg>
               </button>
           </div>
-        </div>
 
-        {/* Animated Marquee */}
-        <div className="mt-4 overflow-hidden border-t border-border bg-[color:var(--matte)] py-2 text-[color:var(--sand)]">
-          <div className="marquee-track text-tech text-[11px] animate-marquee">
-            <span className="px-6">{state.store.marquee}</span>
-            <span className="px-6">{state.store.marquee}</span>
-            <span className="px-6">{state.store.marquee}</span>
-            <span className="px-6">{state.store.marquee}</span>
+          {/* Animated Marquee */}
+          <div className="mt-4 overflow-hidden border-t border-border bg-[color:var(--matte)] py-2 text-[color:var(--sand)]">
+            <div className="marquee-track text-tech text-[11px] animate-marquee">
+              <span className="px-6">{state.store.marquee}</span>
+              <span className="px-6">{state.store.marquee}</span>
+              <span className="px-6">{state.store.marquee}</span>
+              <span className="px-6">{state.store.marquee}</span>
+            </div>
           </div>
         </div>
+      </div>
       </header>
 
       <nav className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">

@@ -1,5 +1,6 @@
-import { Copy, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { Copy, Minus, Plus, Settings, ShoppingBag, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 
 import { CobraFumando } from "@/components/CobraFumando";
 import { useStore } from "@/modules/cidadela-core/store";
@@ -9,8 +10,9 @@ import type { Order, OrderItem } from "@/lib/types";
 
 type Cart = Record<string, number>;
 
-export function Cardapio({ onOpenCidadela }: { onOpenCidadela: () => void }) {
+export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const { state, update, online } = useStore();
+  const navigate = useNavigate();
   const [cart, setCart] = useState<Cart>({});
   const [activeCat, setActiveCat] = useState(state.categories[0]?.name ?? "");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -104,36 +106,50 @@ export function Cardapio({ onOpenCidadela }: { onOpenCidadela: () => void }) {
               )}
             </div>
 
-            {/* Cidadela Button */}
-            <button
-              type="button"
-              onClick={onOpenCidadela}
-              aria-label="Acesso restrito à Cidadela"
-              title="Acesso restrito"
-              className="group relative flex shrink-0 flex-col items-center justify-center rounded-full px-3 py-2 transition-transform hover:scale-105 active:scale-95"
-              style={{
-                background: 'linear-gradient(135deg, #00d4ff 0%, #0099ff 50%, #0066ff 100%)',
-                boxShadow: '0 0 20px rgba(0, 212, 255, 0.6), 0 0 40px rgba(0, 153, 255, 0.4), inset 0 0 20px rgba(255, 255, 255, 0.1)',
-                width: '85px',
-                height: '85px',
-              }}
-            >
-              <span className="text-[9px] font-bold text-white text-center leading-tight">
-                Conheça nossa<br />cidadela
-              </span>
-              <svg 
-                viewBox="0 0 24 24" 
-                className="size-4 mt-1"
-                fill="none" 
-                stroke="#FFD700" 
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            <div className="flex items-center gap-2">
+              {/* Admin Button */}
+              <button
+                type="button"
+                onClick={onOpenAdmin}
+                aria-label="Painel administrativo"
+                title="Painel administrativo"
+                className="flex size-8 items-center justify-center rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 transition-all hover:border-cyan-400/60 hover:bg-cyan-500/20 hover:shadow-[0_0_10px_rgba(0,212,255,0.3)]"
               >
-                <rect x="5" y="11" width="14" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-              </svg>
-            </button>
+                <Settings className="size-4" />
+              </button>
+
+              {/* Cidadela Button */}
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/cidadela" })}
+                aria-label="Entrar na Cidadela"
+                title="Entrar na Cidadela"
+                className="group relative flex shrink-0 flex-col items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
+                style={{
+                  background: 'rgba(0, 212, 255, 0.1)',
+                  border: '2px solid rgba(0, 212, 255, 0.5)',
+                  boxShadow: '0 0 15px rgba(0, 212, 255, 0.4), 0 0 30px rgba(0, 212, 255, 0.2), inset 0 0 20px rgba(0, 212, 255, 0.1)',
+                  width: '80px',
+                  height: '80px',
+                  backdropFilter: 'blur(10px)',
+                }}
+              >
+                <span className="text-[8px] font-bold text-cyan-300 text-center leading-tight px-1">
+                  Conheça a<br />cidadela
+                </span>
+                <svg 
+                  viewBox="0 0 24 24" 
+                  className="size-3 mt-1"
+                  fill="none" 
+                  stroke="rgba(0, 212, 255, 0.8)" 
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="5" y="11" width="14" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+              </button>
           </div>
         </div>
 
@@ -174,49 +190,51 @@ export function Cardapio({ onOpenCidadela }: { onOpenCidadela: () => void }) {
         {state.categories.map((cat) => (
           <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-8">
             <h2 className="text-xl font-semibold">{cat.name}</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 space-y-2">
               {cat.items.map((item) => (
                 <article
                   key={item.id}
-                  className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-md"
+                  className="group relative flex items-center gap-4 rounded-lg border border-cyan-500/30 bg-gradient-to-r from-slate-900/80 to-slate-800/80 p-4 transition-all hover:border-cyan-400/60 hover:shadow-[0_0_15px_rgba(0,212,255,0.3)]"
                 >
-                  <div className="grid size-14 shrink-0 place-items-center rounded-lg bg-secondary text-2xl">
+                  <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-cyan-500/10 text-xl">
                     {item.img}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-base font-semibold">{item.name}</h3>
-                    <p className="line-clamp-2 text-xs text-muted-foreground">{item.desc}</p>
-                    <p className="mt-1 font-semibold text-primary">{brl(item.price)}</p>
+                    <h3 className="text-sm font-semibold text-cyan-100 group-hover:text-cyan-300">{item.name}</h3>
+                    <p className="line-clamp-2 text-[10px] text-cyan-200/60">{item.desc}</p>
                   </div>
-                  {cart[item.id] ? (
-                    <div className="flex items-center gap-2 rounded-full bg-secondary p-1">
+                  <div className="flex items-center gap-4">
+                    <p className="text-sm font-bold text-cyan-400">{brl(item.price)}</p>
+                    {cart[item.id] ? (
+                      <div className="flex items-center gap-1 rounded-full bg-cyan-500/20 p-1">
+                        <button
+                          type="button"
+                          aria-label={`Remover ${item.name}`}
+                          onClick={() => remove(item.id)}
+                          className="grid size-6 place-items-center rounded-full bg-slate-700 hover:bg-slate-600"
+                        >
+                          <Minus className="size-3 text-cyan-300" />
+                        </button>
+                        <span className="w-4 text-center text-sm font-semibold text-cyan-100">{cart[item.id]}</span>
+                        <button
+                          type="button"
+                          aria-label={`Adicionar ${item.name}`}
+                          onClick={() => add(item.id)}
+                          className="grid size-6 place-items-center rounded-full bg-cyan-500 hover:bg-cyan-400"
+                        >
+                          <Plus className="size-3 text-slate-900" />
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         type="button"
-                        aria-label={`Remover ${item.name}`}
-                        onClick={() => remove(item.id)}
-                        className="grid size-7 place-items-center rounded-full bg-card"
-                      >
-                        <Minus className="size-3.5" />
-                      </button>
-                      <span className="w-4 text-center text-sm font-semibold">{cart[item.id]}</span>
-                      <button
-                        type="button"
-                        aria-label={`Adicionar ${item.name}`}
                         onClick={() => add(item.id)}
-                        className="grid size-7 place-items-center rounded-full bg-primary text-primary-foreground"
+                        className="rounded-full border border-cyan-500/50 bg-cyan-500/10 px-3 py-1.5 text-[10px] font-semibold text-cyan-300 transition-all hover:bg-cyan-500/30 hover:shadow-[0_0_10px_rgba(0,212,255,0.4)]"
                       >
-                        <Plus className="size-3.5" />
+                        Adicionar
                       </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => add(item.id)}
-                      className="ember-glow rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
-                    >
-                      Adicionar
-                    </button>
-                  )}
+                    )}
+                  </div>
                 </article>
               ))}
             </div>

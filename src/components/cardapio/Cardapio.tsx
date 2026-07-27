@@ -61,7 +61,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   }
 
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-28 bg-slate-950">
       <header className="relative overflow-hidden border-b border-border">
         {/* Cidadela Button - Top Right Absolute */}
         <button
@@ -69,25 +69,25 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           onClick={() => navigate({ to: "/cidadela" })}
           aria-label="Entrar na Cidadela"
           title="Entrar na Cidadela"
-          className="absolute top-4 right-4 z-10 group relative flex shrink-0 flex-col items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
+          className="absolute top-4 right-4 z-10 group relative flex shrink-0 flex-col items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-95 animate-pulse"
           style={{
-            background: 'rgba(0, 212, 255, 0.1)',
-            border: '2px solid rgba(0, 212, 255, 0.5)',
-            boxShadow: '0 0 15px rgba(0, 212, 255, 0.4), 0 0 30px rgba(0, 212, 255, 0.2), inset 0 0 20px rgba(0, 212, 255, 0.1)',
-            width: '80px',
-            height: '80px',
-            backdropFilter: 'blur(10px)',
+            background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(0, 150, 255, 0.2))',
+            border: '3px solid #00d4ff',
+            boxShadow: '0 0 20px rgba(0, 212, 255, 0.6), 0 0 40px rgba(0, 212, 255, 0.4), 0 0 60px rgba(0, 212, 255, 0.2), inset 0 0 30px rgba(0, 212, 255, 0.3)',
+            width: '90px',
+            height: '90px',
+            backdropFilter: 'blur(15px)',
           }}
         >
-          <span className="text-[8px] font-bold text-cyan-300 text-center leading-tight px-1">
+          <span className="text-[9px] font-black text-cyan-100 text-center leading-tight px-1 drop-shadow-[0_0_8px_rgba(0,212,255,0.8)]">
             Conheça a<br />cidadela
           </span>
           <svg 
             viewBox="0 0 24 24" 
-            className="size-3 mt-1"
+            className="size-4 mt-1 drop-shadow-[0_0_8px_rgba(0,212,255,0.8)]"
             fill="none" 
-            stroke="rgba(0, 212, 255, 0.8)" 
-            strokeWidth="2"
+            stroke="#00ffff" 
+            strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           >

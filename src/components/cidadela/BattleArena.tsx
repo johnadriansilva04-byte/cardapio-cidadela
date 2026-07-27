@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import { useStore } from "@/modules/cidadela-core/store";
-import { useBattleMatchmaking } from "@/modules/supabase/matchmaking";
 import type { RobotConfig } from "@/lib/types";
 
 type Message = {
@@ -66,38 +65,41 @@ const ARGUMENTS: Record<string, string[]> = {
 export function BattleArena() {
   const { state } = useStore();
   const [selectedMyRobot, setSelectedMyRobot] = useState<RobotConfig | null>(null);
-  
-  const {
-    battle,
-    isSearching,
-    isMyTurn,
-    playerId,
-    createBattle,
-    joinBattle,
-    sendArgument,
-    findAvailableBattle,
-  } = useBattleMatchmaking(selectedMyRobot);
-
   const [inputArgument, setInputArgument] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [battle, setBattle] = useState<any>(null);
+  const [isMyTurn, setIsMyTurn] = useState(false);
 
-  async function startBattle() {
+  function startBattle() {
     if (!selectedMyRobot) {
       alert("Selecione um robô primeiro!");
       return;
     }
-
-    const available = await findAvailableBattle();
-    if (available) {
-      await joinBattle(available.id);
-    } else {
-      await createBattle();
-    }
+    setIsSearching(true);
+    setTimeout(() => {
+      setIsSearching(false);
+      setBattle({
+        topic: "A importância da honra militar",
+        status: "active",
+        current_round: 1,
+        player1_name: selectedMyRobot.name,
+        player2_name: "Oponente",
+        messages: [],
+      });
+      setIsMyTurn(true);
+    }, 2000);
   }
 
-  async function handleSendArgument() {
+  function handleSendArgument() {
     if (!inputArgument.trim() || !isMyTurn) return;
-    await sendArgument(inputArgument);
+    setBattle((prev: any) => ({
+      ...prev,
+      messages: [...prev.messages, { id: Date.now(), text: inputArgument }],
+      current_round: prev.current_round + 1,
+    }));
     setInputArgument("");
+    setIsMyTurn(false);
+    setTimeout(() => setIsMyTurn(true), 1500);
   }
 
   const robot1 = battle?.player1_robot || {
@@ -218,12 +220,6 @@ export function BattleArena() {
           </div>
         )}
 
-        {battle?.winner && (
-          <div className="mt-4 rounded-lg border-2 border-[color:var(--brass)] bg-secondary px-4 py-3 text-center">
-            <p className="text-stencil text-lg">Vencedor: {battle.winner}</p>
-          </div>
-        )}
-
         <div className="mt-6 rounded-xl border border-border bg-secondary p-4">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-stencil text-lg">Debate</h3>
@@ -246,15 +242,9 @@ export function BattleArena() {
             {battle?.messages.map((msg: any) => (
               <div
                 key={msg.id}
-                className={`rounded-lg px-4 py-2 ${
-                  msg.player_id === playerId
-                    ? "ml-8 border-l-4 border-red-500 bg-red-500/10"
-                    : "mr-8 border-r-4 border-blue-500 bg-blue-500/10"
-                }`}
+                className="rounded-lg px-4 py-2 border-l-4 border-red-500 bg-red-500/10"
               >
-                <p className="text-xs font-medium">
-                  {msg.player_id === battle.player1_id ? battle.player1_name : battle.player2_name}
-                </p>
+                <p className="text-xs font-medium">{battle.player1_name}</p>
                 <p className="mt-1 text-sm">{msg.text}</p>
               </div>
             ))}

@@ -1,4 +1,4 @@
-import { Bot, HelpCircle, LayoutGrid, Lock, Settings, Receipt, X } from "lucide-react";
+import { Bot, HelpCircle, LayoutGrid, Lock, Settings, Receipt, X, Map } from "lucide-react";
 import { useState } from "react";
 
 import { CobraFumando } from "@/components/CobraFumando";
@@ -6,11 +6,13 @@ import { CidadelaDashboard } from "@/components/cidadela/Dashboard";
 import { PracinhaIA } from "@/components/cidadela/Praxinha";
 import { ConfigOperacional } from "@/components/cidadela/Config";
 import { GerenciadorPedidos } from "@/components/cidadela/Pedidos";
+import { TemporalLobby } from "@/components/cidadela/TemporalLobby";
 import { useStore } from "@/modules/cidadela-core/store";
 import { isCodeValid } from "@/modules/cidadela-core/utils";
 import { validateCidadelaCode } from "@/modules/fluxos-n8n/webhook";
 
 type Tab = "core" | "praxinha" | "config" | "pedidos";
+type ViewMode = "tabs" | "lobby";
 
 const TABS: { id: Tab; label: string; icon: typeof Bot }[] = [
   { id: "core", label: "Core", icon: LayoutGrid },
@@ -27,6 +29,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<Tab>("core");
   const [validating, setValidating] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("tabs");
 
   async function tryUnlock(e: React.FormEvent) {
     e.preventDefault();
@@ -134,9 +137,19 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
               </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fechar Cidadela">
-            <X className="size-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setViewMode(viewMode === "tabs" ? "lobby" : "tabs")}
+              className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors"
+              title={viewMode === "tabs" ? "Ver Lobby Temporal" : "Ver Abas"}
+            >
+              <Map className="size-5" />
+            </button>
+            <button type="button" onClick={onClose} aria-label="Fechar Cidadela">
+              <X className="size-5" />
+            </button>
+          </div>
         </header>
 
         {!unlocked ? (
@@ -211,35 +224,56 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
           </>
         ) : (
           <>
-            <nav className="flex gap-1 overflow-x-auto border-b border-border px-3 py-2">
-              {TABS.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setTab(id)}
-                  className={`text-tech flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-[10px] ${
-                    tab === id
-                      ? "bg-[color:var(--olive)] text-[color:var(--sand)]"
-                      : "text-muted-foreground hover:bg-secondary"
-                  }`}
-                >
-                  <Icon className="size-3.5" /> {label}
-                </button>
-              ))}
-            </nav>
+            {viewMode === "lobby" ? (
+              <div className="h-[calc(100vh-73px)]">
+                <TemporalLobby
+                  onNavigate={(module) => {
+                    if (module === "battle-arena") {
+                      setViewMode("tabs");
+                      setTab("core");
+                    } else if (module === "iq-test" || module === "chat-ai") {
+                      setViewMode("tabs");
+                      setTab("praxinha");
+                    } else if (module === "robot-lab") {
+                      setViewMode("tabs");
+                      setTab("praxinha");
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <>
+                <nav className="flex gap-1 overflow-x-auto border-b border-border px-3 py-2">
+                  {TABS.map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setTab(id)}
+                      className={`text-tech flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-[10px] ${
+                        tab === id
+                          ? "bg-[color:var(--olive)] text-[color:var(--sand)]"
+                          : "text-muted-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      <Icon className="size-3.5" /> {label}
+                    </button>
+                  ))}
+                </nav>
 
-            <div className="px-5 py-6">
-              {tab === "core" && <CidadelaDashboard />}
-              {tab === "praxinha" && <PracinhaIA />}
-              {tab === "pedidos" && <GerenciadorPedidos />}
-              {tab === "config" && <ConfigOperacional />}
-            </div>
+                <div className="px-5 py-6">
+                  {tab === "core" && <CidadelaDashboard />}
+                  {tab === "praxinha" && <PracinhaIA />}
+                  {tab === "pedidos" && <GerenciadorPedidos />}
+                  {tab === "config" && <ConfigOperacional />}
+                </div>
 
-            <footer className="border-t border-border px-5 py-4 text-center">
-              <p className="text-tech text-[9px] text-muted-foreground/70">
-                Brio, honra e dignidade — a cobra fumou em Monte Castelo, 1944/1945
-              </p>
-            </footer>
+                <footer className="border-t border-border px-5 py-4 text-center">
+                  <p className="text-tech text-[9px] text-muted-foreground/70">
+                    Brio, honra e dignidade — a cobra fumou em Monte Castelo, 1944/1945
+                  </p>
+                </footer>
+              </>
+            )}
           </>
         )}
       </div>

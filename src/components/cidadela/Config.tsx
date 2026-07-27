@@ -4,7 +4,7 @@ import { useStore } from "@/modules/cidadela-core/store";
 import { flushQueue, pendingCount } from "@/modules/fluxos-n8n/webhook";
 
 const field =
-  "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+  "w-full rounded-lg border border-input bg-slate-800 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-ring";
 
 export function ConfigOperacional() {
   const { state, update } = useStore();
@@ -13,8 +13,8 @@ export function ConfigOperacional() {
   return (
     <div className="space-y-6">
       <section className="space-y-3 rounded-xl border border-border p-4">
-        <h3 className="text-tech text-[10px] text-muted-foreground">Integrações</h3>
-        <label className="block text-xs">
+        <h3 className="text-tech text-[10px] text-white">Integrações</h3>
+        <label className="block text-xs text-gray-300">
           GEMINI_API_KEY
           <input
             type="password"
@@ -29,7 +29,7 @@ export function ConfigOperacional() {
             }
           />
         </label>
-        <label className="block text-xs">
+        <label className="block text-xs text-gray-300">
           N8N_WEBHOOK_URL (Pedido)
           <input
             className={`${field} mt-1`}
@@ -43,7 +43,7 @@ export function ConfigOperacional() {
             }
           />
         </label>
-        <label className="block text-xs">
+        <label className="block text-xs text-gray-300">
           CIDADELA_AUTH_URL
           <input
             className={`${field} mt-1`}
@@ -68,12 +68,12 @@ export function ConfigOperacional() {
           >
             Sincronizar fila offline
           </button>
-          {flushMsg && <span className="text-[10px] text-muted-foreground">{flushMsg}</span>}
+          {flushMsg && <span className="text-[10px] text-white">{flushMsg}</span>}
         </div>
       </section>
 
       <section className="space-y-3 rounded-xl border border-border p-4">
-        <h3 className="text-tech text-[10px] text-muted-foreground">Loja</h3>
+        <h3 className="text-tech text-[10px] text-white">Loja</h3>
         <input
           className={field}
           value={state.store.name}
@@ -99,7 +99,7 @@ export function ConfigOperacional() {
       </section>
 
       <section className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-2">
-        <label className="text-xs">
+        <label className="text-xs text-gray-300">
           Chave PIX
           <input
             className={`${field} mt-1`}
@@ -109,7 +109,7 @@ export function ConfigOperacional() {
             }
           />
         </label>
-        <label className="text-xs">
+        <label className="text-xs text-gray-300">
           WhatsApp
           <input
             className={`${field} mt-1`}
@@ -117,7 +117,7 @@ export function ConfigOperacional() {
             onChange={(e) => update((prev) => ({ ...prev, whatsapp: e.target.value }))}
           />
         </label>
-        <label className="text-xs">
+        <label className="text-xs text-gray-300">
           Meta da operação (R$)
           <input
             type="number"
@@ -131,7 +131,7 @@ export function ConfigOperacional() {
             }
           />
         </label>
-        <label className="text-xs">
+        <label className="text-xs text-gray-300">
           Chave administrativa
           <input
             className={`${field} mt-1`}

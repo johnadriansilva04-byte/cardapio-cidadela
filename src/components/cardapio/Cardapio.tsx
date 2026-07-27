@@ -119,19 +119,27 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         <div className="relative">
           {/* Cover Photo Banner */}
           <div
-            className="h-64 w-full bg-cover bg-center bg-no-repeat"
+            className="h-48 w-full bg-cover bg-center bg-no-repeat"
             style={{
               backgroundImage: state.store.coverPhoto
                 ? `url(${state.store.coverPhoto})`
-                : "linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%)",
+                : "radial-gradient(ellipse at center top, #e8f4fc 0%, #87ceeb 30%, #4682b4 60%, #1e3a5f 100%)",
             }}
           />
 
           {/* Gradient Overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black" />
 
-          {/* Robot Waiter - Centered */}
-          <div className="absolute left-1/2 top-4 -translate-x-1/2 flex flex-col items-center animate-float">
+          {/* Business Name and Slogan - Moved to Top */}
+          <div className="absolute top-4 left-0 right-0 px-4 text-center">
+            <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+              {state.store.name}
+            </h1>
+            <p className="mt-1 text-sm font-medium text-cyan-300">Qual será o seu pedido?</p>
+          </div>
+
+          {/* Robot Waiter - Below Name */}
+          <div className="absolute left-1/2 top-24 -translate-x-1/2 flex flex-col items-center animate-float">
             <style>
               {`
                 @keyframes float {
@@ -140,6 +148,15 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                 }
                 .animate-float {
                   animation: float 3s ease-in-out infinite;
+                }
+                @keyframes eyeColorChange {
+                  0%, 100% { fill: #00ffff; }
+                  25% { fill: #ff00ff; }
+                  50% { fill: #00ff00; }
+                  75% { fill: #ffff00; }
+                }
+                .animate-eye-color {
+                  animation: eyeColorChange 4s ease-in-out infinite;
                 }
               `}
             </style>
@@ -222,9 +239,26 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                 strokeWidth="2"
               />
 
-              {/* Eyes - Cyan LED */}
-              <ellipse cx="85" cy="42" rx="6" ry="4" fill="#00ffff" filter="url(#glow3D)" />
-              <ellipse cx="115" cy="42" rx="6" ry="4" fill="#00ffff" filter="url(#glow3D)" />
+              {/* Eyes - Animated Color LED */}
+              <ellipse
+                cx="85"
+                cy="42"
+                rx="6"
+                ry="4"
+                fill="#00ffff"
+                filter="url(#glow3D)"
+                className="animate-eye-color"
+              />
+              <ellipse
+                cx="115"
+                cy="42"
+                rx="6"
+                ry="4"
+                fill="#00ffff"
+                filter="url(#glow3D)"
+                className="animate-eye-color"
+                style={{ animationDelay: "0.5s" }}
+              />
               <circle cx="85" cy="42" r="2" fill="#ffffff" />
               <circle cx="115" cy="42" r="2" fill="#ffffff" />
 
@@ -415,14 +449,6 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               </svg>
             </div>
           </button>
-
-          {/* Business Name and Slogan */}
-          <div className="absolute bottom-4 left-0 right-0 px-4 text-center">
-            <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
-              {state.store.name}
-            </h1>
-            <p className="mt-1 text-sm font-medium text-cyan-300">Qual será o seu pedido?</p>
-          </div>
         </div>
       </header>
 
@@ -451,7 +477,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         </div>
       </nav>
 
-      <main className="px-4 pb-24">
+      <main className="px-4 pb-24 -mt-4">
         <div className="mx-auto max-w-xl">
           {state.categories.map((cat) => (
             <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-6">

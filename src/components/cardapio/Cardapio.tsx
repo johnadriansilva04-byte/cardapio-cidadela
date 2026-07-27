@@ -151,16 +151,46 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               strokeWidth="1.5"
             >
               <defs>
-                <linearGradient id="metalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#4a5568" stopOpacity="0.8" />
-                  <stop offset="50%" stopColor="#718096" stopOpacity="0.6" />
-                  <stop offset="100%" stopColor="#4a5568" stopOpacity="0.8" />
+                {/* 3D Rendering Gradients */}
+                <radialGradient id="head3D" cx="30%" cy="30%" r="70%">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="50%" stopColor="#e8f4fc" />
+                  <stop offset="100%" stopColor="#1e88e5" />
+                </radialGradient>
+                <linearGradient id="body3D" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="30%" stopColor="#f0f8ff" />
+                  <stop offset="70%" stopColor="#1e88e5" />
+                  <stop offset="100%" stopColor="#0d47a1" />
                 </linearGradient>
-                <linearGradient id="cyanGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="#0891b2" stopOpacity="0.7" />
+                <linearGradient id="suitGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#2c2c2c" />
+                  <stop offset="50%" stopColor="#1a1a1a" />
+                  <stop offset="100%" stopColor="#0d0d0d" />
                 </linearGradient>
-                <filter id="glow">
+                <linearGradient id="shirtGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="50%" stopColor="#f5f5f5" />
+                  <stop offset="100%" stopColor="#e0e0e0" />
+                </linearGradient>
+                <linearGradient id="trayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#c0c0c0" />
+                  <stop offset="50%" stopColor="#e8e8e8" />
+                  <stop offset="100%" stopColor="#a0a0a0" />
+                </linearGradient>
+                <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="rgba(255,255,255,0.8)" />
+                  <stop offset="50%" stopColor="rgba(200,230,255,0.6)" />
+                  <stop offset="100%" stopColor="rgba(150,200,255,0.4)" />
+                </linearGradient>
+                <linearGradient id="waterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="rgba(100,200,255,0.7)" />
+                  <stop offset="100%" stopColor="rgba(50,150,255,0.5)" />
+                </linearGradient>
+                <filter id="shadow3D">
+                  <feDropShadow dx="2" dy="4" stdDeviation="3" flood-opacity="0.3" />
+                </filter>
+                <filter id="glow3D">
                   <feGaussianBlur stdDeviation="2" result="coloredBlur" />
                   <feMerge>
                     <feMergeNode in="coloredBlur" />
@@ -169,223 +199,196 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                 </filter>
               </defs>
 
-              {/* Robot Head - Detailed */}
+              {/* Robot Head - 3D Sphere */}
               <ellipse
                 cx="100"
-                cy="50"
-                rx="45"
+                cy="45"
+                rx="35"
                 ry="40"
-                className="stroke-gray-400"
-                fill="url(#metalGradient)"
+                fill="url(#head3D)"
+                filter="url(#shadow3D)"
               />
-              <ellipse
-                cx="100"
-                cy="50"
-                rx="38"
-                ry="33"
-                className="stroke-cyan-400"
-                fill="rgba(15,23,42,0.8)"
-              />
+              <ellipse cx="100" cy="45" rx="30" ry="35" fill="rgba(0,0,0,0.3)" />
 
-              {/* Eyes - Glowing */}
-              <ellipse
-                cx="85"
-                cy="45"
-                rx="12"
-                ry="8"
-                className="stroke-cyan-400"
-                fill="url(#cyanGlow)"
-                filter="url(#glow)"
-              />
-              <ellipse
-                cx="115"
-                cy="45"
-                rx="12"
-                ry="8"
-                className="stroke-cyan-400"
-                fill="url(#cyanGlow)"
-                filter="url(#glow)"
-              />
-              <circle cx="85" cy="45" r="3" className="fill-white" />
-              <circle cx="115" cy="45" r="3" className="fill-white" />
-
-              {/* Mouth - Digital Display */}
+              {/* Face Display - Smiling */}
               <rect
-                x="85"
-                y="60"
-                width="30"
-                height="8"
-                rx="2"
-                className="stroke-red-400"
-                fill="rgba(239,68,68,0.3)"
-              />
-              <rect
-                x="87"
-                y="62"
-                width="8"
-                height="4"
-                rx="1"
-                className="fill-red-400 animate-pulse"
-              />
-              <rect
-                x="97"
-                y="62"
-                width="8"
-                height="4"
-                rx="1"
-                className="fill-red-400 animate-pulse"
-                style={{ animationDelay: "0.2s" }}
-              />
-              <rect
-                x="107"
-                y="62"
-                width="8"
-                height="4"
-                rx="1"
-                className="fill-red-400 animate-pulse"
-                style={{ animationDelay: "0.4s" }}
-              />
-
-              {/* Antenna */}
-              <line
-                x1="100"
-                y1="10"
-                x2="100"
-                y2="0"
-                className="stroke-yellow-400"
+                x="75"
+                y="35"
+                width="50"
+                height="25"
+                rx="5"
+                fill="rgba(0,0,0,0.8)"
+                stroke="#1e88e5"
                 strokeWidth="2"
               />
-              <circle
-                cx="100"
-                cy="0"
-                r="5"
-                className="stroke-yellow-400 fill-yellow-400/30 animate-pulse"
-                filter="url(#glow)"
+
+              {/* Eyes - Cyan LED */}
+              <ellipse cx="85" cy="42" rx="6" ry="4" fill="#00ffff" filter="url(#glow3D)" />
+              <ellipse cx="115" cy="42" rx="6" ry="4" fill="#00ffff" filter="url(#glow3D)" />
+              <circle cx="85" cy="42" r="2" fill="#ffffff" />
+              <circle cx="115" cy="42" r="2" fill="#ffffff" />
+
+              {/* Smile */}
+              <path
+                d="M85 52 Q100 60 115 52"
+                stroke="#00ffff"
+                strokeWidth="2"
+                fill="none"
+                filter="url(#glow3D)"
               />
 
               {/* Neck */}
               <rect
                 x="90"
-                y="88"
+                y="82"
                 width="20"
                 height="12"
-                rx="3"
-                className="stroke-gray-500"
-                fill="url(#metalGradient)"
+                fill="url(#body3D)"
+                filter="url(#shadow3D)"
               />
 
-              {/* Body - Waiter Suit */}
+              {/* Body - White/Blue 3D */}
               <path
-                d="M60 100 L140 100 L145 180 L55 180 Z"
-                className="stroke-gray-300"
-                fill="url(#metalGradient)"
+                d="M70 95 L130 95 L135 170 L65 170 Z"
+                fill="url(#body3D)"
+                filter="url(#shadow3D)"
               />
-              <path
-                d="M65 105 L135 105 L140 175 L60 175 Z"
-                className="stroke-gray-400"
-                fill="rgba(30,41,59,0.5)"
-              />
+
+              {/* Suit Jacket */}
+              <path d="M70 95 L130 95 L135 170 L65 170 Z" fill="url(#suitGradient)" opacity="0.9" />
+              <path d="M75 100 L125 100 L130 165 L70 165 Z" fill="url(#suitGradient)" />
+
+              {/* Vest */}
+              <path d="M85 105 L115 105 L118 160 L82 160 Z" fill="url(#suitGradient)" />
+
+              {/* White Shirt */}
+              <path d="M90 110 L110 110 L112 155 L88 155 Z" fill="url(#shirtGradient)" />
 
               {/* Bow Tie */}
-              <polygon
-                points="100,100 90,110 100,120 110,110"
-                className="stroke-red-500 fill-red-500/40"
-              />
-              <circle cx="100" cy="110" r="3" className="stroke-red-600 fill-red-600" />
+              <polygon points="100,105 92,115 100,125 108,115" fill="#000000" />
+              <circle cx="100" cy="115" r="2" fill="#1e88e5" />
 
-              {/* Arms - Detailed with joints */}
+              {/* Arms */}
+              {/* Left Arm - Behind Back */}
               <path
-                d="M60 110 Q40 130 35 160"
-                className="stroke-gray-400"
+                d="M65 100 Q45 120 40 150"
+                stroke="url(#suitGradient)"
+                strokeWidth="12"
                 fill="none"
-                strokeWidth="3"
+                filter="url(#shadow3D)"
               />
-              <path
-                d="M140 110 Q160 130 165 160"
-                className="stroke-gray-400"
-                fill="none"
-                strokeWidth="3"
-              />
-              <circle cx="35" cy="160" r="8" className="stroke-gray-500 fill-gray-500/30" />
-              <circle cx="165" cy="160" r="8" className="stroke-gray-500 fill-gray-500/30" />
+              <circle cx="40" cy="150" r="8" fill="url(#body3D)" />
 
-              {/* Tray - Detailed */}
+              {/* Right Arm - With Towel */}
+              <path
+                d="M135 100 Q155 120 160 150"
+                stroke="url(#suitGradient)"
+                strokeWidth="12"
+                fill="none"
+                filter="url(#shadow3D)"
+              />
+              <circle cx="160" cy="150" r="8" fill="url(#body3D)" />
+
+              {/* Service Towel on Right Arm */}
+              <rect
+                x="155"
+                y="130"
+                width="15"
+                height="25"
+                rx="2"
+                fill="#ffffff"
+                stroke="#e0e0e0"
+                strokeWidth="1"
+              />
+              <line x1="158" y1="135" x2="158" y2="150" stroke="#e0e0e0" strokeWidth="1" />
+              <line x1="162" y1="135" x2="162" y2="150" stroke="#e0e0e0" strokeWidth="1" />
+              <line x1="166" y1="135" x2="166" y2="150" stroke="#e0e0e0" strokeWidth="1" />
+
+              {/* Tray in Right Hand */}
               <ellipse
                 cx="165"
-                cy="155"
+                cy="145"
                 rx="35"
                 ry="12"
-                className="stroke-yellow-400 fill-yellow-400/20"
+                fill="url(#trayGradient)"
+                filter="url(#shadow3D)"
+                stroke="#a0a0a0"
                 strokeWidth="2"
               />
-              <ellipse
-                cx="165"
-                cy="152"
-                rx="30"
-                ry="8"
-                className="stroke-yellow-300 fill-yellow-300/10"
-              />
 
-              {/* Text on Tray */}
-              <text
-                x="165"
-                y="154"
-                textAnchor="middle"
-                className="fill-cyan-300 font-bold tracking-tight"
-                style={{ fontSize: "6px" }}
-              >
-                Posso anotar o seu pedido?
-              </text>
-
-              {/* Legs - Detailed */}
-              <path d="M75 180 L70 230" className="stroke-gray-400" fill="none" strokeWidth="3" />
-              <path d="M125 180 L130 230" className="stroke-gray-400" fill="none" strokeWidth="3" />
-
-              {/* Feet */}
-              <ellipse
-                cx="70"
-                cy="235"
-                rx="12"
-                ry="6"
-                className="stroke-gray-500 fill-gray-500/30"
-              />
-              <ellipse
-                cx="130"
-                cy="235"
-                rx="12"
-                ry="6"
-                className="stroke-gray-500 fill-gray-500/30"
-              />
-
-              {/* Chest Panel */}
+              {/* Napkin on Tray */}
               <rect
-                x="85"
-                y="125"
-                width="30"
-                height="25"
-                rx="3"
-                className="stroke-cyan-400/50 fill-cyan-400/10"
+                x="140"
+                y="138"
+                width="20"
+                height="15"
+                rx="1"
+                fill="#ffffff"
+                stroke="#e0e0e0"
+                strokeWidth="1"
               />
-              <circle
-                cx="92"
-                cy="135"
-                r="3"
-                className="stroke-cyan-400 fill-cyan-400/40 animate-pulse"
+              <line x1="145" y1="142" x2="155" y2="142" stroke="#e0e0e0" strokeWidth="0.5" />
+              <line x1="145" y1="146" x2="155" y2="146" stroke="#e0e0e0" strokeWidth="0.5" />
+              <line x1="145" y1="150" x2="155" y2="150" stroke="#e0e0e0" strokeWidth="0.5" />
+
+              {/* Three Water Glasses */}
+              <rect
+                x="165"
+                y="130"
+                width="8"
+                height="12"
+                rx="1"
+                fill="url(#glassGradient)"
+                stroke="#a0a0a0"
+                strokeWidth="1"
               />
-              <circle
-                cx="100"
-                cy="135"
-                r="3"
-                className="stroke-cyan-400 fill-cyan-400/40 animate-pulse"
-                style={{ animationDelay: "0.3s" }}
+              <rect x="166" y="132" width="6" height="8" fill="url(#waterGradient)" />
+
+              <rect
+                x="175"
+                y="130"
+                width="8"
+                height="12"
+                rx="1"
+                fill="url(#glassGradient)"
+                stroke="#a0a0a0"
+                strokeWidth="1"
               />
-              <circle
-                cx="108"
-                cy="135"
-                r="3"
-                className="stroke-cyan-400 fill-cyan-400/40 animate-pulse"
-                style={{ animationDelay: "0.6s" }}
+              <rect x="176" y="132" width="6" height="8" fill="url(#waterGradient)" />
+              {/* Lemon slice */}
+              <circle cx="180" cy="135" r="2" fill="#ffeb3b" stroke="#ffc107" strokeWidth="0.5" />
+
+              <rect
+                x="185"
+                y="130"
+                width="8"
+                height="12"
+                rx="1"
+                fill="url(#glassGradient)"
+                stroke="#a0a0a0"
+                strokeWidth="1"
               />
+              <rect x="186" y="132" width="6" height="8" fill="url(#waterGradient)" />
+
+              {/* Legs - Black Pants */}
+              <path
+                d="M75 170 L70 230"
+                stroke="url(#suitGradient)"
+                strokeWidth="14"
+                fill="none"
+                filter="url(#shadow3D)"
+              />
+              <path
+                d="M125 170 L130 230"
+                stroke="url(#suitGradient)"
+                strokeWidth="14"
+                fill="none"
+                filter="url(#shadow3D)"
+              />
+
+              {/* Feet - Parallel */}
+              <ellipse cx="70" cy="232" rx="10" ry="5" fill="#0d0d0d" filter="url(#shadow3D)" />
+              <ellipse cx="130" cy="232" rx="10" ry="5" fill="#0d0d0d" filter="url(#shadow3D)" />
             </svg>
           </div>
 

@@ -29,7 +29,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<Tab>("core");
   const [validating, setValidating] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("tabs");
+  const [viewMode, setViewMode] = useState<ViewMode>("lobby");
 
   async function tryUnlock(e: React.FormEvent) {
     e.preventDefault();

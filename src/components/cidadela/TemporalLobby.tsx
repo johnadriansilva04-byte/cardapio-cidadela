@@ -19,7 +19,7 @@ import { useStore } from "@/modules/cidadela-core/store";
 import { BattleArena } from "./BattleArena";
 import { IQTest } from "./IQTest";
 import { RobotLab } from "./RobotLab";
-import { PraxinhaIA } from "./Praxinha";
+import { PracinhaIA } from "./Praxinha";
 import { CidadelaDashboard } from "./Dashboard";
 import { ConfigOperacional } from "./Config";
 import { GerenciadorPedidos } from "./Pedidos";
@@ -29,14 +29,14 @@ type ActiveModule =
   "battle-arena" | "iq-test" | "robot-lab" | "chat-ai" | "dashboard" | "config" | "pedidos" | null;
 
 const MODULES = {
-  "1940s": [{ id: "battle-arena", name: "ARENA DE BATALHA", icon: "⚔️", component: BattleArena }],
+  "1940s": [{ id: "battle-arena", name: "ARENA DE BATALHA", component: BattleArena }],
   "2020s": [
-    { id: "iq-test", name: "TESTE DE QI", icon: "🧠", component: IQTest },
-    { id: "chat-ai", name: "CHAT I.A.", icon: "💬", component: PraxinhaIA },
+    { id: "iq-test", name: "TESTE DE QI", component: IQTest },
+    { id: "chat-ai", name: "CHAT I.A.", component: PracinhaIA },
   ],
   "2077+": [
-    { id: "robot-lab", name: "LABORATÓRIO", icon: "⚛️", component: RobotLab },
-    { id: "chat-hub-ai", name: "CHAT HUB I.A.", icon: "🤖", component: PraxinhaIA },
+    { id: "robot-lab", name: "LABORATÓRIO", component: RobotLab },
+    { id: "chat-hub-ai", name: "CHAT HUB I.A.", component: PracinhaIA },
   ],
 };
 
@@ -97,7 +97,258 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
   }
 
   return (
-    <div className="relative h-full overflow-hidden bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
+    <div className="relative h-full overflow-hidden bg-black">
+      {/* SVG Perspective Scene */}
+      <svg
+        viewBox="0 0 1200 800"
+        className="absolute inset-0 w-full h-full"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <defs>
+          {/* 1940s Gradient - Afternoon Sun */}
+          <linearGradient id="sky1940s" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ff9800" />
+            <stop offset="50%" stopColor="#ffcc80" />
+            <stop offset="100%" stopColor="#8d6e63" />
+          </linearGradient>
+
+          {/* 2020s Gradient - Daylight */}
+          <linearGradient id="sky2020s" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#87ceeb" />
+            <stop offset="50%" stopColor="#b0e0e6" />
+            <stop offset="100%" stopColor="#e0e0e0" />
+          </linearGradient>
+
+          {/* 2077+ Gradient - Night Neon */}
+          <linearGradient id="sky2077" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#0a0a1a" />
+            <stop offset="50%" stopColor="#1a1a3a" />
+            <stop offset="100%" stopColor="#2a0a3a" />
+          </linearGradient>
+
+          {/* Road Gradient */}
+          <linearGradient id="roadGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#5d4037" stopOpacity="0.9" />
+            <stop offset="50%" stopColor="#424242" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#212121" stopOpacity="0.9" />
+          </linearGradient>
+
+          {/* Neon Glow */}
+          <filter id="neonGlow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* Background Layers */}
+        {/* 2077+ Layer - Top */}
+        <rect x="0" y="0" width="1200" height="266" fill="url(#sky2077)" />
+
+        {/* 2020s Layer - Middle */}
+        <rect x="0" y="266" width="1200" height="266" fill="url(#sky2020s)" />
+
+        {/* 1940s Layer - Bottom */}
+        <rect x="0" y="532" width="1200" height="268" fill="url(#sky1940s)" />
+
+        {/* Central Road - Perspective */}
+        <path d="M600 800 L400 400 L800 400 L600 800" fill="url(#roadGradient)" opacity="0.8" />
+
+        {/* Road Lines */}
+        <line
+          x1="600"
+          y1="800"
+          x2="600"
+          y2="400"
+          stroke="#ffeb3b"
+          strokeWidth="2"
+          strokeDasharray="20,10"
+        />
+
+        {/* 1940s - Military Camp */}
+        <g className="cursor-pointer" onClick={() => handleModuleClick("battle-arena")}>
+          {/* Tent */}
+          <path
+            d="M200 600 L250 550 L300 600 L300 650 L200 650 Z"
+            fill="#8b4513"
+            stroke="#5d4037"
+            strokeWidth="2"
+          />
+          <path d="M250 550 L250 500" stroke="#5d4037" strokeWidth="3" />
+          <circle cx="250" cy="495" r="5" fill="#ff9800" />
+
+          {/* Wooden Sign */}
+          <rect
+            x="220"
+            y="580"
+            width="60"
+            height="30"
+            fill="#deb887"
+            stroke="#8b4513"
+            strokeWidth="2"
+          />
+          <text x="250" y="595" textAnchor="middle" fontSize="8" fill="#3e2723" fontWeight="bold">
+            ARENA
+          </text>
+          <text x="250" y="605" textAnchor="middle" fontSize="6" fill="#3e2723">
+            DE BATALHA
+          </text>
+
+          {/* Crossed Swords Emblem */}
+          <line x1="245" y1="570" x2="255" y2="580" stroke="#ffd700" strokeWidth="2" />
+          <line x1="255" y1="570" x2="245" y2="580" stroke="#ffd700" strokeWidth="2" />
+
+          {/* Amber Glow */}
+          <ellipse
+            cx="250"
+            cy="600"
+            rx="50"
+            ry="30"
+            fill="#ff9800"
+            opacity="0.2"
+            filter="url(#neonGlow)"
+          />
+        </g>
+
+        {/* 2020s - Modern Buildings */}
+        <g className="cursor-pointer" onClick={() => handleModuleClick("iq-test")}>
+          {/* Glass Building */}
+          <rect
+            x="150"
+            y="300"
+            width="80"
+            height="150"
+            fill="#87ceeb"
+            stroke="#4682b4"
+            strokeWidth="2"
+            opacity="0.8"
+          />
+          <rect x="155" y="305" width="70" height="140" fill="#add8e6" opacity="0.5" />
+
+          {/* LED Panel */}
+          <rect
+            x="160"
+            y="320"
+            width="60"
+            height="40"
+            fill="#000080"
+            stroke="#00ffff"
+            strokeWidth="1"
+          />
+          <text x="190" y="335" textAnchor="middle" fontSize="10" fill="#00ffff">
+            🧠⚙️
+          </text>
+          <text x="190" y="350" textAnchor="middle" fontSize="6" fill="#ffffff">
+            TESTE DE QI
+          </text>
+        </g>
+
+        <g className="cursor-pointer" onClick={() => handleModuleClick("chat-ai")}>
+          {/* Kiosk */}
+          <rect
+            x="950"
+            y="380"
+            width="50"
+            height="70"
+            fill="#e0e0e0"
+            stroke="#9e9e9e"
+            strokeWidth="2"
+          />
+          <rect x="955" y="385" width="40" height="30" fill="#00ffff" opacity="0.8" />
+
+          {/* Hologram */}
+          <ellipse
+            cx="975"
+            cy="420"
+            rx="25"
+            ry="15"
+            fill="#00ffff"
+            opacity="0.3"
+            filter="url(#neonGlow)"
+          />
+          <text x="975" y="422" textAnchor="middle" fontSize="6" fill="#ffffff">
+            💬...
+          </text>
+          <text x="975" y="435" textAnchor="middle" fontSize="5" fill="#00ffff">
+            CHAT I.A.
+          </text>
+        </g>
+
+        {/* 2077+ - Futuristic Buildings */}
+        <g className="cursor-pointer" onClick={() => handleModuleClick("robot-lab")}>
+          {/* Hexagonal Complex */}
+          <polygon
+            points="300,200 350,170 400,200 400,260 350,290 300,260"
+            fill="#1a237e"
+            stroke="#00ffff"
+            strokeWidth="2"
+            opacity="0.9"
+          />
+          <polygon
+            points="320,210 350,190 380,210 380,250 350,270 320,250"
+            fill="#283593"
+            opacity="0.7"
+          />
+
+          {/* Floating Neon Hexagon */}
+          <polygon
+            points="350,150 370,140 390,150 390,170 370,180 350,170"
+            fill="none"
+            stroke="#00ffff"
+            strokeWidth="2"
+            filter="url(#neonGlow)"
+          />
+          <text x="370" y="165" textAnchor="middle" fontSize="6" fill="#00ffff">
+            ⚛️
+          </text>
+          <text x="370" y="175" textAnchor="middle" fontSize="5" fill="#ffffff">
+            LABORATÓRIO
+          </text>
+        </g>
+
+        <g className="cursor-pointer" onClick={() => handleModuleClick("chat-hub-ai")}>
+          {/* Megatower */}
+          <rect
+            x="850"
+            y="100"
+            width=" 60"
+            height="200"
+            fill="#4a148c"
+            stroke="#ff00ff"
+            strokeWidth="2"
+          />
+          <rect x="855" y="105" width="50" height="190" fill="#7b1fa2" opacity="0.6" />
+
+          {/* Data Core */}
+          <circle cx="880" cy="150" r="15" fill="#ff00ff" opacity="0.5" filter="url(#neonGlow)" />
+          <text x="880" y="153" textAnchor="middle" fontSize="8" fill="#ffffff">
+            🤖
+          </text>
+          <text x="880" y="180" textAnchor="middle" fontSize="5" fill="#ff00ff">
+            CHAT HUB I.A.
+          </text>
+        </g>
+
+        {/* Flying Cars (2077+) */}
+        <rect x="700" y="120" width="20" height="8" fill="#ff00ff" opacity="0.8">
+          <animate attributeName="x" values="700;900;700" dur="5s" repeatCount="indefinite" />
+        </rect>
+        <rect x="400" y="180" width="15" height="6" fill="#00ffff" opacity="0.8">
+          <animate attributeName="x" values="400;600;400" dur="4s" repeatCount="indefinite" />
+        </rect>
+
+        {/* Trees (1940s) */}
+        <polygon points="100,700 110,650 120,700" fill="#2e7d32" />
+        <polygon points="105,680 115,640 125,680" fill="#388e3c" />
+        <rect x="112" y="700" width="6" height="20" fill="#5d4037" />
+
+        <polygon points="1050,700 1060,640 1070,700" fill="#2e7d32" />
+        <polygon points="1055,680 1065,630 1075,680" fill="#388e3c" />
+        <rect x="1062" y="700" width="6" height="20" fill="#5d4037" />
+      </svg>
+
       {/* Left Menu Bar */}
       <div className="absolute left-0 top-0 bottom-0 w-16 border-r border-cyan-500/20 bg-black/40 backdrop-blur-sm flex flex-col items-center py-4 gap-4 z-20">
         <div className="mb-4">
@@ -130,115 +381,6 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
             <item.icon className="size-5" />
           </button>
         ))}
-      </div>
-
-      {/* Main Content - 3 Temporal Layers */}
-      <div className="relative h-full ml-16 mr-16">
-        {/* Layer 1940s - Bottom/Front */}
-        <div
-          className={`absolute bottom-0 left-0 right-0 h-1/3 transition-all duration-500 ${
-            activeLayer === "1940s" ? "opacity-100 scale-100" : "opacity-40 scale-95"
-          }`}
-        >
-          <div className="relative h-full bg-gradient-to-t from-amber-900/30 via-amber-800/20 to-transparent">
-            <div className="absolute inset-0 flex items-end justify-center pb-8">
-              {MODULES["1940s"].map((module) => (
-                <button
-                  key={module.id}
-                  type="button"
-                  onClick={() => handleModuleClick(module.id)}
-                  className="relative group cursor-pointer"
-                >
-                  <div className="w-48 h-32 bg-amber-900/80 border-2 border-amber-600 rounded-t-lg flex flex-col items-center justify-center gap-2 shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 transition-all hover:scale-105">
-                    <div className="text-4xl">{module.icon}</div>
-                    <div className="text-center">
-                      <p className="text-xs font-bold text-amber-200">{module.name}</p>
-                      <div className="mt-1 flex justify-center gap-1">
-                        <span className="text-amber-400">⚔️</span>
-                        <span className="text-amber-400">⚔️</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 text-amber-500 animate-pulse">
-                    🔥
-                  </div>
-                </button>
-              ))}
-            </div>
-            <div className="absolute bottom-2 left-4 text-xs text-amber-300/70 font-mono">
-              1944 · ACAMPAMENTO MILITAR
-            </div>
-          </div>
-        </div>
-
-        {/* Layer 2020s - Middle */}
-        <div
-          className={`absolute top-1/3 left-0 right-0 h-1/3 transition-all duration-500 ${
-            activeLayer === "2020s" ? "opacity-100 scale-100" : "opacity-40 scale-95"
-          }`}
-        >
-          <div className="relative h-full bg-gradient-to-t from-blue-900/30 via-blue-800/20 to-transparent">
-            <div className="absolute inset-0 flex items-center justify-center gap-8">
-              {MODULES["2020s"].map((module) => (
-                <button
-                  key={module.id}
-                  type="button"
-                  onClick={() => handleModuleClick(module.id)}
-                  className="relative group cursor-pointer"
-                >
-                  <div className="w-40 h-48 bg-blue-900/80 border-2 border-blue-500 rounded-lg flex flex-col items-center justify-center gap-2 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all hover:scale-105">
-                    <div className="text-4xl">{module.icon}</div>
-                    <p className="text-xs font-bold text-blue-200">{module.name}</p>
-                    {module.id === "iq-test" && (
-                      <div className="mt-1 text-blue-400 text-lg">🧠⚙️</div>
-                    )}
-                    {module.id === "chat-ai" && (
-                      <div className="mt-1 text-blue-400 text-lg animate-pulse">💬...</div>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-            <div className="absolute bottom-2 left-4 text-xs text-blue-300/70 font-mono">
-              2024 · CIDADE MODERNA
-            </div>
-          </div>
-        </div>
-
-        {/* Layer 2077+ - Top/Back */}
-        <div
-          className={`absolute top-0 left-0 right-0 h-1/3 transition-all duration-500 ${
-            activeLayer === "2077+" ? "opacity-100 scale-100" : "opacity-40 scale-95"
-          }`}
-        >
-          <div className="relative h-full bg-gradient-to-t from-purple-900/30 via-cyan-900/20 to-transparent">
-            <div className="absolute inset-0 flex items-start justify-center pt-8 gap-8">
-              {MODULES["2077+"].map((module) => (
-                <button
-                  key={module.id}
-                  type="button"
-                  onClick={() => handleModuleClick(module.id)}
-                  className="relative group cursor-pointer"
-                >
-                  <div className="w-44 h-56 bg-purple-900/80 border-2 border-cyan-400 rounded-lg flex flex-col items-center justify-center gap-2 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all hover:scale-105">
-                    <div className="text-4xl">{module.icon}</div>
-                    <p className="text-xs font-bold text-cyan-200">{module.name}</p>
-                    {module.id === "robot-lab" && (
-                      <div className="mt-1 text-cyan-400 text-lg animate-pulse">⚛️</div>
-                    )}
-                    {module.id === "chat-hub-ai" && (
-                      <div className="mt-1 text-magenta-400 text-lg animate-pulse">🤖</div>
-                    )}
-                  </div>
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-4 bg-cyan-500/50 rounded-full animate-pulse" />
-                </button>
-              ))}
-            </div>
-            <div className="absolute bottom-2 left-4 text-xs text-cyan-300/70 font-mono">
-              2077+ · CIDADE FUTURISTA
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Bottom Temporal Control Bar */}

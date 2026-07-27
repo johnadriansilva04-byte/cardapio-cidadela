@@ -7,6 +7,7 @@ import { IQTest } from "@/components/cidadela/IQTest";
 import { FutebolBotao } from "@/components/cidadela/FutebolBotao";
 import { RobotLab } from "@/components/cidadela/RobotLab";
 import { BattleArena } from "@/components/cidadela/BattleArena";
+import { TemporalLobby } from "@/components/cidadela/TemporalLobby";
 import { StoreProvider, useStore } from "@/modules/cidadela-core/store";
 import { validateCidadelaCode } from "@/modules/fluxos-n8n/webhook";
 
@@ -184,45 +185,15 @@ function CidadelaWorld() {
         </div>
       ) : (
         <div className="min-h-screen">
-          <header className="flex items-center justify-between border-b border-border px-6 py-4">
-            <div className="flex items-center gap-3">
-              <CobraFumando className="size-8 text-[color:var(--brass)]" />
-              <div>
-                <h1 className="text-stencil text-xl">CIDADELA</h1>
-                <p className="text-tech text-[10px] text-muted-foreground">
-                  Comando soberano · homenagem à FEB
-                </p>
-              </div>
-            </div>
-            <Link to="/" className="text-tech text-sm text-muted-foreground hover:text-foreground">
-              Voltar ao cardápio
-            </Link>
-          </header>
-
-          <main className="p-6">
-            <h2 className="text-stencil mb-6 text-2xl">Escolha seu módulo</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {MODULES.map((module) => (
-                <button
-                  key={module.id}
-                  type="button"
-                  onClick={() => setActiveModule(module.id)}
-                  className="group flex flex-col rounded-xl border border-border bg-secondary p-6 text-left transition-all hover:border-[color:var(--brass)] hover:shadow-lg"
-                >
-                  <h3 className="text-stencil text-lg group-hover:text-[color:var(--brass)]">
-                    {module.label}
-                  </h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{module.description}</p>
-                </button>
-              ))}
-            </div>
-          </main>
-
-          <footer className="border-t border-border px-6 py-4 text-center">
-            <p className="text-tech text-[10px] text-muted-foreground/70">
-              Brio, honra e dignidade — a cobra fumou em Monte Castelo, 1944/1945
-            </p>
-          </footer>
+          <TemporalLobby
+            onNavigate={(module) => {
+              if (module === "battle-arena") setActiveModule("arena");
+              else if (module === "iq-test") setActiveModule("iq");
+              else if (module === "chat-ai") setActiveModule("praxinha");
+              else if (module === "robot-lab") setActiveModule("lab");
+              else if (module === "chat-hub-ai") setActiveModule("praxinha");
+            }}
+          />
         </div>
       )}
     </div>

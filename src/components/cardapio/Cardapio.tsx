@@ -4,7 +4,12 @@ import { useNavigate } from "@tanstack/react-router";
 
 import { CobraFumando } from "@/components/CobraFumando";
 import { useStore } from "@/modules/cidadela-core/store";
-import { brl, buildThermalTicket, newComanda } from "@/modules/cidadela-core/utils";
+import {
+  brl,
+  buildThermalTicket,
+  generatePromoCode,
+  newComanda,
+} from "@/modules/cidadela-core/utils";
 import { buildOrderPayload, sendToN8n } from "@/modules/fluxos-n8n/webhook";
 import type { Order, OrderItem } from "@/lib/types";
 
@@ -51,9 +56,35 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     });
 
   async function submitOrder(order: Order) {
-    const synced = await sendToN8n(state.integrations.n8nWebhookUrl, buildOrderPayload(order));
+    // Determinar tipo de acesso baseado no valor total
+    const accessType = order.total >= 200 ? "15_dias" : "15_min";
+
+    // Gerar código promocional para acesso à Cidadela
+    const promoCode = generatePromoCode(
+      accessType === "15_dias" ? "FEB-VIP" : "FEB-ACESSO",
+      accessType,
+    );
+
+    // Adicionar código ao payload para envio via WhatsApp
+    const payloadWithCode = {
+      ...buildOrderPayload(order),
+      cidadela_code: promoCode.code,
+      cidadela_access_type: accessType,
+    };
+
+    const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
     const finalOrder = { ...order, synced };
-    update((prev) => ({ ...prev, orders: [finalOrder, ...prev.orders] }));
+
+    // Salvar código localmente para validação
+    update((prev) => ({
+      ...prev,
+      orders: [finalOrder, ...prev.orders],
+      cidadela: {
+        ...prev.cidadela,
+        codes: [...prev.cidadela.codes, promoCode],
+      },
+    }));
+
     setSuccess(finalOrder);
     setCart({});
     setCheckoutOpen(false);
@@ -61,33 +92,31 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   }
 
   return (
-    <div className="min-h-screen pb-28 bg-slate-950">
+    <div className="min-h-screen pb-28 bg-black">
       <header className="relative overflow-hidden border-b border-border">
-        {/* Cidadela Button - Fixed Top Right */}
+        {/* Cidadela Button - Half Moon Top Right */}
         <button
           type="button"
           onClick={() => navigate({ to: "/cidadela" })}
           aria-label="Entrar na Cidadela"
           title="Entrar na Cidadela"
-          className="fixed top-4 right-4 z-50 group relative flex shrink-0 flex-col items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-95 animate-pulse"
+          className="fixed top-4 right-4 z-50 flex shrink-0 items-center gap-2 rounded-l-full rounded-r-lg px-4 py-2 transition-transform hover:scale-105 active:scale-95"
           style={{
-            background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.4), rgba(0, 150, 255, 0.3))',
-            border: '4px solid #00d4ff',
-            boxShadow: '0 0 25px rgba(0, 212, 255, 0.8), 0 0 50px rgba(0, 212, 255, 0.5), 0 0 75px rgba(0, 212, 255, 0.3), inset 0 0 40px rgba(0, 212, 255, 0.4)',
-            width: '100px',
-            height: '100px',
-            backdropFilter: 'blur(20px)',
+            background: "linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(0, 150, 255, 0.2))",
+            border: "2px solid #00d4ff",
+            boxShadow: "0 0 15px rgba(0, 212, 255, 0.5), inset 0 0 20px rgba(0, 212, 255, 0.2)",
+            backdropFilter: "blur(10px)",
           }}
         >
-          <span className="text-[10px] font-black text-white text-center leading-tight px-1 drop-shadow-[0_0_10px_rgba(0,212,255,1)]">
-            Conheça a<br />cidadela
+          <span className="text-[10px] font-black text-white drop-shadow-[0_0_8px_rgba(0,212,255,1)]">
+            CONHEÇA A CIDADELA
           </span>
-          <svg 
-            viewBox="0 0 24 24" 
-            className="size-5 mt-1 drop-shadow-[0_0_10px_rgba(0,212,255,1)]"
-            fill="none" 
-            stroke="#00ffff" 
-            strokeWidth="3"
+          <svg
+            viewBox="0 0 24 24"
+            className="size-4 drop-shadow-[0_0_8px_rgba(255,215,0,1)]"
+            fill="none"
+            stroke="#ffd700"
+            strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
@@ -100,68 +129,39 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         <button
           type="button"
           onClick={onOpenAdmin}
-          aria-label="Painel administrativo"
-          title="Painel administrativo"
+          aria-label="ADM"
+          title="ADM"
           className="fixed bottom-4 right-4 z-50 flex size-12 items-center justify-center rounded-full border-2 border-yellow-500 bg-yellow-500/20 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.5)] transition-all hover:border-yellow-400 hover:bg-yellow-500/30 hover:shadow-[0_0_25px_rgba(234,179,8,0.7)] hover:scale-110"
         >
           <Settings className="size-6" />
         </button>
 
         {/* Cover Photo Banner */}
-        <div 
-          className="h-48 w-full bg-cover bg-center bg-no-repeat"
+        <div
+          className="h-56 w-full bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: state.store.coverPhoto 
-              ? `url(${state.store.coverPhoto})` 
-              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            backgroundImage: state.store.coverPhoto
+              ? `url(${state.store.coverPhoto})`
+              : "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
           }}
         />
-        
-        {/* Profile Logo and Business Info Overlay */}
-        <div className="relative mx-auto max-w-5xl px-5">
-          <div className="relative -mt-16 flex items-end gap-4">
-            {/* Profile/Logo Avatar */}
-            <div 
-              className="size-24 shrink-0 rounded-full border-4 border-background bg-cover bg-center shadow-lg bg-slate-800"
-              style={{
-                backgroundImage: state.store.logo 
-                  ? `url(${state.store.logo})` 
-                  : 'none'
-              }}
-            >
-              {!state.store.logo && (
-                <div className="flex size-full items-center justify-center">
-                  <CobraFumando className="size-12 text-[color:var(--brass)]" />
-                </div>
-              )}
-            </div>
-            
-            {/* Business Info */}
-            <div className="mb-2 flex-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  {state.store.name}
-                </h1>
-                {/* Status Indicator */}
-                <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1 text-[10px] font-medium text-green-600">
-                  <span className="size-1.5 rounded-full bg-green-500 animate-pulse" />
-                  Aberto agora
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">{state.store.slogan}</p>
-              {!online && (
-                <p className="text-tech mt-2 inline-block rounded-full bg-destructive/10 px-3 py-1 text-[10px] text-destructive">
-                  Offline — pedidos serão sincronizados
-                </p>
-              )}
-            </div>
 
-          </div>
+        {/* Business Info - Centered Below Cover */}
+        <div className="relative mx-auto max-w-5xl px-5 py-6 text-center">
+          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            {state.store.name}
+          </h1>
+          <p className="mt-2 text-sm text-gray-300">{state.store.slogan}</p>
+          {!online && (
+            <p className="mt-3 inline-block rounded-full bg-red-500/10 px-4 py-1.5 text-[11px] text-red-400">
+              Offline — pedidos serão sincronizados
+            </p>
+          )}
         </div>
 
         {/* Animated Marquee - Below header section */}
-        <div className="mt-4 overflow-hidden border-t border-border bg-[color:var(--matte)] py-2 text-[color:var(--sand)]">
-          <div className="marquee-track text-tech text-[11px] animate-marquee">
+        <div className="mt-2 overflow-hidden border-t border-cyan-500/20 bg-black/40 py-2">
+          <div className="marquee-track text-tech text-[11px] animate-marquee text-cyan-400">
             <span className="px-6">{state.store.marquee}</span>
             <span className="px-6">{state.store.marquee}</span>
             <span className="px-6">{state.store.marquee}</span>
@@ -170,7 +170,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         </div>
       </header>
 
-      <nav className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
+      <nav className="sticky top-0 z-20 border-b border-cyan-500/20 bg-black/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl gap-2 overflow-x-auto px-5 py-3">
           {state.categories.map((cat) => (
             <button
@@ -178,12 +178,14 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               type="button"
               onClick={() => {
                 setActiveCat(cat.name);
-                document.getElementById(`cat-${cat.name}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                document
+                  .getElementById(`cat-${cat.name}`)
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
               className={`text-tech shrink-0 rounded-full px-4 py-2 text-[11px] transition-colors ${
                 activeCat === cat.name
                   ? "bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.5)]"
-                  : "bg-slate-800 text-gray-300 hover:bg-slate-700"
+                  : "bg-slate-900 text-gray-400 hover:bg-slate-800"
               }`}
             >
               {cat.name}
@@ -196,32 +198,40 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         {state.categories.map((cat) => (
           <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-8">
             <h2 className="text-xl font-semibold text-white">{cat.name}</h2>
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-3">
               {cat.items.map((item) => (
                 <article
                   key={item.id}
-                  className="group relative flex items-center gap-4 rounded-lg border border-cyan-500/30 bg-gradient-to-r from-slate-900/80 to-slate-800/80 p-4 transition-all hover:border-cyan-400/60 hover:shadow-[0_0_15px_rgba(0,212,255,0.3)]"
+                  className="group relative flex items-center gap-4 rounded-lg border border-cyan-500/20 bg-gradient-to-r from-black/60 to-slate-900/60 p-3 transition-all hover:border-cyan-500/40 hover:shadow-[0_0_10px_rgba(0,212,255,0.2)]"
                 >
-                  <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-cyan-500/10 text-xl">
-                    {item.img}
+                  <div className="flex shrink-0 items-center gap-3">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-cyan-500/10 text-lg">
+                      {item.img}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-white group-hover:text-cyan-300">
+                        {item.name}
+                      </h3>
+                      <p className="line-clamp-2 text-[10px] text-gray-400">{item.desc}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-semibold text-cyan-100 group-hover:text-cyan-300">{item.name}</h3>
-                    <p className="line-clamp-2 text-[10px] text-cyan-200/60">{item.desc}</p>
+                  <div className="flex-1 text-center">
+                    <p className="text-sm font-bold text-white">{brl(item.price)}</p>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <p className="text-sm font-bold text-cyan-400">{brl(item.price)}</p>
+                  <div className="flex shrink-0 justify-center">
                     {cart[item.id] ? (
                       <div className="flex items-center gap-1 rounded-full bg-cyan-500/20 p-1">
                         <button
                           type="button"
                           aria-label={`Remover ${item.name}`}
                           onClick={() => remove(item.id)}
-                          className="grid size-6 place-items-center rounded-full bg-slate-700 hover:bg-slate-600"
+                          className="grid size-6 place-items-center rounded-full bg-slate-800 hover:bg-slate-700"
                         >
                           <Minus className="size-3 text-cyan-300" />
                         </button>
-                        <span className="w-4 text-center text-sm font-semibold text-cyan-100">{cart[item.id]}</span>
+                        <span className="w-4 text-center text-sm font-semibold text-white">
+                          {cart[item.id]}
+                        </span>
                         <button
                           type="button"
                           aria-label={`Adicionar ${item.name}`}
@@ -235,7 +245,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                       <button
                         type="button"
                         onClick={() => add(item.id)}
-                        className="rounded-full border border-cyan-500/50 bg-cyan-500/10 px-3 py-1.5 text-[10px] font-semibold text-cyan-300 transition-all hover:bg-cyan-500/30 hover:shadow-[0_0_10px_rgba(0,212,255,0.4)]"
+                        className="mx-2 rounded-full border border-cyan-500/50 bg-cyan-500/10 px-4 py-1.5 text-[10px] font-semibold text-cyan-300 transition-all hover:bg-cyan-500/30 hover:shadow-[0_0_10px_rgba(0,212,255,0.4)]"
                       >
                         Adicionar
                       </button>
@@ -393,7 +403,10 @@ function CheckoutModal({
   const valid =
     form.cliente.trim().length > 1 &&
     form.telefone.trim().length >= 8 &&
-    (tipo === "retirada" || (form.rua.trim().length > 2 && form.numero.trim().length > 0 && form.bairro.trim().length > 2));
+    (tipo === "retirada" ||
+      (form.rua.trim().length > 2 &&
+        form.numero.trim().length > 0 &&
+        form.bairro.trim().length > 2));
 
   function copyPixKey() {
     navigator.clipboard.writeText(state.payment.pixKey);
@@ -409,9 +422,10 @@ function CheckoutModal({
       comanda: newComanda(),
       cliente: form.cliente.trim(),
       telefone: form.telefone.trim(),
-      endereco: tipo === "entrega" 
-        ? `${form.rua.trim()}, ${form.numero.trim()} - ${form.bairro.trim()}${form.referencia.trim() ? ` (Ref: ${form.referencia.trim()})` : ''}` 
-        : "Retirada no balcão",
+      endereco:
+        tipo === "entrega"
+          ? `${form.rua.trim()}, ${form.numero.trim()} - ${form.bairro.trim()}${form.referencia.trim() ? ` (Ref: ${form.referencia.trim()})` : ""}`
+          : "Retirada no balcão",
       observacoes: form.observacoes.trim(),
       itens: items,
       total,
@@ -527,7 +541,13 @@ function CheckoutModal({
 
         {pagamento === "pix" && (
           <div className="mt-4 flex items-center gap-4 rounded-xl bg-secondary p-4">
-            <img src={pixQr} alt="QR Code PIX para pagamento" width={90} height={90} className="rounded-md" />
+            <img
+              src={pixQr}
+              alt="QR Code PIX para pagamento"
+              width={90}
+              height={90}
+              className="rounded-md"
+            />
             <div className="flex-1 text-xs">
               <p className="font-semibold">Chave PIX</p>
               <p className="break-all text-muted-foreground">{state.payment.pixKey}</p>
@@ -588,13 +608,11 @@ function SuccessModal({ order, onClose }: { order: Order; onClose: () => void })
       order.pagamento === "dinheiro"
         ? `Dinheiro (Troco p/ R$ ${order.troco || "0"})`
         : order.pagamento === "cartao"
-        ? "Cartão"
-        : "PIX";
+          ? "Cartão"
+          : "PIX";
 
     const addressText =
-      order.tipo_entrega === "entrega"
-        ? `${order.endereco}`
-        : "Retirada no balcão";
+      order.tipo_entrega === "entrega" ? `${order.endereco}` : "Retirada no balcão";
 
     return `==============================
    *NOVO PEDIDO - ${state.store.name}*

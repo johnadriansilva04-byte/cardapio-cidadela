@@ -20,6 +20,8 @@ export interface N8nPayload {
   timestamp: string;
   pagamento: "pix" | "dinheiro" | "cartao";
   troco?: string;
+  cidadela_code?: string;
+  cidadela_access_type?: "15_min" | "15_dias";
 }
 
 export function buildOrderPayload(order: Order, evento = "novo_pedido"): N8nPayload {
@@ -131,7 +133,10 @@ export interface CidadelaAuthResponse {
 }
 
 /** Valida código de acesso via webhook Cidadela */
-export async function validateCidadelaCode(url: string, codigo: string): Promise<CidadelaAuthResponse> {
+export async function validateCidadelaCode(
+  url: string,
+  codigo: string,
+): Promise<CidadelaAuthResponse> {
   if (!url) {
     return { success: false, autenticado: false, erro: "codigo_invalido" };
   }

@@ -7,15 +7,43 @@ export function newComanda(): string {
   return `FEB${stamp}`;
 }
 
-export function generatePromoCode(prefix = "FEB-VIP"): PromoCode {
+export function generatePromoCode(
+  prefix = "FEB-VIP",
+  accessType?: "15_min" | "15_dias",
+): PromoCode {
   const rand = Math.random().toString(36).toUpperCase().slice(2, 6);
   return {
     code: `${prefix}-${rand}-1944`,
-    label: "Código soberano de operação",
+    label:
+      accessType === "15_dias"
+        ? "Código VIP - 15 dias de acesso"
+        : "Código temporário - 15 minutos de acesso",
     discount: 10,
     createdAt: new Date().toISOString(),
     used: false,
   };
+}
+
+export function isCodeValid(code: PromoCode): boolean {
+  if (code.used) return false;
+
+  const createdAt = new Date(code.createdAt);
+  const now = new Date();
+  const diffMs = now.getTime() - createdAt.getTime();
+  const diffMinutes = diffMs / (1000 * 60);
+
+  // Códigos VIP (15 dias) expiram em 15 dias
+  if (code.label.includes("15 dias")) {
+    return diffMinutes <= 15 * 24 * 60; // 15 dias em minutos
+  }
+
+  // Códigos temporários (15 min) expiram em 15 minutos
+  if (code.label.includes("15 minutos")) {
+    return diffMinutes <= 15;
+  }
+
+  // Códigos antigos sem label específico não expiram
+  return true;
 }
 
 export const STATUS_LABEL: Record<Order["status"], string> = {

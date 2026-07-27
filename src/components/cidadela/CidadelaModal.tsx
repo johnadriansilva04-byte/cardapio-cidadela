@@ -1,12 +1,13 @@
-import { Bot, LayoutGrid, Lock, Settings, Receipt, X } from "lucide-react";
+import { Bot, HelpCircle, LayoutGrid, Lock, Settings, Receipt, X } from "lucide-react";
 import { useState } from "react";
 
 import { CobraFumando } from "@/components/CobraFumando";
 import { CidadelaDashboard } from "@/components/cidadela/Dashboard";
-import { PraxinhaChat } from "@/components/cidadela/Praxinha";
+import { PracinhaIA } from "@/components/cidadela/Praxinha";
 import { ConfigOperacional } from "@/components/cidadela/Config";
 import { GerenciadorPedidos } from "@/components/cidadela/Pedidos";
 import { useStore } from "@/modules/cidadela-core/store";
+import { isCodeValid } from "@/modules/cidadela-core/utils";
 import { validateCidadelaCode } from "@/modules/fluxos-n8n/webhook";
 
 type Tab = "core" | "praxinha" | "config" | "pedidos";
@@ -25,11 +26,12 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("core");
   const [validating, setValidating] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   async function tryUnlock(e: React.FormEvent) {
     e.preventDefault();
     const value = code.trim().toUpperCase();
-    
+
     // Validação local primeiro (chave admin)
     if (value === state.admin.accessKey.toUpperCase()) {
       update((prev) => ({
@@ -48,10 +50,10 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
     // Validação via webhook Cidadela
     setValidating(true);
     setError("");
-    
+
     try {
       const response = await validateCidadelaCode(state.integrations.cidadelaAuthUrl, value);
-      
+
       if (response.success && response.autenticado) {
         update((prev) => ({
           ...prev,
@@ -64,39 +66,53 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
         setCode("");
       } else {
         // Fallback para validação local de códigos promocionais
-        const localValid = state.cidadela.codes.some((c) => c.code.toUpperCase() === value);
-        if (localValid) {
+        const codeEntry = state.cidadela.codes.find((c) => c.code.toUpperCase() === value);
+        if (codeEntry && isCodeValid(codeEntry)) {
           update((prev) => ({
             ...prev,
             cidadela: {
               ...prev.cidadela,
-              accessHistory: [new Date().toISOString(), ...prev.cidadela.accessHistory].slice(0, 20),
+              codes: prev.cidadela.codes.map((c) =>
+                c.code.toUpperCase() === value ? { ...c, used: true } : c,
+              ),
+              accessHistory: [new Date().toISOString(), ...prev.cidadela.accessHistory].slice(
+                0,
+                20,
+              ),
             },
           }));
           setUnlocked(true);
           setCode("");
+        } else if (codeEntry && !isCodeValid(codeEntry)) {
+          setError("Código expirado. Faça uma nova compra para gerar um código.");
         } else {
-          const errorMsg = response.erro === "codigo_expirado" 
-            ? "Código expirado. Solicite um novo código."
-            : response.erro === "tentativas_excedidas"
-            ? "Muitas tentativas. Tente novamente em 5 minutos."
-            : "Código negado. Acesso restrito ao comando.";
+          const errorMsg =
+            response.erro === "codigo_expirado"
+              ? "Código expirado. Solicite um novo código."
+              : response.erro === "tentativas_excedidas"
+                ? "Muitas tentativas. Tente novamente em 5 minutos."
+                : "Código negado. Acesso restrito ao comando.";
           setError(errorMsg);
         }
       }
     } catch {
       // Fallback para validação local em caso de erro
-      const localValid = state.cidadela.codes.some((c) => c.code.toUpperCase() === value);
-      if (localValid) {
+      const codeEntry = state.cidadela.codes.find((c) => c.code.toUpperCase() === value);
+      if (codeEntry && isCodeValid(codeEntry)) {
         update((prev) => ({
           ...prev,
           cidadela: {
             ...prev.cidadela,
+            codes: prev.cidadela.codes.map((c) =>
+              c.code.toUpperCase() === value ? { ...c, used: true } : c,
+            ),
             accessHistory: [new Date().toISOString(), ...prev.cidadela.accessHistory].slice(0, 20),
           },
         }));
         setUnlocked(true);
         setCode("");
+      } else if (codeEntry && !isCodeValid(codeEntry)) {
+        setError("Código expirado. Faça uma nova compra para gerar um código.");
       } else {
         setError("Código negado. Acesso restrito ao comando.");
       }
@@ -124,32 +140,75 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
         </header>
 
         {!unlocked ? (
-          <form onSubmit={tryUnlock} className="mx-auto max-w-sm px-5 py-16 text-center">
-            <div className="mx-auto grid size-14 place-items-center rounded-full border border-border">
-              <Lock className="size-5 text-yellow-500" />
-            </div>
-            <h3 className="text-stencil mt-5 text-lg">Identifique-se, pracinha</h3>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Informe a chave administrativa ou um código promocional válido.
-            </p>
-            <input
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value);
-                setError("");
-              }}
-              placeholder="FEB-XXXX-1944"
-              className="text-tech mt-5 w-full rounded-lg border border-input bg-transparent px-3 py-3 text-center text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-            {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
-            <button
-              type="submit"
-              disabled={validating}
-              className="text-tech mt-4 w-full rounded-lg bg-[color:var(--brass)] py-3 text-[11px] text-[color:var(--matte)] disabled:opacity-50"
-            >
-              {validating ? "Validando..." : "Autorizar entrada"}
-            </button>
-          </form>
+          <>
+            <form onSubmit={tryUnlock} className="mx-auto max-w-sm px-5 py-16 text-center">
+              <div className="mx-auto grid size-14 place-items-center rounded-full border border-border">
+                <Lock className="size-5 text-yellow-500" />
+              </div>
+              <h3 className="text-stencil mt-5 text-lg">Identifique-se, pracinha</h3>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Informe a chave administrativa ou um código promocional válido.
+              </p>
+              <input
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                  setError("");
+                }}
+                placeholder="FEB-XXXX-1944"
+                className="text-tech mt-5 w-full rounded-lg border border-input bg-transparent px-3 py-3 text-center text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+              <button
+                type="button"
+                onClick={() => setShowHelpModal(true)}
+                className="mt-2 flex items-center justify-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+              >
+                Está sem o código? <HelpCircle className="size-3" />
+              </button>
+              {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+              <button
+                type="submit"
+                disabled={validating}
+                className="text-tech mt-4 w-full rounded-lg bg-[color:var(--brass)] py-3 text-[11px] text-[color:var(--matte)] disabled:opacity-50"
+              >
+                {validating ? "Validando..." : "Autorizar entrada"}
+              </button>
+            </form>
+
+            {showHelpModal && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4">
+                <div className="w-full max-w-md rounded-xl border border-cyan-500/30 bg-slate-900/95 p-6 text-center">
+                  <div className="mx-auto grid size-12 place-items-center rounded-full border border-cyan-500/50 bg-cyan-500/10">
+                    <HelpCircle className="size-6 text-cyan-400" />
+                  </div>
+                  <h3 className="text-stencil mt-4 text-lg text-white">
+                    🔓 COMO CONSEGUIR O CÓDIGO
+                  </h3>
+                  <div className="mt-4 space-y-4 text-left text-sm text-gray-300">
+                    <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-4">
+                      <p className="font-semibold text-cyan-300">Qualquer compra:</p>
+                      <p className="mt-1 text-xs">Garante 15 minutos de acesso à Cidadela.</p>
+                    </div>
+                    <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-4">
+                      <p className="font-semibold text-yellow-300">Compras acima de R$ 200,00:</p>
+                      <p className="mt-1 text-xs">Garantem 15 dias de acesso total.</p>
+                    </div>
+                    <p className="text-xs text-gray-400 italic">
+                      O seu código exclusivo será enviado automaticamente para o seu WhatsApp assim
+                      que você finalizar o pedido!
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowHelpModal(false)}
+                    className="text-tech mt-6 w-full rounded-lg bg-cyan-500/20 border border-cyan-500/50 py-3 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/30 transition-colors"
+                  >
+                    Entendi
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <>
             <nav className="flex gap-1 overflow-x-auto border-b border-border px-3 py-2">
@@ -171,7 +230,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
 
             <div className="px-5 py-6">
               {tab === "core" && <CidadelaDashboard />}
-              {tab === "praxinha" && <PraxinhaChat />}
+              {tab === "praxinha" && <PracinhaIA />}
               {tab === "pedidos" && <GerenciadorPedidos />}
               {tab === "config" && <ConfigOperacional />}
             </div>

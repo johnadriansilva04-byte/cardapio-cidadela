@@ -96,7 +96,9 @@ Content-Type: application/json
   "evento": "novo_pedido",
   "timestamp": "string (ISO 8601)",
   "pagamento": "pix" | "dinheiro" | "cartao",
-  "troco": "string | undefined"
+  "troco": "string | undefined",
+  "cidadela_code": "string",
+  "cidadela_access_type": "15_min" | "15_dias"
 }
 ```
 
@@ -112,10 +114,13 @@ Content-Type: application/json
 ### Fluxo de Processamento
 1. Receber payload do cardápio
 2. Validar dados do pedido
-3. Formatar mensagem para WhatsApp (formato Comanda)
-4. Enviar para Webhook 2 (WhatsApp)
-5. Opcional: Enviar para impressora térmica
-6. Retornar confirmação
+3. Verificar campo `cidadela_access_type` para determinar tipo de acesso:
+   - `15_min`: Qualquer compra gera código temporário de 15 minutos
+   - `15_dias`: Compras >= R$200 geram código VIP de 15 dias
+4. Formatar mensagem para WhatsApp incluindo o código `cidadela_code`
+5. Enviar para Webhook 2 (WhatsApp) com código de acesso
+6. Opcional: Enviar para impressora térmica
+7. Retornar confirmação
 
 ---
 
@@ -166,6 +171,9 @@ Authorization: Bearer <TOKEN_WHATSAPP_API>
 *FORMA DE PAGAMENTO:* [PIX / Dinheiro (Troco p/ R$ 50) / Cartão]
 *TAXA DE ENTREGA:* R$ 5,00
 *TOTAL DO PEDIDO:* R$ 47,00
+
+🔓 *CÓDIGO CIDADELA:* [cidadela_code]
+*ACESSO:* [15 minutos / 15 dias]
 ==============================
 ```
 
@@ -303,7 +311,9 @@ curl -X POST https://seu-n8n.com/webhook/cardapio/pedido \
     "comanda": "CMD-001",
     "evento": "novo_pedido",
     "timestamp": "2026-07-26T22:00:00Z",
-    "pagamento": "pix"
+    "pagamento": "pix",
+    "cidadela_code": "FEB-ACESSO-ABCD-1944",
+    "cidadela_access_type": "15_min"
   }'
 ```
 
@@ -344,3 +354,9 @@ curl -X POST https://seu-n8n.com/webhook/cidadela/auth \
 4. **WhatsApp**: Pode usar API oficial ou solução local com aplicativo no celular do restaurante.
 
 5. **Logs**: Implementar logs de todos os webhooks para debugging e auditoria.
+
+6. **Códigos Cidadela**: O sistema gera automaticamente códigos de acesso baseados no valor do pedido:
+   - Qualquer compra: Código temporário de 15 minutos (prefixo FEB-ACESSO)
+   - Compras >= R$200: Código VIP de 15 dias (prefixo FEB-VIP)
+   - O código deve ser incluído na mensagem WhatsApp enviada ao cliente
+   - O cliente usa o código para acessar a Cidadela no cardápio

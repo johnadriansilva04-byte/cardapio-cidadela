@@ -137,13 +137,16 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           <button
             type="button"
             onClick={() => navigate({ to: "/cidadela" })}
-            className="absolute right-4 top-20 z-50 transition-all hover:scale-105 active:scale-95"
+            className="absolute right-4 top-16 z-50 transition-all hover:scale-105 active:scale-95"
           >
-            <div className="relative size-14 flex flex-col items-center justify-center rounded-full border-2 border-cyan-400 bg-black/70 shadow-[0_0_20px_rgba(34,211,238,0.5)]">
-              <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-400/40" />
+            <div className="relative size-16 flex flex-col items-center justify-center rounded-full border-2 border-cyan-400 bg-black/70 shadow-[0_0_25px_rgba(34,211,238,0.6)]">
+              <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-400/50" />
+              <span className="relative text-[7px] font-bold text-cyan-300 tracking-tight leading-tight">
+                CONHEÇA A CIDADELA
+              </span>
               <svg
                 viewBox="0 0 24 24"
-                className="relative size-6 text-yellow-400"
+                className="relative size-7 text-yellow-400 mt-1"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2.5"
@@ -151,9 +154,6 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                 <rect x="5" y="11" width="14" height="10" rx="2" />
                 <path d="M8 11V7a4 4 0 0 1 8 0v4" />
               </svg>
-              <span className="absolute bottom-1 text-[6px] font-bold text-cyan-300 tracking-tight">
-                CONHEÇA A CIDADELA
-              </span>
             </div>
           </button>
 

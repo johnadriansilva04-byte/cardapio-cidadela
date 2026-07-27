@@ -60,9 +60,19 @@ export interface AppState {
   whatsapp: string;
   integrations: { geminiApiKey: string; n8nWebhookUrl: string; cidadelaAuthUrl: string };
   categories: Category[];
-  cidadela: { codes: PromoCode[]; accessHistory: string[] };
+  cidadela: { codes: PromoCode[]; accessHistory: string[]; robots: RobotConfig[] };
   orders: Order[];
   conversation: ChatMessage[];
+}
+
+export interface RobotConfig {
+  name: string;
+  ideology: string;
+  personality: string;
+  strategy: string;
+  aggressiveness: number;
+  eloquence: number;
+  logic: number;
 }
 
 export const DEFAULT_STATE: AppState = {
@@ -77,7 +87,7 @@ export const DEFAULT_STATE: AppState = {
   admin: { accessKey: "FEB-1944" },
   whatsapp: "5511999999999",
   integrations: { geminiApiKey: "", n8nWebhookUrl: "http://localhost:5678/webhook/pracinha", cidadelaAuthUrl: "http://localhost:5678/webhook/cidadela" },
-  cidadela: { codes: [], accessHistory: [] },
+  cidadela: { codes: [], accessHistory: [], robots: [] },
   orders: [],
   conversation: [],
   categories: [

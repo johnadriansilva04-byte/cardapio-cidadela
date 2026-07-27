@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { Cardapio } from "@/components/cardapio/Cardapio";
-import { CidadelaModal } from "@/components/cidadela/CidadelaModal";
+import { AdminModal } from "@/components/cardapio/AdminModal";
 import { StoreProvider } from "@/modules/cidadela-core/store";
 
 export const Route = createFileRoute("/")({
@@ -28,12 +28,12 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [cidadelaOpen, setCidadelaOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   return (
     <StoreProvider>
-      <Cardapio onOpenCidadela={() => setCidadelaOpen(true)} />
-      {cidadelaOpen && <CidadelaModal onClose={() => setCidadelaOpen(false)} />}
+      <Cardapio onOpenAdmin={() => setAdminOpen(true)} />
+      {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
     </StoreProvider>
   );
 }

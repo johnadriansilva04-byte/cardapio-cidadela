@@ -23,8 +23,8 @@ export function isSovereignValuesQuestion(text: string): boolean {
   return VALUES_PATTERNS.some((re) => re.test(text));
 }
 
-function systemPrompt(menuSummary: string, storeName: string) {
-  return `Você é o PRAXINHA, assistente virtual da ${storeName}.
+function buildSystemPrompt(menuSummary: string, storeName: string) {
+  return `Você é o PRACINHA, assistente virtual da ${storeName}.
 Estilo: ágil, educado, direto ao ponto, foco em suporte, venda e direcionamento para o cardápio.
 Responda SEMPRE em português do Brasil, em 1 a 3 frases curtas. Nunca invente itens ou preços.
 Cardápio disponível: ${menuSummary}.
@@ -43,8 +43,9 @@ export async function askPraxinha(opts: {
   question: string;
   menuSummary: string;
   storeName: string;
+  systemPrompt?: string;
 }): Promise<PraxinhaResult> {
-  const { apiKey, history, question, menuSummary, storeName } = opts;
+  const { apiKey, history, question, menuSummary, storeName, systemPrompt } = opts;
 
   if (isSovereignValuesQuestion(question)) return { text: SOVEREIGN_ANSWER };
   if (!apiKey) {
@@ -64,7 +65,7 @@ export async function askPraxinha(opts: {
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt(menuSummary, storeName) }] },
+        systemInstruction: { parts: [{ text: systemPrompt || buildSystemPrompt(menuSummary, storeName) }] },
         contents: [
           ...window.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
           { role: "user", parts: [{ text: question }] },

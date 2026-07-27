@@ -137,22 +137,22 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           <button
             type="button"
             onClick={() => navigate({ to: "/cidadela" })}
-            className="absolute right-4 top-20 z-30 flex items-center gap-2 rounded-full border border-cyan-500/50 bg-black/50 px-3 py-2 backdrop-blur-sm transition-all hover:bg-cyan-500/20 active:scale-95"
+            className="absolute right-4 top-20 z-50 flex items-center gap-2 rounded-full border-2 border-cyan-400 bg-black/70 px-3 py-1.5 backdrop-blur-md transition-all hover:bg-cyan-500/30 hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(34,211,238,0.5)]"
           >
-            <div className="relative">
-              <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-500/30" />
+            <div className="relative size-8 flex items-center justify-center">
+              <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-400/40" />
               <svg
                 viewBox="0 0 24 24"
-                className="relative size-5 text-cyan-400"
+                className="relative size-5 text-cyan-300"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="2.5"
               >
                 <rect x="5" y="11" width="14" height="10" rx="2" />
                 <path d="M8 11V7a4 4 0 0 1 8 0v4" />
               </svg>
             </div>
-            <span className="text-[9px] font-semibold text-cyan-400">CONHEÇA A CIDADELA</span>
+            <span className="text-[9px] font-bold text-cyan-300 tracking-wide">CIDADELA</span>
           </button>
 
           {/* Business Name and Slogan */}
@@ -191,7 +191,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       </nav>
 
       <main className="px-4 pb-24">
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto max-w-xl">
           {state.categories.map((cat) => (
             <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-6">
               <h2 className="mb-4 text-lg font-bold text-white">{cat.name}</h2>
@@ -292,15 +292,14 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               stroke="currentColor"
               strokeWidth="2"
             >
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
             </svg>
-            <span className="text-[10px] font-semibold text-gray-500">BEBIDAS</span>
+            <span className="text-[10px] font-semibold text-gray-500">PERFIL</span>
           </button>
           <button
             type="button"
+            onClick={onOpenAdmin}
             className="flex flex-col items-center gap-1 transition-all hover:text-gray-300"
           >
             <svg
@@ -310,24 +309,13 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               stroke="currentColor"
               strokeWidth="2"
             >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.39a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
-            <span className="text-[10px] font-semibold text-gray-500">PERFIL</span>
+            <span className="text-[10px] font-semibold text-gray-500">PAINEL</span>
           </button>
         </div>
       </nav>
-
-      {/* Admin Button - Fixed Bottom Right */}
-      <button
-        type="button"
-        onClick={onOpenAdmin}
-        aria-label="ADM"
-        title="ADM"
-        className="fixed right-4 bottom-20 z-50 flex size-10 items-center justify-center rounded-full border border-red-500/50 bg-red-500/20 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)] transition-all hover:bg-red-500/30 active:scale-95"
-      >
-        <Settings className="size-5" />
-      </button>
 
       {count > 0 && !cartOpen && !checkoutOpen && (
         <button

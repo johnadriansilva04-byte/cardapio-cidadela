@@ -96,6 +96,17 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           </svg>
         </button>
 
+        {/* Admin Button - Fixed Bottom Right */}
+        <button
+          type="button"
+          onClick={onOpenAdmin}
+          aria-label="Painel administrativo"
+          title="Painel administrativo"
+          className="fixed bottom-4 right-4 z-50 flex size-12 items-center justify-center rounded-full border-2 border-yellow-500 bg-yellow-500/20 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.5)] transition-all hover:border-yellow-400 hover:bg-yellow-500/30 hover:shadow-[0_0_25px_rgba(234,179,8,0.7)] hover:scale-110"
+        >
+          <Settings className="size-6" />
+        </button>
+
         {/* Cover Photo Banner */}
         <div 
           className="h-48 w-full bg-cover bg-center bg-no-repeat"
@@ -111,13 +122,19 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           <div className="relative -mt-16 flex items-end gap-4">
             {/* Profile/Logo Avatar */}
             <div 
-              className="size-24 shrink-0 rounded-full border-4 border-background bg-cover bg-center shadow-lg"
+              className="size-24 shrink-0 rounded-full border-4 border-background bg-cover bg-center shadow-lg bg-slate-800"
               style={{
                 backgroundImage: state.store.logo 
                   ? `url(${state.store.logo})` 
-                  : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+                  : 'none'
               }}
-            />
+            >
+              {!state.store.logo && (
+                <div className="flex size-full items-center justify-center">
+                  <CobraFumando className="size-12 text-[color:var(--brass)]" />
+                </div>
+              )}
+            </div>
             
             {/* Business Info */}
             <div className="mb-2 flex-1">
@@ -139,18 +156,6 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Admin Button */}
-              <button
-                type="button"
-                onClick={onOpenAdmin}
-                aria-label="Painel administrativo"
-                title="Painel administrativo"
-                className="flex size-8 items-center justify-center rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 transition-all hover:border-cyan-400/60 hover:bg-cyan-500/20 hover:shadow-[0_0_10px_rgba(0,212,255,0.3)]"
-              >
-                <Settings className="size-4" />
-              </button>
-            </div>
           </div>
         </div>
 

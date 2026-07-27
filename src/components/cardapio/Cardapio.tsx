@@ -130,8 +130,122 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           {/* Gradient Overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black" />
 
-          {/* Profile Photo */}
-          <div className="absolute left-4 top-20 size-16 rounded-full border-2 border-red-500/50 bg-black/50 shadow-[0_0_15px_rgba(239,68,68,0.3)]" />
+          {/* Robot Waiter */}
+          <div className="absolute left-4 top-4 flex flex-col items-center">
+            <svg
+              viewBox="0 0 100 120"
+              className="size-24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              {/* Robot Head */}
+              <rect
+                x="30"
+                y="5"
+                width="40"
+                height="35"
+                rx="5"
+                className="stroke-red-400"
+                fill="rgba(239,68,68,0.1)"
+              />
+              {/* Eyes */}
+              <circle
+                cx="40"
+                cy="18"
+                r="4"
+                className="stroke-cyan-400"
+                fill="rgba(34,211,238,0.3)"
+              />
+              <circle
+                cx="60"
+                cy="18"
+                r="4"
+                className="stroke-cyan-400"
+                fill="rgba(34,211,238,0.3)"
+              />
+              {/* Mouth */}
+              <line x1="40" y1="30" x2="60" y2="30" className="stroke-red-400" />
+              {/* Antenna */}
+              <line x1="50" y1="5" x2="50" y2="0" className="stroke-yellow-400" />
+              <circle
+                cx="50"
+                cy="0"
+                r="3"
+                className="stroke-yellow-400"
+                fill="rgba(250,204,21,0.3)"
+              />
+              {/* Body (Waiter Suit) */}
+              <rect
+                x="25"
+                y="42"
+                width="50"
+                height="45"
+                rx="3"
+                className="stroke-gray-300"
+                fill="rgba(209,213,219,0.1)"
+              />
+              {/* Bow Tie */}
+              <polygon
+                points="50,42 45,48 50,54 55,48"
+                className="stroke-red-500"
+                fill="rgba(239,68,68,0.3)"
+              />
+              {/* Arms */}
+              <line x1="25" y1="50" x2="10" y2="65" className="stroke-gray-300" />
+              <line x1="75" y1="50" x2="90" y2="65" className="stroke-gray-300" />
+              {/* Hands */}
+              <circle
+                cx="10"
+                cy="65"
+                r="5"
+                className="stroke-gray-400"
+                fill="rgba(156,163,175,0.2)"
+              />
+              <circle
+                cx="90"
+                cy="65"
+                r="5"
+                className="stroke-gray-400"
+                fill="rgba(156,163,175,0.2)"
+              />
+              {/* Tray */}
+              <rect
+                x="75"
+                y="60"
+                width="25"
+                height="15"
+                rx="2"
+                className="stroke-yellow-400"
+                fill="rgba(250,204,21,0.2)"
+              />
+              {/* Legs */}
+              <line x1="35" y1="87" x2="35" y2="115" className="stroke-gray-300" />
+              <line x1="65" y1="87" x2="65" y2="115" className="stroke-gray-300" />
+              {/* Feet */}
+              <rect
+                x="30"
+                y="115"
+                width="10"
+                height="5"
+                rx="1"
+                className="stroke-gray-400"
+                fill="rgba(156,163,175,0.2)"
+              />
+              <rect
+                x="60"
+                y="115"
+                width="10"
+                height="5"
+                rx="1"
+                className="stroke-gray-400"
+                fill="rgba(156,163,175,0.2)"
+              />
+            </svg>
+            <span className="mt-2 text-[8px] font-bold text-red-400 tracking-wide">
+              SEU ROBÔ GARÇOM
+            </span>
+          </div>
 
           {/* Cidadela Connection Element */}
           <button
@@ -162,7 +276,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
               {state.store.name}
             </h1>
-            <p className="mt-1 text-sm font-medium text-gray-300">{state.store.slogan}</p>
+            <p className="mt-1 text-sm font-medium text-cyan-300">Qual será o seu pedido?</p>
           </div>
         </div>
       </header>

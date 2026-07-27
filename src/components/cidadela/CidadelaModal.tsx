@@ -126,7 +126,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
         {!unlocked ? (
           <form onSubmit={tryUnlock} className="mx-auto max-w-sm px-5 py-16 text-center">
             <div className="mx-auto grid size-14 place-items-center rounded-full border border-border">
-              <Lock className="size-5 text-[color:var(--brass)]" />
+              <Lock className="size-5 text-yellow-500" />
             </div>
             <h3 className="text-stencil mt-5 text-lg">Identifique-se, pracinha</h3>
             <p className="mt-2 text-xs text-muted-foreground">

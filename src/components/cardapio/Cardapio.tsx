@@ -63,6 +63,39 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   return (
     <div className="min-h-screen pb-28">
       <header className="relative overflow-hidden border-b border-border">
+        {/* Cidadela Button - Top Right Absolute */}
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/cidadela" })}
+          aria-label="Entrar na Cidadela"
+          title="Entrar na Cidadela"
+          className="absolute top-4 right-4 z-10 group relative flex shrink-0 flex-col items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
+          style={{
+            background: 'rgba(0, 212, 255, 0.1)',
+            border: '2px solid rgba(0, 212, 255, 0.5)',
+            boxShadow: '0 0 15px rgba(0, 212, 255, 0.4), 0 0 30px rgba(0, 212, 255, 0.2), inset 0 0 20px rgba(0, 212, 255, 0.1)',
+            width: '80px',
+            height: '80px',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          <span className="text-[8px] font-bold text-cyan-300 text-center leading-tight px-1">
+            Conheça a<br />cidadela
+          </span>
+          <svg 
+            viewBox="0 0 24 24" 
+            className="size-3 mt-1"
+            fill="none" 
+            stroke="rgba(0, 212, 255, 0.8)" 
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+        </button>
+
         {/* Cover Photo Banner */}
         <div 
           className="h-48 w-full bg-cover bg-center bg-no-repeat"
@@ -117,52 +150,19 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               >
                 <Settings className="size-4" />
               </button>
-
-              {/* Cidadela Button */}
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/cidadela" })}
-                aria-label="Entrar na Cidadela"
-                title="Entrar na Cidadela"
-                className="group relative flex shrink-0 flex-col items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
-                style={{
-                  background: 'rgba(0, 212, 255, 0.1)',
-                  border: '2px solid rgba(0, 212, 255, 0.5)',
-                  boxShadow: '0 0 15px rgba(0, 212, 255, 0.4), 0 0 30px rgba(0, 212, 255, 0.2), inset 0 0 20px rgba(0, 212, 255, 0.1)',
-                  width: '80px',
-                  height: '80px',
-                  backdropFilter: 'blur(10px)',
-                }}
-              >
-                <span className="text-[8px] font-bold text-cyan-300 text-center leading-tight px-1">
-                  Conheça a<br />cidadela
-                </span>
-                <svg 
-                  viewBox="0 0 24 24" 
-                  className="size-3 mt-1"
-                  fill="none" 
-                  stroke="rgba(0, 212, 255, 0.8)" 
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="5" y="11" width="14" height="10" rx="2" />
-                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-                </svg>
-              </button>
-          </div>
-
-          {/* Animated Marquee */}
-          <div className="mt-4 overflow-hidden border-t border-border bg-[color:var(--matte)] py-2 text-[color:var(--sand)]">
-            <div className="marquee-track text-tech text-[11px] animate-marquee">
-              <span className="px-6">{state.store.marquee}</span>
-              <span className="px-6">{state.store.marquee}</span>
-              <span className="px-6">{state.store.marquee}</span>
-              <span className="px-6">{state.store.marquee}</span>
             </div>
           </div>
         </div>
-      </div>
+
+        {/* Animated Marquee - Below header section */}
+        <div className="mt-4 overflow-hidden border-t border-border bg-[color:var(--matte)] py-2 text-[color:var(--sand)]">
+          <div className="marquee-track text-tech text-[11px] animate-marquee">
+            <span className="px-6">{state.store.marquee}</span>
+            <span className="px-6">{state.store.marquee}</span>
+            <span className="px-6">{state.store.marquee}</span>
+            <span className="px-6">{state.store.marquee}</span>
+          </div>
+        </div>
       </header>
 
       <nav className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">

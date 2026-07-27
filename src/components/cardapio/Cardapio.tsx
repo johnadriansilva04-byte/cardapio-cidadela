@@ -92,86 +92,101 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   }
 
   return (
-    <div className="min-h-screen pb-28 bg-black">
-      <header className="relative overflow-hidden border-b border-border">
-        {/* Cidadela Button - Half Moon Top Right */}
-        <button
-          type="button"
-          onClick={() => navigate({ to: "/cidadela" })}
-          aria-label="Entrar na Cidadela"
-          title="Entrar na Cidadela"
-          className="fixed top-4 right-4 z-50 flex shrink-0 items-center gap-2 rounded-l-full rounded-r-lg px-4 py-2 transition-transform hover:scale-105 active:scale-95"
-          style={{
-            background: "linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(0, 150, 255, 0.2))",
-            border: "2px solid #00d4ff",
-            boxShadow: "0 0 15px rgba(0, 212, 255, 0.5), inset 0 0 20px rgba(0, 212, 255, 0.2)",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          <span className="text-[10px] font-black text-white drop-shadow-[0_0_8px_rgba(0,212,255,1)]">
-            CONHEÇA A CIDADELA
-          </span>
-          <svg
-            viewBox="0 0 24 24"
-            className="size-4 drop-shadow-[0_0_8px_rgba(255,215,0,1)]"
-            fill="none"
-            stroke="#ffd700"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+    <div className="min-h-screen bg-black">
+      <header className="relative">
+        {/* Title Bar */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/" })}
+            className="text-white"
           >
-            <rect x="5" y="11" width="14" height="10" rx="2" />
-            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-          </svg>
-        </button>
+            <svg
+              viewBox="0 0 24 24"
+              className="size-6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="rounded-lg bg-cyan-500 px-4 py-2 text-[10px] font-semibold text-white shadow-[0_0_10px_rgba(6,182,212,0.5)]"
+          >
+            Exportar
+          </button>
+        </div>
 
-        {/* Admin Button - Fixed Bottom Right */}
+        {/* Banner with Profile and Business Info */}
+        <div className="relative">
+          {/* Cover Photo Banner */}
+          <div
+            className="h-64 w-full bg-cover bg-center bg-no-repeat"
+            style={{
+              backgroundImage: state.store.coverPhoto
+                ? `url(${state.store.coverPhoto})`
+                : "linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%)",
+            }}
+          />
+
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black" />
+
+          {/* Profile Photo */}
+          <div className="absolute left-4 top-20 size-16 rounded-full border-2 border-red-500/50 bg-black/50 shadow-[0_0_15px_rgba(239,68,68,0.3)]" />
+
+          {/* Cidadela Connection Element */}
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/cidadela" })}
+            className="absolute right-4 top-20 flex items-center gap-2 rounded-full border border-cyan-500/50 bg-black/50 px-3 py-2 backdrop-blur-sm transition-all hover:bg-cyan-500/20"
+          >
+            <div className="relative">
+              <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-500/30" />
+              <svg
+                viewBox="0 0 24 24"
+                className="relative size-5 text-cyan-400"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              </svg>
+            </div>
+            <span className="text-[9px] font-semibold text-cyan-400">
+              CONHEÇA A CIDADELA
+            </span>
+          </button>
+
+          {/* Business Name and Slogan */}
+          <div className="absolute bottom-4 left-0 right-0 px-4 text-center">
+            <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+              {state.store.name}
+            </h1>
+            <p className="mt-1 text-sm font-medium text-gray-300">
+              {state.store.slogan}
+            </p>
+          </div>
+        </div>
+
+        {/* Admin Button - Fixed Top Right */}
         <button
           type="button"
           onClick={onOpenAdmin}
           aria-label="ADM"
           title="ADM"
-          className="fixed bottom-4 right-4 z-50 flex size-12 items-center justify-center rounded-full border-2 border-yellow-500 bg-yellow-500/20 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.5)] transition-all hover:border-yellow-400 hover:bg-yellow-500/30 hover:shadow-[0_0_25px_rgba(234,179,8,0.7)] hover:scale-110"
+          className="fixed right-4 top-20 z-50 flex size-8 items-center justify-center rounded-full border border-red-500/50 bg-red-500/20 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)] transition-all hover:bg-red-500/30"
         >
-          <Settings className="size-6" />
+          <Settings className="size-4" />
         </button>
-
-        {/* Cover Photo Banner */}
-        <div
-          className="h-56 w-full bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: state.store.coverPhoto
-              ? `url(${state.store.coverPhoto})`
-              : "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
-          }}
-        />
-
-        {/* Business Info - Centered Below Cover */}
-        <div className="relative mx-auto max-w-5xl px-5 py-6 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            {state.store.name}
-          </h1>
-          <p className="mt-2 text-sm text-gray-300">{state.store.slogan}</p>
-          {!online && (
-            <p className="mt-3 inline-block rounded-full bg-red-500/10 px-4 py-1.5 text-[11px] text-red-400">
-              Offline — pedidos serão sincronizados
-            </p>
-          )}
-        </div>
-
-        {/* Animated Marquee - Below header section */}
-        <div className="mt-2 overflow-hidden border-t border-cyan-500/20 bg-black/40 py-2">
-          <div className="marquee-track text-tech text-[11px] animate-marquee text-cyan-400">
-            <span className="px-6">{state.store.marquee}</span>
-            <span className="px-6">{state.store.marquee}</span>
-            <span className="px-6">{state.store.marquee}</span>
-            <span className="px-6">{state.store.marquee}</span>
-          </div>
-        </div>
       </header>
 
-      <nav className="sticky top-0 z-20 border-b border-cyan-500/20 bg-black/80 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl gap-2 overflow-x-auto px-5 py-3">
+      {/* Category Navigation */}
+      <nav className="sticky top-0 z-20 border-b border-red-500/20 bg-black/90 backdrop-blur">
+        <div className="flex gap-2 overflow-x-auto px-4 py-3">
           {state.categories.map((cat) => (
             <button
               key={cat.name}
@@ -182,10 +197,10 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                   .getElementById(`cat-${cat.name}`)
                   ?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
-              className={`text-tech shrink-0 rounded-full px-4 py-2 text-[11px] transition-colors ${
+              className={`shrink-0 rounded-full px-4 py-2 text-[11px] font-semibold transition-all ${
                 activeCat === cat.name
-                  ? "bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.5)]"
-                  : "bg-slate-900 text-gray-400 hover:bg-slate-800"
+                  ? "bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)] border border-red-500"
+                  : "bg-black/50 text-gray-400 hover:bg-red-500/10 border border-red-500/30"
               }`}
             >
               {cat.name}
@@ -194,40 +209,46 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-5xl px-5">
+      <main className="px-4 pb-24">
         {state.categories.map((cat) => (
-          <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-8">
-            <h2 className="text-xl font-semibold text-white">{cat.name}</h2>
-            <div className="mt-4 space-y-3">
+          <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-6">
+            <h2 className="mb-4 text-lg font-bold text-white">{cat.name}</h2>
+            <div className="space-y-4">
               {cat.items.map((item) => (
                 <article
                   key={item.id}
-                  className="group relative flex items-center gap-4 rounded-lg border border-cyan-500/20 bg-gradient-to-r from-black/60 to-slate-900/60 p-3 transition-all hover:border-cyan-500/40 hover:shadow-[0_0_10px_rgba(0,212,255,0.2)]"
+                  className="group relative flex items-center gap-4 rounded-xl border border-red-500/20 bg-black/40 p-4 transition-all hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
                 >
-                  <div className="flex shrink-0 items-center gap-3">
-                    <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-cyan-500/10 text-lg">
-                      {item.img}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-semibold text-white group-hover:text-cyan-300">
-                        {item.name}
-                      </h3>
-                      <p className="line-clamp-2 text-[10px] text-gray-400">{item.desc}</p>
+                  {/* Dish Image - Circular with red circuit border */}
+                  <div className="relative shrink-0">
+                    <div className="absolute inset-0 animate-pulse rounded-full border border-red-500/30" />
+                    <div className="relative size-16 overflow-hidden rounded-full border-2 border-red-500/50 bg-black/50">
+                      <div className="flex size-full items-center justify-center text-2xl">
+                        {item.img}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex-1 text-center">
+
+                  {/* Name and Description */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-bold text-white group-hover:text-red-400 transition-colors">
+                      {item.name}
+                    </h3>
+                    <p className="mt-1 text-xs text-gray-400 line-clamp-2">{item.desc}</p>
+                  </div>
+
+                  {/* Price and Add Button */}
+                  <div className="flex shrink-0 flex-col items-end gap-2">
                     <p className="text-sm font-bold text-white">{brl(item.price)}</p>
-                  </div>
-                  <div className="flex shrink-0 justify-center">
                     {cart[item.id] ? (
-                      <div className="flex items-center gap-1 rounded-full bg-cyan-500/20 p-1">
+                      <div className="flex items-center gap-2 rounded-lg bg-red-500/20 border border-red-500/30 p-1">
                         <button
                           type="button"
                           aria-label={`Remover ${item.name}`}
                           onClick={() => remove(item.id)}
-                          className="grid size-6 place-items-center rounded-full bg-slate-800 hover:bg-slate-700"
+                          className="grid size-6 place-items-center rounded-full bg-black/50 hover:bg-black/70"
                         >
-                          <Minus className="size-3 text-cyan-300" />
+                          <Minus className="size-3 text-red-400" />
                         </button>
                         <span className="w-4 text-center text-sm font-semibold text-white">
                           {cart[item.id]}
@@ -236,18 +257,19 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                           type="button"
                           aria-label={`Adicionar ${item.name}`}
                           onClick={() => add(item.id)}
-                          className="grid size-6 place-items-center rounded-full bg-cyan-500 hover:bg-cyan-400"
+                          className="grid size-6 place-items-center rounded-full bg-red-600 hover:bg-red-500"
                         >
-                          <Plus className="size-3 text-slate-900" />
+                          <Plus className="size-3 text-white" />
                         </button>
                       </div>
                     ) : (
                       <button
                         type="button"
                         onClick={() => add(item.id)}
-                        className="mx-2 rounded-full border border-cyan-500/50 bg-cyan-500/10 px-4 py-1.5 text-[10px] font-semibold text-cyan-300 transition-all hover:bg-cyan-500/30 hover:shadow-[0_0_10px_rgba(0,212,255,0.4)]"
+                        className="flex items-center gap-1 rounded-lg border border-red-500/50 bg-black/50 px-3 py-1.5 text-[10px] font-semibold text-red-400 transition-all hover:bg-red-500/20 hover:shadow-[0_0_10px_rgba(239,68,68,0.3)]"
                       >
-                        Adicionar
+                        <Plus className="size-3" />
+                        ADD
                       </button>
                     )}
                   </div>
@@ -256,23 +278,71 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             </div>
           </section>
         ))}
-
-        <footer className="mt-14 flex flex-col items-center gap-2 border-t border-border py-8 text-center">
-          <CobraFumando className="size-8 text-muted-foreground/50" />
-          <p className="text-tech text-[10px] text-muted-foreground">
-            A cobra está fumando — honra, dignidade e brio
-          </p>
-          <p className="text-[11px] text-muted-foreground/70">
-            PIX: {state.payment.pixKey} · WhatsApp: {state.whatsapp}
-          </p>
-        </footer>
       </main>
+
+      {/* Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-red-500/20 bg-black/95 backdrop-blur">
+        <div className="flex items-center justify-around py-3">
+          <button
+            type="button"
+            className="flex flex-col items-center gap-1 transition-all"
+          >
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-red-500/20 animate-pulse" />
+              <svg
+                viewBox="0 0 24 24"
+                className="relative size-6 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </div>
+            <span className="text-[10px] font-semibold text-red-500">CARDÁPIO</span>
+          </button>
+          <button
+            type="button"
+            className="flex flex-col items-center gap-1 transition-all hover:text-gray-300"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="size-6 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <span className="text-[10px] font-semibold text-gray-500">BEBIDAS</span>
+          </button>
+          <button
+            type="button"
+            className="flex flex-col items-center gap-1 transition-all hover:text-gray-300"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="size-6 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="text-[10px] font-semibold text-gray-500">PERFIL</span>
+          </button>
+        </div>
+      </nav>
 
       {count > 0 && !cartOpen && !checkoutOpen && (
         <button
           type="button"
           onClick={() => setCartOpen(true)}
-          className="ember-glow fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-md items-center justify-between rounded-full bg-primary px-5 py-4 text-primary-foreground"
+          className="fixed inset-x-4 bottom-20 z-30 mx-auto flex max-w-md items-center justify-between rounded-full bg-red-600 px-5 py-4 text-white shadow-[0_0_20px_rgba(220,38,38,0.5)]"
         >
           <span className="flex items-center gap-2 text-sm font-semibold">
             <ShoppingBag className="size-4" /> {count} {count === 1 ? "item" : "itens"}

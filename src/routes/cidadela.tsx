@@ -7,7 +7,7 @@ import { IQTest } from "@/components/cidadela/IQTest";
 import { FutebolBotao } from "@/components/cidadela/FutebolBotao";
 import { RobotLab } from "@/components/cidadela/RobotLab";
 import { BattleArena } from "@/components/cidadela/BattleArena";
-import { useStore } from "@/modules/cidadela-core/store";
+import { StoreProvider, useStore } from "@/modules/cidadela-core/store";
 import { validateCidadelaCode } from "@/modules/fluxos-n8n/webhook";
 
 export const Route = createFileRoute("/cidadela")({
@@ -20,7 +20,11 @@ export const Route = createFileRoute("/cidadela")({
       },
     ],
   }),
-  component: CidadelaWorld,
+  component: () => (
+    <StoreProvider>
+      <CidadelaWorld />
+    </StoreProvider>
+  ),
 });
 
 type Module = "praxinha" | "iq" | "arena" | "lab" | "futebol";

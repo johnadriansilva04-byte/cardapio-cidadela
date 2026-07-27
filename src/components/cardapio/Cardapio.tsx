@@ -137,7 +137,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           <button
             type="button"
             onClick={() => navigate({ to: "/cidadela" })}
-            className="absolute right-4 top-20 flex items-center gap-2 rounded-full border border-cyan-500/50 bg-black/50 px-3 py-2 backdrop-blur-sm transition-all hover:bg-cyan-500/20"
+            className="absolute right-4 top-20 z-30 flex items-center gap-2 rounded-full border border-cyan-500/50 bg-black/50 px-3 py-2 backdrop-blur-sm transition-all hover:bg-cyan-500/20 active:scale-95"
           >
             <div className="relative">
               <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-500/30" />
@@ -163,17 +163,6 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             <p className="mt-1 text-sm font-medium text-gray-300">{state.store.slogan}</p>
           </div>
         </div>
-
-        {/* Admin Button - Fixed Top Right */}
-        <button
-          type="button"
-          onClick={onOpenAdmin}
-          aria-label="ADM"
-          title="ADM"
-          className="fixed right-4 top-20 z-50 flex size-8 items-center justify-center rounded-full border border-red-500/50 bg-red-500/20 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)] transition-all hover:bg-red-500/30"
-        >
-          <Settings className="size-4" />
-        </button>
       </header>
 
       {/* Category Navigation */}
@@ -202,74 +191,76 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       </nav>
 
       <main className="px-4 pb-24">
-        {state.categories.map((cat) => (
-          <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-6">
-            <h2 className="mb-4 text-lg font-bold text-white">{cat.name}</h2>
-            <div className="space-y-4">
-              {cat.items.map((item) => (
-                <article
-                  key={item.id}
-                  className="group relative flex items-center gap-4 rounded-xl border border-red-500/20 bg-black/40 p-4 transition-all hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
-                >
-                  {/* Dish Image - Circular with red circuit border */}
-                  <div className="relative shrink-0">
-                    <div className="absolute inset-0 animate-pulse rounded-full border border-red-500/30" />
-                    <div className="relative size-16 overflow-hidden rounded-full border-2 border-red-500/50 bg-black/50">
-                      <div className="flex size-full items-center justify-center text-2xl">
-                        {item.img}
+        <div className="mx-auto max-w-2xl">
+          {state.categories.map((cat) => (
+            <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-6">
+              <h2 className="mb-4 text-lg font-bold text-white">{cat.name}</h2>
+              <div className="space-y-4">
+                {cat.items.map((item) => (
+                  <article
+                    key={item.id}
+                    className="group relative flex items-center gap-4 rounded-xl border border-red-500/20 bg-black/40 p-4 transition-all hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                  >
+                    {/* Dish Image - Circular with red circuit border */}
+                    <div className="relative shrink-0">
+                      <div className="absolute inset-0 animate-pulse rounded-full border border-red-500/30" />
+                      <div className="relative size-16 overflow-hidden rounded-full border-2 border-red-500/50 bg-black/50">
+                        <div className="flex size-full items-center justify-center text-2xl">
+                          {item.img}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Name and Description */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-bold text-white group-hover:text-red-400 transition-colors">
-                      {item.name}
-                    </h3>
-                    <p className="mt-1 text-xs text-gray-400 line-clamp-2">{item.desc}</p>
-                  </div>
+                    {/* Name and Description */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-bold text-white group-hover:text-red-400 transition-colors">
+                        {item.name}
+                      </h3>
+                      <p className="mt-1 text-xs text-gray-400 line-clamp-2">{item.desc}</p>
+                    </div>
 
-                  {/* Price and Add Button */}
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <p className="text-sm font-bold text-white">{brl(item.price)}</p>
-                    {cart[item.id] ? (
-                      <div className="flex items-center gap-2 rounded-lg bg-red-500/20 border border-red-500/30 p-1">
+                    {/* Price and Add Button */}
+                    <div className="flex shrink-0 flex-col items-end gap-2 min-w-[80px]">
+                      <p className="text-sm font-bold text-white">{brl(item.price)}</p>
+                      {cart[item.id] ? (
+                        <div className="flex items-center gap-2 rounded-lg bg-red-500/20 border border-red-500/30 p-1">
+                          <button
+                            type="button"
+                            aria-label={`Remover ${item.name}`}
+                            onClick={() => remove(item.id)}
+                            className="grid size-6 place-items-center rounded-full bg-black/50 hover:bg-black/70"
+                          >
+                            <Minus className="size-3 text-red-400" />
+                          </button>
+                          <span className="w-4 text-center text-sm font-semibold text-white">
+                            {cart[item.id]}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={`Adicionar ${item.name}`}
+                            onClick={() => add(item.id)}
+                            className="grid size-6 place-items-center rounded-full bg-red-600 hover:bg-red-500"
+                          >
+                            <Plus className="size-3 text-white" />
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           type="button"
-                          aria-label={`Remover ${item.name}`}
-                          onClick={() => remove(item.id)}
-                          className="grid size-6 place-items-center rounded-full bg-black/50 hover:bg-black/70"
-                        >
-                          <Minus className="size-3 text-red-400" />
-                        </button>
-                        <span className="w-4 text-center text-sm font-semibold text-white">
-                          {cart[item.id]}
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={`Adicionar ${item.name}`}
                           onClick={() => add(item.id)}
-                          className="grid size-6 place-items-center rounded-full bg-red-600 hover:bg-red-500"
+                          className="flex items-center gap-1 rounded-lg border border-red-500/50 bg-black/50 px-3 py-1.5 text-[10px] font-semibold text-red-400 transition-all hover:bg-red-500/20 hover:shadow-[0_0_10px_rgba(239,68,68,0.3)]"
                         >
-                          <Plus className="size-3 text-white" />
+                          <Plus className="size-3" />
+                          ADD
                         </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => add(item.id)}
-                        className="flex items-center gap-1 rounded-lg border border-red-500/50 bg-black/50 px-3 py-1.5 text-[10px] font-semibold text-red-400 transition-all hover:bg-red-500/20 hover:shadow-[0_0_10px_rgba(239,68,68,0.3)]"
-                      >
-                        <Plus className="size-3" />
-                        ADD
-                      </button>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       </main>
 
       {/* Bottom Navigation Bar */}
@@ -326,6 +317,17 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           </button>
         </div>
       </nav>
+
+      {/* Admin Button - Fixed Bottom Right */}
+      <button
+        type="button"
+        onClick={onOpenAdmin}
+        aria-label="ADM"
+        title="ADM"
+        className="fixed right-4 bottom-20 z-50 flex size-10 items-center justify-center rounded-full border border-red-500/50 bg-red-500/20 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)] transition-all hover:bg-red-500/30 active:scale-95"
+      >
+        <Settings className="size-5" />
+      </button>
 
       {count > 0 && !cartOpen && !checkoutOpen && (
         <button

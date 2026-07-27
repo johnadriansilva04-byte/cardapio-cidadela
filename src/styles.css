@@ -1,0 +1,205 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * CIDADELA & CARDÁPIO DIGITAL — design system
+ * Frente de loja: apetitoso (brasa, âmbar, carvão).
+ * Cidadela (admin): homenagem à FEB — verde oliva, areia, aço, ouro velho, preto fosco.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  /* FEB — Cidadela */
+  --color-olive: var(--olive);
+  --color-olive-deep: var(--olive-deep);
+  --color-sand: var(--sand);
+  --color-steel: var(--steel);
+  --color-brass: var(--brass);
+  --color-matte: var(--matte);
+  --color-ember: var(--ember);
+
+  --font-display: "Oswald", "Arial Narrow", sans-serif;
+  --font-sans: "Inter Tight", system-ui, sans-serif;
+  --font-stencil: "Saira Stencil One", "Oswald", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.985 0.008 85);
+  --foreground: oklch(0.19 0.02 60);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.19 0.02 60);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.19 0.02 60);
+  --primary: oklch(0.55 0.18 38);
+  --primary-foreground: oklch(0.98 0.01 80);
+  --secondary: oklch(0.94 0.02 80);
+  --secondary-foreground: oklch(0.25 0.03 60);
+  --muted: oklch(0.95 0.012 80);
+  --muted-foreground: oklch(0.5 0.02 70);
+  --accent: oklch(0.78 0.15 75);
+  --accent-foreground: oklch(0.22 0.03 60);
+  --destructive: oklch(0.55 0.21 27);
+  --destructive-foreground: oklch(0.98 0.01 80);
+  --border: oklch(0.9 0.015 80);
+  --input: oklch(0.9 0.015 80);
+  --ring: oklch(0.55 0.18 38);
+
+  --olive: oklch(0.42 0.055 118);
+  --olive-deep: oklch(0.27 0.04 120);
+  --sand: oklch(0.84 0.045 88);
+  --steel: oklch(0.62 0.012 250);
+  --brass: oklch(0.74 0.11 88);
+  --matte: oklch(0.17 0.008 120);
+  --ember: oklch(0.62 0.19 40);
+}
+
+.dark {
+  --background: oklch(0.16 0.01 70);
+  --foreground: oklch(0.96 0.01 80);
+  --card: oklch(0.21 0.012 70);
+  --card-foreground: oklch(0.96 0.01 80);
+  --popover: oklch(0.21 0.012 70);
+  --popover-foreground: oklch(0.96 0.01 80);
+  --primary: oklch(0.66 0.18 40);
+  --primary-foreground: oklch(0.16 0.01 70);
+  --secondary: oklch(0.27 0.015 70);
+  --secondary-foreground: oklch(0.96 0.01 80);
+  --muted: oklch(0.27 0.015 70);
+  --muted-foreground: oklch(0.7 0.015 80);
+  --accent: oklch(0.74 0.11 88);
+  --accent-foreground: oklch(0.18 0.01 70);
+  --destructive: oklch(0.65 0.19 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.66 0.18 40);
+}
+
+/* Escopo visual da CIDADELA: tudo dentro respira FEB. */
+@utility feb-scope {
+  --background: var(--matte);
+  --foreground: var(--sand);
+  --card: oklch(0.22 0.018 120);
+  --card-foreground: var(--sand);
+  --popover: oklch(0.22 0.018 120);
+  --popover-foreground: var(--sand);
+  --primary: var(--olive);
+  --primary-foreground: var(--sand);
+  --secondary: oklch(0.26 0.02 120);
+  --secondary-foreground: var(--sand);
+  --muted: oklch(0.26 0.02 120);
+  --muted-foreground: oklch(0.68 0.02 100);
+  --accent: var(--brass);
+  --accent-foreground: var(--matte);
+  --border: oklch(0.78 0.06 95 / 18%);
+  --input: oklch(0.78 0.06 95 / 22%);
+  --ring: var(--brass);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+@utility text-stencil {
+  font-family: var(--font-stencil);
+  letter-spacing: 0.06em;
+}
+
+@utility text-tech {
+  font-family: var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@utility surface-brass {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--brass) 90%, white),
+    var(--brass) 45%,
+    color-mix(in oklab, var(--brass) 70%, black)
+  );
+}
+
+@utility ember-glow {
+  box-shadow:
+    0 10px 30px -12px color-mix(in oklab, var(--ember) 60%, transparent),
+    0 1px 0 0 color-mix(in oklab, white 40%, transparent) inset;
+}
+
+@utility marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee-scroll 26s linear infinite;
+}
+
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes lock-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--brass) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in oklab, var(--brass) 0%, transparent);
+  }
+}
+
+@utility lock-orb {
+  animation: lock-pulse 2.6s ease-out infinite;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+}

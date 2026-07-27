@@ -1,0 +1,65 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+
+import { STATE_STORAGE_KEY, loadFromIndexedDB, mergeState, saveToIndexedDB } from "@/lib/storage";
+import { DEFAULT_STATE, type AppState } from "@/lib/types";
+import { flushQueue } from "@/modules/fluxos-n8n/webhook";
+
+interface StoreContextValue {
+  state: AppState;
+  ready: boolean;
+  online: boolean;
+  update: (patch: (prev: AppState) => AppState) => void;
+}
+
+const StoreContext = createContext<StoreContextValue | null>(null);
+
+export function StoreProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<AppState>(DEFAULT_STATE);
+  const [ready, setReady] = useState(false);
+  const [online, setOnline] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    loadFromIndexedDB<Partial<AppState>>(STATE_STORAGE_KEY).then((persisted) => {
+      if (!alive) return;
+      setState(mergeState(persisted));
+      setReady(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    void saveToIndexedDB(STATE_STORAGE_KEY, state);
+  }, [state, ready]);
+
+  useEffect(() => {
+    const sync = () => {
+      setOnline(navigator.onLine);
+      if (navigator.onLine) void flushQueue();
+    };
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
+
+  const update = useCallback((patch: (prev: AppState) => AppState) => {
+    setState((prev) => patch(prev));
+  }, []);
+
+  const value = useMemo(() => ({ state, ready, online, update }), [state, ready, online, update]);
+
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+}
+
+export function useStore() {
+  const ctx = useContext(StoreContext);
+  if (!ctx) throw new Error("useStore precisa estar dentro de <StoreProvider>");
+  return ctx;
+}

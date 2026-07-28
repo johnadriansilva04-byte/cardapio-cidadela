@@ -47,6 +47,19 @@
   --color-matte: var(--matte);
   --color-ember: var(--ember);
 
+  /* Mapa Temporal */
+  --color-war: var(--war);
+  --color-war-deep: var(--war-deep);
+  --color-war-dust: var(--war-dust);
+  --color-modern: var(--modern);
+  --color-modern-deep: var(--modern-deep);
+  --color-modern-glow: var(--modern-glow);
+  --color-future: var(--future);
+  --color-future-deep: var(--future-deep);
+  --color-neon: var(--neon);
+  --color-neon-2: var(--neon-2);
+  --color-road: var(--road);
+
   --font-display: "Oswald", "Arial Narrow", sans-serif;
   --font-sans: "Inter Tight", system-ui, sans-serif;
   --font-stencil: "Saira Stencil One", "Oswald", sans-serif;
@@ -82,6 +95,41 @@
   --brass: oklch(0.74 0.11 88);
   --matte: oklch(0.17 0.008 120);
   --ember: oklch(0.62 0.19 40);
+
+  /* Mapa Temporal */
+  --war: oklch(0.44 0.04 85);
+  --war-deep: oklch(0.22 0.025 90);
+  --war-dust: oklch(0.74 0.06 88);
+  --modern: oklch(0.55 0.03 250);
+  --modern-deep: oklch(0.26 0.025 255);
+  --modern-glow: oklch(0.78 0.14 75);
+  --future: oklch(0.45 0.12 290);
+  --future-deep: oklch(0.18 0.06 285);
+  --neon: oklch(0.82 0.17 195);
+  --neon-2: oklch(0.72 0.22 330);
+  --road: oklch(0.32 0.015 90);
+
+  --gradient-era: linear-gradient(
+    100deg,
+    var(--war-deep) 0%,
+    var(--war) 22%,
+    var(--modern-deep) 45%,
+    var(--modern) 62%,
+    var(--future) 82%,
+    var(--future-deep) 100%
+  );
+  --gradient-road: linear-gradient(
+    100deg,
+    oklch(0.45 0.05 80),
+    var(--road) 45%,
+    oklch(0.3 0.05 280) 78%,
+    oklch(0.4 0.12 300)
+  );
+  --shadow-neon:
+    0 0 12px color-mix(in oklab, var(--neon) 70%, transparent),
+    0 0 34px color-mix(in oklab, var(--neon) 35%, transparent);
+  --shadow-ember: 0 0 14px color-mix(in oklab, var(--modern-glow) 45%, transparent);
+  --shadow-dust: 0 14px 34px -12px oklch(0.15 0.03 80 / 0.8);
 }
 
 .dark {
@@ -201,5 +249,124 @@
   h3 {
     font-family: var(--font-display);
     letter-spacing: -0.01em;
+  }
+}
+
+/* ============================================================
+   Mapa de RPG Temporal — design tokens e animações
+   ============================================================ */
+
+@utility era-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+@utility dust-veil {
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      60% 50% at 30% 70%,
+      color-mix(in oklab, var(--war-dust) 22%, transparent),
+      transparent 70%
+    );
+    animation: drift 16s ease-in-out infinite alternate;
+  }
+}
+
+@utility neon-veil {
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      55% 45% at 70% 30%,
+      color-mix(in oklab, var(--neon) 18%, transparent),
+      transparent 72%
+    );
+    animation: pulseGlow 6s ease-in-out infinite;
+  }
+}
+
+@utility scanlines {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.16;
+    background: repeating-linear-gradient(
+      to bottom,
+      oklch(1 0 0 / 0.12) 0 1px,
+      transparent 1px 4px
+    );
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(-3%, 0, 0);
+    opacity: 0.7;
+  }
+  to {
+    transform: translate3d(4%, -2%, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes floatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes dashMove {
+  to {
+    background-position-x: -240px;
+  }
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  47% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 0.45;
+  }
+  52% {
+    opacity: 1;
+  }
+  74% {
+    opacity: 0.7;
+  }
+  76% {
+    opacity: 1;
+  }
+}
+
+@keyframes dashUp {
+  to {
+    background-position-y: -96px;
   }
 }

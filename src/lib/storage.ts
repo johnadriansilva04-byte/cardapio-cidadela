@@ -67,7 +67,11 @@ export function mergeState(persisted: Partial<AppState> | null): AppState {
     payment: { ...DEFAULT_STATE.payment, ...persisted.payment },
     promo: { ...DEFAULT_STATE.promo, ...persisted.promo },
     admin: { ...DEFAULT_STATE.admin, ...persisted.admin },
-    integrations: { ...DEFAULT_STATE.integrations, ...persisted.integrations },
+    // Always use default integration URLs to prevent stale localhost references
+    integrations: {
+      ...DEFAULT_STATE.integrations,
+      geminiApiKey: persisted.integrations?.geminiApiKey ?? DEFAULT_STATE.integrations.geminiApiKey,
+    },
     cidadela: { ...DEFAULT_STATE.cidadela, ...persisted.cidadela },
     categories: persisted.categories?.length ? persisted.categories : DEFAULT_STATE.categories,
   };

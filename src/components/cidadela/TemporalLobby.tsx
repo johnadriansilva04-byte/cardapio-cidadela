@@ -101,47 +101,65 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
       {/* Map Container */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="relative w-full h-full">
-          {/* Central Road - Vertical */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-24">
+          {/* Central Road - Vertical with 3D effect */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-32">
             {/* 1940s - Dirt Road (Bottom) */}
-            <div className="absolute bottom-0 w-full h-1/3 bg-[#5d4037]" />
+            <div className="absolute bottom-0 w-full h-1/3 bg-gradient-to-r from-[#5d4037] via-[#6d5047] to-[#5d4037] shadow-2xl" />
 
             {/* 2020s - Asphalt (Middle) */}
-            <div className="absolute bottom-1/3 w-full h-1/3 bg-[#424242]" />
+            <div className="absolute bottom-1/3 w-full h-1/3 bg-gradient-to-r from-[#424242] via-[#505050] to-[#424242] shadow-2xl" />
 
             {/* 2077+ - Futuristic (Top) */}
-            <div className="absolute top-0 w-full h-1/3 bg-gradient-to-r from-cyan-900 to-purple-900" />
+            <div className="absolute top-0 w-full h-1/3 bg-gradient-to-r from-cyan-900 via-purple-900 to-cyan-900 shadow-2xl shadow-cyan-500/30">
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-magenta-500/20 animate-pulse" />
+            </div>
           </div>
 
           {/* Road Center Line */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-1 bg-yellow-400/30" />
+          <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-2 bg-gradient-to-b from-yellow-400/40 via-yellow-400/30 to-cyan-400/40 shadow-lg" />
+
+          {/* Road Edges */}
+          <div className="absolute left-[calc(50%-64px)] top-0 bottom-0 w-1 bg-gradient-to-b from-amber-600/50 via-gray-500/50 to-cyan-500/50" />
+          <div className="absolute left-[calc(50%+64px)] top-0 bottom-0 w-1 bg-gradient-to-b from-amber-600/50 via-gray-500/50 to-cyan-500/50" />
 
           {/* 1940s Village - Left Side */}
           <div className="absolute bottom-[10%] left-[20%]">
             <button
               type="button"
               onClick={() => handleModuleClick("battle-arena")}
-              className="w-16 h-12 bg-amber-800 border-2 border-amber-600 rounded-t-lg hover:bg-amber-700 transition-colors cursor-pointer flex items-center justify-center"
+              className="relative w-20 h-16 bg-gradient-to-b from-amber-700 to-amber-900 border-2 border-amber-600 rounded-t-lg hover:from-amber-600 hover:to-amber-800 transition-all cursor-pointer flex items-center justify-center shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 hover:scale-105"
             >
-              <span className="text-amber-400 text-xl">⚔️</span>
+              <span className="text-amber-400 text-2xl drop-shadow-lg">⚔️</span>
+              <div className="absolute -bottom-2 left-0 right-0 h-2 bg-black/30 rounded-b blur-sm" />
             </button>
-            <div className="text-amber-400 text-xs mt-1 text-center">ARENA</div>
+            <div className="text-amber-400 text-xs mt-2 text-center font-bold drop-shadow-md">
+              ARENA
+            </div>
           </div>
 
-          {/* 1940s Trees */}
-          <div className="absolute bottom-[15%] left-[10%] text-green-700 text-2xl">🌲</div>
-          <div className="absolute bottom-[5%] left-[12%] text-green-700 text-xl">🌲</div>
+          {/* 1940s Trees with shadows */}
+          <div className="absolute bottom-[15%] left-[8%] relative">
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 h-2 bg-black/40 rounded-full blur-sm" />
+            <div className="text-4xl drop-shadow-lg">🌲</div>
+          </div>
+          <div className="absolute bottom-[5%] left-[12%] relative">
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-2 bg-black/40 rounded-full blur-sm" />
+            <div className="text-3xl drop-shadow-lg">🌲</div>
+          </div>
 
           {/* 2020s Village - Left Side */}
           <div className="absolute bottom-[40%] left-[15%]">
             <button
               type="button"
               onClick={() => handleModuleClick("iq-test")}
-              className="w-14 h-16 bg-blue-800 border-2 border-blue-500 rounded hover:bg-blue-700 transition-colors cursor-pointer flex items-center justify-center"
+              className="relative w-16 h-20 bg-gradient-to-b from-blue-700 to-blue-900 border-2 border-blue-500 rounded hover:from-blue-600 hover:to-blue-800 transition-all cursor-pointer flex items-center justify-center shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105"
             >
-              <span className="text-cyan-400 text-xl">🧠</span>
+              <span className="text-cyan-400 text-2xl drop-shadow-lg">🧠</span>
+              <div className="absolute -bottom-2 left-0 right-0 h-2 bg-black/30 rounded-b blur-sm" />
             </button>
-            <div className="text-blue-400 text-xs mt-1 text-center">QI</div>
+            <div className="text-blue-400 text-xs mt-2 text-center font-bold drop-shadow-md">
+              QI
+            </div>
           </div>
 
           {/* 2020s Village - Right Side */}
@@ -149,18 +167,27 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
             <button
               type="button"
               onClick={() => handleModuleClick("chat-ai")}
-              className="w-14 h-14 bg-blue-800 border-2 border-blue-500 rounded hover:bg-blue-700 transition-colors cursor-pointer flex items-center justify-center"
+              className="relative w-16 h-16 bg-gradient-to-b from-blue-700 to-blue-900 border-2 border-blue-500 rounded hover:from-blue-600 hover:to-blue-800 transition-all cursor-pointer flex items-center justify-center shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105"
             >
-              <span className="text-cyan-400 text-xl">💬</span>
+              <span className="text-cyan-400 text-2xl drop-shadow-lg">💬</span>
+              <div className="absolute -bottom-2 left-0 right-0 h-2 bg-black/30 rounded-b blur-sm" />
             </button>
-            <div className="text-blue-400 text-xs mt-1 text-center">CHAT</div>
+            <div className="text-blue-400 text-xs mt-2 text-center font-bold drop-shadow-md">
+              CHAT
+            </div>
           </div>
 
-          {/* 2020s Favela */}
-          <div className="absolute bottom-[35%] left-[5%] grid grid-cols-3 gap-1">
-            <div className="w-3 h-8 bg-orange-500 rounded-t" />
-            <div className="w-3 h-10 bg-yellow-500 rounded-t" />
-            <div className="w-3 h-6 bg-pink-500 rounded-t" />
+          {/* 2020s Favela with depth */}
+          <div className="absolute bottom-[35%] left-[5%] grid grid-cols-3 gap-2">
+            <div className="relative w-4 h-10 bg-gradient-to-t from-orange-600 to-orange-400 rounded-t shadow-lg">
+              <div className="absolute -bottom-1 left-0 right-0 h-1 bg-black/30 rounded-b blur-sm" />
+            </div>
+            <div className="relative w-4 h-12 bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t shadow-lg">
+              <div className="absolute -bottom-1 left-0 right-0 h-1 bg-black/30 rounded-b blur-sm" />
+            </div>
+            <div className="relative w-4 h-8 bg-gradient-to-t from-pink-600 to-pink-400 rounded-t shadow-lg">
+              <div className="absolute -bottom-1 left-0 right-0 h-1 bg-black/30 rounded-b blur-sm" />
+            </div>
           </div>
 
           {/* 2077+ Village - Center */}
@@ -168,21 +195,26 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
             <button
               type="button"
               onClick={() => handleModuleClick("robot-lab")}
-              className="w-20 h-14 bg-purple-900 border-2 border-cyan-400 rounded hover:bg-purple-800 transition-colors cursor-pointer flex items-center justify-center"
+              className="relative w-24 h-16 bg-gradient-to-b from-purple-700 to-purple-900 border-2 border-cyan-400 rounded hover:from-purple-600 hover:to-purple-800 transition-all cursor-pointer flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105"
             >
-              <span className="text-cyan-400 text-2xl animate-pulse">⚛️</span>
+              <span className="text-cyan-400 text-3xl drop-shadow-lg animate-pulse">⚛️</span>
+              <div className="absolute -bottom-2 left-0 right-0 h-2 bg-black/30 rounded-b blur-sm" />
             </button>
-            <div className="text-cyan-400 text-xs mt-1 text-center">LAB</div>
+            <div className="text-cyan-400 text-xs mt-2 text-center font-bold drop-shadow-md">
+              LAB
+            </div>
           </div>
 
-          {/* Era Labels */}
-          <div className="absolute bottom-[5%] left-[55%] text-amber-400 text-sm font-mono">
+          {/* Era Labels with glow */}
+          <div className="absolute bottom-[5%] left-[55%] text-amber-400 text-sm font-mono font-bold drop-shadow-lg">
             1940s
           </div>
-          <div className="absolute bottom-[35%] left-[55%] text-blue-400 text-sm font-mono">
+          <div className="absolute bottom-[35%] left-[55%] text-blue-400 text-sm font-mono font-bold drop-shadow-lg">
             2020s
           </div>
-          <div className="absolute top-[10%] left-[55%] text-cyan-400 text-sm font-mono">2077+</div>
+          <div className="absolute top-[10%] left-[55%] text-cyan-400 text-sm font-mono font-bold drop-shadow-lg animate-pulse">
+            2077+
+          </div>
         </div>
       </div>
 

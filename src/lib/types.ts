@@ -102,15 +102,15 @@ export const DEFAULT_STATE: AppState = {
   integrations: {
     geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
     n8nWebhookUrl:
-      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://58ce753dc20d42.lhr.life/webhook/pracinha",
+      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://talking-dealer-produces-louisville.trycloudflare.com/webhook/pracinha",
     cidadelaAuthUrl:
       import.meta.env.VITE_N8N_CIDADELA_AUTH_URL ||
-      "https://58ce753dc20d42.lhr.life/webhook/cidadela",
+      "https://talking-dealer-produces-louisville.trycloudflare.com/webhook/cidadela",
   },
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],
   conversation: [],
-  _version: 1, // State version for migration
+  _version: 2, // State version for migration
   categories: [
     {
       name: "Lanches",

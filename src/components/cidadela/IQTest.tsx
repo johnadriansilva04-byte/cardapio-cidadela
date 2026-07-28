@@ -312,7 +312,7 @@ function RunPanel({
         </div>
       </div>
 
-      <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
+      <div className="mt-0 flex flex-wrap items-center justify-end gap-2">
         <button onClick={onPrev} disabled={index === 0} className="btn-ghost">
           Anterior
         </button>

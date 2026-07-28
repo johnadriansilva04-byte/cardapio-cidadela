@@ -48,7 +48,7 @@ export function ConfigOperacional() {
           <input
             className={`${field} mt-1`}
             value={state.integrations.cidadelaAuthUrl}
-            placeholder="http://localhost:5678/webhook/cidadela"
+            placeholder="https://58ce753dc20d42.lhr.life/webhook/cidadela"
             onChange={(e) =>
               update((prev) => ({
                 ...prev,

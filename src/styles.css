@@ -384,3 +384,71 @@
     background-position-y: -96px;
   }
 }
+
+/* ============================================================
+   Estilos do Teste de QI — Matrizes Progressivas
+   ============================================================ */
+
+.chip {
+  @apply inline-block rounded-full border border-border bg-secondary px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground;
+}
+
+.btn-primary {
+  @apply rounded-lg bg-[color:var(--brass)] px-6 py-3 text-sm font-semibold text-[color:var(--matte)] transition-all hover:shadow-lg hover:shadow-[color:var(--brass)]/30;
+}
+
+.btn-ghost {
+  @apply rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition-all hover:border-[color:var(--brass)] hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.matrix {
+  @apply grid grid-cols-3 gap-2 rounded-lg border border-border bg-background p-3;
+}
+
+.matrix__cell {
+  @apply aspect-square rounded border border-border bg-secondary flex items-center justify-center;
+}
+
+.matrix__cell--missing {
+  @apply border-dashed border-muted-foreground/50 bg-muted/30;
+}
+
+.option {
+  @apply relative aspect-square rounded-lg border border-border bg-secondary p-2 transition-all hover:border-[color:var(--brass)] hover:shadow-md;
+}
+
+.option--active {
+  @apply border-[color:var(--brass)] ring-2 ring-[color:var(--brass)] ring-offset-2 ring-offset-background;
+}
+
+.option__tag {
+  @apply absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--brass)] text-[10px] font-bold text-[color:var(--matte)];
+}
+
+.dot {
+  @apply h-2 w-2 rounded-full border border-border bg-muted transition-all;
+}
+
+.dot--done {
+  @apply bg-[color:var(--brass)] border-[color:var(--brass)];
+}
+
+.dot--current {
+  @apply bg-[color:var(--olive)] border-[color:var(--olive)] ring-2 ring-[color:var(--olive)] ring-offset-1;
+}
+
+.progress {
+  @apply h-2 w-full overflow-hidden rounded-full bg-muted;
+}
+
+.progress__bar {
+  @apply h-full rounded-full bg-[color:var(--brass)] transition-all duration-300;
+}
+
+.stat {
+  @apply rounded-lg border border-border bg-secondary p-3;
+}
+
+.text-gradient {
+  @apply bg-gradient-to-r from-[color:var(--brass)] to-[color:var(--olive)] bg-clip-text text-transparent;
+}

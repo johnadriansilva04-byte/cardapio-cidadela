@@ -1,10 +1,13 @@
 import { type Figure } from "@/lib/iq/generator";
 
+let patternIdCounter = 0;
+
 export function FigureSVG({ figure, className }: { figure: Figure | null; className?: string }) {
   if (!figure) {
     return <div className={className} />;
   }
 
+  const fig = figure; // Local non-null reference
   const sizeMap = { small: 0.6, medium: 0.8, large: 1 };
   const colorMap = {
     red: "#ef4444",
@@ -13,130 +16,119 @@ export function FigureSVG({ figure, className }: { figure: Figure | null; classN
     yellow: "#eab308",
     purple: "#a855f7",
     orange: "#f97316",
+    pink: "#ec4899",
+    cyan: "#06b6d4",
   };
 
-  const scale = sizeMap[figure.size];
-  const color = colorMap[figure.color];
+  const scale = sizeMap[fig.size];
+  const color = colorMap[fig.color];
+
+  // Generate unique pattern IDs to avoid collisions
+  const hatchId = `hatch-${patternIdCounter++}`;
+  const dotId = `dot-${patternIdCounter++}`;
 
   function renderShape() {
+    const strokeWidth = fig.fill === "outline" ? 2.5 : fig.fill === "hatched" ? 1.5 : 0;
+    const fill =
+      fig.fill === "solid"
+        ? color
+        : fig.fill === "hatched"
+          ? color
+          : fig.fill === "dotted"
+            ? color
+            : "none";
+    const fillOpacity = fig.fill === "hatched" || fig.fill === "dotted" ? 0.3 : 1;
+
     const commonProps = {
-      fill: figure.fill === "solid" ? color : "none",
+      fill,
+      fillOpacity,
       stroke: color,
-      strokeWidth: figure.fill === "outline" ? 2 : figure.fill === "hatched" ? 1 : 0,
-      transform: `rotate(${figure.rotation})`,
-      transformOrigin: "center",
+      strokeWidth,
+      strokeLinecap: "round" as const,
+      strokeLinejoin: "round" as const,
     };
 
-    switch (figure.shape) {
+    switch (fig.shape) {
       case "circle":
-        return <circle cx="50" cy="50" r={40 * scale} {...commonProps} />;
+        return <circle cx="50" cy="50" r={38 * scale} {...commonProps} />;
       case "square":
         return (
           <rect
-            x={50 - 35 * scale}
-            y={50 - 35 * scale}
-            width={70 * scale}
-            height={70 * scale}
+            x={50 - 33 * scale}
+            y={50 - 33 * scale}
+            width={66 * scale}
+            height={66 * scale}
+            rx={4}
             {...commonProps}
           />
         );
       case "triangle":
         return (
           <polygon
-            points={`50,${10 * scale} ${90 * scale},${90 * scale} ${10 * scale},${90 * scale}`}
+            points={`50,${12 * scale} ${88 * scale},${88 * scale} ${12 * scale},${88 * scale}`}
             {...commonProps}
           />
         );
       case "diamond":
         return (
           <polygon
-            points={`50,${10 * scale} ${90 * scale},50 50,${90 * scale} ${10 * scale},50`}
+            points={`50,${12 * scale} ${88 * scale},50 50,${88 * scale} ${12 * scale},50`}
             {...commonProps}
           />
         );
       case "pentagon":
         const pentagonPoints = Array.from({ length: 5 }, (_, i) => {
           const angle = (i * 72 - 90) * (Math.PI / 180);
-          const r = 40 * scale;
+          const r = 38 * scale;
           return `${50 + r * Math.cos(angle)},${50 + r * Math.sin(angle)}`;
         }).join(" ");
         return <polygon points={pentagonPoints} {...commonProps} />;
       case "star":
         const starPoints = Array.from({ length: 10 }, (_, i) => {
           const angle = (i * 36 - 90) * (Math.PI / 180);
-          const r = i % 2 === 0 ? 40 * scale : 20 * scale;
+          const r = i % 2 === 0 ? 38 * scale : 18 * scale;
           return `${50 + r * Math.cos(angle)},${50 + r * Math.sin(angle)}`;
         }).join(" ");
         return <polygon points={starPoints} {...commonProps} />;
     }
   }
 
-  function renderHatching() {
-    if (figure.fill !== "hatched") return null;
+  function renderPatterns() {
     return (
-      <pattern
-        id={`hatch-${figure.shape}-${figure.size}`}
-        patternUnits="userSpaceOnUse"
-        width="8"
-        height="8"
-      >
-        <line x1="0" y1="0" x2="8" y2="8" stroke={color} strokeWidth="1" />
-      </pattern>
+      <defs>
+        {fig.fill === "hatched" && (
+          <pattern
+            id={hatchId}
+            patternUnits="userSpaceOnUse"
+            width="8"
+            height="8"
+            patternTransform="rotate(45)"
+          >
+            <line x1="0" y1="0" x2="0" y2="8" stroke={color} strokeWidth="1.5" />
+          </pattern>
+        )}
+        {fig.fill === "dotted" && (
+          <pattern id={dotId} patternUnits="userSpaceOnUse" width="8" height="8">
+            <circle cx="4" cy="4" r="1.5" fill={color} />
+          </pattern>
+        )}
+      </defs>
     );
   }
 
-  function renderDotted() {
-    if (figure.fill !== "dotted") return null;
-    return (
-      <pattern
-        id={`dot-${figure.shape}-${figure.size}`}
-        patternUnits="userSpaceOnUse"
-        width="6"
-        height="6"
-      >
-        <circle cx="3" cy="3" r="1" fill={color} />
-      </pattern>
-    );
+  function getFillUrl() {
+    if (fig.fill === "hatched") return `url(#${hatchId})`;
+    if (fig.fill === "dotted") return `url(#${dotId})`;
+    return color;
   }
 
   return (
     <svg viewBox="0 0 100 100" className={className}>
-      <defs>
-        {renderHatching()}
-        {renderDotted()}
-      </defs>
-      <g transform={`rotate(${figure.rotation} 50 50)`}>
-        {figure.fill === "hatched" && (
-          <g>
-            {renderShape()}
-            <rect
-              x={50 - 35 * scale}
-              y={50 - 35 * scale}
-              width={70 * scale}
-              height={70 * scale}
-              fill={`url(#hatch-${figure.shape}-${figure.size})`}
-              opacity={0.3}
-            />
-          </g>
-        )}
-        {figure.fill === "dotted" && (
-          <g>
-            {renderShape()}
-            <rect
-              x={50 - 35 * scale}
-              y={50 - 35 * scale}
-              width={70 * scale}
-              height={70 * scale}
-              fill={`url(#dot-${figure.shape}-${figure.size})`}
-              opacity={0.3}
-            />
-          </g>
-        )}
-        {figure.fill !== "hatched" && figure.fill !== "dotted" && renderShape()}
-      </g>
-      {figure.innerFigure && (
-        <g transform="translate(50, 50) scale(0.4) translate(-50, -50)">
-          <FigureSVG figure={figure.innerFigure} />
+      {renderPatterns()}
+      <g transform={`rotate(${fig.rotation} 50 50)`}>{renderShape()}</g>
+      {fig.innerFigure && (
+        <g transform="translate(50, 50) scale(0.35) translate(-50, -50)">
+          <FigureSVG figure={fig.innerFigure} />
         </g>
       )}
     </svg>

@@ -199,20 +199,20 @@ export function IQTest() {
         </div>
 
         {/* Right: Pracinha + Chat */}
-        <div className="flex w-80 flex-col border-l border-border bg-secondary">
+        <div className="flex w-72 flex-col border-l border-border bg-secondary">
           {/* Pracinha with Clipboard */}
-          <div className="flex flex-col items-center p-4 border-b border-border">
-            <PracinhaWithClipboard mood={mood} className="w-32 h-auto" />
+          <div className="flex flex-col items-center p-3 border-b border-border">
+            <PracinhaWithClipboard mood={mood} className="w-24 h-auto" />
             <div>
-              <p className="font-display text-sm uppercase tracking-[0.2em] text-accent">
+              <p className="font-display text-xs uppercase tracking-[0.2em] text-accent">
                 Pracinha
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{line}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{line}</p>
             </div>
           </div>
 
           {/* Chat */}
-          <div className="flex-1 p-4">
+          <div className="flex-1 p-3">
             <PracinhaChat />
           </div>
         </div>
@@ -256,7 +256,7 @@ function RunPanel({
   const low = secondsLeft <= 60;
 
   return (
-    <div className="rounded-xl border border-border bg-secondary p-5 md:p-8">
+    <div className="rounded-xl border border-border bg-secondary p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-display text-xs uppercase tracking-[0.25em] text-accent">
@@ -312,7 +312,7 @@ function RunPanel({
         </div>
       </div>
 
-      <div className="mt-7 flex flex-wrap items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <button onClick={onPrev} disabled={index === 0} className="btn-ghost">
           Anterior
         </button>
@@ -330,7 +330,7 @@ function RunPanel({
         </button>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-1.5">
+      <div className="mt-3 flex flex-wrap gap-1.5">
         {answers.map((a, i) => (
           <button
             key={i}

@@ -3,8 +3,8 @@ import { hashSeed } from "./rng";
 export type Figure = {
   shape: "circle" | "square" | "triangle" | "diamond" | "pentagon" | "star";
   size: "small" | "medium" | "large";
-  color: "red" | "blue" | "green" | "yellow" | "purple" | "orange";
-  rotation: 0 | 45 | 90 | 135 | 180 | 225 | 270 | 315;
+  color: "red" | "blue" | "green" | "yellow" | "purple" | "orange" | "pink" | "cyan";
+  rotation: 0 | 30 | 45 | 60 | 90 | 120 | 135 | 150 | 180 | 210 | 225 | 240 | 270 | 300 | 315 | 330;
   fill: "solid" | "outline" | "hatched" | "dotted";
   innerFigure?: Figure;
 };
@@ -20,8 +20,19 @@ export type MatrixItem = {
 
 const SHAPES: Figure["shape"][] = ["circle", "square", "triangle", "diamond", "pentagon", "star"];
 const SIZES: Figure["size"][] = ["small", "medium", "large"];
-const COLORS: Figure["color"][] = ["red", "blue", "green", "yellow", "purple", "orange"];
-const ROTATIONS: Figure["rotation"][] = [0, 45, 90, 135, 180, 225, 270, 315];
+const COLORS: Figure["color"][] = [
+  "red",
+  "blue",
+  "green",
+  "yellow",
+  "purple",
+  "orange",
+  "pink",
+  "cyan",
+];
+const ROTATIONS: Figure["rotation"][] = [
+  0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330,
+];
 const FILLS: Figure["fill"][] = ["solid", "outline", "hatched", "dotted"];
 
 function seededRandom(seed: number): () => number {

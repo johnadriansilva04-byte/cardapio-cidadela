@@ -34,7 +34,7 @@ export function ConfigOperacional() {
           <input
             className={`${field} mt-1`}
             value={state.integrations.n8nWebhookUrl}
-            placeholder="http://localhost:5678/webhook/cardapio-pedido"
+            placeholder="https://58ce753dc20d42.lhr.life/webhook/pracinha"
             onChange={(e) =>
               update((prev) => ({
                 ...prev,

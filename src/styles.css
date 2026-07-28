@@ -130,6 +130,20 @@
     0 0 34px color-mix(in oklab, var(--neon) 35%, transparent);
   --shadow-ember: 0 0 14px color-mix(in oklab, var(--modern-glow) 45%, transparent);
   --shadow-dust: 0 14px 34px -12px oklch(0.15 0.03 80 / 0.8);
+
+  /* Pracinha */
+  --pracinha-shell-light: oklch(0.92 0.02 85);
+  --pracinha-shell-dark: oklch(0.72 0.04 85);
+  --pracinha-joint: oklch(0.65 0.03 85);
+  --pracinha-visor: oklch(0.25 0.02 240);
+  --pracinha-visor-deep: oklch(0.15 0.02 240);
+  --pracinha-eye: oklch(0.98 0.01 85);
+  --pracinha-accent: oklch(0.75 0.18 45);
+  --pracinha-shirt: oklch(0.85 0.12 45);
+  --pracinha-shirt-ink: oklch(0.25 0.02 85);
+  --pracinha-shadow: oklch(0.15 0.02 85 / 0.4);
+  --pracinha-clipboard: oklch(0.95 0.01 85);
+  --pracinha-clipboard-line: oklch(0.45 0.02 85);
 }
 
 .dark {

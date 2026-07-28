@@ -96,12 +96,13 @@ export const DEFAULT_STATE: AppState = {
   },
   payment: { pixKey: "cantina@pracinha.com.br" },
   promo: { meta: 100, cidadelaDate: new Date().toISOString().slice(0, 10) },
-  admin: { accessKey: "FEB-1944" },
-  whatsapp: "5511999999999",
+  admin: { accessKey: import.meta.env.VITE_ADMIN_ACCESS_KEY || "FEB-1944" },
+  whatsapp: import.meta.env.VITE_WHATSAPP_NUMBER || "5511999999999",
   integrations: {
-    geminiApiKey: "",
-    n8nWebhookUrl: "http://localhost:5678/webhook/pracinha",
-    cidadelaAuthUrl: "http://localhost:5678/webhook/cidadela",
+    geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
+    n8nWebhookUrl: import.meta.env.VITE_N8N_WEBHOOK_URL || "http://localhost:5678/webhook/pracinha",
+    cidadelaAuthUrl:
+      import.meta.env.VITE_N8N_CIDADELA_AUTH_URL || "http://localhost:5678/webhook/cidadela",
   },
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],

@@ -312,7 +312,7 @@ function RunPanel({
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
         <button onClick={onPrev} disabled={index === 0} className="btn-ghost">
           Anterior
         </button>
@@ -325,7 +325,7 @@ function RunPanel({
             Finalizar e calcular
           </button>
         )}
-        <button onClick={onFinish} className="btn-ghost ml-auto">
+        <button onClick={onFinish} className="btn-ghost">
           Encerrar agora
         </button>
       </div>

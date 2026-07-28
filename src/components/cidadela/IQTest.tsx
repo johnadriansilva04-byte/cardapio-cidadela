@@ -161,7 +161,7 @@ export function IQTest() {
                   </Rule>
                 </div>
 
-                <button onClick={start} className="btn-primary mt-9 w-full sm:w-auto">
+                <button onClick={start} className="btn-primary mt-2 w-full sm:w-auto">
                   Iniciar avaliação
                 </button>
               </div>
@@ -312,7 +312,7 @@ function RunPanel({
         </div>
       </div>
 
-      <div className="mt-0 flex flex-wrap items-center justify-end gap-2">
+      <div className="-mt-2 flex flex-wrap items-center justify-end gap-2">
         <button onClick={onPrev} disabled={index === 0} className="btn-ghost">
           Anterior
         </button>

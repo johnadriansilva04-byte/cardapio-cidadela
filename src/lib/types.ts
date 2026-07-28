@@ -60,7 +60,13 @@ export interface AppState {
   whatsapp: string;
   integrations: { geminiApiKey: string; n8nWebhookUrl: string; cidadelaAuthUrl: string };
   categories: Category[];
-  cidadela: { codes: PromoCode[]; accessHistory: string[]; robots: RobotConfig[] };
+  cidadela: {
+    codes: PromoCode[];
+    accessHistory: string[];
+    robots: RobotConfig[];
+    customTopics: CustomTopic[];
+    isPremium: boolean;
+  };
   orders: Order[];
   conversation: ChatMessage[];
 }
@@ -73,6 +79,12 @@ export interface RobotConfig {
   aggressiveness: number;
   eloquence: number;
   logic: number;
+}
+
+export interface CustomTopic {
+  id: string;
+  name: string;
+  createdAt: string;
 }
 
 export const DEFAULT_STATE: AppState = {
@@ -91,7 +103,7 @@ export const DEFAULT_STATE: AppState = {
     n8nWebhookUrl: "http://localhost:5678/webhook/pracinha",
     cidadelaAuthUrl: "http://localhost:5678/webhook/cidadela",
   },
-  cidadela: { codes: [], accessHistory: [], robots: [] },
+  cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],
   conversation: [],
   categories: [

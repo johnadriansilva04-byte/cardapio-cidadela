@@ -51,12 +51,16 @@ function CidadelaWorld() {
     e.preventDefault();
     const value = code.trim().toUpperCase();
 
+    // Verificar se é código premium
+    const isPremiumCode = value.startsWith("PREMIUM-") || value === "FEB-VIP";
+
     if (value === state.admin.accessKey.toUpperCase()) {
       update((prev) => ({
         ...prev,
         cidadela: {
           ...prev.cidadela,
           accessHistory: [new Date().toISOString(), ...prev.cidadela.accessHistory].slice(0, 20),
+          isPremium: isPremiumCode || prev.cidadela.isPremium,
         },
       }));
       setUnlocked(true);
@@ -77,6 +81,7 @@ function CidadelaWorld() {
           cidadela: {
             ...prev.cidadela,
             accessHistory: [new Date().toISOString(), ...prev.cidadela.accessHistory].slice(0, 20),
+            isPremium: isPremiumCode || prev.cidadela.isPremium,
           },
         }));
         setUnlocked(true);
@@ -92,6 +97,7 @@ function CidadelaWorld() {
                 0,
                 20,
               ),
+              isPremium: isPremiumCode || prev.cidadela.isPremium,
             },
           }));
           setUnlocked(true);
@@ -114,6 +120,7 @@ function CidadelaWorld() {
           cidadela: {
             ...prev.cidadela,
             accessHistory: [new Date().toISOString(), ...prev.cidadela.accessHistory].slice(0, 20),
+            isPremium: isPremiumCode || prev.cidadela.isPremium,
           },
         }));
         setUnlocked(true);

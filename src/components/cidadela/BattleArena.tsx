@@ -39,12 +39,9 @@ type BattleMessage = {
   timestamp?: Date;
 };
 
-const TOPICS = [
-  "A importância da honra militar",
-  "O papel da disciplina na sociedade",
-  "Liberdade vs ordem",
-  "Tradição vs progresso",
-  "O dever de defender a pátria",
+const DEFAULT_TOPICS = [
+  "A eugenia burocrática: políticas de controle populacional",
+  "A força instituição brasileira foi a primeira vítima dessa eugenia",
 ];
 
 const ARGUMENTS: Record<string, string[]> = {
@@ -81,23 +78,31 @@ const ARGUMENTS: Record<string, string[]> = {
 };
 
 export function BattleArena() {
-  const { state } = useStore();
+  const { state, update } = useStore();
   const [selectedMyRobot, setSelectedMyRobot] = useState<RobotConfig | null>(null);
   const [inputArgument, setInputArgument] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [battle, setBattle] = useState<BattleState | null>(null);
   const [isMyTurn, setIsMyTurn] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [showTopicSelector, setShowTopicSelector] = useState(true);
+  const [newTopicName, setNewTopicName] = useState("");
+  const [showPaywall, setShowPaywall] = useState(false);
 
   function startBattle() {
     if (!selectedMyRobot) {
       alert("Selecione um robô primeiro!");
       return;
     }
+    if (!selectedTopic) {
+      alert("Selecione um assunto primeiro!");
+      return;
+    }
     setIsSearching(true);
     setTimeout(() => {
       setIsSearching(false);
       setBattle({
-        topic: "A importância da honra militar",
+        topic: selectedTopic,
         status: "active",
         current_round: 1,
         player1_name: selectedMyRobot.name,
@@ -105,7 +110,45 @@ export function BattleArena() {
         messages: [],
       });
       setIsMyTurn(true);
+      setShowTopicSelector(false);
     }, 2000);
+  }
+
+  function handleCreateCustomTopic() {
+    if (!state.cidadela.isPremium && state.cidadela.customTopics.length >= 1) {
+      setShowPaywall(true);
+      return;
+    }
+    if (!newTopicName.trim()) {
+      alert("Digite um nome para o assunto!");
+      return;
+    }
+    const newTopic = {
+      id: Date.now().toString(),
+      name: newTopicName.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    update((prev) => ({
+      ...prev,
+      cidadela: {
+        ...prev.cidadela,
+        customTopics: [...prev.cidadela.customTopics, newTopic],
+      },
+    }));
+    setNewTopicName("");
+    setSelectedTopic(newTopic.name);
+  }
+
+  function handleUnlockPremium() {
+    const whatsappNumber = state.whatsapp || "5511999999999";
+    const message = encodeURIComponent(
+      "Olá! Gostaria de desbloquear o plano Premium da Arena de Batalha por R$98,99/semestral.",
+    );
+    window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
+  }
+
+  function getAvailableTopics() {
+    return [...DEFAULT_TOPICS, ...state.cidadela.customTopics.map((t) => t.name)];
   }
 
   function handleSendArgument() {
@@ -152,6 +195,107 @@ export function BattleArena() {
         <p className="mt-2 text-sm text-muted-foreground">
           Robôs debatendo ideologia · 6 rodadas · Sistema de vida
         </p>
+
+        {showTopicSelector && (
+          <div className="mt-6 rounded-xl border border-border bg-secondary p-6">
+            <h3 className="text-stencil text-lg mb-4">Selecione o Assunto do Debate</h3>
+            <div className="grid gap-3">
+              {DEFAULT_TOPICS.map((topic) => (
+                <button
+                  key={topic}
+                  type="button"
+                  onClick={() => setSelectedTopic(topic)}
+                  className={`text-left rounded-lg border px-4 py-3 transition-all ${
+                    selectedTopic === topic
+                      ? "border-[color:var(--brass)] bg-[color:var(--brass)]/10"
+                      : "border-border bg-background hover:border-[color:var(--brass)]/50"
+                  }`}
+                >
+                  <p className="text-sm font-medium">{topic}</p>
+                </button>
+              ))}
+              {state.cidadela.customTopics.map((topic) => (
+                <button
+                  key={topic.id}
+                  type="button"
+                  onClick={() => setSelectedTopic(topic.name)}
+                  className={`text-left rounded-lg border px-4 py-3 transition-all ${
+                    selectedTopic === topic.name
+                      ? "border-[color:var(--brass)] bg-[color:var(--brass)]/10"
+                      : "border-border bg-background hover:border-[color:var(--brass)]/50"
+                  }`}
+                >
+                  <p className="text-sm font-medium">{topic.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Customizado por você</p>
+                </button>
+              ))}
+              <div className="rounded-lg border border-dashed border-border bg-background/50 p-4">
+                <div className="flex gap-2">
+                  <input
+                    value={newTopicName}
+                    onChange={(e) => setNewTopicName(e.target.value)}
+                    placeholder="Criar novo assunto customizado..."
+                    className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateCustomTopic}
+                    disabled={!state.cidadela.isPremium && state.cidadela.customTopics.length >= 1}
+                    className="rounded-lg bg-[color:var(--brass)] px-4 py-2 text-sm text-[color:var(--matte)] disabled:opacity-50"
+                  >
+                    Criar
+                  </button>
+                </div>
+                {!state.cidadela.isPremium && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Limite gratuito: {state.cidadela.customTopics.length}/1 assunto customizado
+                  </p>
+                )}
+              </div>
+            </div>
+            {selectedTopic && (
+              <button
+                type="button"
+                onClick={() => setShowTopicSelector(false)}
+                className="mt-4 w-full rounded-lg bg-[color:var(--brass)] px-4 py-3 text-sm font-medium text-[color:var(--matte)]"
+              >
+                Continuar para Seleção de Robô
+              </button>
+            )}
+          </div>
+        )}
+
+        {showPaywall && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="mx-4 max-w-md rounded-xl border border-border bg-secondary p-6">
+              <h3 className="text-stencil text-xl mb-2">🔒 Desbloquear Premium</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Você atingiu o limite de assuntos customizados. Desbloqueie o plano Premium para
+                criar assuntos ilimitados!
+              </p>
+              <div className="rounded-lg bg-background p-4 mb-4">
+                <p className="text-lg font-bold text-[color:var(--brass)]">R$98,99/semestral</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Assuntos customizados ilimitados
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleUnlockPremium}
+                className="w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white hover:bg-green-700 transition-colors"
+              >
+                Desbloquear via WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPaywall(false)}
+                className="mt-2 w-full rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-background transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div className="rounded-xl border border-border bg-secondary p-4">

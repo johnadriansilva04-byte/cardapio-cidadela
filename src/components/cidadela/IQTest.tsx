@@ -129,9 +129,9 @@ export function IQTest() {
             {phase === "intro" ? (
               <div className="rounded-xl border border-border bg-secondary p-8">
                 <p className="chip">Módulo de aferição cognitiva</p>
-                <h1 className="font-display mt-4 text-3xl font-bold leading-tight text-foreground md:text-5xl">
-                  Matrizes Progressivas 3×3
-                </h1>
+                <button onClick={start} className="btn-primary w-full sm:w-auto">
+                  Iniciar avaliação
+                </button>
                 <p className="mt-4 max-w-2xl text-muted-foreground">
                   Nove figuras, uma faltando. Cada matriz é gerada na hora por regras lógicas
                   explícitas — forma, quantidade, tamanho, rotação, preenchimento, cor e figura
@@ -312,7 +312,7 @@ function RunPanel({
         </div>
       </div>
 
-      <div className="-mt-2 flex flex-wrap items-center justify-end gap-2">
+      <div className="-mt-6 flex flex-wrap items-center justify-end gap-2">
         <button onClick={onPrev} disabled={index === 0} className="btn-ghost">
           Anterior
         </button>

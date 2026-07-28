@@ -65,7 +65,7 @@ export function useAdminTrial() {
       .insert({
         store_name: storeName,
         admin_phone: adminPhone,
-        access_code,
+        access_code: accessCode,
         trial_started_at: trialStartedAt.toISOString(),
         trial_expires_at: trialExpiresAt.toISOString(),
       })

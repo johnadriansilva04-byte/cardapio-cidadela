@@ -192,13 +192,11 @@ export function BattleArena() {
     <div className="flex h-[calc(100vh-73px)] flex-col px-4">
       <div className="mx-auto w-full max-w-4xl py-6">
         <h2 className="text-stencil text-2xl">Arena de Batalha</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Robôs debatendo ideologia · 6 rodadas · Sistema de vida
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">6 rodadas • Sistema de vida</p>
 
         {showTopicSelector && (
           <div className="mt-6 rounded-xl border border-border bg-secondary p-6">
-            <h3 className="text-stencil text-lg mb-4">Selecione o Assunto do Debate</h3>
+            <h3 className="text-stencil text-lg mb-4">Assunto do Debate</h3>
             <div className="grid gap-3">
               {DEFAULT_TOPICS.map((topic) => (
                 <button
@@ -226,7 +224,7 @@ export function BattleArena() {
                   }`}
                 >
                   <p className="text-sm font-medium">{topic.name}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Customizado por você</p>
+                  <p className="text-xs text-muted-foreground mt-1">Customizado</p>
                 </button>
               ))}
               <div className="rounded-lg border border-dashed border-border bg-background/50 p-4">
@@ -234,7 +232,7 @@ export function BattleArena() {
                   <input
                     value={newTopicName}
                     onChange={(e) => setNewTopicName(e.target.value)}
-                    placeholder="Criar novo assunto customizado..."
+                    placeholder="Novo assunto..."
                     className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                   />
                   <button
@@ -248,7 +246,7 @@ export function BattleArena() {
                 </div>
                 {!state.cidadela.isPremium && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    Limite gratuito: {state.cidadela.customTopics.length}/1 assunto customizado
+                    Grátis: {state.cidadela.customTopics.length}/1
                   </p>
                 )}
               </div>
@@ -259,7 +257,7 @@ export function BattleArena() {
                 onClick={() => setShowTopicSelector(false)}
                 className="mt-4 w-full rounded-lg bg-[color:var(--brass)] px-4 py-3 text-sm font-medium text-[color:var(--matte)]"
               >
-                Continuar para Seleção de Robô
+                Selecionar Robô
               </button>
             )}
           </div>
@@ -270,21 +268,18 @@ export function BattleArena() {
             <div className="mx-4 max-w-md rounded-xl border border-border bg-secondary p-6">
               <h3 className="text-stencil text-xl mb-2">🔒 Desbloquear Premium</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Você atingiu o limite de assuntos customizados. Desbloqueie o plano Premium para
-                criar assuntos ilimitados!
+                Limite atingido. Desbloqueie para criar ilimitados.
               </p>
               <div className="rounded-lg bg-background p-4 mb-4">
                 <p className="text-lg font-bold text-[color:var(--brass)]">R$98,99/semestral</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Assuntos customizados ilimitados
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Ilimitados</p>
               </div>
               <button
                 type="button"
                 onClick={handleUnlockPremium}
                 className="w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white hover:bg-green-700 transition-colors"
               >
-                Desbloquear via WhatsApp
+                WhatsApp
               </button>
               <button
                 type="button"

@@ -66,7 +66,7 @@ export function ConfigOperacional() {
             }}
             className="text-tech rounded-md bg-[color:var(--olive)] px-3 py-2 text-[10px]"
           >
-            Sincronizar fila offline
+            Sincronizar
           </button>
           {flushMsg && <span className="text-[10px] text-white">{flushMsg}</span>}
         </div>

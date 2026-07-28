@@ -85,9 +85,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
 
   function handleWhatsAppPayment() {
     const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || state.whatsapp;
-    const message = encodeURIComponent(
-      "Olá! Gostaria de adquirir o código de liberação para o painel administrativo do Pracinha. Meu trial expirou.",
-    );
+    const message = encodeURIComponent("Quero código do painel Pracinha. Trial expirou.");
     window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
   }
 
@@ -124,10 +122,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
                     <AlertCircle className="size-5 text-red-400 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-red-400">Trial Expirado</p>
-                      <p className="mt-1 text-sm text-gray-300">
-                        Seu período de teste de 2 dias encerrou. Adquira o código de liberação para
-                        continuar usando o painel.
-                      </p>
+                      <p className="mt-1 text-sm text-gray-300">Adquira o código para continuar.</p>
                     </div>
                   </div>
                 </div>
@@ -137,7 +132,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
                   onClick={handleWhatsAppPayment}
                   className="w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white hover:bg-green-700 transition-colors"
                 >
-                  Solicitar Código via WhatsApp
+                  Solicitar Código
                 </button>
 
                 <div className="rounded-lg border border-border bg-slate-800 p-4">
@@ -184,9 +179,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
                 {error && <p className="text-sm text-red-400">{error}</p>}
 
                 <div className="border-t border-border pt-4">
-                  <p className="text-sm text-gray-300 mb-3">
-                    Primeira vez? Crie seu trial gratuito:
-                  </p>
+                  <p className="text-sm text-gray-300 mb-3">Primeira vez?</p>
                   <div className="space-y-3">
                     <input
                       value={storeName}
@@ -205,7 +198,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
                       onClick={handleCreateTrial}
                       className="w-full rounded-lg border border-[color:var(--brass)] px-4 py-2 text-sm text-[color:var(--brass)] hover:bg-[color:var(--brass)]/10 transition-colors"
                     >
-                      Iniciar Trial Gratuito (2 dias)
+                      Trial Gratuito (2 dias)
                     </button>
                   </div>
                 </div>
@@ -246,8 +239,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
         {showTrialBanner && (
           <div className="bg-yellow-500/10 border-b border-yellow-500/30 px-5 py-3">
             <p className="text-sm text-yellow-400">
-              ⚠️ Seu trial expira em {daysRemaining} dias. Adquira o código premium para continuar
-              usando o painel.
+              ⚠️ Trial expira em {daysRemaining} dias. Adquira o código.
             </p>
           </div>
         )}

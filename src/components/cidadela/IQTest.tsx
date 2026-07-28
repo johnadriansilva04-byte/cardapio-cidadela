@@ -129,31 +129,26 @@ export function IQTest() {
           <div className="mx-auto max-w-2xl">
             {phase === "intro" ? (
               <div className="rounded-xl border border-slate-700 bg-slate-800/80 p-8 backdrop-blur-sm">
-                <p className="chip bg-slate-700 text-slate-200">Módulo de aferição cognitiva</p>
+                <p className="chip bg-slate-700 text-slate-200">Teste de QI</p>
                 <button onClick={start} className="btn-primary w-full sm:w-auto">
                   Iniciar avaliação
                 </button>
-                <p className="mt-4 text-lg text-slate-200">
-                  🧠 Descubra seu potencial cognitivo com matrizes visuais
-                </p>
+                <p className="mt-4 text-lg text-slate-200">🧠 Teste de QI com matrizes visuais</p>
                 <p className="mt-2 text-sm text-slate-400">
                   30 questões • 25 minutos • Resultado instantâneo
                 </p>
 
                 <div className="mt-6 space-y-3">
                   <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
-                    <p className="font-semibold text-slate-200">🎯 Como funciona?</p>
+                    <p className="font-semibold text-slate-200">🎯 Como funciona</p>
                     <p className="mt-2 text-sm text-slate-400">
-                      Cada matriz tem 8 figuras e 1 espaço vazio. Descubra a regra lógica e complete
-                      a sequência.
+                      8 figuras, 1 espaço vazio. Descubra a regra.
                     </p>
                   </div>
 
                   <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
                     <p className="font-semibold text-slate-200">⚡ Benefícios</p>
-                    <p className="mt-2 text-sm text-slate-400">
-                      Avaliação precisa com TRI • Milhares de variações • Sem repetição
-                    </p>
+                    <p className="mt-2 text-sm text-slate-400">TRI preciso • Sem repetição</p>
                   </div>
                 </div>
 
@@ -167,10 +162,9 @@ export function IQTest() {
 
                   {showDetails && (
                     <div className="mt-4 space-y-2 text-sm text-slate-400">
-                      <p>• Cada linha e coluna segue uma regra lógica</p>
-                      <p>• 8 alternativas por questão, só 1 correta</p>
-                      <p>• Pode revisar enquanto o cronômetro corre</p>
-                      <p>• Escala Wechsler (média 100, DP 15)</p>
+                      <p>• Reggra em cada linha/coluna</p>
+                      <p>• 8 opções, 1 correta</p>
+                      <p>• Pode revisar</p>
                     </div>
                   )}
                 </div>

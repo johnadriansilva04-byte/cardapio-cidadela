@@ -101,26 +101,44 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
       {/* Map Container */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="relative w-full h-full">
-          {/* Central Road - Vertical with 3D effect */}
+          {/* Central Road - Vertical with 3D effect and perspective */}
           <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-32">
             {/* 1940s - Dirt Road (Bottom) */}
-            <div className="absolute bottom-0 w-full h-1/3 bg-gradient-to-r from-[#5d4037] via-[#6d5047] to-[#5d4037] shadow-2xl" />
+            <div
+              className="absolute bottom-0 w-full h-1/3 bg-gradient-to-r from-[#5d4037] via-[#6d5047] to-[#5d4037] shadow-2xl"
+              style={{ clipPath: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)" }}
+            />
 
             {/* 2020s - Asphalt (Middle) */}
-            <div className="absolute bottom-1/3 w-full h-1/3 bg-gradient-to-r from-[#424242] via-[#505050] to-[#424242] shadow-2xl" />
+            <div
+              className="absolute bottom-1/3 w-full h-1/3 bg-gradient-to-r from-[#424242] via-[#505050] to-[#424242] shadow-2xl"
+              style={{ clipPath: "polygon(25% 0%, 75% 0%, 85% 100%, 15% 100%)" }}
+            />
 
             {/* 2077+ - Futuristic (Top) */}
-            <div className="absolute top-0 w-full h-1/3 bg-gradient-to-r from-cyan-900 via-purple-900 to-cyan-900 shadow-2xl shadow-cyan-500/30">
+            <div
+              className="absolute top-0 w-full h-1/3 bg-gradient-to-r from-cyan-900 via-purple-900 to-cyan-900 shadow-2xl shadow-cyan-500/30"
+              style={{ clipPath: "polygon(35% 0%, 65% 0%, 75% 100%, 25% 100%)" }}
+            >
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-magenta-500/20 animate-pulse" />
             </div>
           </div>
 
           {/* Road Center Line */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-2 bg-gradient-to-b from-yellow-400/40 via-yellow-400/30 to-cyan-400/40 shadow-lg" />
+          <div
+            className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-2 bg-gradient-to-b from-yellow-400/40 via-yellow-400/30 to-cyan-400/40 shadow-lg"
+            style={{ clipPath: "polygon(40% 0%, 60% 0%, 50% 100%, 50% 100%)" }}
+          />
 
           {/* Road Edges */}
-          <div className="absolute left-[calc(50%-64px)] top-0 bottom-0 w-1 bg-gradient-to-b from-amber-600/50 via-gray-500/50 to-cyan-500/50" />
-          <div className="absolute left-[calc(50%+64px)] top-0 bottom-0 w-1 bg-gradient-to-b from-amber-600/50 via-gray-500/50 to-cyan-500/50" />
+          <div
+            className="absolute left-[calc(50%-64px)] top-0 bottom-0 w-1 bg-gradient-to-b from-amber-600/50 via-gray-500/50 to-cyan-500/50"
+            style={{ clipPath: "polygon(20% 0%, 80% 0%, 90% 100%, 10% 100%)" }}
+          />
+          <div
+            className="absolute left-[calc(50%+64px)] top-0 bottom-0 w-1 bg-gradient-to-b from-amber-600/50 via-gray-500/50 to-cyan-500/50"
+            style={{ clipPath: "polygon(20% 0%, 80% 0%, 90% 100%, 10% 100%)" }}
+          />
 
           {/* 1940s Village - Left Side */}
           <div className="absolute bottom-[10%] left-[20%]">

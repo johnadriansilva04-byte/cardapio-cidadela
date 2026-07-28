@@ -95,114 +95,94 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
 
   return (
     <div className="relative h-screen overflow-hidden bg-black">
-      {/* Map Background */}
+      {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a1a] via-[#1a1a3a] to-[#2a0a3a]" />
 
-      {/* Map Container - Top Down View */}
+      {/* Map Container */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative w-full h-full max-w-[1200px] max-h-[800px]">
-          {/* Road - Sequential path connecting eras */}
-          {/* 1940s Dirt Road (Bottom) */}
-          <div className="absolute bottom-[50px] left-1/2 -translate-x-1/2 w-[300px] h-[200px] bg-[#5d4037] rounded-lg" />
+        <div className="relative w-full h-full">
+          {/* Central Road - Vertical */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-24">
+            {/* 1940s - Dirt Road (Bottom) */}
+            <div className="absolute bottom-0 w-full h-1/3 bg-[#5d4037]" />
 
-          {/* 2020s Asphalt (Middle) */}
-          <div className="absolute bottom-[220px] left-1/2 -translate-x-1/2 w-[250px] h-[180px] bg-[#424242] rounded-lg" />
+            {/* 2020s - Asphalt (Middle) */}
+            <div className="absolute bottom-1/3 w-full h-1/3 bg-[#424242]" />
 
-          {/* 2077+ Futuristic Road (Top) */}
-          <div className="absolute bottom-[370px] left-1/2 -translate-x-1/2 w-[200px] h-[150px] bg-gradient-to-r from-cyan-900 to-purple-900 rounded-lg" />
+            {/* 2077+ - Futuristic (Top) */}
+            <div className="absolute top-0 w-full h-1/3 bg-gradient-to-r from-cyan-900 to-purple-900" />
+          </div>
 
-          {/* Road Connectors */}
-          <div className="absolute bottom-[250px] left-1/2 -translate-x-1/2 w-[200px] h-[30px] bg-[#616161]" />
-          <div className="absolute bottom-[400px] left-1/2 -translate-x-1/2 w-[150px] h-[30px] bg-gradient-to-r from-cyan-800 to-purple-800" />
+          {/* Road Center Line */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-1 bg-yellow-400/30" />
 
-          {/* 1940s Village - Military Camp */}
-          <div className="absolute bottom-[60px] left-[15%]">
-            {/* Tent House */}
+          {/* 1940s Village - Left Side */}
+          <div className="absolute bottom-[10%] left-[20%]">
             <button
               type="button"
               onClick={() => handleModuleClick("battle-arena")}
-              className="w-12 h-10 bg-amber-800 border-2 border-amber-600 rounded-t-full hover:bg-amber-700 transition-colors cursor-pointer relative group"
+              className="w-16 h-12 bg-amber-800 border-2 border-amber-600 rounded-t-lg hover:bg-amber-700 transition-colors cursor-pointer flex items-center justify-center"
             >
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+              <span className="text-amber-400 text-xl">⚔️</span>
             </button>
-            <div className="text-amber-400 text-[8px] mt-1 text-center">ARENA</div>
+            <div className="text-amber-400 text-xs mt-1 text-center">ARENA</div>
           </div>
 
           {/* 1940s Trees */}
-          <div className="absolute bottom-[70px] left-[5%] text-green-700 text-lg">🌲</div>
-          <div className="absolute bottom-[80px] left-[8%] text-green-700 text-base">🌲</div>
-          <div className="absolute bottom-[65px] right-[5%] text-green-700 text-lg">🌲</div>
+          <div className="absolute bottom-[15%] left-[10%] text-green-700 text-2xl">🌲</div>
+          <div className="absolute bottom-[5%] left-[12%] text-green-700 text-xl">🌲</div>
 
-          {/* 2020s Village - Modern City */}
-          <div className="absolute bottom-[240px] left-[12%]">
-            {/* IQ Test Building */}
+          {/* 2020s Village - Left Side */}
+          <div className="absolute bottom-[40%] left-[15%]">
             <button
               type="button"
               onClick={() => handleModuleClick("iq-test")}
-              className="w-10 h-14 bg-blue-800 border-2 border-blue-500 rounded hover:bg-blue-700 transition-colors cursor-pointer relative group"
+              className="w-14 h-16 bg-blue-800 border-2 border-blue-500 rounded hover:bg-blue-700 transition-colors cursor-pointer flex items-center justify-center"
             >
-              <div className="absolute top-1 left-1/2 -translate-x-1/2 text-cyan-400 text-xs">
-                🧠
-              </div>
+              <span className="text-cyan-400 text-xl">🧠</span>
             </button>
-            <div className="text-blue-400 text-[8px] mt-1 text-center">QI</div>
+            <div className="text-blue-400 text-xs mt-1 text-center">QI</div>
           </div>
 
-          <div className="absolute bottom-[240px] right-[12%]">
-            {/* Chat AI Building */}
+          {/* 2020s Village - Right Side */}
+          <div className="absolute bottom-[40%] right-[15%]">
             <button
               type="button"
               onClick={() => handleModuleClick("chat-ai")}
-              className="w-10 h-12 bg-blue-800 border-2 border-blue-500 rounded hover:bg-blue-700 transition-colors cursor-pointer relative group"
+              className="w-14 h-14 bg-blue-800 border-2 border-blue-500 rounded hover:bg-blue-700 transition-colors cursor-pointer flex items-center justify-center"
             >
-              <div className="absolute top-1 left-1/2 -translate-x-1/2 text-cyan-400 text-xs">
-                💬
-              </div>
+              <span className="text-cyan-400 text-xl">💬</span>
             </button>
-            <div className="text-blue-400 text-[8px] mt-1 text-center">CHAT</div>
+            <div className="text-blue-400 text-xs mt-1 text-center">CHAT</div>
           </div>
 
-          {/* 2020s Favela (Left) */}
-          <div className="absolute bottom-[250px] left-[5%] grid grid-cols-2 gap-1">
-            <div className="w-4 h-6 bg-orange-500 rounded-t" />
-            <div className="w-4 h-8 bg-yellow-500 rounded-t" />
-            <div className="w-4 h-5 bg-pink-500 rounded-t" />
-            <div className="w-4 h-7 bg-purple-500 rounded-t" />
+          {/* 2020s Favela */}
+          <div className="absolute bottom-[35%] left-[5%] grid grid-cols-3 gap-1">
+            <div className="w-3 h-8 bg-orange-500 rounded-t" />
+            <div className="w-3 h-10 bg-yellow-500 rounded-t" />
+            <div className="w-3 h-6 bg-pink-500 rounded-t" />
           </div>
 
-          {/* 2077+ Village - Futuristic City */}
-          <div className="absolute bottom-[390px] left-1/2 -translate-x-1/2">
-            {/* Robot Lab */}
+          {/* 2077+ Village - Center */}
+          <div className="absolute top-[15%] left-1/2 -translate-x-1/2">
             <button
               type="button"
               onClick={() => handleModuleClick("robot-lab")}
-              className="w-14 h-10 bg-purple-900 border-2 border-cyan-400 rounded hover:bg-purple-800 transition-colors cursor-pointer relative group"
+              className="w-20 h-14 bg-purple-900 border-2 border-cyan-400 rounded hover:bg-purple-800 transition-colors cursor-pointer flex items-center justify-center"
             >
-              <div className="absolute top-1 left-1/2 -translate-x-1/2 text-cyan-400 text-sm animate-pulse">
-                ⚛️
-              </div>
+              <span className="text-cyan-400 text-2xl animate-pulse">⚛️</span>
             </button>
-            <div className="text-cyan-400 text-[8px] mt-1 text-center">LAB</div>
-          </div>
-
-          {/* 2077+ Flying Cars */}
-          <div className="absolute bottom-[450px] left-[45%] text-magenta-400 text-sm animate-bounce">
-            🚗
-          </div>
-          <div className="absolute bottom-[480px] left-[55%] text-cyan-400 text-xs animate-pulse">
-            �
+            <div className="text-cyan-400 text-xs mt-1 text-center">LAB</div>
           </div>
 
           {/* Era Labels */}
-          <div className="absolute bottom-[30px] left-1/2 -translate-x-1/2 text-amber-400 text-xs font-mono">
+          <div className="absolute bottom-[5%] left-[55%] text-amber-400 text-sm font-mono">
             1940s
           </div>
-          <div className="absolute bottom-[200px] left-1/2 -translate-x-1/2 text-blue-400 text-xs font-mono">
+          <div className="absolute bottom-[35%] left-[55%] text-blue-400 text-sm font-mono">
             2020s
           </div>
-          <div className="absolute bottom-[350px] left-1/2 -translate-x-1/2 text-cyan-400 text-xs font-mono">
-            2077+
-          </div>
+          <div className="absolute top-[10%] left-[55%] text-cyan-400 text-sm font-mono">2077+</div>
         </div>
       </div>
 

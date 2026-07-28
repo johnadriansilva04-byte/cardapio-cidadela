@@ -191,7 +191,6 @@ function CidadelaWorld() {
               else if (module === "iq-test") setActiveModule("iq");
               else if (module === "chat-ai") setActiveModule("praxinha");
               else if (module === "robot-lab") setActiveModule("lab");
-              else if (module === "chat-hub-ai") setActiveModule("praxinha");
             }}
           />
         </div>

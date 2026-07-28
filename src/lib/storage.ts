@@ -4,6 +4,7 @@ const DB_NAME = "CardapioDB";
 const STORE = "kv";
 const STATE_KEY = "currentState";
 const LS_KEY = "cardapio_state_backup";
+const STATE_VERSION = 1; // Increment to force state reset
 
 function openDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
@@ -60,6 +61,14 @@ export async function loadFromIndexedDB<T>(key: string): Promise<T | null> {
 /** Merge persisted state onto defaults so new fields never break old installs. */
 export function mergeState(persisted: Partial<AppState> | null): AppState {
   if (!persisted) return DEFAULT_STATE;
+  
+  // Check if persisted state has old version or missing version
+  const persistedVersion = (persisted as any)._version ?? 0;
+  if (persistedVersion !== STATE_VERSION) {
+    // Version mismatch - return default state to force reset
+    return DEFAULT_STATE;
+  }
+  
   return {
     ...DEFAULT_STATE,
     ...persisted,

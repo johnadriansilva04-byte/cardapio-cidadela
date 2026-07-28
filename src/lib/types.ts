@@ -69,6 +69,7 @@ export interface AppState {
   };
   orders: Order[];
   conversation: ChatMessage[];
+  _version?: number; // State version for migration
 }
 
 export interface RobotConfig {
@@ -109,6 +110,7 @@ export const DEFAULT_STATE: AppState = {
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],
   conversation: [],
+  _version: 1, // State version for migration
   categories: [
     {
       name: "Lanches",

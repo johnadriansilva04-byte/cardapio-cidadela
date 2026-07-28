@@ -34,7 +34,7 @@ export function ConfigOperacional() {
           <input
             className={`${field} mt-1`}
             value={state.integrations.n8nWebhookUrl}
-            placeholder="https://talking-dealer-produces-louisville.trycloudflare.com/webhook/pracinha"
+            placeholder="https://n8n.variantproteic.com/webhook/pracinha"
             onChange={(e) =>
               update((prev) => ({
                 ...prev,
@@ -48,7 +48,7 @@ export function ConfigOperacional() {
           <input
             className={`${field} mt-1`}
             value={state.integrations.cidadelaAuthUrl}
-            placeholder="https://talking-dealer-produces-louisville.trycloudflare.com/webhook/cidadela"
+            placeholder="https://n8n.variantproteic.com/webhook/cidadela"
             onChange={(e) =>
               update((prev) => ({
                 ...prev,

@@ -102,10 +102,10 @@ export const DEFAULT_STATE: AppState = {
   integrations: {
     geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
     n8nWebhookUrl:
-      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://talking-dealer-produces-louisville.trycloudflare.com/webhook/pracinha",
+      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://n8n.variantproteic.com/webhook/pracinha",
     cidadelaAuthUrl:
       import.meta.env.VITE_N8N_CIDADELA_AUTH_URL ||
-      "https://talking-dealer-produces-louisville.trycloudflare.com/webhook/cidadela",
+      "https://n8n.variantproteic.com/webhook/cidadela",
   },
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],

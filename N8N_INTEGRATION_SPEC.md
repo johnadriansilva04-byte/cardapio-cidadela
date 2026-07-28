@@ -4,7 +4,7 @@
 
 ### 1. Webhook de Pedidos (Cardápio)
 
-**URL:** `http://localhost:5678/webhook/pracinha` (configurável via `VITE_N8N_WEBHOOK_URL`)
+**URL:** `https://58ce753dc20d42.lhr.life/webhook/pracinha` (configurável via `VITE_N8N_WEBHOOK_URL`)
 
 **Payload Recebido:**
 
@@ -51,7 +51,7 @@
 
 ### 2. Webhook de Autenticação Cidadela
 
-**URL:** `http://localhost:5678/webhook/cidadela` (configurável via `VITE_N8N_CIDADELA_AUTH_URL`)
+**URL:** `https://58ce753dc20d42.lhr.life/webhook/cidadela` (configurável via `VITE_N8N_CIDADELA_AUTH_URL`)
 
 **Payload Recebido:**
 
@@ -131,8 +131,8 @@
 Configure no arquivo `.env`:
 
 ```env
-VITE_N8N_WEBHOOK_URL=http://localhost:5678/webhook/pracinha
-VITE_N8N_CIDADELA_AUTH_URL=http://localhost:5678/webhook/cidadela
+VITE_N8N_WEBHOOK_URL=https://58ce753dc20d42.lhr.life/webhook/pracinha
+VITE_N8N_CIDADELA_AUTH_URL=https://58ce753dc20d42.lhr.life/webhook/cidadela
 VITE_WHATSAPP_NUMBER=5511999999999
 ```
 

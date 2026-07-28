@@ -100,9 +100,11 @@ export const DEFAULT_STATE: AppState = {
   whatsapp: import.meta.env.VITE_WHATSAPP_NUMBER || "5511999999999",
   integrations: {
     geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
-    n8nWebhookUrl: import.meta.env.VITE_N8N_WEBHOOK_URL || "http://localhost:5678/webhook/pracinha",
+    n8nWebhookUrl:
+      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://58ce753dc20d42.lhr.life/webhook/pracinha",
     cidadelaAuthUrl:
-      import.meta.env.VITE_N8N_CIDADELA_AUTH_URL || "http://localhost:5678/webhook/cidadela",
+      import.meta.env.VITE_N8N_CIDADELA_AUTH_URL ||
+      "https://58ce753dc20d42.lhr.life/webhook/cidadela",
   },
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],

@@ -76,8 +76,14 @@ async function post(url: string, payload: N8nPayload) {
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`Webhook respondeu ${res.status}`);
+    if (!res.ok) {
+      console.error("Webhook error:", res.status, res.statusText);
+      throw new Error(`Webhook respondeu ${res.status}`);
+    }
     return true;
+  } catch (error) {
+    console.error("Erro ao enviar webhook:", error);
+    throw error;
   } finally {
     clearTimeout(timer);
   }

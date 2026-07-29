@@ -1,4 +1,4 @@
-export interface MenuItem {
+﻿export interface MenuItem {
   id: string;
   name: string;
   desc: string;
@@ -93,7 +93,7 @@ export const DEFAULT_STATE: AppState = {
     name: "Cantina do Pracinha",
     slogan: "Sabor de trincheira, brio de veterano",
     marquee:
-      "ENTREGA EM ATÉ 35 MIN • PIX APROVADO NA HORA • PEDIDOS ACIMA DE R$100 GANHAM CÓDIGO FEB-VIP • HONRA, DIGNIDADE E SABOR",
+      "ENTREGA EM ATÃ‰ 35 MIN â€¢ PIX APROVADO NA HORA â€¢ PEDIDOS ACIMA DE R$100 GANHAM CÃ“DIGO FEB-VIP â€¢ HONRA, DIGNIDADE E SABOR",
   },
   payment: { pixKey: "cantina@pracinha.com.br" },
   promo: { meta: 100, cidadelaDate: new Date().toISOString().slice(0, 10) },
@@ -102,15 +102,15 @@ export const DEFAULT_STATE: AppState = {
   integrations: {
     geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
     n8nWebhookUrl:
-      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://n8n.variantproteic.com/webhook/pracinha",
+      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://above-improvement-endless-acne.trycloudflare.com/webhook/pracinha",
     cidadelaAuthUrl:
       import.meta.env.VITE_N8N_CIDADELA_AUTH_URL ||
-      "https://n8n.variantproteic.com/webhook/cidadela",
+      "https://above-improvement-endless-acne.trycloudflare.com/webhook/cidadela",
   },
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],
   conversation: [],
-  _version: 2, // State version for migration
+  _version: 3, // State version for migration
   categories: [
     {
       name: "Lanches",
@@ -118,30 +118,30 @@ export const DEFAULT_STATE: AppState = {
         {
           id: "x-proteic",
           name: "X-Proteic",
-          desc: "Blend 180g, cheddar maturado, bacon crocante e pão brioche tostado na chapa.",
+          desc: "Blend 180g, cheddar maturado, bacon crocante e pÃ£o brioche tostado na chapa.",
           price: 39.9,
-          img: "🍔",
+          img: "ðŸ”",
         },
         {
           id: "x-monte-castelo",
           name: "X-Monte Castelo",
           desc: "Duplo smash, queijo prato, cebola caramelizada e molho da casa.",
           price: 44.9,
-          img: "🍔",
+          img: "ðŸ”",
         },
         {
           id: "cobra-fumando",
           name: "Cobra Fumando",
           desc: "Costela desfiada defumada 12h, queijo coalho e geleia de pimenta.",
           price: 49.9,
-          img: "🔥",
+          img: "ðŸ”¥",
         },
         {
           id: "veg-brio",
           name: "Veg Brio",
-          desc: "Burger de grão-de-bico, rúcula, tomate confit e maionese de ervas.",
+          desc: "Burger de grÃ£o-de-bico, rÃºcula, tomate confit e maionese de ervas.",
           price: 34.9,
-          img: "🥬",
+          img: "ðŸ¥¬",
         },
       ],
     },
@@ -151,23 +151,23 @@ export const DEFAULT_STATE: AppState = {
         {
           id: "add-bacon",
           name: "Bacon Extra",
-          desc: "Porção generosa de bacon artesanal.",
+          desc: "PorÃ§Ã£o generosa de bacon artesanal.",
           price: 7.5,
-          img: "🥓",
+          img: "ðŸ¥“",
         },
         {
           id: "add-cheddar",
           name: "Cheddar Cremoso",
-          desc: "Concha extra de cheddar inglês.",
+          desc: "Concha extra de cheddar inglÃªs.",
           price: 6.0,
-          img: "🧀",
+          img: "ðŸ§€",
         },
         {
           id: "add-fritas",
-          name: "Fritas Rústicas",
-          desc: "Batata rústica com alecrim e sal defumado.",
+          name: "Fritas RÃºsticas",
+          desc: "Batata rÃºstica com alecrim e sal defumado.",
           price: 18.9,
-          img: "🍟",
+          img: "ðŸŸ",
         },
       ],
     },
@@ -179,21 +179,21 @@ export const DEFAULT_STATE: AppState = {
           name: "Refrigerante Lata",
           desc: "350ml gelado.",
           price: 7.0,
-          img: "🥤",
+          img: "ðŸ¥¤",
         },
         {
           id: "bev-suco",
           name: "Suco Natural",
-          desc: "Laranja, limão ou maracujá — 500ml.",
+          desc: "Laranja, limÃ£o ou maracujÃ¡ â€” 500ml.",
           price: 12.0,
-          img: "🍊",
+          img: "ðŸŠ",
         },
         {
           id: "bev-agua",
-          name: "Água Mineral",
-          desc: "500ml com ou sem gás.",
+          name: "Ãgua Mineral",
+          desc: "500ml com ou sem gÃ¡s.",
           price: 5.0,
-          img: "💧",
+          img: "ðŸ’§",
         },
       ],
     },

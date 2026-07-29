@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 import { useStore } from "@/modules/cidadela-core/store";
 import { flushQueue, pendingCount } from "@/modules/fluxos-n8n/webhook";
@@ -13,7 +13,7 @@ export function ConfigOperacional() {
   return (
     <div className="space-y-6">
       <section className="space-y-3 rounded-xl border border-border p-4">
-        <h3 className="text-tech text-[10px] text-white">Integrações</h3>
+        <h3 className="text-tech text-[10px] text-white">IntegraÃ§Ãµes</h3>
         <label className="block text-xs text-gray-300">
           GEMINI_API_KEY
           <input
@@ -34,7 +34,7 @@ export function ConfigOperacional() {
           <input
             className={`${field} mt-1`}
             value={state.integrations.n8nWebhookUrl}
-            placeholder="https://n8n.variantproteic.com/webhook/pracinha"
+            placeholder="https://above-improvement-endless-acne.trycloudflare.com/webhook/pracinha"
             onChange={(e) =>
               update((prev) => ({
                 ...prev,
@@ -48,7 +48,7 @@ export function ConfigOperacional() {
           <input
             className={`${field} mt-1`}
             value={state.integrations.cidadelaAuthUrl}
-            placeholder="https://n8n.variantproteic.com/webhook/cidadela"
+            placeholder="https://above-improvement-endless-acne.trycloudflare.com/webhook/cidadela"
             onChange={(e) =>
               update((prev) => ({
                 ...prev,
@@ -116,7 +116,7 @@ export function ConfigOperacional() {
           />
         </label>
         <label className="text-xs text-gray-300">
-          Meta da operação (R$)
+          Meta da operaÃ§Ã£o (R$)
           <input
             type="number"
             className={`${field} mt-1`}

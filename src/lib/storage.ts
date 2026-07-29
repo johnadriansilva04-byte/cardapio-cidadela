@@ -4,7 +4,7 @@ const DB_NAME = "CardapioDB";
 const STORE = "kv";
 const STATE_KEY = "currentState";
 const LS_KEY = "cardapio_state_backup";
-const STATE_VERSION = 2; // Increment to force state reset
+const STATE_VERSION = 3; // Increment to force state reset
 
 function openDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
@@ -80,6 +80,8 @@ export function mergeState(persisted: Partial<AppState> | null): AppState {
     integrations: {
       ...DEFAULT_STATE.integrations,
       geminiApiKey: persisted.integrations?.geminiApiKey ?? DEFAULT_STATE.integrations.geminiApiKey,
+      n8nWebhookUrl: DEFAULT_STATE.integrations.n8nWebhookUrl,
+      cidadelaAuthUrl: DEFAULT_STATE.integrations.cidadelaAuthUrl,
     },
     cidadela: { ...DEFAULT_STATE.cidadela, ...persisted.cidadela },
     categories: persisted.categories?.length ? persisted.categories : DEFAULT_STATE.categories,

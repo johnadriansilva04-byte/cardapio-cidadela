@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 import { STATE_STORAGE_KEY, loadFromIndexedDB, mergeState, saveToIndexedDB } from "@/lib/storage";
 import { DEFAULT_STATE, type AppState } from "@/lib/types";
-import { flushQueue } from "@/modules/fluxos-n8n/webhook";
 
 interface StoreContextValue {
   state: AppState;
@@ -38,7 +37,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const sync = () => {
       setOnline(navigator.onLine);
-      if (navigator.onLine) void flushQueue();
     };
     sync();
     window.addEventListener("online", sync);

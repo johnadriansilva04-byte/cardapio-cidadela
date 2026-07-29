@@ -110,7 +110,7 @@ export const DEFAULT_STATE: AppState = {
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],
   conversation: [],
-  _version: 3, // State version for migration
+  _version: 4, // State version for migration
   categories: [
     {
       name: "Lanches",

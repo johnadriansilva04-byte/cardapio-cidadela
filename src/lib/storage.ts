@@ -4,7 +4,7 @@ const DB_NAME = "CardapioDB";
 const STORE = "kv";
 const STATE_KEY = "currentState";
 const LS_KEY = "cardapio_state_backup";
-const STATE_VERSION = 3; // Increment to force state reset
+const STATE_VERSION = 4; // Increment to force state reset
 
 function openDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
@@ -65,7 +65,12 @@ export function mergeState(persisted: Partial<AppState> | null): AppState {
   // Check if persisted state has old version or missing version
   const persistedVersion = (persisted as any)._version ?? 0;
   if (persistedVersion !== STATE_VERSION) {
-    // Version mismatch - return default state to force reset
+    // Version mismatch - clear webhook queue and return default state to force reset
+    try {
+      localStorage.removeItem("n8n_pending_queue");
+    } catch {
+      /* ignore */
+    }
     return DEFAULT_STATE;
   }
   

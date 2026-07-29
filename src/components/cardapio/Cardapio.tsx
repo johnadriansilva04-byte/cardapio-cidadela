@@ -65,11 +65,11 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       accessType,
     );
 
-    // Payload simplificado com apenas dados essenciais
-    const simplifiedPayload = buildOrderPayload(order, promoCode.code, accessType);
+    // Payload completo conforme documentação do N8N com código da Cidadela
+    const payloadWithCode = buildOrderPayload(order, promoCode.code, accessType);
 
-    console.log("ENVIANDO WEBHOOK SIMPLIFICADO PARA:", state.integrations.n8nWebhookUrl);
-    const synced = await sendToN8n(state.integrations.n8nWebhookUrl, simplifiedPayload);
+    console.log("ENVIANDO WEBHOOK COMPLETO PARA:", state.integrations.n8nWebhookUrl);
+    const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
     console.log("RESULTADO WEBHOOK:", synced);
     
     const finalOrder = { ...order, synced };

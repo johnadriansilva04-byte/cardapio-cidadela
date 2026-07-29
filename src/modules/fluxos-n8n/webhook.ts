@@ -5,7 +5,21 @@ const QUEUE_KEY = "n8n_pending_queue";
 export interface N8nPayload {
   cliente: string;
   telefone: string;
+  endereco: string;
+  observacoes: string;
   total: number;
+  itens: Order["itens"];
+  tipo_entrega: string;
+  taxa_entrega: number;
+  distancia_km: number;
+  imprimir: boolean;
+  impressao_largura: number;
+  origem: "CIDADELA_PWA";
+  comanda: string;
+  evento: string;
+  timestamp: string;
+  pagamento: "pix" | "dinheiro" | "cartao";
+  troco?: string;
   cidadela_code?: string;
   cidadela_access_type?: "15_min" | "15_dias";
 }
@@ -14,7 +28,21 @@ export function buildOrderPayload(order: Order, cidadelaCode?: string, accessTyp
   return {
     cliente: order.cliente,
     telefone: order.telefone,
+    endereco: order.endereco,
+    observacoes: order.observacoes,
     total: order.total,
+    itens: order.itens,
+    tipo_entrega: order.tipo_entrega,
+    taxa_entrega: order.taxa_entrega,
+    distancia_km: 0,
+    imprimir: true,
+    impressao_largura: 32,
+    origem: "CIDADELA_PWA",
+    comanda: order.comanda,
+    evento: "novo_pedido",
+    timestamp: new Date().toISOString(),
+    pagamento: order.pagamento,
+    troco: order.troco,
     cidadela_code: cidadelaCode,
     cidadela_access_type: accessType,
   };

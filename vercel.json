@@ -4,7 +4,7 @@
   "framework": null,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!sw\\.js|workbox-.*\\.js|manifest\\.webmanifest|favicon\\.ico|icons/.*|assets/.*|robots\\.txt).*)",
       "destination": "/index.html"
     }
   ],

@@ -56,6 +56,8 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     });
 
   async function submitOrder(order: Order) {
+    console.log("SUBMIT ORDER - URL:", state.integrations.n8nWebhookUrl);
+    
     // Determinar tipo de acesso baseado no valor total
     const accessType = order.total >= 200 ? "15_dias" : "15_min";
 
@@ -72,7 +74,9 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       cidadela_access_type: accessType,
     };
 
+    console.log("ENVIANDO WEBHOOK PARA:", state.integrations.n8nWebhookUrl);
     const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
+    console.log("RESULTADO WEBHOOK:", synced);
     const finalOrder = { ...order, synced };
 
     // Salvar código localmente para validação

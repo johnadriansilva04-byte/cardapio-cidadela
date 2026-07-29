@@ -10,7 +10,7 @@ import {
   generatePromoCode,
   newComanda,
 } from "@/modules/cidadela-core/utils";
-// import { buildOrderPayload, sendToN8n } from "@/modules/fluxos-n8n/webhook";
+import { buildOrderPayload, sendToN8n } from "@/modules/fluxos-n8n/webhook";
 import type { Order, OrderItem } from "@/lib/types";
 
 type Cart = Record<string, number>;
@@ -65,17 +65,14 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       accessType,
     );
 
-    // Envio automático via webhook desabilitado - apenas envio manual via WhatsApp
-    // const payloadWithCode = {
-    //   ...buildOrderPayload(order),
-    //   cidadela_code: promoCode.code,
-    //   cidadela_access_type: accessType,
-    // };
-    // console.log("ENVIANDO WEBHOOK PARA:", state.integrations.n8nWebhookUrl);
-    // const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
-    // console.log("RESULTADO WEBHOOK:", synced);
+    // Payload simplificado com apenas dados essenciais
+    const simplifiedPayload = buildOrderPayload(order, promoCode.code, accessType);
+
+    console.log("ENVIANDO WEBHOOK SIMPLIFICADO PARA:", state.integrations.n8nWebhookUrl);
+    const synced = await sendToN8n(state.integrations.n8nWebhookUrl, simplifiedPayload);
+    console.log("RESULTADO WEBHOOK:", synced);
     
-    const finalOrder = { ...order, synced: false };
+    const finalOrder = { ...order, synced };
 
     // Salvar código localmente para validação
     update((prev) => ({

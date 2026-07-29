@@ -27,6 +27,8 @@ export default defineConfig({
         manifest: false,
         workbox: {
           navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//],
+          globDirectory: ".output/public",
+          globPatterns: ["**/*.{js,wasm,css,html,ico,png,svg}"],
           runtimeCaching: [
             {
               urlPattern: ({ request }) => request.mode === "navigate",
@@ -36,7 +38,7 @@ export default defineConfig({
             {
               urlPattern: ({ request, sameOrigin }) =>
                 sameOrigin && ["style", "script", "image", "font"].includes(request.destination),
-              handler: "CacheFirst",
+              handler: "NetworkFirst",
               options: {
                 cacheName: "static-assets",
                 expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 30 },

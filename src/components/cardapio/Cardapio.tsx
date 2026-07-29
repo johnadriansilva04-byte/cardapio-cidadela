@@ -10,7 +10,7 @@ import {
   generatePromoCode,
   newComanda,
 } from "@/modules/cidadela-core/utils";
-import { buildOrderPayload, sendToN8n } from "@/modules/fluxos-n8n/webhook";
+// import { buildOrderPayload, sendToN8n } from "@/modules/fluxos-n8n/webhook";
 import type { Order, OrderItem } from "@/lib/types";
 
 type Cart = Record<string, number>;
@@ -56,8 +56,6 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     });
 
   async function submitOrder(order: Order) {
-    console.log("SUBMIT ORDER - URL:", state.integrations.n8nWebhookUrl);
-    
     // Determinar tipo de acesso baseado no valor total
     const accessType = order.total >= 200 ? "15_dias" : "15_min";
 
@@ -67,17 +65,17 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       accessType,
     );
 
-    // Adicionar código ao payload para envio via WhatsApp
-    const payloadWithCode = {
-      ...buildOrderPayload(order),
-      cidadela_code: promoCode.code,
-      cidadela_access_type: accessType,
-    };
-
-    console.log("ENVIANDO WEBHOOK PARA:", state.integrations.n8nWebhookUrl);
-    const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
-    console.log("RESULTADO WEBHOOK:", synced);
-    const finalOrder = { ...order, synced };
+    // Envio automático via webhook desabilitado - apenas envio manual via WhatsApp
+    // const payloadWithCode = {
+    //   ...buildOrderPayload(order),
+    //   cidadela_code: promoCode.code,
+    //   cidadela_access_type: accessType,
+    // };
+    // console.log("ENVIANDO WEBHOOK PARA:", state.integrations.n8nWebhookUrl);
+    // const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
+    // console.log("RESULTADO WEBHOOK:", synced);
+    
+    const finalOrder = { ...order, synced: false };
 
     // Salvar código localmente para validação
     update((prev) => ({

@@ -84,7 +84,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "Cardápio digital instalável com painel operacional Cidadela.",
       },
       { name: "theme-color", content: "#3f4a33" },
-      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "Cidadela" },
       { property: "og:type", content: "website" },

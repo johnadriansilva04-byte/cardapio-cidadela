@@ -31,6 +31,9 @@ async function unregisterApp() {
 }
 
 export async function registerAppServiceWorker() {
+  // Temporarily disabled to prevent 404 errors
+  return;
+  
   if (!("serviceWorker" in navigator)) return;
   if (shouldRefuse()) {
     await unregisterApp();

@@ -4,7 +4,7 @@
 
 ### 1. Webhook de Pedidos (Cardápio)
 
-**URL:** `https://58ce753dc20d42.lhr.life/webhook/pracinha` (configurável via `VITE_N8N_WEBHOOK_URL`)
+**URL:** `https://pracinha.online/webhook/pracinha` (configurável via `VITE_N8N_WEBHOOK_URL`)
 
 **Payload Recebido:**
 
@@ -51,7 +51,7 @@
 
 ### 2. Webhook de Autenticação Cidadela
 
-**URL:** `https://58ce753dc20d42.lhr.life/webhook/cidadela` (configurável via `VITE_N8N_CIDADELA_AUTH_URL`)
+**URL:** `https://pracinha.online/webhook/cidadela` (configurável via `VITE_N8N_CIDADELA_AUTH_URL`)
 
 **Payload Recebido:**
 

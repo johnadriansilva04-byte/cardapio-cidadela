@@ -131,7 +131,8 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
-    void registerAppServiceWorker();
+    // Temporarily disabled to prevent 404 errors
+    // void registerAppServiceWorker();
   }, []);
 
   return (

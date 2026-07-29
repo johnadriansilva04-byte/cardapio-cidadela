@@ -65,14 +65,14 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       accessType,
     );
 
-    // Payload completo conforme documentação do N8N com código da Cidadela
-    const payloadWithCode = buildOrderPayload(order, promoCode.code, accessType);
-
-    console.log("ENVIANDO WEBHOOK COMPLETO PARA:", state.integrations.n8nWebhookUrl);
-    const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
-    console.log("RESULTADO WEBHOOK:", synced);
+    // Envio automático via webhook desabilitado - URL temporária do Cloudflare Tunnel não está acessível
+    // Quando configurar URL estável do webhook, descomente as linhas abaixo:
+    // const payloadWithCode = buildOrderPayload(order, promoCode.code, accessType);
+    // console.log("ENVIANDO WEBHOOK COMPLETO PARA:", state.integrations.n8nWebhookUrl);
+    // const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
+    // console.log("RESULTADO WEBHOOK:", synced);
     
-    const finalOrder = { ...order, synced };
+    const finalOrder = { ...order, synced: false };
 
     // Salvar código localmente para validação
     update((prev) => ({

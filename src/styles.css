@@ -650,3 +650,136 @@
   }
 }
 
+/* ============================================================
+   Trilha FEB — Estilos específicos
+   ============================================================ */
+
+@utility text-typewriter {
+  font-family: "Special Elite", "Courier New", monospace;
+}
+
+@utility panel-field {
+  background-image:
+    linear-gradient(oklch(0.26 0.026 76 / 0.94), oklch(0.21 0.022 70 / 0.96)),
+    repeating-linear-gradient(
+      90deg,
+      oklch(1 0 0 / 0.025) 0px,
+      oklch(1 0 0 / 0.025) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  border: 1px solid var(--border);
+  box-shadow: 0 22px 60px -18px oklch(0.08 0.02 60 / 0.85);
+}
+
+@utility surface-map {
+  background-image:
+    radial-gradient(ellipse at 30% 20%, oklch(0.88 0.05 88 / 0.95), transparent 62%),
+    radial-gradient(ellipse at 78% 82%, oklch(0.7 0.06 74 / 0.7), transparent 58%),
+    linear-gradient(oklch(0.82 0.05 86), oklch(0.7 0.055 78));
+}
+
+@utility grain-overlay {
+  background-image: radial-gradient(oklch(0 0 0 / 0.35) 1px, transparent 1px);
+  background-size: 3px 3px;
+  mix-blend-mode: multiply;
+  opacity: 0.25;
+}
+
+/* Cores específicas da Trilha */
+@utility text-lantern {
+  color: var(--lantern);
+}
+
+@utility text-khaki {
+  color: var(--khaki);
+}
+
+@utility text-map {
+  color: var(--map);
+}
+
+@utility text-ink {
+  color: var(--ink);
+}
+
+@utility text-blood {
+  color: var(--blood);
+}
+
+@utility text-feb {
+  color: var(--feb);
+}
+
+@utility text-feb-foreground {
+  color: var(--feb-foreground);
+}
+
+@utility text-axis {
+  color: var(--axis);
+}
+
+@utility text-axis-foreground {
+  color: var(--axis-foreground);
+}
+
+@utility text-mill {
+  color: var(--mill);
+}
+
+@utility bg-feb {
+  background-color: var(--feb);
+}
+
+@utility bg-axis {
+  background-color: var(--axis);
+}
+
+@utility border-feb {
+  border-color: var(--feb);
+}
+
+@utility border-axis {
+  border-color: var(--axis);
+}
+
+@utility border-ink {
+  border-color: var(--ink);
+}
+
+@utility fill-feb {
+  fill: var(--feb);
+}
+
+@utility fill-axis {
+  fill: var(--axis);
+}
+
+@utility fill-ink {
+  fill: var(--ink);
+}
+
+@utility stroke-ink {
+  stroke: var(--ink);
+}
+
+@utility stroke-lantern {
+  stroke: var(--lantern);
+}
+
+@utility stroke-mill {
+  stroke: var(--mill);
+}
+
+@utility stroke-feb-foreground {
+  stroke: var(--feb-foreground);
+}
+
+@utility fill-feb-foreground {
+  fill: var(--feb-foreground);
+}
+
+@utility fill-axis-foreground {
+  fill: var(--axis-foreground);
+}
+

@@ -5,6 +5,7 @@ export function useTouchControls(enabled: boolean) {
   const inputs = useRef<Inputs>(emptyInputs());
   const joystickActive = useRef(false);
   const joystickStartPos = useRef({ x: 0, y: 0 });
+  const joystickTouchId = useRef<number | null>(null);
   const [joystickPosition, setJoystickPosition] = useState({ x: 0, y: 0 });
 
   const setAction = useCallback((action: keyof Inputs, value: boolean) => {
@@ -14,6 +15,7 @@ export function useTouchControls(enabled: boolean) {
   const resetInputs = useCallback(() => {
     inputs.current = emptyInputs();
     joystickActive.current = false;
+    joystickTouchId.current = null;
     setJoystickPosition({ x: 0, y: 0 });
   }, []);
 
@@ -21,15 +23,18 @@ export function useTouchControls(enabled: boolean) {
     e.preventDefault();
     const touch = e.touches[0];
     joystickActive.current = true;
+    joystickTouchId.current = touch.identifier;
     joystickStartPos.current = { x: touch.clientX, y: touch.clientY };
     setJoystickPosition({ x: 0, y: 0 });
   }, []);
 
   const handleJoystickMove = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    if (!joystickActive.current) return;
+    if (!joystickActive.current || joystickTouchId.current === null) return;
     
-    const touch = e.touches[0];
+    const touch = Array.from(e.touches).find(t => t.identifier === joystickTouchId.current);
+    if (!touch) return;
+    
     const dx = touch.clientX - joystickStartPos.current.x;
     const dy = touch.clientY - joystickStartPos.current.y;
     
@@ -53,12 +58,16 @@ export function useTouchControls(enabled: boolean) {
 
   const handleJoystickEnd = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    joystickActive.current = false;
-    setJoystickPosition({ x: 0, y: 0 });
-    inputs.current.left = false;
-    inputs.current.right = false;
-    inputs.current.jump = false;
-    inputs.current.crouch = false;
+    const touch = e.changedTouches[0];
+    if (joystickTouchId.current !== null && touch.identifier === joystickTouchId.current) {
+      joystickActive.current = false;
+      joystickTouchId.current = null;
+      setJoystickPosition({ x: 0, y: 0 });
+      inputs.current.left = false;
+      inputs.current.right = false;
+      inputs.current.jump = false;
+      inputs.current.crouch = false;
+    }
   }, []);
 
   useEffect(() => {
@@ -67,7 +76,37 @@ export function useTouchControls(enabled: boolean) {
       return;
     }
 
+    const handleGlobalTouchEnd = (e: TouchEvent) => {
+      if (joystickActive.current && joystickTouchId.current !== null) {
+        const touch = Array.from(e.changedTouches).find(t => t.identifier === joystickTouchId.current);
+        if (touch) {
+          resetInputs();
+        }
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden && joystickActive.current) {
+        resetInputs();
+      }
+    };
+
+    const handleBlur = () => {
+      if (joystickActive.current) {
+        resetInputs();
+      }
+    };
+
+    document.addEventListener('touchend', handleGlobalTouchEnd);
+    document.addEventListener('touchcancel', handleGlobalTouchEnd);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+
     return () => {
+      document.removeEventListener('touchend', handleGlobalTouchEnd);
+      document.removeEventListener('touchcancel', handleGlobalTouchEnd);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
       resetInputs();
     };
   }, [enabled, resetInputs]);

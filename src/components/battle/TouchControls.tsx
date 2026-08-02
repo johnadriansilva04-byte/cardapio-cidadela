@@ -4,7 +4,7 @@ import type { Inputs } from "@/lib/battle/engine";
 
 export function TouchControls({ enabled }: { enabled: boolean }) {
   const isMobile = useIsMobile();
-  const { inputs, setAction } = useTouchControls(enabled);
+  const { inputs, setAction, joystickPosition, handleJoystickStart, handleJoystickMove, handleJoystickEnd } = useTouchControls(enabled);
 
   if (!enabled || !isMobile) return null;
 
@@ -21,91 +21,41 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[100] flex h-40 bg-black/90 backdrop-blur-sm pb-4">
-      {/* Lado Esquerdo - Movimento */}
-      <div className="flex-1 flex items-end justify-center gap-2 p-2 pb-4">
-        <button
-          type="button"
-          onTouchStart={handleStart("left")}
-          onTouchEnd={handleEnd("left")}
-          onTouchCancel={handleEnd("left")}
-          onMouseDown={handleStart("left")}
-          onMouseUp={handleEnd("left")}
-          onMouseLeave={handleEnd("left")}
-          className="h-14 w-14 rounded-full border-2 border-blue-500/60 bg-blue-500/30 text-blue-400 backdrop-blur-sm active:scale-90 active:bg-blue-500/50 transition-all shadow-lg shadow-blue-500/20"
-          aria-label="Esquerda"
+    <div className="fixed inset-x-0 bottom-0 z-[100] flex h-48 bg-black/90 backdrop-blur-sm pb-4">
+      {/* Lado Esquerdo - Joystick Virtual */}
+      <div className="flex-1 flex items-end justify-center p-2 pb-4">
+        <div 
+          className="relative h-32 w-32"
+          onTouchStart={handleJoystickStart}
+          onTouchMove={handleJoystickMove}
+          onTouchEnd={handleJoystickEnd}
+          onTouchCancel={handleJoystickEnd}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          {/* Base do joystick */}
+          <div className="absolute inset-0 rounded-full border-4 border-blue-500/40 bg-blue-500/10 backdrop-blur-sm shadow-lg shadow-blue-500/20" />
+          
+          {/* Knob do joystick (bolinha que se move) */}
+          <div
+            className="absolute top-1/2 left-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-3 border-blue-400/60 bg-blue-400/30 shadow-lg shadow-blue-400/30 transition-transform"
+            style={{
+              transform: `translate(calc(-50% + ${joystickPosition.x}px), calc(-50% + ${joystickPosition.y}px))`,
+            }}
           >
-            <path d="M19 12H5" />
-            <path d="M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onTouchStart={handleStart("right")}
-          onTouchEnd={handleEnd("right")}
-          onTouchCancel={handleEnd("right")}
-          onMouseDown={handleStart("right")}
-          onMouseUp={handleEnd("right")}
-          onMouseLeave={handleEnd("right")}
-          className="h-14 w-14 rounded-full border-2 border-blue-500/60 bg-blue-500/30 text-blue-400 backdrop-blur-sm active:scale-90 active:bg-blue-500/50 transition-all shadow-lg shadow-blue-500/20"
-          aria-label="Direita"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M5 12h14" />
-            <path d="M12 5l7 7-7 7" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onTouchStart={handleStart("jump")}
-          onTouchEnd={handleEnd("jump")}
-          onTouchCancel={handleEnd("jump")}
-          onMouseDown={handleStart("jump")}
-          onMouseUp={handleEnd("jump")}
-          onMouseLeave={handleEnd("jump")}
-          className="h-14 w-14 rounded-full border-2 border-green-500/60 bg-green-500/30 text-green-400 backdrop-blur-sm active:scale-90 active:bg-green-500/50 transition-all shadow-lg shadow-green-500/20"
-          aria-label="Pular"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 19V5" />
-            <path d="M5 12l7-7 7 7" />
-          </svg>
-        </button>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-2 w-2 rounded-full bg-blue-300" />
+            </div>
+          </div>
+          
+          {/* Indicador visual de direção */}
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[10px] text-blue-400/60 font-bold">↑</div>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-blue-400/60 font-bold">↓</div>
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-blue-400/60 font-bold">←</div>
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-blue-400/60 font-bold">→</div>
+        </div>
       </div>
 
       {/* Lado Direito - Ações */}
-      <div className="flex-1 flex items-end justify-center gap-2 p-2 pb-4">
+      <div className="flex-1 flex items-end justify-center gap-3 p-2 pb-4">
         <button
           type="button"
           onTouchStart={handleStart("melee")}
@@ -114,13 +64,13 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onMouseDown={handleStart("melee")}
           onMouseUp={handleEnd("melee")}
           onMouseLeave={handleEnd("melee")}
-          className="h-14 w-14 rounded-full border-2 border-yellow-500/60 bg-yellow-500/30 text-yellow-400 backdrop-blur-sm active:scale-90 active:bg-yellow-500/50 transition-all shadow-lg shadow-yellow-500/20"
+          className="h-16 w-16 rounded-full border-3 border-yellow-500/60 bg-yellow-500/30 text-yellow-400 backdrop-blur-sm active:scale-90 active:bg-yellow-500/50 transition-all shadow-lg shadow-yellow-500/20"
           aria-label="Soco"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -142,13 +92,13 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onMouseDown={handleStart("shoot")}
           onMouseUp={handleEnd("shoot")}
           onMouseLeave={handleEnd("shoot")}
-          className="h-14 w-14 rounded-full border-2 border-red-500/60 bg-red-500/30 text-red-400 backdrop-blur-sm active:scale-90 active:bg-red-500/50 transition-all shadow-lg shadow-red-500/20"
+          className="h-16 w-16 rounded-full border-3 border-red-500/60 bg-red-500/30 text-red-400 backdrop-blur-sm active:scale-90 active:bg-red-500/50 transition-all shadow-lg shadow-red-500/20"
           aria-label="Atirar"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

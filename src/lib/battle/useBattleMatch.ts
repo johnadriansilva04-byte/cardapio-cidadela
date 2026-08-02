@@ -65,8 +65,12 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
       localInputs.current = merged;
     };
     
+    updateInputs(); // Initial update
     const interval = setInterval(updateInputs, 16); // ~60fps
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      localInputs.current = emptyInputs();
+    };
   }, [running]);
 
   const reset = useCallback(() => {

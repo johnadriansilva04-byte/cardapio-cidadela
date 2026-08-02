@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Swords, BrainCircuit, FlaskConical, Bot } from "lucide-react";
+import { Swords, BrainCircuit, FlaskConical, Bot, Target } from "lucide-react";
 import { MapBuilding } from "./map/MapBuilding";
 
 type ActiveModule =
-  "battle-arena" | "iq-test" | "robot-lab" | "chat-ai" | "dashboard" | "config" | "pedidos" | null;
+  "battle-arena" | "iq-test" | "robot-lab" | "chat-ai" | "dashboard" | "config" | "pedidos" | "trilha" | null;
 
 export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModule) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -126,6 +126,15 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
             icon={<Swords size={16} strokeWidth={1.75} />}
           />
 
+          <MapBuilding
+            title="A Trilha"
+            era="war"
+            top="82%"
+            left="calc(50% + 130px)"
+            onClick={() => handleModuleClick("trilha")}
+            icon={<Target size={16} strokeWidth={1.75} />}
+          />
+
           {/* ---------------- CENÁRIO: MODERNIDADE (meio) ---------------- */}
           <Prop top="58%" left="calc(50% - 290px)">
             <Favela className="h-20 w-56 text-modern-deep/85" />
@@ -191,6 +200,12 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
               label: "Arena",
               module: "battle-arena" as ActiveModule,
               icon: Swords,
+              cls: "text-war-dust border-war-dust/50",
+            },
+            {
+              label: "Trilha",
+              module: "trilha" as ActiveModule,
+              icon: Target,
               cls: "text-war-dust border-war-dust/50",
             },
             {

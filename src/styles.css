@@ -152,6 +152,18 @@
   --glow-p2: 0 0 20px color-mix(in oklab, var(--p2) 60%, transparent);
   --arena-floor: oklch(0.18 0.02 70);
   --arcade-amber: oklch(0.78 0.18 75);
+
+  /* Trilha FEB */
+  --lantern: oklch(0.82 0.16 74);
+  --khaki: oklch(0.74 0.05 92);
+  --map: oklch(0.84 0.05 88);
+  --ink: oklch(0.26 0.03 60);
+  --blood: oklch(0.46 0.17 28);
+  --feb: oklch(0.58 0.1 138);
+  --feb-foreground: oklch(0.96 0.02 90);
+  --axis: oklch(0.44 0.05 40);
+  --axis-foreground: oklch(0.94 0.02 80);
+  --mill: oklch(0.82 0.17 76);
 }
 
 .dark {
@@ -514,3 +526,66 @@
     transform: translate(-50%, -40px) scale(1);
   }
 }
+
+/* ============================================================
+   Trilha FEB — Estilos específicos
+   ============================================================ */
+
+@utility text-typewriter {
+  font-family: "Special Elite", "Courier New", monospace;
+}
+
+@utility panel-field {
+  background-image:
+    linear-gradient(oklch(0.26 0.026 76 / 0.94), oklch(0.21 0.022 70 / 0.96)),
+    repeating-linear-gradient(
+      90deg,
+      oklch(1 0 0 / 0.025) 0px,
+      oklch(1 0 0 / 0.025) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  border: 1px solid var(--border);
+  box-shadow: 0 22px 60px -18px oklch(0.08 0.02 60 / 0.85);
+}
+
+@utility surface-map {
+  background-image:
+    radial-gradient(ellipse at 30% 20%, oklch(0.88 0.05 88 / 0.95), transparent 62%),
+    radial-gradient(ellipse at 78% 82%, oklch(0.7 0.06 74 / 0.7), transparent 58%),
+    linear-gradient(oklch(0.82 0.05 86), oklch(0.7 0.055 78));
+}
+
+@utility grain-overlay {
+  background-image: radial-gradient(oklch(0 0 0 / 0.35) 1px, transparent 1px);
+  background-size: 3px 3px;
+  mix-blend-mode: multiply;
+  opacity: 0.25;
+}
+
+@keyframes drop-in {
+  0% {
+    transform: translateY(-26px) scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(2px) scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes mill-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    stroke-width: 6;
+  }
+  50% {
+    opacity: 1;
+    stroke-width: 9;
+  }
+}
+

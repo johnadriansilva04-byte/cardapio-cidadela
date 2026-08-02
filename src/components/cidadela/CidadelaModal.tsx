@@ -7,6 +7,7 @@ import { PracinhaIA } from "@/components/cidadela/Praxinha";
 import { ConfigOperacional } from "@/components/cidadela/Config";
 import { GerenciadorPedidos } from "@/components/cidadela/Pedidos";
 import { TemporalLobby } from "@/components/cidadela/TemporalLobby";
+import { TrilhaGame } from "@/components/cidadela/Trilha/TrilhaGame";
 import { useStore } from "@/modules/cidadela-core/store";
 import { isCodeValid } from "@/modules/cidadela-core/utils";
 import { validateCidadelaCode } from "@/modules/fluxos-n8n/webhook";
@@ -30,6 +31,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
   const [validating, setValidating] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("lobby");
+  const [activeModule, setActiveModule] = useState<"trilha" | null>(null);
 
   async function tryUnlock(e: React.FormEvent) {
     e.preventDefault();
@@ -237,9 +239,23 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
                     } else if (module === "robot-lab") {
                       setViewMode("tabs");
                       setTab("praxinha");
+                    } else if (module === "trilha") {
+                      setActiveModule("trilha");
                     }
                   }}
                 />
+              </div>
+            ) : activeModule === "trilha" ? (
+              <div className="h-[calc(100vh-73px)] overflow-auto">
+                <button
+                  type="button"
+                  onClick={() => setActiveModule(null)}
+                  className="absolute top-4 left-4 z-10 flex items-center gap-2 rounded-lg border border-border bg-background/80 px-3 py-2 text-sm backdrop-blur-sm hover:bg-background"
+                >
+                  <Map className="h-4 w-4" />
+                  Voltar ao mapa
+                </button>
+                <TrilhaGame />
               </div>
             ) : (
               <>

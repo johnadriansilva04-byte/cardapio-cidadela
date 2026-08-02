@@ -1,4 +1,4 @@
-export type FighterState = "idle" | "walk" | "jump" | "crouch" | "shoot" | "hit" | "ko";
+export type FighterState = "idle" | "walk" | "jump" | "crouch" | "shoot" | "punch" | "hit" | "ko";
 
 export type Inputs = {
   left: boolean;
@@ -6,6 +6,7 @@ export type Inputs = {
   jump: boolean;
   crouch: boolean;
   shoot: boolean;
+  melee: boolean;
 };
 
 export type Projectile = {
@@ -18,7 +19,7 @@ export type Projectile = {
   active: boolean;
 };
 
-export type WeaponType = "none" | "pistol" | "rifle" | "shotgun";
+export type WeaponType = "club" | "pistol" | "rifle" | "shotgun";
 
 export type Weapon = {
   type: WeaponType;
@@ -26,6 +27,7 @@ export type Weapon = {
   fireRate: number;
   bulletSpeed: number;
   level: number;
+  melee: boolean;
 };
 
 export type Fighter = {
@@ -47,6 +49,7 @@ export type Fighter = {
   level: number;
   weapon: Weapon;
   isCrouching: boolean;
+  useMelee: boolean;
 };
 
 export type BattleState = {
@@ -60,33 +63,37 @@ export type BattleState = {
   lastEvent: { at: number; text: string } | null;
 };
 
-export const ARENA_WIDTH = 900;
-export const FIGHTER_WIDTH = 96;
-export const GROUND_SPEED = 260;
-export const JUMP_VELOCITY = 620;
-export const GRAVITY = 1800;
-export const CROUCH_HEIGHT = 40;
-export const PROJECTILE_SIZE = 8;
-export const HIT_STUN = 0.25;
+export const ARENA_WIDTH = 1500;
+export const FIGHTER_WIDTH = 60;
+export const GROUND_SPEED = 300;
+export const JUMP_VELOCITY = 800;
+export const GRAVITY = 2000;
+export const CROUCH_HEIGHT = 35;
+export const PROJECTILE_SIZE = 6;
+export const HIT_STUN = 0.2;
 export const MAX_HP = 100;
 export const MAX_ROUNDS = 6;
 export const ROUND_TIME = 90;
+export const MELEE_RANGE = 80;
+export const MELEE_DAMAGE = 8;
+export const MELEE_DURATION = 0.2;
+export const MELEE_COOLDOWN = 0.3;
 
 export const WEAPONS: Record<WeaponType, Weapon> = {
-  none: { type: "none", damage: 0, fireRate: 0, bulletSpeed: 0, level: 0 },
-  pistol: { type: "pistol", damage: 10, fireRate: 0.5, bulletSpeed: 600, level: 1 }, // Pistola M1911
-  rifle: { type: "rifle", damage: 8, fireRate: 0.15, bulletSpeed: 800, level: 3 }, // Garand M1
-  shotgun: { type: "shotgun", damage: 15, fireRate: 0.8, bulletSpeed: 500, level: 5 }, // Browning Auto-5
+  club: { type: "club", damage: 8, fireRate: 0, bulletSpeed: 0, level: 0, melee: true }, // Bastão de combate
+  pistol: { type: "pistol", damage: 10, fireRate: 0.5, bulletSpeed: 1200, level: 1, melee: false }, // Pistola M1911
+  rifle: { type: "rifle", damage: 8, fireRate: 0.15, bulletSpeed: 1500, level: 3, melee: false }, // Garand M1
+  shotgun: { type: "shotgun", damage: 15, fireRate: 0.8, bulletSpeed: 1000, level: 5, melee: false }, // Browning Auto-5
 };
 
 export const getWeaponForLevel = (level: number): Weapon => {
   if (level >= 5) return WEAPONS.shotgun;
   if (level >= 3) return WEAPONS.rifle;
   if (level >= 1) return WEAPONS.pistol;
-  return WEAPONS.none;
+  return WEAPONS.club;
 };
 
-export const emptyInputs = (): Inputs => ({ left: false, right: false, jump: false, crouch: false, shoot: false });
+export const emptyInputs = (): Inputs => ({ left: false, right: false, jump: false, crouch: false, shoot: false, melee: false });
 
 export function createFighter(id: 1 | 2, name: string, level: number = 0): Fighter {
   return {
@@ -108,6 +115,7 @@ export function createFighter(id: 1 | 2, name: string, level: number = 0): Fight
     level,
     weapon: getWeaponForLevel(level),
     isCrouching: false,
+    useMelee: false,
   };
 }
 
@@ -158,39 +166,66 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
     if (f.y === 0) f.vy = 0;
   }
 
-  // Handle shooting
-  if (
-    input.shoot &&
-    f.attackCooldown === 0 &&
-    f.hitStun === 0 &&
-    f.weapon.type !== "none" &&
-    f.state !== "shoot"
-  ) {
-    f.state = "shoot";
-    f.stateTimer = 0.15;
-    f.attackCooldown = f.weapon.fireRate;
-    
-    // Create projectile
-    const projectile: Projectile = {
-      id: projectileIdCounter++,
-      ownerId: f.id,
-      x: f.x + f.facing * (FIGHTER_WIDTH / 2 + 10),
-      y: f.y + (f.isCrouching ? CROUCH_HEIGHT : 60),
-      vx: f.facing * f.weapon.bulletSpeed,
-      damage: f.weapon.damage,
-      active: true,
-    };
-    state.projectiles.push(projectile);
-    
+  // Handle shooting/melee based on weapon type and user preference
+  const useMeleeAttack = f.weapon.melee || f.useMelee;
+  
+  if (useMeleeAttack) {
+    // Melee attack (punch/club)
+    if (
+      input.shoot &&
+      f.attackCooldown === 0 &&
+      f.hitStun === 0 &&
+      f.state !== "punch"
+    ) {
+      f.state = "punch";
+      f.stateTimer = MELEE_DURATION;
+      f.attackCooldown = MELEE_DURATION + MELEE_COOLDOWN;
+      return;
+    }
+  } else {
+    // Ranged attack (shooting)
+    if (
+      input.shoot &&
+      f.attackCooldown === 0 &&
+      f.hitStun === 0 &&
+      f.state !== "shoot"
+    ) {
+      f.state = "shoot";
+      f.stateTimer = 0.15;
+      f.attackCooldown = f.weapon.fireRate;
+      
+      // Create projectile
+      const projectile: Projectile = {
+        id: projectileIdCounter++,
+        ownerId: f.id,
+        x: f.x + f.facing * (FIGHTER_WIDTH / 2 + 10),
+        y: f.y + (f.isCrouching ? CROUCH_HEIGHT : 60),
+        vx: f.facing * f.weapon.bulletSpeed,
+        damage: f.weapon.damage,
+        active: true,
+      };
+      state.projectiles.push(projectile);
+      
+      state.lastEvent = {
+        at: now,
+        text: `${f.name} TIRO!`,
+      };
+      return;
+    }
+  }
+
+  // Toggle melee/ranged with separate key
+  if (input.melee && !f.weapon.melee && f.attackCooldown === 0) {
+    f.useMelee = !f.useMelee;
+    f.attackCooldown = 0.2; // Small cooldown to prevent spam
     state.lastEvent = {
       at: now,
-      text: `${f.name} TIRO!`,
+      text: f.useMelee ? `${f.name} SOCOS!` : `${f.name} TIROS!`,
     };
-    return;
   }
 
   // Update state
-  if (f.stateTimer > 0 && (f.state === "shoot" || f.state === "hit")) return;
+  if (f.stateTimer > 0 && (f.state === "shoot" || f.state === "punch" || f.state === "hit")) return;
   if (f.hitStun > 0) {
     f.state = "hit";
     return;
@@ -199,6 +234,36 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
   else if (f.y > 0) f.state = "jump";
   else if (Math.abs(f.vx) > 1) f.state = "walk";
   else f.state = "idle";
+}
+
+function resolveMeleeHit(attacker: Fighter, defender: Fighter, state: BattleState, now: number) {
+  const active = attacker.state === "punch" && attacker.stateTimer > 0;
+  if (!active || attacker.stateTimer > MELEE_DURATION - 0.02) return;
+  if (defender.state === "ko" || defender.hitStun > 0) return;
+
+  const dx = defender.x - attacker.x;
+  const inFront = Math.sign(dx) === attacker.facing || Math.abs(dx) < 20;
+  const inRange = Math.abs(dx) <= MELEE_RANGE && Math.abs(defender.y - attacker.y) < 100;
+  if (!inFront || !inRange) return;
+
+  const damage = attacker.weapon.type === "club" ? attacker.weapon.damage : MELEE_DAMAGE;
+  defender.hp = Math.max(0, defender.hp - damage);
+  defender.hitStun = HIT_STUN;
+  defender.state = "hit";
+  defender.stateTimer = HIT_STUN;
+  defender.x = clamp(defender.x + attacker.facing * 20, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
+  defender.damageTaken += damage;
+  defender.combo = 0;
+  attacker.damageDealt += damage;
+  attacker.combo += 1;
+  attacker.stateTimer = 0.05;
+  state.lastEvent = {
+    at: now,
+    text:
+      attacker.combo > 1
+        ? `${attacker.name} ${attacker.combo}x COMBO! -${damage}`
+        : `${attacker.name} ${attacker.weapon.type === "club" ? "BASTÃO!" : "SOCO!"} -${damage}`,
+  };
 }
 
 function resolveProjectileHit(projectile: Projectile, defender: Fighter, state: BattleState, now: number) {
@@ -210,13 +275,19 @@ function resolveProjectileHit(projectile: Projectile, defender: Fighter, state: 
   const dy = Math.abs(projectile.y - defender.y);
   
   // Hitbox size varies by crouching state
-  const hitboxHeight = defender.isCrouching ? CROUCH_HEIGHT : 80;
-  const hitboxWidth = FIGHTER_WIDTH * 0.8;
+  const hitboxHeight = defender.isCrouching ? CROUCH_HEIGHT : 60;
+  const hitboxWidth = FIGHTER_WIDTH * 0.7;
   
   if (dx < hitboxWidth && dy < hitboxHeight) {
     // Check if crouching avoids high shots
-    if (defender.isCrouching && projectile.y > CROUCH_HEIGHT + 20) {
+    if (defender.isCrouching && projectile.y > CROUCH_HEIGHT + 15) {
       // Crouching successfully dodged the shot
+      return;
+    }
+    
+    // Check if jumping over projectile
+    if (defender.y > 30 && projectile.y < 20) {
+      // Jumping over projectile
       return;
     }
     
@@ -282,8 +353,8 @@ export function stepBattle(
   stepFighter(a, i1, dt, s, now);
   stepFighter(b, i2, dt, s, now);
 
-  const overlap = FIGHTER_WIDTH * 0.7 - Math.abs(a.x - b.x);
-  if (overlap > 0 && Math.abs(a.y - b.y) < 100) {
+  const overlap = FIGHTER_WIDTH * 0.5 - Math.abs(a.x - b.x);
+  if (overlap > 0 && Math.abs(a.y - b.y) < 80) {
     const push = (overlap / 2) * Math.sign(a.x - b.x || 1);
     a.x = clamp(a.x + push, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
     b.x = clamp(b.x - push, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
@@ -295,6 +366,10 @@ export function stepBattle(
     if (p.ownerId === 1) resolveProjectileHit(p, b, s, now);
     else resolveProjectileHit(p, a, s, now);
   });
+
+  // Check melee hits
+  resolveMeleeHit(a, b, s, now);
+  resolveMeleeHit(b, a, s, now);
 
   s.timeLeft = Math.max(0, s.timeLeft - dt);
 
@@ -312,7 +387,7 @@ export function stepBattle(
 
 export type FighterSnapshot = Pick<
   Fighter,
-  "x" | "y" | "hp" | "facing" | "state" | "combo" | "damageDealt" | "damageTaken" | "level" | "weapon" | "isCrouching"
+  "x" | "y" | "hp" | "facing" | "state" | "combo" | "damageDealt" | "damageTaken" | "level" | "weapon" | "isCrouching" | "useMelee"
 >;
 
 export const snapshot = (f: Fighter): FighterSnapshot => ({
@@ -327,4 +402,5 @@ export const snapshot = (f: Fighter): FighterSnapshot => ({
   level: f.level,
   weapon: f.weapon,
   isCrouching: f.isCrouching,
+  useMelee: f.useMelee,
 });

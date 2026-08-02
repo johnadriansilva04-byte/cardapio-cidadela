@@ -12,6 +12,8 @@ const KEY_MAP: Record<string, keyof Inputs> = {
   ArrowDown: "crouch",
   KeyK: "shoot",
   Space: "shoot",
+  KeyL: "melee",
+  KeyE: "melee",
 };
 
 /** WASD to move/jump/crouch, K / Space to shoot. Returns a live mutable ref. */

@@ -2,11 +2,12 @@ import type { Fighter } from "@/lib/battle/engine";
 
 type Props = { fighter: Fighter; palette: "p1" | "p2" };
 
-/** CSS-built arcade mech. Reacts to state: walk, jump, crouch, shoot, hit, KO. Shows weapon based on level. */
+/** CSS-built arcade mech. Reacts to state: walk, jump, crouch, shoot, punch, hit, KO. Shows weapon based on level. */
 export function RobotSprite({ fighter, palette }: Props) {
   const color = palette === "p1" ? "#22c55e" : "#ef4444"; // Verde FEB para P1, vermelho para inimigo
   const glow = palette === "p1" ? "0 0 8px #22c55e" : "0 0 8px #ef4444";
   const shooting = fighter.state === "shoot";
+  const punching = fighter.state === "punch";
   const hurt = fighter.state === "hit";
   const ko = fighter.state === "ko";
   const walking = fighter.state === "walk";
@@ -15,131 +16,167 @@ export function RobotSprite({ fighter, palette }: Props) {
 
   // Weapon display based on type
   const hasWeapon = fighter.weapon.type !== "none";
-  const weaponSize = fighter.weapon.type === "shotgun" ? 28 : fighter.weapon.type === "rifle" ? 32 : 20;
-  const weaponColor = fighter.weapon.type === "shotgun" ? "#ff6b6b" : fighter.weapon.type === "rifle" ? "#4ecdc4" : "#ffe66d";
+  const weaponSize = fighter.weapon.type === "shotgun" ? 28 : fighter.weapon.type === "rifle" ? 32 : fighter.weapon.type === "club" ? 24 : 20;
+  const weaponColor = fighter.weapon.type === "shotgun" ? "#ff6b6b" : fighter.weapon.type === "rifle" ? "#4ecdc4" : fighter.weapon.type === "club" ? "#8b4513" : "#ffe66d";
 
   return (
     <div
       className="relative origin-bottom transition-transform duration-75"
       style={{
-        height: crouching ? "90px" : "150px",
-        width: "96px",
+        height: crouching ? "45px" : "75px",
+        width: "50px",
         transform: `scaleX(${fighter.facing}) ${ko ? "rotate(-78deg) translateY(14px)" : hurt ? "translateX(-6px) rotate(-6deg)" : ""}`,
         filter: hurt ? "brightness(2.2) saturate(0.3)" : undefined,
       }}
     >
       {/* head */}
       <div
-        className="absolute left-1/2 top-0 h-9 w-12 -translate-x-1/2 rounded-sm border"
+        className="absolute left-1/2 top-0 h-5 w-6 -translate-x-1/2 rounded-sm border"
         style={{ 
           background: "var(--card)", 
           borderColor: color, 
           boxShadow: glow,
-          top: crouching ? "30px" : "0"
+          top: crouching ? "15px" : "0"
         }}
       >
-        <div className="absolute left-1.5 top-3 h-2 w-8" style={{ background: color, boxShadow: glow }} />
+        <div className="absolute left-1 top-1.5 h-1 w-4" style={{ background: color, boxShadow: glow }} />
       </div>
       
       {/* torso */}
       <div
-        className="absolute left-1/2 h-14 w-16 -translate-x-1/2 rounded-sm border"
+        className="absolute left-1/2 h-7 w-8 -translate-x-1/2 rounded-sm border"
         style={{
           background: "linear-gradient(180deg, var(--card), var(--secondary))",
           borderColor: color,
           boxShadow: glow,
-          top: crouching ? "54px" : "36px",
+          top: crouching ? "28px" : "18px",
         }}
       >
         <div
-          className="absolute left-1/2 top-4 h-4 w-4 -translate-x-1/2 rotate-45"
-          style={{ background: color, opacity: shooting ? 1 : 0.6 }}
+          className="absolute left-1/2 top-1.5 h-1.5 w-1.5 -translate-x-1/2 rotate-45"
+          style={{ background: color, opacity: (shooting || punching) ? 1 : 0.6 }}
         />
       </div>
       
-      {/* Weapon arm */}
-      {hasWeapon && (
+      {/* Weapon/Melee arm */}
+      {hasWeapon && !fighter.useMelee ? (
         <div
-          className="absolute h-4 rounded-sm transition-all duration-75"
+          className="absolute h-3 rounded-sm transition-all duration-75"
           style={{
             background: color,
             boxShadow: glow,
-            left: 44,
-            top: crouching ? "68px" : "48px",
-            width: shooting ? weaponSize + 16 : 24,
+            left: 18,
+            top: crouching ? "28px" : "20px",
+            width: shooting ? weaponSize + 4 : 14,
           }}
         >
           {/* Weapon */}
           <div
-            className="absolute h-3 rounded-sm"
+            className="absolute h-1.5 rounded-sm"
             style={{
               background: weaponColor,
               right: -weaponSize,
               top: 0.5,
               width: weaponSize,
-              boxShadow: `0 0 8px ${weaponColor}`,
+              boxShadow: `0 0 4px ${weaponColor}`,
             }}
           />
         </div>
-      )}
-      
-      {/* Non-weapon arm */}
-      {!hasWeapon && (
+      ) : fighter.weapon.type === "club" || fighter.useMelee ? (
         <div
-          className="absolute h-4 rounded-sm transition-all duration-75"
+          className="absolute h-3 rounded-sm transition-all duration-75"
           style={{
             background: color,
             boxShadow: glow,
-            left: 44,
-            top: crouching ? "68px" : "48px",
-            width: 24,
+            left: 18,
+            top: crouching ? "28px" : "20px",
+            width: punching ? 28 : 14,
+          }}
+        >
+          {/* Club for melee */}
+          {fighter.weapon.type === "club" && (
+            <div
+              className="absolute h-2.5 rounded-sm"
+              style={{
+                background: weaponColor,
+                right: -16,
+                top: -0.5,
+                width: 16,
+                boxShadow: `0 0 4px ${weaponColor}`,
+              }}
+            />
+          )}
+        </div>
+      ) : (
+        <div
+          className="absolute h-3 rounded-sm transition-all duration-75"
+          style={{
+            background: color,
+            boxShadow: glow,
+            left: 18,
+            top: crouching ? "28px" : "20px",
+            width: punching ? 26 : 14,
           }}
         />
       )}
       
       {/* rear arm */}
       <div
-        className="absolute h-3.5 rounded-sm"
+        className="absolute h-2 rounded-sm"
         style={{ 
           background: color, 
           opacity: 0.55, 
-          left: 8, 
-          width: 22,
-          top: crouching ? "62px" : "47px"
+          left: 2, 
+          width: 14,
+          top: crouching ? "26px" : "18px"
         }}
       />
       
       {/* legs */}
       <div
-        className="absolute bottom-0 h-11 w-5 origin-top rounded-sm transition-transform duration-100"
+        className="absolute bottom-0 h-6 w-2 origin-top rounded-sm transition-transform duration-100"
         style={{
           background: color,
-          left: 28,
+          left: 15,
           opacity: 0.85,
           transform: `rotate(${walking ? 18 : jumping ? 26 : crouching ? -45 : 0}deg)`,
-          height: crouching ? "20px" : "44px",
+          height: crouching ? "10px" : "24px",
         }}
       />
       <div
-        className="absolute bottom-0 h-11 w-5 origin-top rounded-sm transition-transform duration-100"
+        className="absolute bottom-0 h-6 w-2 origin-top rounded-sm transition-transform duration-100"
         style={{
           background: color,
-          left: 48,
+          left: 24,
           transform: `rotate(${walking ? -18 : jumping ? 26 : crouching ? -45 : 0}deg)`,
-          height: crouching ? "20px" : "44px",
+          height: crouching ? "10px" : "24px",
         }}
       />
       
       {/* muzzle flash when shooting */}
-      {shooting && hasWeapon && (
+      {shooting && hasWeapon && !fighter.useMelee && (
         <div
-          className="absolute h-6 w-6 rounded-full"
+          className="absolute h-3 w-3 rounded-full"
           style={{ 
-            left: 92, 
-            top: crouching ? "64px" : "44px", 
+            left: 50, 
+            top: crouching ? "34px" : "22px", 
+            background: weaponColor, 
+            filter: "blur(2px)",
+            opacity: 0.8
+          }}
+        />
+      )}
+      
+      {/* Impact flash when punching with club */}
+      {punching && fighter.weapon.type === "club" && (
+        <div
+          className="absolute h-4 w-4 rounded-full"
+          style={{ 
+            left: 52, 
+            top: crouching ? "32px" : "20px", 
             background: weaponColor, 
             filter: "blur(4px)",
-            opacity: 0.8
+            opacity: 0.6
           }}
         />
       )}

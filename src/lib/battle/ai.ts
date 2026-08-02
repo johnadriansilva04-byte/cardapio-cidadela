@@ -1,6 +1,6 @@
 import { emptyInputs, type BattleState, type Inputs } from "./engine";
 
-/** Simple arcade CPU: closes distance, shoots in range, jumps sometimes, crouches to dodge. */
+/** Simple arcade CPU: closes distance, shoots/punches in range, jumps sometimes, crouches to dodge. */
 export function cpuInputs(state: BattleState, t: number): Inputs {
   const me = state.robot2;
   const foe = state.robot1;
@@ -19,9 +19,17 @@ export function cpuInputs(state: BattleState, t: number): Inputs {
     else i.right = true;
   }
 
-  // Shooting AI - shoot when in range and has weapon
-  if (me.weapon.type !== "none" && dist < 400 && Math.sin(t * 5) > 0.2) {
+  // Attack AI - shoot or punch based on weapon type and distance
+  const useMelee = me.weapon.melee || me.useMelee;
+  const attackRange = useMelee ? 120 : 400;
+  
+  if (dist < attackRange && Math.sin(t * 5) > 0.2) {
     i.shoot = true;
+  }
+
+  // Toggle melee for non-melee weapons when close
+  if (!me.weapon.melee && dist < 150 && Math.sin(t * 2) > 0.95) {
+    i.melee = true;
   }
 
   // Jump AI - jump to avoid or close distance

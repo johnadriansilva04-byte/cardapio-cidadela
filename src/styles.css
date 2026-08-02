@@ -563,6 +563,67 @@
   opacity: 0.25;
 }
 
+/* Cores específicas da Trilha */
+@utility text-lantern {
+  color: var(--lantern);
+}
+
+@utility text-khaki {
+  color: var(--khaki);
+}
+
+@utility text-map {
+  color: var(--map);
+}
+
+@utility text-ink {
+  color: var(--ink);
+}
+
+@utility text-blood {
+  color: var(--blood);
+}
+
+@utility text-feb {
+  color: var(--feb);
+}
+
+@utility text-feb-foreground {
+  color: var(--feb-foreground);
+}
+
+@utility text-axis {
+  color: var(--axis);
+}
+
+@utility text-axis-foreground {
+  color: var(--axis-foreground);
+}
+
+@utility text-mill {
+  color: var(--mill);
+}
+
+@utility bg-feb {
+  background-color: var(--feb);
+}
+
+@utility bg-axis {
+  background-color: var(--axis);
+}
+
+@utility border-feb {
+  border-color: var(--feb);
+}
+
+@utility border-axis {
+  border-color: var(--axis);
+}
+
+@utility border-ink {
+  border-color: var(--ink);
+}
+
 @keyframes drop-in {
   0% {
     transform: translateY(-26px) scale(0.6);

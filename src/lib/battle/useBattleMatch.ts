@@ -63,9 +63,6 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
         ...(touchInputs?.current || {})
       };
       localInputs.current = merged;
-      if (Object.values(merged).some(v => v)) {
-        console.log('Merged inputs:', merged);
-      }
     };
     
     const interval = setInterval(updateInputs, 16); // ~60fps

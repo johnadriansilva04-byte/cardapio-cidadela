@@ -21,7 +21,6 @@ export function useKeyboard(enabled: boolean) {
   const inputs = useRef<Inputs>(emptyInputs());
 
   useEffect(() => {
-    console.log('useKeyboard enabled:', enabled);
     if (!enabled) {
       inputs.current = emptyInputs();
       return;
@@ -31,7 +30,6 @@ export function useKeyboard(enabled: boolean) {
       if (!key) return;
       event.preventDefault();
       inputs.current[key] = value;
-      console.log('Keyboard input:', key, value, inputs.current);
     };
     const down = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;

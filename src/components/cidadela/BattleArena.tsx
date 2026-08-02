@@ -18,7 +18,7 @@ export function BattleArena() {
   const [showLevelMenu, setShowLevelMenu] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState(0);
   const isMobile = useIsMobile();
-  const touchControls = useTouchControls(running && isMobile);
+  const touchControls = useTouchControls(isMobile ? running : false);
 
   const { progress, addWin, addLoss, isLevelUnlocked, winsToNextLevel } = usePlayerProgress();
 

@@ -10,11 +10,13 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
 
   const handleStart = (action: keyof Inputs) => (e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setAction(action, true);
   };
 
   const handleEnd = (action: keyof Inputs) => (e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setAction(action, false);
   };
 

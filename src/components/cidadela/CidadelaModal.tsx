@@ -226,7 +226,19 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
           </>
         ) : (
           <>
-            {viewMode === "lobby" ? (
+            {activeModule === "trilha" ? (
+              <div className="h-[calc(100vh-73px)] overflow-auto">
+                <button
+                  type="button"
+                  onClick={() => setActiveModule(null)}
+                  className="absolute top-4 left-4 z-10 flex items-center gap-2 rounded-lg border border-border bg-background/80 px-3 py-2 text-sm backdrop-blur-sm hover:bg-background"
+                >
+                  <Map className="h-4 w-4" />
+                  Voltar ao mapa
+                </button>
+                <TrilhaGame />
+              </div>
+            ) : viewMode === "lobby" ? (
               <div className="h-[calc(100vh-73px)]">
                 <TemporalLobby
                   onNavigate={(module) => {
@@ -250,18 +262,6 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
                     }
                   }}
                 />
-              </div>
-            ) : activeModule === "trilha" ? (
-              <div className="h-[calc(100vh-73px)] overflow-auto">
-                <button
-                  type="button"
-                  onClick={() => setActiveModule(null)}
-                  className="absolute top-4 left-4 z-10 flex items-center gap-2 rounded-lg border border-border bg-background/80 px-3 py-2 text-sm backdrop-blur-sm hover:bg-background"
-                >
-                  <Map className="h-4 w-4" />
-                  Voltar ao mapa
-                </button>
-                <TrilhaGame />
               </div>
             ) : (
               <>

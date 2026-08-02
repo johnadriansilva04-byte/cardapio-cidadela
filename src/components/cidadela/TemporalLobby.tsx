@@ -17,7 +17,9 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
 
   const handleModuleClick = (moduleId: ActiveModule) => {
     console.log("[TemporalLobby] Botão clicado:", moduleId);
+    console.log("[TemporalLobby] onNavigate existe?", typeof onNavigate);
     onNavigate(moduleId);
+    console.log("[TemporalLobby] onNavigate chamado");
   };
 
   return (

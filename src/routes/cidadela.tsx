@@ -137,25 +137,30 @@ function CidadelaWorld() {
   if (activeModule) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="flex items-center justify-between border-b border-border px-6 py-4">
-          <Link to="/" className="flex items-center gap-3">
-            <CobraFumando className="size-8 text-[color:var(--brass)]" />
-            <span className="text-stencil text-lg">CIDADELA</span>
-          </Link>
-          <button
-            type="button"
-            onClick={() => setActiveModule(null)}
-            className="text-tech rounded-md bg-secondary px-4 py-2 text-sm"
-          >
-            Voltar ao Mundo
-          </button>
-        </header>
-        {activeModule === "praxinha" && <PracinhaIA />}
-        {activeModule === "iq" && <IQTest />}
-        {activeModule === "arena" && <BattleArena />}
-        {activeModule === "lab" && <RobotLab />}
-        {activeModule === "futebol" && <FutebolBotao />}
-        {activeModule === "trilha" && <TrilhaGame />}
+        {activeModule === "trilha" ? (
+          <TrilhaGame />
+        ) : (
+          <>
+            <header className="flex items-center justify-between border-b border-border px-6 py-4">
+              <Link to="/" className="flex items-center gap-3">
+                <CobraFumando className="size-8 text-[color:var(--brass)]" />
+                <span className="text-stencil text-lg">CIDADELA</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setActiveModule(null)}
+                className="text-tech rounded-md bg-secondary px-4 py-2 text-sm"
+              >
+                Voltar ao Mundo
+              </button>
+            </header>
+            {activeModule === "praxinha" && <PracinhaIA />}
+            {activeModule === "iq" && <IQTest />}
+            {activeModule === "arena" && <BattleArena />}
+            {activeModule === "lab" && <RobotLab />}
+            {activeModule === "futebol" && <FutebolBotao />}
+          </>
+        )}
       </div>
     );
   }

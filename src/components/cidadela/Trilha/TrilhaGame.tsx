@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Brain, Cpu } from "lucide-react";
+import { Brain, Cpu, Map } from "lucide-react";
 import { HQPanel } from "./HQPanel";
 import { TrilhaBoard } from "./TrilhaBoard";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { useBoardInteraction } from "@/hooks/useBoardInteraction";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CobraFumando } from "@/components/CobraFumando";
 
 const ORDER: Difficulty[] = ["recruta", "sargento", "general"];
 
@@ -60,29 +61,42 @@ function TrilhaGameBoard({
   const profile = AI_PROFILES[difficulty];
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-4 sm:py-8">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-2 sm:mb-6 sm:gap-4">
-        <div>
-          <p className="text-typewriter text-[10px] tracking-[0.3em] text-lantern sm:text-xs">OPERAÇÃO INDIVIDUAL</p>
-          <h1 className="mt-1 text-xl sm:text-3xl">Campanha</h1>
+    <div className="min-h-screen bg-background">
+      <header className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="flex items-center gap-3">
+          <CobraFumando className="size-9 text-[color:var(--brass)]" />
+          <div>
+            <h2 className="text-stencil text-xl">A TRILHA</h2>
+            <p className="text-tech text-[9px] text-muted-foreground">
+              Jogo de estratégia tática · FEB vs Eixo
+            </p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1 sm:gap-2">
-          {ORDER.map((d) => (
-            <Button
-              key={d}
-              size="sm"
-              variant={d === difficulty ? "default" : "secondary"}
-              onClick={() => {
-                onDifficulty(d);
-                onReset();
-              }}
-              className="text-[10px] sm:text-xs"
-            >
-              {AI_PROFILES[d].label}
-            </Button>
-          ))}
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 py-4 sm:py-8">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-2 sm:mb-6 sm:gap-4">
+          <div>
+            <p className="text-typewriter text-[10px] tracking-[0.3em] text-lantern sm:text-xs">OPERAÇÃO INDIVIDUAL</p>
+            <h1 className="mt-1 text-xl sm:text-3xl">Campanha</h1>
+          </div>
+          <div className="flex flex-wrap gap-1 sm:gap-2">
+            {ORDER.map((d) => (
+              <Button
+                key={d}
+                size="sm"
+                variant={d === difficulty ? "default" : "secondary"}
+                onClick={() => {
+                  onDifficulty(d);
+                  onReset();
+                }}
+                className="text-[10px] sm:text-xs"
+              >
+                {AI_PROFILES[d].label}
+              </Button>
+            ))}
+          </div>
         </div>
-      </div>
 
       <div className={cn("flex gap-4 lg:items-start", isMobile ? "flex-col" : "flex-row")}>
         <div className="flex flex-1 flex-col items-center gap-3 sm:gap-4">
@@ -131,5 +145,6 @@ function TrilhaGameBoard({
         />
       </div>
     </main>
+    </div>
   );
 }

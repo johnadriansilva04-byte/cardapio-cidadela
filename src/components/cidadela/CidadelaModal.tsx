@@ -230,6 +230,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
               <div className="h-[calc(100vh-73px)]">
                 <TemporalLobby
                   onNavigate={(module) => {
+                    console.log("[CidadelaModal] Navegação solicitada:", module);
                     if (module === "battle-arena") {
                       setViewMode("tabs");
                       setTab("core");
@@ -240,6 +241,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
                       setViewMode("tabs");
                       setTab("praxinha");
                     } else if (module === "trilha") {
+                      console.log("[CidadelaModal] Ativando módulo Trilha");
                       setActiveModule("trilha");
                     }
                   }}

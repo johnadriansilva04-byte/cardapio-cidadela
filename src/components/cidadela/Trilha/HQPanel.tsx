@@ -38,10 +38,8 @@ export function HQPanel({
   onRestart,
   awaitingCapture,
 }: HQPanelProps) {
-  const isMobile = useIsMobile();
-
   return (
-    <aside className={cn("flex w-full flex-col gap-3", !isMobile && "lg:w-72")}>
+    <aside className="flex w-full flex-col gap-3 lg:w-72">
       <div
         className={cn(
           "panel-field rounded-md p-3",

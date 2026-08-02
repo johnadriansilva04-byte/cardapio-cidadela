@@ -75,40 +75,40 @@ function Piece({
       {isCaptureTarget && (
         <circle
           r="6.4"
-          className="fill-none stroke-destructive"
+          fill="none"
+          stroke="var(--destructive)"
           strokeWidth="1"
           strokeDasharray="2 1.5"
           style={{ animation: "mill-pulse 1s ease-in-out infinite" }}
         />
       )}
       {isSelected && (
-        <circle r="5.8" className="fill-none stroke-lantern" strokeWidth="0.9" />
+        <circle r="5.8" fill="none" stroke="var(--lantern)" strokeWidth="0.9" />
       )}
-      <ellipse cx="0.5" cy="1.3" rx="4.2" ry="3.6" className="fill-ink/45" />
+      <ellipse cx="0.5" cy="1.3" rx="4.2" ry="3.6" fill="var(--ink)" fillOpacity="0.45" />
       <circle
         r="4.1"
-        className={feb ? "fill-feb" : "fill-axis"}
-        stroke="currentColor"
+        fill={feb ? "var(--feb)" : "var(--axis)"}
+        stroke={inMill ? "var(--mill)" : "var(--ink)"}
         strokeWidth="0.7"
-        style={{ color: inMill ? "var(--mill)" : "var(--ink)" }}
       />
       <circle r="4.1" fill="url(#pieceSheen)" />
       {feb ? (
         // Cobra fumando estilizada
-        <g className="fill-none stroke-feb-foreground" strokeWidth="0.55" strokeLinecap="round">
+        <g fill="none" stroke="var(--feb-foreground)" strokeWidth="0.55" strokeLinecap="round">
           <path d="M -1.9 1.5 C 0.4 1.9, 2 0.9, 1.6 -0.5 C 1.3 -1.6, -0.3 -1.7, -0.6 -0.6" />
           <path d="M -0.6 -0.6 L -2.2 -1.7" />
           <path d="M -2.4 -2.2 c 0.5 -0.5, -0.5 -0.9, 0 -1.4" />
         </g>
       ) : (
         // Capacete de aço estilizado
-        <g className="fill-axis-foreground/85">
+        <g fill="var(--axis-foreground)" fillOpacity="0.85">
           <path d="M -2.5 0.6 a 2.5 2.6 0 0 1 5 0 z" />
           <rect x="-3.1" y="0.7" width="6.2" height="0.9" rx="0.45" />
         </g>
       )}
       {isLast && (
-        <circle r="5.2" className="fill-none stroke-lantern/70" strokeWidth="0.5" strokeDasharray="1 1" />
+        <circle r="5.2" fill="none" stroke="var(--lantern)" strokeOpacity="0.7" strokeWidth="0.5" strokeDasharray="1 1" />
       )}
     </g>
   );
@@ -154,7 +154,7 @@ export function TrilhaBoard({
         </defs>
 
         {/* grade de coordenadas do mapa */}
-        <g className="stroke-ink/10" strokeWidth="0.3">
+        <g stroke="var(--ink)" strokeOpacity="0.1" strokeWidth="0.3">
           {Array.from({ length: 9 }, (_, i) => (
             <line key={`h${i}`} x1="4" y1={4 + i * 11.5} x2="96" y2={4 + i * 11.5} />
           ))}
@@ -164,7 +164,7 @@ export function TrilhaBoard({
         </g>
 
         {/* linhas do tabuleiro */}
-        <g className="stroke-ink" strokeWidth="1.1" strokeLinecap="round">
+        <g stroke="var(--ink)" strokeWidth="1.1" strokeLinecap="round">
           {BOARD_EDGES.map(([a, b]) => {
             const [ax, ay] = NODE_COORDS[a]!;
             const [bx, by] = NODE_COORDS[b]!;
@@ -175,7 +175,7 @@ export function TrilhaBoard({
         </g>
 
         {/* moinhos ativos em destaque */}
-        <g className="stroke-mill" strokeLinecap="round" filter="url(#millGlow)">
+        <g stroke="var(--mill)" strokeLinecap="round" filter="url(#millGlow)">
           {mills.map((m) => {
             const [ax, ay] = NODE_COORDS[m[0]]!;
             const [bx, by] = NODE_COORDS[m[2]]!;
@@ -200,11 +200,13 @@ export function TrilhaBoard({
           if (!empty) return null;
           return (
             <g key={`n${node}`} transform={`translate(${px(gx)} ${px(gy)})`}>
-              <circle r="1.6" className="fill-ink/70" />
+              <circle r="1.6" fill="var(--ink)" fillOpacity="0.7" />
               {isTarget && (
                 <circle
                   r="3.4"
-                  className="fill-lantern/25 stroke-lantern"
+                  fill="var(--lantern)"
+                  fillOpacity="0.25"
+                  stroke="var(--lantern)"
                   strokeWidth="0.7"
                   style={{ animation: "mill-pulse 1.6s ease-in-out infinite" }}
                 />

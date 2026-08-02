@@ -158,8 +158,14 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
   }
   f.x = clamp(f.x + f.vx * dt, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
 
-  if (input.jump && !airborne && !busy && !f.isCrouching) {
-    f.vy = JUMP_VELOCITY;
+  // Pulo contínuo (jetpack) quando segurar W
+  if (input.jump && !busy && !f.isCrouching) {
+    if (!airborne) {
+      f.vy = JUMP_VELOCITY;
+    } else {
+      // Continua adicionando velocidade para cima quando no ar
+      f.vy = Math.max(f.vy, JUMP_VELOCITY * 0.5);
+    }
   }
   if (airborne || f.vy > 0) {
     f.vy -= GRAVITY * dt;
@@ -171,9 +177,9 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
   const useMeleeAttack = f.weapon.melee || f.useMelee;
   
   if (useMeleeAttack) {
-    // Melee attack (punch/club) - ABSOLUTely NO PROJECTILES
+    // Melee attack (punch/club) - usa tanto shoot quanto melee
     if (
-      input.shoot &&
+      (input.shoot || input.melee) &&
       f.attackCooldown === 0 &&
       f.hitStun === 0 &&
       f.state !== "punch"

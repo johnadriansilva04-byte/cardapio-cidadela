@@ -7,6 +7,7 @@ import { AI_PROFILES, type Difficulty } from "@/lib/trilha/ai";
 import { useBoardInteraction } from "@/hooks/useBoardInteraction";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { CobraFumando } from "@/components/CobraFumando";
 import { Link } from "@tanstack/react-router";
 
@@ -34,7 +35,6 @@ function TrilhaGameBoard({
     game.commit,
     !game.thinking && game.state.phase !== "over",
   );
-  const isMobile = useIsMobile();
 
   const status = useMemo(() => {
     const s = game.state;
@@ -103,8 +103,8 @@ function TrilhaGameBoard({
           </div>
         </div>
 
-      <div className={cn("flex gap-6 items-start", isMobile ? "flex-col" : "flex-row")}>
-        <div className="flex flex-1 flex-col items-center">
+      <div className="flex gap-6 items-start flex-col lg:flex-row">
+        <div className="flex flex-1 flex-col items-center w-full">
           <TrilhaBoard
             state={game.state}
             perspective={1}

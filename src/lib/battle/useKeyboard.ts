@@ -21,6 +21,7 @@ export function useKeyboard(enabled: boolean) {
   const inputs = useRef<Inputs>(emptyInputs());
 
   useEffect(() => {
+    console.log('useKeyboard enabled:', enabled);
     if (!enabled) {
       inputs.current = emptyInputs();
       return;

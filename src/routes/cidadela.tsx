@@ -138,7 +138,7 @@ function CidadelaWorld() {
     return (
       <div className="min-h-screen bg-background">
         {activeModule === "trilha" ? (
-          <TrilhaGame />
+          <TrilhaGame onBack={() => setActiveModule(null)} />
         ) : (
           <>
             <header className="flex items-center justify-between border-b border-border px-6 py-4">

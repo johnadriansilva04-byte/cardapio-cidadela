@@ -12,20 +12,26 @@ import { Link } from "@tanstack/react-router";
 
 const ORDER: Difficulty[] = ["recruta", "sargento", "general"];
 
-export function TrilhaGame() {
+interface TrilhaGameProps {
+  onBack?: () => void;
+}
+
+export function TrilhaGame({ onBack }: TrilhaGameProps = {}) {
   const [difficulty, setDifficulty] = useState<Difficulty>("sargento");
   const [seed, setSeed] = useState(0);
-  return <TrilhaGameBoard key={`${difficulty}-${seed}`} difficulty={difficulty} onDifficulty={(d) => setDifficulty(d)} onReset={() => setSeed((s) => s + 1)} />;
+  return <TrilhaGameBoard key={`${difficulty}-${seed}`} difficulty={difficulty} onDifficulty={(d) => setDifficulty(d)} onReset={() => setSeed((s) => s + 1)} onBack={onBack} />;
 }
 
 function TrilhaGameBoard({
   difficulty,
   onDifficulty,
   onReset,
+  onBack,
 }: {
   difficulty: Difficulty;
   onDifficulty: (d: Difficulty) => void;
   onReset: () => void;
+  onBack?: () => void;
 }) {
   const game = useLocalGame(difficulty, 1);
   const interaction = useBoardInteraction(
@@ -71,13 +77,23 @@ function TrilhaGameBoard({
             </p>
           </div>
         </div>
-        <Link 
-          to="/cidadela" 
-          className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg font-medium transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Voltar à Cidadela</span>
-        </Link>
+        {onBack ? (
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Voltar à Cidadela</span>
+          </button>
+        ) : (
+          <Link 
+            to="/cidadela" 
+            className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Voltar à Cidadela</span>
+          </Link>
+        )}
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6">

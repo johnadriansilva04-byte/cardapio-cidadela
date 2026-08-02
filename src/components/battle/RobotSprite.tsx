@@ -140,6 +140,30 @@ export function RobotSprite({ fighter, palette }: Props) {
           height: crouching ? "12px" : "28px",
         }}
       />
+
+      {/* jet fire effect when jumping */}
+      {jumping && (
+        <>
+          <div
+            className="absolute bottom-0 h-4 w-3 rounded-full animate-pulse"
+            style={{
+              left: 18,
+              background: "linear-gradient(to bottom, #ff6600, #ffcc00, transparent)",
+              boxShadow: "0 0 8px #ff6600, 0 0 16px #ffcc00",
+              filter: "blur(1px)",
+            }}
+          />
+          <div
+            className="absolute bottom-0 h-4 w-3 rounded-full animate-pulse"
+            style={{
+              left: 25,
+              background: "linear-gradient(to bottom, #ff6600, #ffcc00, transparent)",
+              boxShadow: "0 0 8px #ff6600, 0 0 16px #ffcc00",
+              filter: "blur(1px)",
+            }}
+          />
+        </>
+      )}
       
       {/* muzzle flash when shooting ONLY */}
       {shooting && hasWeapon && !fighter.useMelee && (

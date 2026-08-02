@@ -153,7 +153,7 @@ export function RobotSprite({ fighter, palette }: Props) {
         }}
       />
       
-      {/* muzzle flash when shooting */}
+      {/* muzzle flash when shooting ONLY */}
       {shooting && hasWeapon && !fighter.useMelee && (
         <div
           className="absolute h-3 w-3 rounded-full"
@@ -163,20 +163,6 @@ export function RobotSprite({ fighter, palette }: Props) {
             background: weaponColor, 
             filter: "blur(2px)",
             opacity: 0.8
-          }}
-        />
-      )}
-      
-      {/* Impact flash when punching with club */}
-      {punching && fighter.weapon.type === "club" && (
-        <div
-          className="absolute h-4 w-4 rounded-full"
-          style={{ 
-            left: 52, 
-            top: crouching ? "32px" : "20px", 
-            background: weaponColor, 
-            filter: "blur(4px)",
-            opacity: 0.6
           }}
         />
       )}

@@ -66,8 +66,8 @@ export type BattleState = {
 export const ARENA_WIDTH = 1500;
 export const FIGHTER_WIDTH = 60;
 export const GROUND_SPEED = 300;
-export const JUMP_VELOCITY = 800;
-export const GRAVITY = 2000;
+export const JUMP_VELOCITY = 900;
+export const GRAVITY = 1800;
 export const CROUCH_HEIGHT = 35;
 export const PROJECTILE_SIZE = 6;
 export const HIT_STUN = 0.2;
@@ -75,7 +75,8 @@ export const MAX_HP = 100;
 export const MAX_ROUNDS = 6;
 export const ROUND_TIME = 90;
 export const MELEE_RANGE = 80;
-export const MELEE_DAMAGE = 8;
+export const MELEE_DAMAGE_BODY = 6;
+export const MELEE_DAMAGE_HEAD = 12;
 export const MELEE_DURATION = 0.2;
 export const MELEE_COOLDOWN = 0.3;
 
@@ -170,7 +171,7 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
   const useMeleeAttack = f.weapon.melee || f.useMelee;
   
   if (useMeleeAttack) {
-    // Melee attack (punch/club)
+    // Melee attack (punch/club) - NO PROJECTILES
     if (
       input.shoot &&
       f.attackCooldown === 0 &&
@@ -183,7 +184,7 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
       return;
     }
   } else {
-    // Ranged attack (shooting)
+    // Ranged attack (shooting) - ONLY CREATE PROJECTILES HERE
     if (
       input.shoot &&
       f.attackCooldown === 0 &&
@@ -194,12 +195,12 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
       f.stateTimer = 0.15;
       f.attackCooldown = f.weapon.fireRate;
       
-      // Create projectile
+      // Create projectile ONLY for ranged attacks
       const projectile: Projectile = {
         id: projectileIdCounter++,
         ownerId: f.id,
         x: f.x + f.facing * (FIGHTER_WIDTH / 2 + 10),
-        y: f.y + (f.isCrouching ? CROUCH_HEIGHT : 60),
+        y: f.y + (f.isCrouching ? CROUCH_HEIGHT : 50),
         vx: f.facing * f.weapon.bulletSpeed,
         damage: f.weapon.damage,
         active: true,
@@ -246,12 +247,17 @@ function resolveMeleeHit(attacker: Fighter, defender: Fighter, state: BattleStat
   const inRange = Math.abs(dx) <= MELEE_RANGE && Math.abs(defender.y - attacker.y) < 100;
   if (!inFront || !inRange) return;
 
-  const damage = attacker.weapon.type === "club" ? attacker.weapon.damage : MELEE_DAMAGE;
+  // Check if hit is on head or body based on height difference
+  const isHeadHit = defender.y < 30 && Math.abs(defender.y - attacker.y) > 20;
+  const damage = attacker.weapon.type === "club" 
+    ? attacker.weapon.damage 
+    : isHeadHit ? MELEE_DAMAGE_HEAD : MELEE_DAMAGE_BODY;
+  
   defender.hp = Math.max(0, defender.hp - damage);
   defender.hitStun = HIT_STUN;
   defender.state = "hit";
   defender.stateTimer = HIT_STUN;
-  defender.x = clamp(defender.x + attacker.facing * 20, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
+  defender.x = clamp(defender.x + attacker.facing * 15, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
   defender.damageTaken += damage;
   defender.combo = 0;
   attacker.damageDealt += damage;
@@ -262,7 +268,7 @@ function resolveMeleeHit(attacker: Fighter, defender: Fighter, state: BattleStat
     text:
       attacker.combo > 1
         ? `${attacker.name} ${attacker.combo}x COMBO! -${damage}`
-        : `${attacker.name} ${attacker.weapon.type === "club" ? "BASTÃO!" : "SOCO!"} -${damage}`,
+        : `${attacker.name} ${attacker.weapon.type === "club" ? "BASTÃO!" : isHeadHit ? "NA CABEÇA!" : "SOCO!"} -${damage}`,
   };
 }
 
@@ -354,7 +360,8 @@ export function stepBattle(
   stepFighter(b, i2, dt, s, now);
 
   const overlap = FIGHTER_WIDTH * 0.5 - Math.abs(a.x - b.x);
-  if (overlap > 0 && Math.abs(a.y - b.y) < 80) {
+  // Only push if NOT jumping over (allow jumping over opponent)
+  if (overlap > 0 && Math.abs(a.y - b.y) < 60) {
     const push = (overlap / 2) * Math.sign(a.x - b.x || 1);
     a.x = clamp(a.x + push, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
     b.x = clamp(b.x - push, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);

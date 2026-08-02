@@ -128,7 +128,7 @@ export function Arena({ state }: { state: BattleState }) {
           </div>
         ))}
 
-        {/* Projectiles */}
+        {/* Projectiles - ONLY for ranged attacks */}
         {state.projectiles.map(p => (
           <div
             key={p.id}

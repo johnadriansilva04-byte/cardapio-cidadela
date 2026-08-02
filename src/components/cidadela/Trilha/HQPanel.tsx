@@ -46,22 +46,22 @@ export function HQPanel({
           awaitingCapture && "ring-2 ring-destructive",
         )}
       >
-        <p className="text-typewriter text-sm text-foreground">{status}</p>
+        <p className="text-typewriter text-sm text-white">{status}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className={cn("panel-field rounded-md p-3", state.turn === 1 && "ring-2 ring-lantern")}>
-          <p className="text-stencil text-sm font-medium">{p1.name}</p>
+          <p className="text-stencil text-sm font-medium text-white">{p1.name}</p>
           <div className="mt-2 flex justify-between text-xs">
-            <span className="text-foreground/70">Campo: {countOnBoard(state.board, 1)}</span>
-            <span className="text-foreground/70">Reserva: {state.hand[1]}</span>
+            <span className="text-white/90">Campo: {countOnBoard(state.board, 1)}</span>
+            <span className="text-white/90">Reserva: {state.hand[1]}</span>
           </div>
         </div>
         <div className={cn("panel-field rounded-md p-3", state.turn === 2 && "ring-2 ring-lantern")}>
-          <p className="text-stencil text-sm font-medium">{p2.name}</p>
+          <p className="text-stencil text-sm font-medium text-white">{p2.name}</p>
           <div className="mt-2 flex justify-between text-xs">
-            <span className="text-foreground/70">Campo: {countOnBoard(state.board, 2)}</span>
-            <span className="text-foreground/70">Reserva: {state.hand[2]}</span>
+            <span className="text-white/90">Campo: {countOnBoard(state.board, 2)}</span>
+            <span className="text-white/90">Reserva: {state.hand[2]}</span>
           </div>
         </div>
       </div>

@@ -66,15 +66,15 @@ export type BattleState = {
 export const ARENA_WIDTH = 1500;
 export const FIGHTER_WIDTH = 60;
 export const GROUND_SPEED = 300;
-export const JUMP_VELOCITY = 900;
-export const GRAVITY = 1800;
+export const JUMP_VELOCITY = 1200;
+export const GRAVITY = 2000;
 export const CROUCH_HEIGHT = 35;
 export const PROJECTILE_SIZE = 6;
 export const HIT_STUN = 0.2;
 export const MAX_HP = 100;
 export const MAX_ROUNDS = 6;
 export const ROUND_TIME = 90;
-export const MELEE_RANGE = 80;
+export const MELEE_RANGE = 150;
 export const MELEE_DAMAGE_BODY = 6;
 export const MELEE_DAMAGE_HEAD = 12;
 export const MELEE_DURATION = 0.2;
@@ -171,7 +171,7 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
   const useMeleeAttack = f.weapon.melee || f.useMelee;
   
   if (useMeleeAttack) {
-    // Melee attack (punch/club) - NO PROJECTILES
+    // Melee attack (punch/club) - ABSOLUTely NO PROJECTILES
     if (
       input.shoot &&
       f.attackCooldown === 0 &&
@@ -184,7 +184,7 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
       return;
     }
   } else {
-    // Ranged attack (shooting) - ONLY CREATE PROJECTILES HERE
+    // Ranged attack (shooting) - ONLY CREATE PROJECTILES FOR RANGED WEAPONS
     if (
       input.shoot &&
       f.attackCooldown === 0 &&
@@ -195,17 +195,19 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
       f.stateTimer = 0.15;
       f.attackCooldown = f.weapon.fireRate;
       
-      // Create projectile ONLY for ranged attacks
-      const projectile: Projectile = {
-        id: projectileIdCounter++,
-        ownerId: f.id,
-        x: f.x + f.facing * (FIGHTER_WIDTH / 2 + 10),
-        y: f.y + (f.isCrouching ? CROUCH_HEIGHT : 50),
-        vx: f.facing * f.weapon.bulletSpeed,
-        damage: f.weapon.damage,
-        active: true,
-      };
-      state.projectiles.push(projectile);
+      // Create projectile ONLY for ranged weapons (not melee)
+      if (f.weapon.bulletSpeed > 0) {
+        const projectile: Projectile = {
+          id: projectileIdCounter++,
+          ownerId: f.id,
+          x: f.x + f.facing * (FIGHTER_WIDTH / 2 + 10),
+          y: f.y + (f.isCrouching ? CROUCH_HEIGHT : 50),
+          vx: f.facing * f.weapon.bulletSpeed,
+          damage: f.weapon.damage,
+          active: true,
+        };
+        state.projectiles.push(projectile);
+      }
       
       state.lastEvent = {
         at: now,
@@ -359,9 +361,9 @@ export function stepBattle(
   stepFighter(a, i1, dt, s, now);
   stepFighter(b, i2, dt, s, now);
 
-  const overlap = FIGHTER_WIDTH * 0.5 - Math.abs(a.x - b.x);
+  const overlap = FIGHTER_WIDTH * 0.4 - Math.abs(a.x - b.x);
   // Only push if NOT jumping over (allow jumping over opponent)
-  if (overlap > 0 && Math.abs(a.y - b.y) < 60) {
+  if (overlap > 0 && Math.abs(a.y - b.y) < 50) {
     const push = (overlap / 2) * Math.sign(a.x - b.x || 1);
     a.x = clamp(a.x + push, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
     b.x = clamp(b.x - push, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);

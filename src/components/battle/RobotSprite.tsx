@@ -90,7 +90,7 @@ export function RobotSprite({ fighter, palette }: Props) {
             boxShadow: glow,
             left: 18,
             top: crouching ? "28px" : "20px",
-            width: punching ? 28 : 14,
+            width: punching ? 60 : 14,
           }}
         >
           {/* Club for melee */}
@@ -99,9 +99,9 @@ export function RobotSprite({ fighter, palette }: Props) {
               className="absolute h-2.5 rounded-sm"
               style={{
                 background: weaponColor,
-                right: -16,
+                right: -20,
                 top: -0.5,
-                width: 16,
+                width: 20,
                 boxShadow: `0 0 4px ${weaponColor}`,
               }}
             />
@@ -115,7 +115,7 @@ export function RobotSprite({ fighter, palette }: Props) {
             boxShadow: glow,
             left: 18,
             top: crouching ? "28px" : "20px",
-            width: punching ? 26 : 14,
+            width: punching ? 55 : 14,
           }}
         />
       )}

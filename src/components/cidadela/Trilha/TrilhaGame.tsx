@@ -9,6 +9,7 @@ import { useLocalGame } from "@/hooks/useLocalGame";
 import { cn } from "@/lib/utils";
 import { CobraFumando } from "@/components/CobraFumando";
 import { Link } from "@tanstack/react-router";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ORDER: Difficulty[] = ["recruta", "sargento", "general"];
 

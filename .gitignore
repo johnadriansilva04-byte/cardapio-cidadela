@@ -16,6 +16,9 @@ dist-ssr
 .nitro
 *.local
 
+# Vercel build output
+.vercel
+
 # Environment variables
 .env
 .env.local

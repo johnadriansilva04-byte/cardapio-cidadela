@@ -19,9 +19,9 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
   };
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-20 flex h-32 bg-black/90 backdrop-blur-sm">
+    <div className="absolute inset-x-0 bottom-0 z-20 flex h-40 bg-black/90 backdrop-blur-sm pb-4">
       {/* Lado Esquerdo - Movimento */}
-      <div className="flex-1 flex items-center justify-center gap-3 p-4">
+      <div className="flex-1 flex items-end justify-center gap-2 p-2 pb-4">
         <button
           type="button"
           onTouchStart={handleStart("left")}
@@ -30,13 +30,13 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onMouseDown={handleStart("left")}
           onMouseUp={handleEnd("left")}
           onMouseLeave={handleEnd("left")}
-          className="h-16 w-16 rounded-full border-2 border-blue-500/60 bg-blue-500/30 text-blue-400 backdrop-blur-sm active:scale-90 active:bg-blue-500/50 transition-all shadow-lg shadow-blue-500/20"
+          className="h-14 w-14 rounded-full border-2 border-blue-500/60 bg-blue-500/30 text-blue-400 backdrop-blur-sm active:scale-90 active:bg-blue-500/50 transition-all shadow-lg shadow-blue-500/20"
           aria-label="Esquerda"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -56,13 +56,13 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onMouseDown={handleStart("right")}
           onMouseUp={handleEnd("right")}
           onMouseLeave={handleEnd("right")}
-          className="h-16 w-16 rounded-full border-2 border-blue-500/60 bg-blue-500/30 text-blue-400 backdrop-blur-sm active:scale-90 active:bg-blue-500/50 transition-all shadow-lg shadow-blue-500/20"
+          className="h-14 w-14 rounded-full border-2 border-blue-500/60 bg-blue-500/30 text-blue-400 backdrop-blur-sm active:scale-90 active:bg-blue-500/50 transition-all shadow-lg shadow-blue-500/20"
           aria-label="Direita"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -74,10 +74,36 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
             <path d="M12 5l7 7-7 7" />
           </svg>
         </button>
+        <button
+          type="button"
+          onTouchStart={handleStart("jump")}
+          onTouchEnd={handleEnd("jump")}
+          onTouchCancel={handleEnd("jump")}
+          onMouseDown={handleStart("jump")}
+          onMouseUp={handleEnd("jump")}
+          onMouseLeave={handleEnd("jump")}
+          className="h-14 w-14 rounded-full border-2 border-green-500/60 bg-green-500/30 text-green-400 backdrop-blur-sm active:scale-90 active:bg-green-500/50 transition-all shadow-lg shadow-green-500/20"
+          aria-label="Pular"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 19V5" />
+            <path d="M5 12l7-7 7 7" />
+          </svg>
+        </button>
       </div>
 
       {/* Lado Direito - Ações */}
-      <div className="flex-1 flex items-center justify-center gap-3 p-4">
+      <div className="flex-1 flex items-end justify-center gap-2 p-2 pb-4">
         <button
           type="button"
           onTouchStart={handleStart("melee")}
@@ -86,13 +112,13 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onMouseDown={handleStart("melee")}
           onMouseUp={handleEnd("melee")}
           onMouseLeave={handleEnd("melee")}
-          className="h-16 w-16 rounded-full border-2 border-yellow-500/60 bg-yellow-500/30 text-yellow-400 backdrop-blur-sm active:scale-90 active:bg-yellow-500/50 transition-all shadow-lg shadow-yellow-500/20"
+          className="h-14 w-14 rounded-full border-2 border-yellow-500/60 bg-yellow-500/30 text-yellow-400 backdrop-blur-sm active:scale-90 active:bg-yellow-500/50 transition-all shadow-lg shadow-yellow-500/20"
           aria-label="Soco"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -114,13 +140,13 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onMouseDown={handleStart("shoot")}
           onMouseUp={handleEnd("shoot")}
           onMouseLeave={handleEnd("shoot")}
-          className="h-16 w-16 rounded-full border-2 border-red-500/60 bg-red-500/30 text-red-400 backdrop-blur-sm active:scale-90 active:bg-red-500/50 transition-all shadow-lg shadow-red-500/20"
+          className="h-14 w-14 rounded-full border-2 border-red-500/60 bg-red-500/30 text-red-400 backdrop-blur-sm active:scale-90 active:bg-red-500/50 transition-all shadow-lg shadow-red-500/20"
           aria-label="Atirar"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

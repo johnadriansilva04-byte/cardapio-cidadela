@@ -21,15 +21,16 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[100] flex h-48 bg-black/90 backdrop-blur-sm pb-4">
+    <div className="fixed inset-x-0 bottom-0 z-[999] flex h-48 bg-black/90 backdrop-blur-sm pb-4" style={{ touchAction: 'none' }}>
       {/* Lado Esquerdo - Joystick Virtual */}
       <div className="flex-1 flex items-end justify-center p-2 pb-4">
         <div 
-          className="relative h-32 w-32"
+          className="relative h-32 w-32 touch-none"
           onTouchStart={handleJoystickStart}
           onTouchMove={handleJoystickMove}
           onTouchEnd={handleJoystickEnd}
           onTouchCancel={handleJoystickEnd}
+          style={{ touchAction: 'none' }}
         >
           {/* Base do joystick */}
           <div className="absolute inset-0 rounded-full border-4 border-blue-500/40 bg-blue-500/10 backdrop-blur-sm shadow-lg shadow-blue-500/20" />

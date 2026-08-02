@@ -30,6 +30,7 @@ export function useKeyboard(enabled: boolean) {
       if (!key) return;
       event.preventDefault();
       inputs.current[key] = value;
+      console.log('Keyboard input:', key, value, inputs.current);
     };
     const down = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;

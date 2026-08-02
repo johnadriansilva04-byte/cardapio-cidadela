@@ -19,7 +19,7 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 flex h-40 bg-black/90 backdrop-blur-sm pb-4">
+    <div className="fixed inset-x-0 bottom-0 z-[100] flex h-40 bg-black/90 backdrop-blur-sm pb-4">
       {/* Lado Esquerdo - Movimento */}
       <div className="flex-1 flex items-end justify-center gap-2 p-2 pb-4">
         <button

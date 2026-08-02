@@ -67,7 +67,7 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
     
     const interval = setInterval(updateInputs, 16); // ~60fps
     return () => clearInterval(interval);
-  }, [running, keyboardInputs, touchInputs]);
+  }, [running]);
 
   const reset = useCallback(() => {
     savedRef.current = false;

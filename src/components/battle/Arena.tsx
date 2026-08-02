@@ -56,7 +56,8 @@ export function Arena({ state, running }: { state: BattleState; running?: boolea
   const toPct = (x: number) => (x / ARENA_WIDTH) * 100;
 
   return (
-    <div className="mx-auto w-full max-w-7xl relative">
+    <>
+      <div className="mx-auto w-full max-w-7xl relative">
       <div className="mb-3 flex items-end justify-between gap-4">
         <HealthBar fighter={state.robot1} side="left" />
         <div className="flex flex-col items-center">
@@ -156,5 +157,6 @@ export function Arena({ state, running }: { state: BattleState; running?: boolea
       
       <TouchControls enabled={running ?? false} />
     </div>
+    </>
   );
 }

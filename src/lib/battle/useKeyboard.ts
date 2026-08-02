@@ -8,12 +8,13 @@ const KEY_MAP: Record<string, keyof Inputs> = {
   ArrowRight: "right",
   KeyW: "jump",
   ArrowUp: "jump",
-  Enter: "attack",
-  Space: "attack",
-  KeyK: "attack",
+  KeyS: "crouch",
+  ArrowDown: "crouch",
+  KeyK: "shoot",
+  Space: "shoot",
 };
 
-/** WASD to move/jump, Enter / Space / K to punch. Returns a live mutable ref. */
+/** WASD to move/jump/crouch, K / Space to shoot. Returns a live mutable ref. */
 export function useKeyboard(enabled: boolean) {
   const inputs = useRef<Inputs>(emptyInputs());
 

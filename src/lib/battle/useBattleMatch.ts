@@ -23,6 +23,7 @@ export type OnlineInfo = {
 type Options = {
   mode: MatchMode;
   names: [string, string];
+  levels?: [number, number];
   online?: OnlineInfo | null;
   running: boolean;
 };
@@ -32,8 +33,8 @@ type Options = {
  * Online: player 1 is authoritative — it simulates and broadcasts state,
  * player 2 streams its inputs and renders the host snapshot.
  */
-export function useBattleMatch({ mode, names, online, running }: Options) {
-  const [state, setState] = useState<BattleState>(() => createBattle(names[0], names[1]));
+export function useBattleMatch({ mode, names, levels = [0, 0], online, running }: Options) {
+  const [state, setState] = useState<BattleState>(() => createBattle(names[0], names[1], levels[0], levels[1]));
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -49,8 +50,8 @@ export function useBattleMatch({ mode, names, online, running }: Options) {
   const reset = useCallback(() => {
     savedRef.current = false;
     startedAt.current = Date.now();
-    setState(createBattle(names[0], names[1]));
-  }, [names]);
+    setState(createBattle(names[0], names[1], levels[0], levels[1]));
+  }, [names, levels]);
 
   // Realtime channel for online matches
   useEffect(() => {

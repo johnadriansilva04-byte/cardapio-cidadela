@@ -71,7 +71,7 @@ export function Arena({ state, running }: { state: BattleState; running?: boolea
       </div>
 
       <div
-        className="neon-panel arena-grid relative aspect-[16/9] w-full overflow-hidden rounded-sm border-2 border-green-800"
+        className="neon-panel arena-grid relative aspect-[16/9] w-[90%] mx-auto overflow-hidden rounded-sm border-2 border-green-800"
         style={{ background: "linear-gradient(180deg, #1a2f1a 0%, #0d1f0d 100%)" }}
       >
         {/* FEB Banner background */}

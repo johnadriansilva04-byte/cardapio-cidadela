@@ -6,14 +6,14 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
   const isMobile = useIsMobile();
   const { inputs, setAction } = useTouchControls(enabled);
 
-  if (!isMobile) return null;
+  if (!enabled) return null;
 
-  const handleStart = (action: keyof Inputs) => (e: React.TouchEvent) => {
+  const handleStart = (action: keyof Inputs) => (e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
     setAction(action, true);
   };
 
-  const handleEnd = (action: keyof Inputs) => (e: React.TouchEvent) => {
+  const handleEnd = (action: keyof Inputs) => (e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
     setAction(action, false);
   };
@@ -27,6 +27,9 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onTouchStart={handleStart("left")}
           onTouchEnd={handleEnd("left")}
           onTouchCancel={handleEnd("left")}
+          onMouseDown={handleStart("left")}
+          onMouseUp={handleEnd("left")}
+          onMouseLeave={handleEnd("left")}
           className="h-16 w-16 rounded-full border-2 border-blue-500/60 bg-blue-500/30 text-blue-400 backdrop-blur-sm active:scale-90 active:bg-blue-500/50 transition-all shadow-lg shadow-blue-500/20"
           aria-label="Esquerda"
         >
@@ -50,6 +53,9 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onTouchStart={handleStart("right")}
           onTouchEnd={handleEnd("right")}
           onTouchCancel={handleEnd("right")}
+          onMouseDown={handleStart("right")}
+          onMouseUp={handleEnd("right")}
+          onMouseLeave={handleEnd("right")}
           className="h-16 w-16 rounded-full border-2 border-blue-500/60 bg-blue-500/30 text-blue-400 backdrop-blur-sm active:scale-90 active:bg-blue-500/50 transition-all shadow-lg shadow-blue-500/20"
           aria-label="Direita"
         >
@@ -77,6 +83,9 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onTouchStart={handleStart("melee")}
           onTouchEnd={handleEnd("melee")}
           onTouchCancel={handleEnd("melee")}
+          onMouseDown={handleStart("melee")}
+          onMouseUp={handleEnd("melee")}
+          onMouseLeave={handleEnd("melee")}
           className="h-16 w-16 rounded-full border-2 border-yellow-500/60 bg-yellow-500/30 text-yellow-400 backdrop-blur-sm active:scale-90 active:bg-yellow-500/50 transition-all shadow-lg shadow-yellow-500/20"
           aria-label="Soco"
         >
@@ -102,6 +111,9 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onTouchStart={handleStart("shoot")}
           onTouchEnd={handleEnd("shoot")}
           onTouchCancel={handleEnd("shoot")}
+          onMouseDown={handleStart("shoot")}
+          onMouseUp={handleEnd("shoot")}
+          onMouseLeave={handleEnd("shoot")}
           className="h-16 w-16 rounded-full border-2 border-red-500/60 bg-red-500/30 text-red-400 backdrop-blur-sm active:scale-90 active:bg-red-500/50 transition-all shadow-lg shadow-red-500/20"
           aria-label="Atirar"
         >

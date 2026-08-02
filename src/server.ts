@@ -46,12 +46,24 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const url = request.url;
+    const method = request.method;
+    console.log(`[SERVER REQUEST] ${method} ${url}`);
+    
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
+      
+      // Log detailed response info
+      console.log(`[SERVER RESPONSE] ${method} ${url} - Status: ${response.status}`);
+      if (response.status === 404) {
+        console.error(`[404 ERROR] URL not found: ${url}`);
+        console.error(`[404 ERROR] Request headers:`, Object.fromEntries(request.headers.entries()));
+      }
+      
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
-      console.error(error);
+      console.error(`[SERVER ERROR] ${method} ${url}:`, error);
       return new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },

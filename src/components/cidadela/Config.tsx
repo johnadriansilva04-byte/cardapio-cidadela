@@ -34,7 +34,7 @@ export function ConfigOperacional() {
           <input
             className={`${field} mt-1`}
             value={state.integrations.n8nWebhookUrl}
-            placeholder="https://above-improvement-endless-acne.trycloudflare.com/webhook/pracinha"
+            placeholder="https://transpose-friend-satiable.ngrok-free.dev/webhook/pracinha"
             onChange={(e) =>
               update((prev) => ({
                 ...prev,
@@ -48,7 +48,7 @@ export function ConfigOperacional() {
           <input
             className={`${field} mt-1`}
             value={state.integrations.cidadelaAuthUrl}
-            placeholder="https://above-improvement-endless-acne.trycloudflare.com/webhook/cidadela"
+            placeholder="https://transpose-friend-satiable.ngrok-free.dev/webhook/cidadela"
             onChange={(e) =>
               update((prev) => ({
                 ...prev,

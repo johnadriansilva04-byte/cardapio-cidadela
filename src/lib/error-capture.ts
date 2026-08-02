@@ -63,10 +63,46 @@ console.error = (...args: unknown[]) => {
 };
 
 if (typeof globalThis.addEventListener === "function") {
-  globalThis.addEventListener("error", (event) => record((event as ErrorEvent).error ?? event));
+  globalThis.addEventListener("error", (event) => {
+    record((event as ErrorEvent).error ?? event);
+    
+    // Log detailed resource loading errors
+    if (event instanceof ErrorEvent) {
+      console.error(`[CLIENT ERROR] Message: ${event.message}`);
+      console.error(`[CLIENT ERROR] Filename: ${event.filename}`);
+      console.error(`[CLIENT ERROR] Line: ${event.lineno}, Column: ${event.colno}`);
+    }
+  });
+  
   globalThis.addEventListener("unhandledrejection", (event) =>
     record((event as PromiseRejectionEvent).reason),
   );
+  
+  // Capture resource loading errors (404s for scripts, CSS, etc.)
+  globalThis.addEventListener("error", (event) => {
+    const target = (event as Event).target;
+    if (target && (target as HTMLElement).tagName) {
+      const element = target as HTMLElement;
+      const tagName = element.tagName.toLowerCase();
+      if (["script", "link", "img", "iframe"].includes(tagName)) {
+        let src: string | undefined;
+        if (tagName === "link") {
+          src = (element as HTMLLinkElement).href;
+        } else if (tagName === "script") {
+          src = (element as HTMLScriptElement).src;
+        } else if (tagName === "img") {
+          src = (element as HTMLImageElement).src;
+        } else if (tagName === "iframe") {
+          src = (element as HTMLIFrameElement).src;
+        }
+        
+        if (src) {
+          console.error(`[RESOURCE 404] Failed to load ${tagName}: ${src}`);
+          console.error(`[RESOURCE 404] Element:`, element.outerHTML);
+        }
+      }
+    }
+  }, true);
 }
 
 export function consumeLastCapturedError(): unknown {

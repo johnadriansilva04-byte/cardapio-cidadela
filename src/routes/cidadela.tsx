@@ -8,6 +8,7 @@ import { FutebolBotao } from "@/components/cidadela/FutebolBotao";
 import { RobotLab } from "@/components/cidadela/RobotLab";
 import { BattleArena } from "@/components/cidadela/BattleArena";
 import { TemporalLobby } from "@/components/cidadela/TemporalLobby";
+import { TrilhaGame } from "@/components/cidadela/Trilha/TrilhaGame";
 import { StoreProvider, useStore } from "@/modules/cidadela-core/store";
 import { validateCidadelaCode } from "@/modules/fluxos-n8n/webhook";
 
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/cidadela")({
   ),
 });
 
-type Module = "praxinha" | "iq" | "arena" | "lab" | "futebol";
+type Module = "praxinha" | "iq" | "arena" | "lab" | "futebol" | "trilha";
 
 const MODULES: { id: Module; label: string; description: string }[] = [
   { id: "praxinha", label: "Pracinha IA", description: "Converse com a inteligência artificial" },
@@ -154,6 +155,7 @@ function CidadelaWorld() {
         {activeModule === "arena" && <BattleArena />}
         {activeModule === "lab" && <RobotLab />}
         {activeModule === "futebol" && <FutebolBotao />}
+        {activeModule === "trilha" && <TrilhaGame />}
       </div>
     );
   }
@@ -198,6 +200,7 @@ function CidadelaWorld() {
               else if (module === "iq-test") setActiveModule("iq");
               else if (module === "chat-ai") setActiveModule("praxinha");
               else if (module === "robot-lab") setActiveModule("lab");
+              else if (module === "trilha") setActiveModule("trilha");
             }}
           />
         </div>

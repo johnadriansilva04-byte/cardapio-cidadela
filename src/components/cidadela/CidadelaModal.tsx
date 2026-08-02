@@ -242,25 +242,17 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
               <div className="h-[calc(100vh-73px)]">
                 <TemporalLobby
                   onNavigate={(module) => {
-                    console.log("[CidadelaModal] Callback onNavigate chamado com:", module);
-                    console.log("[CidadelaModal] activeModule atual:", activeModule);
-                    console.log("[CidadelaModal] viewMode atual:", viewMode);
-                    try {
-                      if (module === "battle-arena") {
-                        setViewMode("tabs");
-                        setTab("core");
-                      } else if (module === "iq-test" || module === "chat-ai") {
-                        setViewMode("tabs");
-                        setTab("praxinha");
-                      } else if (module === "robot-lab") {
-                        setViewMode("tabs");
-                        setTab("praxinha");
-                      } else if (module === "trilha") {
-                        console.log("[CidadelaModal] Chamando setActiveModule('trilha')");
-                        setActiveModule("trilha");
-                      }
-                    } catch (error) {
-                      console.error("[CidadelaModal] Erro na navegação:", error);
+                    if (module === "battle-arena") {
+                      setViewMode("tabs");
+                      setTab("core");
+                    } else if (module === "iq-test" || module === "chat-ai") {
+                      setViewMode("tabs");
+                      setTab("praxinha");
+                    } else if (module === "robot-lab") {
+                      setViewMode("tabs");
+                      setTab("praxinha");
+                    } else if (module === "trilha") {
+                      setActiveModule("trilha");
                     }
                   }}
                 />

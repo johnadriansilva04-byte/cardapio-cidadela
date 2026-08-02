@@ -4,9 +4,8 @@ import { emptyInputs, type Inputs } from "./engine";
 export function useTouchControls(enabled: boolean) {
   const inputs = useRef<Inputs>(emptyInputs());
   const joystickActive = useRef(false);
-  const joystickCenter = useRef({ x: 0, y: 0 });
+  const joystickStartPos = useRef({ x: 0, y: 0 });
   const [joystickPosition, setJoystickPosition] = useState({ x: 0, y: 0 });
-  const joystickRef = useRef<HTMLDivElement>(null);
 
   const setAction = useCallback((action: keyof Inputs, value: boolean) => {
     inputs.current[action] = value;
@@ -20,22 +19,19 @@ export function useTouchControls(enabled: boolean) {
 
   const handleJoystickStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     const touch = e.touches[0];
-    const rect = e.currentTarget.getBoundingClientRect();
     joystickActive.current = true;
-    joystickCenter.current = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    joystickStartPos.current = { x: touch.clientX, y: touch.clientY };
     setJoystickPosition({ x: 0, y: 0 });
   }, []);
 
   const handleJoystickMove = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     if (!joystickActive.current) return;
     
     const touch = e.touches[0];
-    const dx = touch.clientX - joystickCenter.current.x;
-    const dy = touch.clientY - joystickCenter.current.y;
+    const dx = touch.clientX - joystickStartPos.current.x;
+    const dy = touch.clientY - joystickStartPos.current.y;
     
     const maxDistance = 50;
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -57,7 +53,6 @@ export function useTouchControls(enabled: boolean) {
 
   const handleJoystickEnd = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     joystickActive.current = false;
     setJoystickPosition({ x: 0, y: 0 });
     inputs.current.left = false;
@@ -77,5 +72,5 @@ export function useTouchControls(enabled: boolean) {
     };
   }, [enabled, resetInputs]);
 
-  return { inputs, setAction, joystickPosition, joystickActive: joystickActive.current, joystickRef, handleJoystickStart, handleJoystickMove, handleJoystickEnd };
+  return { inputs, setAction, joystickPosition, joystickActive: joystickActive.current, handleJoystickStart, handleJoystickMove, handleJoystickEnd };
 }

@@ -236,7 +236,7 @@ export function BattleArena() {
         {running && (
           <div className="fixed inset-0 flex flex-col bg-black z-50">
             <div className="relative w-full h-full flex flex-col">
-              <div className="absolute top-4 left-4 z-10">
+              <div className="absolute top-16 left-4 z-10">
                 <button
                   type="button"
                   onClick={() => setRunning(false)}

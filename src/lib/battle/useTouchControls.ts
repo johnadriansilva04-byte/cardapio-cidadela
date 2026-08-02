@@ -19,6 +19,7 @@ export function useTouchControls(enabled: boolean) {
   }, []);
 
   const handleJoystickStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
     const touch = e.touches[0];
     joystickActive.current = true;
     joystickCenter.current = { x: touch.clientX, y: touch.clientY };
@@ -26,6 +27,7 @@ export function useTouchControls(enabled: boolean) {
   }, []);
 
   const handleJoystickMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
     if (!joystickActive.current) return;
     
     const touch = e.touches[0];
@@ -50,7 +52,8 @@ export function useTouchControls(enabled: boolean) {
     inputs.current.crouch = clampedY > threshold;
   }, []);
 
-  const handleJoystickEnd = useCallback(() => {
+  const handleJoystickEnd = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
     joystickActive.current = false;
     setJoystickPosition({ x: 0, y: 0 });
     inputs.current.left = false;

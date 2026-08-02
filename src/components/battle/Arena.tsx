@@ -20,32 +20,28 @@ function HealthBar({ fighter, side }: { fighter: Fighter; side: "left" | "right"
   
   return (
     <div className={side === "right" ? "flex flex-col items-end" : "flex flex-col"}>
-      <span className="font-display text-xs tracking-widest text-green-900 uppercase">
+      <span className="font-display text-[10px] tracking-widest text-green-900 uppercase">
         {side === "left" ? "PRACINHA" : "INIMIGO"} · {fighter.name}
       </span>
-      <div className="mt-1 h-5 w-full max-w-[320px] min-w-[180px] border border-green-800 bg-green-100/30 p-[3px]">
+      <div className="mt-0.5 h-3 w-full max-w-[200px] min-w-[120px] border border-green-800 bg-green-100/30 p-[2px]">
         <div
           className="h-full transition-[width] duration-150"
           style={{
             width: `${pct}%`,
             marginLeft: side === "right" ? "auto" : undefined,
             background: color,
-            boxShadow: side === "left" ? "0 0 6px #166534" : "0 0 6px #dc2626",
+            boxShadow: side === "left" ? "0 0 4px #166534" : "0 0 4px #dc2626",
           }}
         />
       </div>
-      <div className="mt-1 flex items-center gap-2">
-        <span className="font-display text-[10px] text-green-900">
-          {Math.round(fighter.hp)} HP · DANO {Math.round(fighter.damageDealt)}
+      <div className="mt-0.5 flex items-center gap-1">
+        <span className="font-display text-[8px] text-green-900">
+          {Math.round(fighter.hp)} HP
         </span>
         {/* Weapon/Melee indicator */}
-        <span className="font-display text-[10px] text-green-800 font-medium">
-          {fighter.useMelee ? "👊 SOCOS" : `🔫 ${weaponNames[fighter.weapon.type]}`}
+        <span className="font-display text-[8px] text-green-800 font-medium">
+          {fighter.useMelee ? "👊" : `🔫 ${weaponNames[fighter.weapon.type]}`}
         </span>
-        {/* Toggle indicator for non-melee weapons */}
-        {!fighter.weapon.melee && side === "left" && (
-          <span className="text-[8px] text-green-700">[L/E]</span>
-        )}
       </div>
     </div>
   );
@@ -57,14 +53,14 @@ export function Arena({ state, running }: { state: BattleState; running?: boolea
 
   return (
     <>
-      <div className="mx-auto w-full max-w-7xl relative">
-      <div className="mb-3 flex items-end justify-between gap-4">
+      <div className="mx-auto w-full max-w-7xl relative h-full flex flex-col">
+      <div className="mb-2 flex items-end justify-between gap-2">
         <HealthBar fighter={state.robot1} side="left" />
         <div className="flex flex-col items-center">
-          <span className="font-display text-3xl text-green-800 tabular-nums">
+          <span className="font-display text-2xl text-green-800 tabular-nums">
             {Math.ceil(state.timeLeft)}
           </span>
-          <span className="font-display text-[10px] tracking-widest text-green-900">
+          <span className="font-display text-[8px] tracking-widest text-green-900">
             RODADA {state.round}
           </span>
         </div>
@@ -72,7 +68,7 @@ export function Arena({ state, running }: { state: BattleState; running?: boolea
       </div>
 
       <div
-        className="neon-panel arena-grid relative aspect-[16/9] w-[90%] mx-auto overflow-hidden rounded-sm border-2 border-green-800"
+        className="neon-panel arena-grid relative aspect-[16/9] w-full mx-auto overflow-hidden rounded-sm border-2 border-green-800 flex-1"
         style={{ background: "linear-gradient(180deg, #1a2f1a 0%, #0d1f0d 100%)" }}
       >
         {/* FEB Banner background */}

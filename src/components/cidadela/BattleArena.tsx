@@ -234,7 +234,7 @@ export function BattleArena() {
         )}
 
         {running && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black z-50">
+          <div className="fixed inset-0 flex flex-col bg-black z-50">
             <div className="relative w-full h-full flex flex-col">
               <div className="absolute top-4 left-4 z-10">
                 <button
@@ -256,7 +256,7 @@ export function BattleArena() {
                   </button>
                 </div>
               )}
-              <div className="flex-1 flex items-center justify-center p-4">
+              <div className="flex-1 flex items-center justify-center p-2">
                 <Arena state={battleState} running={running} />
               </div>
             </div>

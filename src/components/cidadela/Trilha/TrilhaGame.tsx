@@ -7,7 +7,6 @@ import { AI_PROFILES, type Difficulty } from "@/lib/trilha/ai";
 import { useBoardInteraction } from "@/hooks/useBoardInteraction";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { CobraFumando } from "@/components/CobraFumando";
 import { Link } from "@tanstack/react-router";
 

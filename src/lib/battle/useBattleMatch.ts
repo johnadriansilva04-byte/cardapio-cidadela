@@ -58,9 +58,17 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
     }
     
     const updateInputs = () => {
+      const touch = touchInputs?.current || emptyInputs();
+      const kb = keyboardInputs.current;
+      
+      // Merge com OR lógico - qualquer input ativo conta
       const merged: Inputs = {
-        ...keyboardInputs.current,
-        ...(touchInputs?.current || {})
+        left: kb.left || touch.left,
+        right: kb.right || touch.right,
+        jump: kb.jump || touch.jump,
+        crouch: kb.crouch || touch.crouch,
+        shoot: kb.shoot || touch.shoot,
+        melee: kb.melee || touch.melee,
       };
       localInputs.current = merged;
     };
@@ -71,7 +79,7 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
       clearInterval(interval);
       localInputs.current = emptyInputs();
     };
-  }, [running]);
+  }, [running, touchInputs]);
 
   const reset = useCallback(() => {
     savedRef.current = false;

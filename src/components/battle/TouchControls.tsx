@@ -31,6 +31,8 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
           onTouchEnd={handleJoystickEnd}
           onTouchCancel={handleJoystickEnd}
           style={{ touchAction: 'none' }}
+          onPointerUp={handleJoystickEnd}
+          onPointerLeave={handleJoystickEnd}
         >
           {/* Base do joystick */}
           <div className="absolute inset-0 rounded-full border-4 border-blue-500/40 bg-blue-500/10 backdrop-blur-sm shadow-lg shadow-blue-500/20" />

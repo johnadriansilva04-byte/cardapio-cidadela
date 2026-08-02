@@ -50,28 +50,21 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
 
   // Merge keyboard and touch inputs
   const localInputs = useRef<Inputs>(emptyInputs());
-
+  
   useEffect(() => {
     if (!running) {
       localInputs.current = emptyInputs();
       return;
     }
-
+    
     const updateInputs = () => {
-      // Prioritize touch inputs over keyboard when both are active
-      const touch = touchInputs?.current || {};
-      const keyboard = keyboardInputs.current;
-      
-      localInputs.current = {
-        left: touch.left || keyboard.left,
-        right: touch.right || keyboard.right,
-        jump: touch.jump || keyboard.jump,
-        crouch: touch.crouch || keyboard.crouch,
-        shoot: touch.shoot || keyboard.shoot,
-        melee: touch.melee || keyboard.melee,
+      const merged: Inputs = {
+        ...keyboardInputs.current,
+        ...(touchInputs?.current || {})
       };
+      localInputs.current = merged;
     };
-
+    
     const interval = setInterval(updateInputs, 16); // ~60fps
     return () => clearInterval(interval);
   }, [running, keyboardInputs, touchInputs]);

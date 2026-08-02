@@ -53,7 +53,7 @@ export function Arena({ state, running }: { state: BattleState; running?: boolea
 
   return (
     <>
-      <div className="mx-auto w-full max-w-7xl relative h-full flex flex-col">
+      <div className="mx-auto w-full max-w-7xl relative h-full flex flex-col pt-4 pb-32">
       <div className="mb-2 flex items-end justify-between gap-2">
         <HealthBar fighter={state.robot1} side="left" />
         <div className="flex flex-col items-center">
@@ -68,7 +68,7 @@ export function Arena({ state, running }: { state: BattleState; running?: boolea
       </div>
 
       <div
-        className="neon-panel arena-grid relative aspect-[16/9] w-full mx-auto overflow-hidden rounded-sm border-2 border-green-800 flex-1"
+        className="neon-panel arena-grid relative aspect-[16/9] w-[90%] mx-auto overflow-hidden rounded-sm border-2 border-green-800 flex-1"
         style={{ background: "linear-gradient(180deg, #1a2f1a 0%, #0d1f0d 100%)" }}
       >
         {/* FEB Banner background */}

@@ -20,14 +20,17 @@ export function useTouchControls(enabled: boolean) {
 
   const handleJoystickStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     const touch = e.touches[0];
+    const rect = e.currentTarget.getBoundingClientRect();
     joystickActive.current = true;
-    joystickCenter.current = { x: touch.clientX, y: touch.clientY };
+    joystickCenter.current = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     setJoystickPosition({ x: 0, y: 0 });
   }, []);
 
   const handleJoystickMove = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!joystickActive.current) return;
     
     const touch = e.touches[0];
@@ -54,6 +57,7 @@ export function useTouchControls(enabled: boolean) {
 
   const handleJoystickEnd = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     joystickActive.current = false;
     setJoystickPosition({ x: 0, y: 0 });
     inputs.current.left = false;

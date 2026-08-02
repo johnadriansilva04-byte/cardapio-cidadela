@@ -23,33 +23,32 @@ export function RobotSprite({ fighter, palette }: Props) {
     <div
       className="relative origin-bottom transition-transform duration-75"
       style={{
-        height: crouching ? "45px" : "75px",
-        width: "50px",
-        transform: `scaleX(${fighter.facing}) ${ko ? "rotate(-78deg) translateY(14px)" : hurt ? "translateX(-6px) rotate(-6deg)" : ""}`,
-        filter: hurt ? "brightness(2.2) saturate(0.3)" : undefined,
+        height: crouching ? "50px" : "85px",
+        width: "55px",
+        transform: `scaleX(${fighter.facing}) ${ko ? "rotate(-78deg) translateY(14px)" : ""}`,
       }}
     >
       {/* head */}
       <div
-        className="absolute left-1/2 top-0 h-5 w-6 -translate-x-1/2 rounded-sm border"
-        style={{ 
-          background: "var(--card)", 
-          borderColor: color, 
+        className="absolute left-1/2 top-0 h-6 w-7 -translate-x-1/2 rounded-sm border"
+        style={{
+          background: "var(--card)",
+          borderColor: color,
           boxShadow: glow,
-          top: crouching ? "15px" : "0"
+          top: crouching ? "18px" : "0"
         }}
       >
-        <div className="absolute left-1 top-1.5 h-1 w-4" style={{ background: color, boxShadow: glow }} />
+        <div className="absolute left-1 top-1.5 h-1 w-5" style={{ background: color, boxShadow: glow }} />
       </div>
-      
+
       {/* torso */}
       <div
-        className="absolute left-1/2 h-7 w-8 -translate-x-1/2 rounded-sm border"
+        className="absolute left-1/2 h-8 w-9 -translate-x-1/2 rounded-sm border"
         style={{
           background: "linear-gradient(180deg, var(--card), var(--secondary))",
           borderColor: color,
           boxShadow: glow,
-          top: crouching ? "28px" : "18px",
+          top: crouching ? "32px" : "22px",
         }}
       >
         <div
@@ -82,15 +81,15 @@ export function RobotSprite({ fighter, palette }: Props) {
             }}
           />
         </div>
-      ) : fighter.weapon.type === "club" || fighter.useMelee ? (
+      ) : (
         <div
           className="absolute h-3 rounded-sm transition-all duration-75"
           style={{
             background: color,
             boxShadow: glow,
             left: 18,
-            top: crouching ? "28px" : "20px",
-            width: punching ? 60 : 14,
+            top: crouching ? "32px" : "24px",
+            width: punching ? 90 : 14,
           }}
         >
           {/* Club for melee */}
@@ -107,49 +106,38 @@ export function RobotSprite({ fighter, palette }: Props) {
             />
           )}
         </div>
-      ) : (
-        <div
-          className="absolute h-3 rounded-sm transition-all duration-75"
-          style={{
-            background: color,
-            boxShadow: glow,
-            left: 18,
-            top: crouching ? "28px" : "20px",
-            width: punching ? 55 : 14,
-          }}
-        />
       )}
       
       {/* rear arm */}
       <div
         className="absolute h-2 rounded-sm"
-        style={{ 
-          background: color, 
-          opacity: 0.55, 
-          left: 2, 
+        style={{
+          background: color,
+          opacity: 0.55,
+          left: 2,
           width: 14,
-          top: crouching ? "26px" : "18px"
+          top: crouching ? "30px" : "22px"
         }}
       />
-      
+
       {/* legs */}
       <div
         className="absolute bottom-0 h-6 w-2 origin-top rounded-sm transition-transform duration-100"
         style={{
           background: color,
-          left: 15,
+          left: 17,
           opacity: 0.85,
           transform: `rotate(${walking ? 18 : jumping ? 26 : crouching ? -45 : 0}deg)`,
-          height: crouching ? "10px" : "24px",
+          height: crouching ? "12px" : "28px",
         }}
       />
       <div
         className="absolute bottom-0 h-6 w-2 origin-top rounded-sm transition-transform duration-100"
         style={{
           background: color,
-          left: 24,
+          left: 27,
           transform: `rotate(${walking ? -18 : jumping ? 26 : crouching ? -45 : 0}deg)`,
-          height: crouching ? "10px" : "24px",
+          height: crouching ? "12px" : "28px",
         }}
       />
       

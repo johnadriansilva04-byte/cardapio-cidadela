@@ -65,18 +65,18 @@ export type BattleState = {
 
 export const ARENA_WIDTH = 1500;
 export const FIGHTER_WIDTH = 60;
-export const GROUND_SPEED = 300;
-export const JUMP_VELOCITY = 1200;
-export const GRAVITY = 2000;
+export const GROUND_SPEED = 320;
+export const JUMP_VELOCITY = 1800;
+export const GRAVITY = 2200;
 export const CROUCH_HEIGHT = 35;
 export const PROJECTILE_SIZE = 6;
 export const HIT_STUN = 0.2;
 export const MAX_HP = 100;
 export const MAX_ROUNDS = 6;
 export const ROUND_TIME = 90;
-export const MELEE_RANGE = 150;
+export const MELEE_RANGE = 100;
 export const MELEE_DAMAGE_BODY = 6;
-export const MELEE_DAMAGE_HEAD = 12;
+export const MELEE_DAMAGE_HEAD = 15;
 export const MELEE_DURATION = 0.2;
 export const MELEE_COOLDOWN = 0.3;
 
@@ -184,17 +184,18 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
       return;
     }
   } else {
-    // Ranged attack (shooting) - ONLY CREATE PROJECTILES FOR RANGED WEAPONS
+    // Ranged attack (shooting) - ONLY CREATE PROJECTILES FOR RANGED WEAPONS AND LEVEL 1+
     if (
       input.shoot &&
       f.attackCooldown === 0 &&
       f.hitStun === 0 &&
-      f.state !== "shoot"
+      f.state !== "shoot" &&
+      f.level >= 1 // Só pode atirar a partir do nível 1
     ) {
       f.state = "shoot";
       f.stateTimer = 0.15;
       f.attackCooldown = f.weapon.fireRate;
-      
+
       // Create projectile ONLY for ranged weapons (not melee)
       if (f.weapon.bulletSpeed > 0) {
         const projectile: Projectile = {
@@ -208,7 +209,7 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
         };
         state.projectiles.push(projectile);
       }
-      
+
       state.lastEvent = {
         at: now,
         text: `${f.name} TIRO!`,
@@ -245,21 +246,21 @@ function resolveMeleeHit(attacker: Fighter, defender: Fighter, state: BattleStat
   if (defender.state === "ko" || defender.hitStun > 0) return;
 
   const dx = defender.x - attacker.x;
-  const inFront = Math.sign(dx) === attacker.facing || Math.abs(dx) < 20;
-  const inRange = Math.abs(dx) <= MELEE_RANGE && Math.abs(defender.y - attacker.y) < 100;
+  const inFront = Math.sign(dx) === attacker.facing || Math.abs(dx) < 30;
+  const inRange = Math.abs(dx) <= MELEE_RANGE && Math.abs(defender.y - attacker.y) < 120;
   if (!inFront || !inRange) return;
 
   // Check if hit is on head or body based on height difference
-  const isHeadHit = defender.y < 30 && Math.abs(defender.y - attacker.y) > 20;
+  const isHeadHit = defender.y < 25 && Math.abs(defender.y - attacker.y) > 15;
   const damage = attacker.weapon.type === "club" 
-    ? attacker.weapon.damage 
+    ? attacker.weapon.damage + (isHeadHit ? 4 : 0)
     : isHeadHit ? MELEE_DAMAGE_HEAD : MELEE_DAMAGE_BODY;
   
   defender.hp = Math.max(0, defender.hp - damage);
   defender.hitStun = HIT_STUN;
   defender.state = "hit";
   defender.stateTimer = HIT_STUN;
-  defender.x = clamp(defender.x + attacker.facing * 15, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
+  defender.x = clamp(defender.x + attacker.facing * 20, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
   defender.damageTaken += damage;
   defender.combo = 0;
   attacker.damageDealt += damage;
@@ -299,8 +300,11 @@ function resolveProjectileHit(projectile: Projectile, defender: Fighter, state: 
       return;
     }
     
+    // Check if head shot for extra damage
+    const isHeadShot = defender.y < 25 && projectile.y < 35;
+    const damage = isHeadShot ? projectile.damage + 3 : projectile.damage;
+    
     projectile.active = false;
-    const damage = projectile.damage;
     defender.hp = Math.max(0, defender.hp - damage);
     defender.hitStun = HIT_STUN;
     defender.state = "hit";
@@ -318,7 +322,7 @@ function resolveProjectileHit(projectile: Projectile, defender: Fighter, state: 
       text:
         attacker.combo > 1
           ? `${attacker.name} ${attacker.combo}x COMBO! -${damage}`
-          : `${attacker.name} ACERTOU! -${damage}`,
+          : `${attacker.name} ${isHeadShot ? "NA CABEÇA!" : "ACERTOU!"} -${damage}`,
     };
   }
 }

@@ -5,10 +5,8 @@ export function useTouchControls(enabled: boolean) {
   const inputs = useRef<Inputs>(emptyInputs());
 
   const setAction = useCallback((action: keyof Inputs, value: boolean) => {
-    if (enabled) {
-      inputs.current[action] = value;
-    }
-  }, [enabled]);
+    inputs.current[action] = value;
+  }, []);
 
   useEffect(() => {
     if (!enabled) {

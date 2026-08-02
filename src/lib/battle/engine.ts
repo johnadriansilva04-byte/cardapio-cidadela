@@ -203,11 +203,13 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
 
       // Create projectile ONLY for ranged weapons (not melee)
       if (f.weapon.bulletSpeed > 0) {
+        // Ajustar altura do tiro para sair da mão (não do pé)
+        const shootHeight = f.isCrouching ? CROUCH_HEIGHT + 10 : 70;
         const projectile: Projectile = {
           id: projectileIdCounter++,
           ownerId: f.id,
           x: f.x + f.facing * (FIGHTER_WIDTH / 2 + 10),
-          y: f.y + (f.isCrouching ? CROUCH_HEIGHT : 50),
+          y: f.y + shootHeight,
           vx: f.facing * f.weapon.bulletSpeed,
           damage: f.weapon.damage,
           active: true,
@@ -247,12 +249,13 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
 
 function resolveMeleeHit(attacker: Fighter, defender: Fighter, state: BattleState, now: number) {
   const active = attacker.state === "punch" && attacker.stateTimer > 0;
-  if (!active || attacker.stateTimer > MELEE_DURATION - 0.02) return;
+  if (!active) return;
   if (defender.state === "ko" || defender.hitStun > 0) return;
 
   const dx = defender.x - attacker.x;
   const inFront = Math.sign(dx) === attacker.facing || Math.abs(dx) < 20;
-  const inRange = Math.abs(dx) <= MELEE_RANGE && Math.abs(defender.y - attacker.y) < 100;
+  // Aumentar tolerância de altura para acertar mesmo voando
+  const inRange = Math.abs(dx) <= MELEE_RANGE && Math.abs(defender.y - attacker.y) < 150;
   if (!inFront || !inRange) return;
 
   // Check if hit is on head or body based on height difference
@@ -299,9 +302,9 @@ function resolveProjectileHit(projectile: Projectile, defender: Fighter, state: 
       return;
     }
 
-    // Check if jumping over projectile
-    if (defender.y > 30 && projectile.y < 20) {
-      // Jumping over projectile
+    // Check if jumping over projectile (mais tolerante)
+    if (defender.y > 80 && projectile.y < 30) {
+      // Jumping very high over low projectile
       return;
     }
 

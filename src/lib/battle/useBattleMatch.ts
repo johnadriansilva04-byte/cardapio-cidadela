@@ -138,7 +138,7 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [running, isHost, mode, online, localInputs]);
+  }, [running, isHost, mode, online]);
 
   // Persist rounds/moves and the final result (host only)
   useEffect(() => {

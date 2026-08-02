@@ -1,5 +1,6 @@
 import { Bot, HelpCircle, LayoutGrid, Lock, Settings, Receipt, X, Map } from "lucide-react";
 import { useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import { CobraFumando } from "@/components/CobraFumando";
 import { CidadelaDashboard } from "@/components/cidadela/Dashboard";
@@ -32,6 +33,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("lobby");
   const [activeModule, setActiveModule] = useState<"trilha" | null>(null);
+  const isMobile = useIsMobile();
 
   async function tryUnlock(e: React.FormEvent) {
     e.preventDefault();
@@ -128,7 +130,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm">
-      <div className="feb-scope mx-auto min-h-screen w-full max-w-4xl sm:my-6 sm:min-h-0 sm:rounded-2xl sm:border sm:border-border">
+      <div className="feb-scope mx-auto min-h-screen w-full max-w-4xl sm:my-6 sm:min-h-0 sm:rounded-2xl sm:border sm:border-border lg:my-8 lg:min-h-0">
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
             <CobraFumando className="size-9 text-[color:var(--brass)]" />
@@ -250,10 +252,10 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   onClick={() => setActiveModule(null)}
-                  className="absolute top-4 left-4 z-10 flex items-center gap-2 rounded-lg border border-border bg-background/80 px-3 py-2 text-sm backdrop-blur-sm hover:bg-background"
+                  className="absolute top-4 left-4 z-10 flex items-center gap-2 rounded-lg border border-border bg-background/80 px-3 py-2 text-sm backdrop-blur-sm hover:bg-background sm:top-4 sm:left-4"
                 >
                   <Map className="h-4 w-4" />
-                  Voltar ao mapa
+                  {isMobile ? "Voltar" : "Voltar ao mapa"}
                 </button>
                 <TrilhaGame />
               </div>

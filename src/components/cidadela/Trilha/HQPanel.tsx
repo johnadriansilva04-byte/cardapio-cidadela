@@ -9,6 +9,7 @@ import {
   type Player,
 } from "@/lib/trilha/engine";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface SideInfo {
   name: string;
@@ -134,6 +135,7 @@ export function HQPanel({
   onRestart,
   awaitingCapture,
 }: HQPanelProps) {
+  const isMobile = useIsMobile();
   const phaseLabel =
     state.phase === "placing"
       ? "Fase I — Desdobramento"
@@ -142,33 +144,35 @@ export function HQPanel({
         : "Operação encerrada";
 
   return (
-    <aside className="flex w-full flex-col gap-3 lg:w-80">
-      <header className="panel-field flex items-center gap-3 rounded-md p-3">
-        <img src={brasao} alt="Brasão da cobra fumando da FEB" width={48} height={48} className="h-12 w-12 animate-flicker" />
+    <aside className={cn("flex w-full flex-col gap-3", !isMobile && "lg:w-80")}>
+      <header className="panel-field flex items-center gap-2 rounded-md p-2 sm:gap-3 sm:p-3">
+        <img src={brasao} alt="Brasão da cobra fumando da FEB" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12 animate-flicker" />
         <div>
-          <h2 className="text-base leading-none">Quartel-General</h2>
-          <p className="text-typewriter text-[11px] text-muted-foreground">{phaseLabel}</p>
+          <h2 className="text-sm leading-none sm:text-base">Quartel-General</h2>
+          <p className="text-typewriter text-[10px] text-muted-foreground sm:text-[11px]">{phaseLabel}</p>
         </div>
       </header>
 
       <div
         className={cn(
-          "panel-field rounded-md p-3",
+          "panel-field rounded-md p-2 sm:p-3",
           awaitingCapture && "ring-1 ring-destructive",
         )}
       >
-        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Comunicado</p>
-        <p className="text-typewriter mt-1 text-sm text-foreground">{status}</p>
+        <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground sm:text-[10px]">Comunicado</p>
+        <p className="text-typewriter mt-1 text-xs text-foreground sm:text-sm">{status}</p>
       </div>
 
-      <SideCard side={p1} state={state} active={state.turn === 1 && state.phase !== "over"} timeLeft={timeLeft} />
-      <SideCard side={p2} state={state} active={state.turn === 2 && state.phase !== "over"} timeLeft={timeLeft} />
+      <div className={cn("grid gap-3", !isMobile && "grid-cols-1")}>
+        <SideCard side={p1} state={state} active={state.turn === 1 && state.phase !== "over"} timeLeft={timeLeft} />
+        <SideCard side={p2} state={state} active={state.turn === 2 && state.phase !== "over"} timeLeft={timeLeft} />
+      </div>
 
-      <div className="panel-field flex-1 rounded-md p-3">
-        <p className="flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+      <div className="panel-field flex-1 rounded-md p-2 sm:p-3">
+        <p className="flex items-center gap-1 text-[9px] uppercase tracking-[0.2em] text-muted-foreground sm:text-[10px]">
           <Target className="h-3 w-3" /> Diário de operações
         </p>
-        <ol className="text-typewriter mt-2 flex max-h-44 flex-col-reverse gap-1 overflow-y-auto text-[11px] text-muted-foreground">
+        <ol className="text-typewriter mt-2 flex max-h-32 flex-col-reverse gap-1 overflow-y-auto text-[10px] text-muted-foreground sm:max-h-44 sm:text-[11px]">
           {log.length === 0 && <li>Nenhum movimento registrado.</li>}
           {log.map((entry, i) => (
             <li key={`${i}-${entry}`} className="border-l border-border pl-2">
@@ -180,13 +184,13 @@ export function HQPanel({
 
       <div className="flex gap-2">
         {onRestart && (
-          <Button variant="secondary" className="flex-1" onClick={onRestart}>
-            <Shield className="mr-1 h-4 w-4" /> Nova operação
+          <Button variant="secondary" className="flex-1 text-xs sm:text-sm" onClick={onRestart}>
+            <Shield className="mr-1 h-3 w-3 sm:h-4 sm:w-4" /> Nova operação
           </Button>
         )}
         {onResign && state.phase !== "over" && (
-          <Button variant="destructive" className="flex-1" onClick={onResign}>
-            <Skull className="mr-1 h-4 w-4" /> Render-se
+          <Button variant="destructive" className="flex-1 text-xs sm:text-sm" onClick={onResign}>
+            <Skull className="mr-1 h-3 w-3 sm:h-4 sm:w-4" /> Render-se
           </Button>
         )}
       </div>

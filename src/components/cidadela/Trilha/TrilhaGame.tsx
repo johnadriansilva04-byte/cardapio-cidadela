@@ -7,6 +7,7 @@ import { AI_PROFILES, type Difficulty } from "@/lib/trilha/ai";
 import { useBoardInteraction } from "@/hooks/useBoardInteraction";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ORDER: Difficulty[] = ["recruta", "sargento", "general"];
 
@@ -32,6 +33,7 @@ function TrilhaGameBoard({
     game.commit,
     !game.thinking && game.state.phase !== "over",
   );
+  const isMobile = useIsMobile();
 
   const status = useMemo(() => {
     const s = game.state;
@@ -58,13 +60,13 @@ function TrilhaGameBoard({
   const profile = AI_PROFILES[difficulty];
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto max-w-6xl px-4 py-4 sm:py-8">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-2 sm:mb-6 sm:gap-4">
         <div>
-          <p className="text-typewriter text-xs tracking-[0.3em] text-lantern">OPERAÇÃO INDIVIDUAL</p>
-          <h1 className="mt-1 text-3xl">Campanha</h1>
+          <p className="text-typewriter text-[10px] tracking-[0.3em] text-lantern sm:text-xs">OPERAÇÃO INDIVIDUAL</p>
+          <h1 className="mt-1 text-xl sm:text-3xl">Campanha</h1>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1 sm:gap-2">
           {ORDER.map((d) => (
             <Button
               key={d}
@@ -74,6 +76,7 @@ function TrilhaGameBoard({
                 onDifficulty(d);
                 onReset();
               }}
+              className="text-[10px] sm:text-xs"
             >
               {AI_PROFILES[d].label}
             </Button>
@@ -81,8 +84,8 @@ function TrilhaGameBoard({
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="flex flex-1 flex-col items-center gap-4">
+      <div className={cn("flex gap-4 lg:items-start", isMobile ? "flex-col" : "flex-row")}>
+        <div className="flex flex-1 flex-col items-center gap-3 sm:gap-4">
           <TrilhaBoard
             state={game.state}
             perspective={1}
@@ -93,17 +96,17 @@ function TrilhaGameBoard({
             interactive={!game.thinking}
             onNodeClick={interaction.handleNode}
           />
-          <div className="panel-field w-full max-w-[min(78vh,640px)] rounded-md p-3">
-            <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          <div className="panel-field w-full max-w-[min(78vh,640px)] rounded-md p-2 sm:p-3">
+            <p className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] text-muted-foreground sm:text-[10px]">
               <Brain className="h-3 w-3" /> Inteligência inimiga — {profile.label}
             </p>
-            <p className="text-typewriter mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-typewriter mt-1 text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
               {profile.description}
             </p>
             {game.aiInfo && (
               <p
                 className={cn(
-                  "text-typewriter mt-2 flex items-center gap-2 text-[11px]",
+                  "text-typewriter mt-2 flex items-center gap-2 text-[10px]",
                   game.thinking ? "text-lantern" : "text-muted-foreground",
                 )}
               >

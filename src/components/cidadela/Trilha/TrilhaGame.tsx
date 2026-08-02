@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Brain, Cpu, Map, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { HQPanel } from "./HQPanel";
 import { TrilhaBoard } from "./TrilhaBoard";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,6 @@ import { AI_PROFILES, type Difficulty } from "@/lib/trilha/ai";
 import { useBoardInteraction } from "@/hooks/useBoardInteraction";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { CobraFumando } from "@/components/CobraFumando";
 import { Link } from "@tanstack/react-router";
 
@@ -65,10 +64,6 @@ function TrilhaGameBoard({
     <div className="min-h-screen bg-background">
       <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5 sm:py-4">
         <div className="flex items-center gap-3">
-          <Link to="/cidadela" className="flex items-center gap-2 text-foreground hover:text-foreground/80 transition-colors">
-            <ArrowLeft className="h-5 w-5" />
-            <span className="text-sm font-medium hidden sm:inline">Voltar</span>
-          </Link>
           <CobraFumando className="size-8 sm:size-9 text-[color:var(--brass)]" />
           <div>
             <h2 className="text-stencil text-lg sm:text-xl">A TRILHA</h2>
@@ -77,15 +72,21 @@ function TrilhaGameBoard({
             </p>
           </div>
         </div>
+        <Link 
+          to="/cidadela" 
+          className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg font-medium transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Voltar à Cidadela</span>
+        </Link>
       </header>
 
-      <main className="mx-auto max-w-6xl px-3 py-3 sm:px-4 sm:py-4 sm:py-8">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-2 sm:mb-6 sm:gap-4">
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-typewriter text-[9px] tracking-[0.3em] text-lantern sm:text-[10px] sm:text-xs">OPERAÇÃO INDIVIDUAL</p>
-            <h1 className="mt-1 text-lg sm:text-xl sm:text-3xl">Campanha</h1>
+            <h1 className="text-2xl font-bold">Campanha</h1>
           </div>
-          <div className="flex flex-wrap gap-1 sm:gap-2">
+          <div className="flex gap-2">
             {ORDER.map((d) => (
               <Button
                 key={d}
@@ -95,7 +96,6 @@ function TrilhaGameBoard({
                   onDifficulty(d);
                   onReset();
                 }}
-                className="text-[9px] sm:text-[10px] sm:text-xs"
               >
                 {AI_PROFILES[d].label}
               </Button>
@@ -103,8 +103,8 @@ function TrilhaGameBoard({
           </div>
         </div>
 
-      <div className={cn("flex gap-3 sm:gap-4 lg:items-start", isMobile ? "flex-col" : "flex-row")}>
-        <div className="flex flex-1 flex-col items-center gap-2 sm:gap-3 sm:gap-4">
+      <div className={cn("flex gap-6 items-start", isMobile ? "flex-col" : "flex-row")}>
+        <div className="flex flex-1 flex-col items-center">
           <TrilhaBoard
             state={game.state}
             perspective={1}
@@ -115,28 +115,6 @@ function TrilhaGameBoard({
             interactive={!game.thinking}
             onNodeClick={interaction.handleNode}
           />
-          {!isMobile && (
-            <div className="panel-field w-full max-w-[min(78vh,640px)] rounded-md p-2 sm:p-3">
-              <p className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] text-foreground/70 sm:text-[10px]">
-                <Brain className="h-3 w-3" /> Inteligência inimiga — {profile.label}
-              </p>
-              <p className="text-typewriter mt-1 text-[10px] leading-relaxed text-foreground/70 sm:text-[11px]">
-                {profile.description}
-              </p>
-              {game.aiInfo && (
-                <p
-                  className={cn(
-                    "text-typewriter mt-2 flex items-center gap-2 text-[10px]",
-                    game.thinking ? "text-lantern" : "text-foreground/70",
-                  )}
-                >
-                  <Cpu className="h-3 w-3" />
-                  Profundidade {game.aiInfo.depth} · {game.aiInfo.nodes.toLocaleString("pt-BR")} posições ·{" "}
-                  {game.aiInfo.elapsedMs} ms
-                </p>
-              )}
-            </div>
-          )}
         </div>
 
         <HQPanel

@@ -1,130 +1,16 @@
-import { Flame, Shield, Skull, Target, Timer, ChevronLeft } from "lucide-react";
-import brasao from "/cobra-fumando.png";
+import { Shield, Skull } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  canFly,
   countOnBoard,
-  PIECES_PER_PLAYER,
   type GameState,
   type Player,
 } from "@/lib/trilha/engine";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Link } from "@tanstack/react-router";
 
 export interface SideInfo {
   name: string;
   slot: Player;
   subtitle?: string;
-}
-
-function ReserveRow({ count, slot }: { count: number; slot: Player }) {
-  return (
-    <div className="flex flex-wrap gap-1" aria-label={`${count} peças na reserva`}>
-      {Array.from({ length: PIECES_PER_PLAYER }, (_, i) => (
-        <span
-          key={i}
-          className={cn(
-            "h-2.5 w-2.5 rounded-full border border-ink/50 transition-opacity",
-            slot === 1 ? "bg-feb" : "bg-axis",
-            i >= count && "opacity-20",
-          )}
-        />
-      ))}
-    </div>
-  );
-}
-
-function SideCard({
-  side,
-  state,
-  active,
-  timeLeft,
-}: {
-  side: SideInfo;
-  state: GameState;
-  active: boolean;
-  timeLeft?: number | null | undefined;
-}) {
-  const onBoard = countOnBoard(state.board, side.slot);
-  const flying = canFly(state, side.slot);
-  const isMobile = useIsMobile();
-
-  return (
-    <div
-      className={cn(
-        "panel-field rounded-md p-2 sm:p-3 transition-all",
-        active && "ring-1 ring-lantern shadow-lantern",
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "h-3 w-3 rounded-full border border-ink/60",
-              side.slot === 1 ? "bg-feb" : "bg-axis",
-            )}
-          />
-          <div>
-            <p className="text-stencil text-xs sm:text-sm leading-tight">{side.name}</p>
-            {!isMobile && (
-              <p className="text-typewriter text-[10px] sm:text-[11px] text-muted-foreground">
-                {side.subtitle ?? (side.slot === 1 ? "Força Expedicionária Brasileira" : "Forças do Eixo")}
-              </p>
-            )}
-          </div>
-        </div>
-        {typeof timeLeft === "number" && active && (
-          <span
-            className={cn(
-              "text-stencil flex items-center gap-1 rounded-sm border border-border px-2 py-0.5 text-xs",
-              timeLeft <= 10 ? "text-destructive" : "text-lantern",
-            )}
-          >
-            <Timer className="h-3 w-3" />
-            {timeLeft}s
-          </span>
-        )}
-      </div>
-
-      {!isMobile && (
-        <>
-          <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
-            <div>
-              <dt className="text-[9px] uppercase tracking-widest text-foreground/70">Em campo</dt>
-              <dd className="text-stencil text-base text-foreground">{onBoard}</dd>
-            </div>
-            <div>
-              <dt className="text-[9px] uppercase tracking-widest text-foreground/70">Reserva</dt>
-              <dd className="text-stencil text-base text-foreground">{state.hand[side.slot]}</dd>
-            </div>
-            <div>
-              <dt className="text-[9px] uppercase tracking-widest text-foreground/70">Baixas</dt>
-              <dd className="text-stencil text-base text-foreground">{state.captured[side.slot]}</dd>
-            </div>
-          </dl>
-
-          <div className="mt-3">
-            <ReserveRow count={state.hand[side.slot]} slot={side.slot} />
-          </div>
-
-          {flying && (
-            <p className="text-typewriter mt-2 flex items-center gap-1 text-[10px] text-lantern">
-              <Flame className="h-3 w-3" /> Esquadrão aerotransportado: pode voar
-            </p>
-          )}
-        </>
-      )}
-
-      {isMobile && (
-        <div className="mt-2 flex items-center justify-between text-xs">
-          <span className="text-foreground/80">Campo: {onBoard}</span>
-          <span className="text-foreground/80">Reserva: {state.hand[side.slot]}</span>
-          <span className="text-foreground/80">Baixas: {state.captured[side.slot]}</span>
-        </div>
-      )}
-    </div>
-  );
 }
 
 export interface HQPanelProps {
@@ -153,70 +39,47 @@ export function HQPanel({
   awaitingCapture,
 }: HQPanelProps) {
   const isMobile = useIsMobile();
-  const phaseLabel =
-    state.phase === "placing"
-      ? "Fase I — Desdobramento"
-      : state.phase === "moving"
-        ? "Fase II — Manobra"
-        : "Operação encerrada";
 
   return (
-    <aside className={cn("flex w-full flex-col gap-2 sm:gap-3", !isMobile && "lg:w-80")}>
-      {!isMobile && (
-        <header className="panel-field flex items-center gap-2 rounded-md p-2 sm:gap-3 sm:p-3">
-          <img src={brasao} alt="Brasão da cobra fumando da FEB" width={48} height={48} className="h-10 w-10 sm:h-12 sm:w-12 animate-flicker" />
-          <div>
-            <h2 className="text-sm leading-none sm:text-base">Quartel-General</h2>
-            <p className="text-typewriter text-[10px] text-muted-foreground sm:text-[11px]">{phaseLabel}</p>
-          </div>
-        </header>
-      )}
-
+    <aside className={cn("flex w-full flex-col gap-3", !isMobile && "lg:w-72")}>
       <div
         className={cn(
-          "panel-field rounded-md p-2 sm:p-3",
-          awaitingCapture && "ring-1 ring-destructive",
+          "panel-field rounded-md p-3",
+          awaitingCapture && "ring-2 ring-destructive",
         )}
       >
-        <p className="text-[9px] uppercase tracking-[0.2em] text-foreground/70 sm:text-[10px]">Comunicado</p>
-        <p className="text-typewriter mt-1 text-xs text-foreground sm:text-sm">{status}</p>
+        <p className="text-typewriter text-sm text-foreground">{status}</p>
       </div>
 
-      <div className={cn("grid gap-2 sm:gap-3", !isMobile && "grid-cols-1")}>
-        <SideCard side={p1} state={state} active={state.turn === 1 && state.phase !== "over"} timeLeft={timeLeft} />
-        <SideCard side={p2} state={state} active={state.turn === 2 && state.phase !== "over"} timeLeft={timeLeft} />
-      </div>
-
-      {!isMobile && (
-        <div className="panel-field flex-1 rounded-md p-2 sm:p-3">
-          <p className="flex items-center gap-1 text-[9px] uppercase tracking-[0.2em] text-foreground/70 sm:text-[10px]">
-            <Target className="h-3 w-3" /> Diário de operações
-          </p>
-          <ol className="text-typewriter mt-2 flex max-h-32 flex-col-reverse gap-1 overflow-y-auto text-[10px] text-foreground/70 sm:max-h-44 sm:text-[11px]">
-            {log.length === 0 && <li>Nenhum movimento registrado.</li>}
-            {log.map((entry, i) => (
-              <li key={`${i}-${entry}`} className="border-l border-border pl-2">
-                {entry}
-              </li>
-            ))}
-          </ol>
+      <div className="grid grid-cols-2 gap-3">
+        <div className={cn("panel-field rounded-md p-3", state.turn === 1 && "ring-2 ring-lantern")}>
+          <p className="text-stencil text-sm font-medium">{p1.name}</p>
+          <div className="mt-2 flex justify-between text-xs">
+            <span className="text-foreground/70">Campo: {countOnBoard(state.board, 1)}</span>
+            <span className="text-foreground/70">Reserva: {state.hand[1]}</span>
+          </div>
         </div>
-      )}
+        <div className={cn("panel-field rounded-md p-3", state.turn === 2 && "ring-2 ring-lantern")}>
+          <p className="text-stencil text-sm font-medium">{p2.name}</p>
+          <div className="mt-2 flex justify-between text-xs">
+            <span className="text-foreground/70">Campo: {countOnBoard(state.board, 2)}</span>
+            <span className="text-foreground/70">Reserva: {state.hand[2]}</span>
+          </div>
+        </div>
+      </div>
 
       <div className="flex gap-2">
         {onRestart && (
-          <Button variant="secondary" className="flex-1 text-xs sm:text-sm" onClick={onRestart}>
-            <Shield className="mr-1 h-3 w-3 sm:h-4 sm:w-4" /> Nova operação
+          <Button variant="secondary" className="flex-1 text-sm" onClick={onRestart}>
+            <Shield className="mr-2 h-4 w-4" /> Reiniciar
           </Button>
         )}
         {onResign && state.phase !== "over" && (
-          <Button variant="destructive" className="flex-1 text-xs sm:text-sm" onClick={onResign}>
-            <Skull className="mr-1 h-3 w-3 sm:h-4 sm:w-4" /> Render-se
+          <Button variant="destructive" className="flex-1 text-sm" onClick={onResign}>
+            <Skull className="mr-2 h-4 w-4" /> Render-se
           </Button>
         )}
       </div>
-
-      <p className="sr-only">Você comanda o lado {myPlayer === 2 ? "do Eixo" : "da FEB"}.</p>
     </aside>
   );
 }

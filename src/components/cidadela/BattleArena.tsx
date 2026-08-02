@@ -34,7 +34,7 @@ export function BattleArena() {
     levels: [selectedLevel, mode === "cpu" ? Math.min(progress.unlockedLevel, 2) : 0],
     online: onlineInfo,
     running,
-    touchInputs: touchControls.inputs,
+    touchInputs: running ? touchControls.inputs : undefined,
   });
 
   async function startCPUBattle() {

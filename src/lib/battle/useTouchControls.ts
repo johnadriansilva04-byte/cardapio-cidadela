@@ -1,18 +1,18 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { emptyInputs, type Inputs } from "./engine";
 
 export function useTouchControls(enabled: boolean) {
   const inputs = useRef<Inputs>(emptyInputs());
+
+  const setAction = useCallback((action: keyof Inputs, value: boolean) => {
+    inputs.current[action] = value;
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
       inputs.current = emptyInputs();
       return;
     }
-
-    const setAction = (action: keyof Inputs, value: boolean) => {
-      inputs.current[action] = value;
-    };
 
     return () => {
       inputs.current = emptyInputs();

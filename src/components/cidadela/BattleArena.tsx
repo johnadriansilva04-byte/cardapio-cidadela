@@ -18,7 +18,7 @@ export function BattleArena() {
   const [showLevelMenu, setShowLevelMenu] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState(0);
   const isMobile = useIsMobile();
-  const touchControls = useTouchControls(isMobile ? running : false);
+  const touchControls = useTouchControls(running);
 
   const { progress, addWin, addLoss, isLevelUnlocked, winsToNextLevel } = usePlayerProgress();
 
@@ -34,7 +34,7 @@ export function BattleArena() {
     levels: [selectedLevel, mode === "cpu" ? Math.min(progress.unlockedLevel, 2) : 0],
     online: onlineInfo,
     running,
-    touchInputs: running ? touchControls.inputs : undefined,
+    touchInputs: touchControls.inputs,
   });
 
   async function startCPUBattle() {

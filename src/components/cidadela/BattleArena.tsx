@@ -7,6 +7,7 @@ import { useGameMatchmaking } from "@/modules/supabase/useGameMatchmaking";
 import { usePlayerProgress } from "@/lib/battle/usePlayerProgress";
 import type { RobotConfig } from "@/lib/types";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTouchControls } from "@/lib/battle/useTouchControls";
 
 export function BattleArena() {
   const { state } = useStore();
@@ -17,6 +18,7 @@ export function BattleArena() {
   const [showLevelMenu, setShowLevelMenu] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState(0);
   const isMobile = useIsMobile();
+  const touchControls = useTouchControls(running);
 
   const { progress, addWin, addLoss, isLevelUnlocked, winsToNextLevel } = usePlayerProgress();
 
@@ -32,6 +34,7 @@ export function BattleArena() {
     levels: [selectedLevel, mode === "cpu" ? Math.min(progress.unlockedLevel, 2) : 0],
     online: onlineInfo,
     running,
+    touchInputs: touchControls.inputs,
   });
 
   async function startCPUBattle() {
@@ -135,11 +138,6 @@ export function BattleArena() {
                 <span className="rounded-full bg-green-200/30 px-2 py-1 border border-green-700/50 sm:px-3">K/Space: Atirar</span>
                 <span className="rounded-full bg-green-200/30 px-2 py-1 border border-green-700/50 sm:px-3">L/E: Trocar</span>
               </div>
-              {isMobile && (
-                <div className="mt-3 rounded-lg bg-yellow-100 border border-yellow-600 p-2 text-center">
-                  <p className="text-xs text-yellow-900 font-medium">⚠️ Este jogo requer teclado. Use um dispositivo desktop para jogar.</p>
-                </div>
-              )}
             </div>
 
             {/* Progresso do jogador */}
@@ -259,7 +257,7 @@ export function BattleArena() {
                 </div>
               )}
               <div className="flex-1 flex items-center justify-center p-4">
-                <Arena state={battleState} />
+                <Arena state={battleState} running={running} />
               </div>
             </div>
           </div>

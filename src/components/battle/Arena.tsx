@@ -6,6 +6,7 @@ import {
   type Fighter,
 } from "@/lib/battle/engine";
 import { RobotSprite } from "./RobotSprite";
+import { TouchControls } from "./TouchControls";
 
 function HealthBar({ fighter, side }: { fighter: Fighter; side: "left" | "right" }) {
   const pct = (fighter.hp / MAX_HP) * 100;
@@ -50,21 +51,12 @@ function HealthBar({ fighter, side }: { fighter: Fighter; side: "left" | "right"
   );
 }
 
-export function Arena({ state }: { state: BattleState }) {
-  const [shake, setShake] = useState(0);
-  const lastEventAt = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (state.lastEvent && state.lastEvent.at !== lastEventAt.current) {
-      lastEventAt.current = state.lastEvent.at;
-      setShake((s) => s + 1);
-    }
-  }, [state.lastEvent]);
+export function Arena({ state, running }: { state: BattleState; running?: boolean }) {
 
   const toPct = (x: number) => (x / ARENA_WIDTH) * 100;
 
   return (
-    <div className="mx-auto w-full max-w-7xl">
+    <div className="mx-auto w-full max-w-7xl relative">
       <div className="mb-3 flex items-end justify-between gap-4">
         <HealthBar fighter={state.robot1} side="left" />
         <div className="flex flex-col items-center">
@@ -79,8 +71,7 @@ export function Arena({ state }: { state: BattleState }) {
       </div>
 
       <div
-        key={shake}
-        className={`neon-panel arena-grid relative aspect-[16/9] w-full overflow-hidden rounded-sm border-2 border-green-800 ${shake ? "screen-shake" : ""}`}
+        className="neon-panel arena-grid relative aspect-[16/9] w-full overflow-hidden rounded-sm border-2 border-green-800"
         style={{ background: "linear-gradient(180deg, #1a2f1a 0%, #0d1f0d 100%)" }}
       >
         {/* FEB Banner background */}
@@ -128,8 +119,11 @@ export function Arena({ state }: { state: BattleState }) {
           </div>
         ))}
 
-        {/* Projectiles - ONLY for ranged attacks with bulletSpeed > 0 */}
-        {state.projectiles.map(p => (
+        {/* Projectiles - SOMENTE se for tiro de arma real (bulletSpeed > 0) */}
+        {state.projectiles.filter(p => {
+          const owner = p.ownerId === 1 ? state.robot1 : state.robot2;
+          return owner.weapon.bulletSpeed > 0;
+        }).map(p => (
           <div
             key={p.id}
             className="absolute bottom-[18%]"
@@ -159,6 +153,8 @@ export function Arena({ state }: { state: BattleState }) {
           </div>
         )}
       </div>
+      
+      <TouchControls enabled={running ?? false} />
     </div>
   );
 }

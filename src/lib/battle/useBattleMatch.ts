@@ -26,6 +26,7 @@ type Options = {
   levels?: [number, number];
   online?: OnlineInfo | null;
   running: boolean;
+  touchInputs?: React.MutableRefObject<Inputs>;
 };
 
 /**
@@ -33,12 +34,12 @@ type Options = {
  * Online: player 1 is authoritative — it simulates and broadcasts state,
  * player 2 streams its inputs and renders the host snapshot.
  */
-export function useBattleMatch({ mode, names, levels = [0, 0], online, running }: Options) {
+export function useBattleMatch({ mode, names, levels = [0, 0], online, running, touchInputs }: Options) {
   const [state, setState] = useState<BattleState>(() => createBattle(names[0], names[1], levels[0], levels[1]));
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const localInputs = useKeyboard(running);
+  const keyboardInputs = useKeyboard(running);
   const remoteInputs = useRef<Inputs>(emptyInputs());
   const channelRef = useRef<RealtimeChannel | null>(null);
   const lastPersist = useRef(0);
@@ -46,6 +47,27 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running }
   const startedAt = useRef(Date.now());
 
   const isHost = mode === "cpu" || online?.playerNumber === 1;
+
+  // Merge keyboard and touch inputs
+  const localInputs = useRef<Inputs>(emptyInputs());
+  
+  useEffect(() => {
+    if (!running) {
+      localInputs.current = emptyInputs();
+      return;
+    }
+    
+    const updateInputs = () => {
+      const merged: Inputs = {
+        ...keyboardInputs.current,
+        ...(touchInputs?.current || {})
+      };
+      localInputs.current = merged;
+    };
+    
+    const interval = setInterval(updateInputs, 16); // ~60fps
+    return () => clearInterval(interval);
+  }, [running, keyboardInputs, touchInputs]);
 
   const reset = useCallback(() => {
     savedRef.current = false;

@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useStore } from "@/modules/cidadela-core/store";
 import type { RobotConfig } from "@/lib/types";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const IDEOLOGIES = [
   "Honor & Duty",
@@ -32,6 +33,7 @@ export function RobotLab() {
     eloquence: 50,
     logic: 50,
   });
+  const isMobile = useIsMobile();
 
   function saveRobot() {
     update((prev) => ({
@@ -69,12 +71,12 @@ export function RobotLab() {
   return (
     <div className="flex h-[calc(100vh-73px)] flex-col px-4">
       <div className="mx-auto w-full max-w-2xl py-6">
-        <h2 className="text-stencil text-2xl">Laboratório de Robô</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <h2 className="text-stencil text-xl sm:text-2xl">Laboratório de Robô</h2>
+        <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
           Configure seu robô para usar no Pracinha IA e Arena de Batalha
         </p>
 
-        <div className="mt-6 space-y-6 rounded-xl border border-border bg-secondary p-6">
+        <div className="mt-6 space-y-6 rounded-xl border border-border bg-secondary p-4 sm:p-6">
           <div>
             <label className="block text-xs font-medium">Nome do Robô</label>
             <input
@@ -181,31 +183,31 @@ export function RobotLab() {
 
         {state.cidadela.robots.length > 0 && (
           <div className="mt-6">
-            <h3 className="text-stencil text-lg">Robôs Salvos</h3>
+            <h3 className="text-stencil text-base sm:text-lg">Robôs Salvos</h3>
             <div className="mt-3 space-y-2">
               {state.cidadela.robots.map((robot, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between rounded-lg border border-border bg-secondary px-4 py-3"
+                  className="flex items-center justify-between rounded-lg border border-border bg-secondary px-3 py-2 sm:px-4 sm:py-3"
                 >
                   <div>
-                    <p className="font-medium">{robot.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="font-medium text-sm">{robot.name}</p>
+                    <p className="text-[10px] text-muted-foreground sm:text-xs">
                       {robot.ideology} · {robot.personality}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 sm:gap-2">
                     <button
                       type="button"
                       onClick={() => loadRobot(robot)}
-                      className="rounded bg-background px-3 py-1 text-xs hover:bg-muted"
+                      className="rounded bg-background px-2 py-1 text-[10px] hover:bg-muted sm:px-3 sm:text-xs"
                     >
                       Carregar
                     </button>
                     <button
                       type="button"
                       onClick={() => deleteRobot(index)}
-                      className="rounded bg-destructive/10 px-3 py-1 text-xs text-destructive hover:bg-destructive/20"
+                      className="rounded bg-destructive/10 px-2 py-1 text-[10px] text-destructive hover:bg-destructive/20 sm:px-3 sm:text-xs"
                     >
                       Excluir
                     </button>

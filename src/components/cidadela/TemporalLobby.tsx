@@ -1,14 +1,12 @@
 import { useEffect, useRef } from "react";
 import { Swords, BrainCircuit, FlaskConical, Bot, Target } from "lucide-react";
 import { MapBuilding } from "./map/MapBuilding";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 type ActiveModule =
   "battle-arena" | "iq-test" | "robot-lab" | "chat-ai" | "dashboard" | "config" | "pedidos" | "trilha" | null;
 
 export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModule) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const isMobile = useIsMobile();
 
   // abre o mapa no marco zero: 1944, base da estrada, com a pista centralizada
   useEffect(() => {
@@ -20,104 +18,6 @@ export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModul
   const handleModuleClick = (moduleId: ActiveModule) => {
     onNavigate(moduleId);
   };
-
-  // Versão mobile: lista de cards verticais
-  if (isMobile) {
-    return (
-      <main className="h-screen w-full overflow-y-auto bg-[var(--future-deep)] p-4">
-        <header className="mb-6 text-center">
-          <h1 className="font-display text-xl font-bold tracking-[0.25em] text-war-dust uppercase">
-            Cidadela Temporal
-          </h1>
-          <p className="mt-2 text-[0.65rem] tracking-[0.3em] text-war-dust/70 uppercase">
-            Escolha um módulo
-          </p>
-        </header>
-
-        <div className="space-y-4">
-          {/* Era da Guerra */}
-          <div className="rounded-xl border border-war-dust/30 bg-war-deep/40 p-4">
-            <h2 className="font-display text-sm font-semibold tracking-[0.2em] text-war-dust uppercase mb-3">
-              1944 · Era da Guerra
-            </h2>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => handleModuleClick("battle-arena")}
-                className="w-full flex items-center gap-3 rounded-lg border border-war-dust/50 bg-war/20 p-3 text-left transition-all hover:bg-war/30 active:scale-98"
-              >
-                <Swords size={20} strokeWidth={1.75} className="text-war-dust" />
-                <div>
-                  <p className="font-semibold text-sm text-war-dust">A Arena</p>
-                  <p className="text-[10px] text-war-dust/70">Batalha arcade</p>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleModuleClick("trilha")}
-                className="w-full flex items-center gap-3 rounded-lg border border-war-dust/50 bg-war/20 p-3 text-left transition-all hover:bg-war/30 active:scale-98"
-              >
-                <Target size={20} strokeWidth={1.75} className="text-war-dust" />
-                <div>
-                  <p className="font-semibold text-sm text-war-dust">A Trilha</p>
-                  <p className="text-[10px] text-war-dust/70">Jogo de estratégia</p>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Modernidade */}
-          <div className="rounded-xl border border-modern-glow/30 bg-modern-deep/40 p-4">
-            <h2 className="font-display text-sm font-semibold tracking-[0.2em] text-modern-glow uppercase mb-3">
-              Atual · Modernidade
-            </h2>
-            <button
-              type="button"
-              onClick={() => handleModuleClick("iq-test")}
-              className="w-full flex items-center gap-3 rounded-lg border border-modern-glow/50 bg-modern/20 p-3 text-left transition-all hover:bg-modern/30 active:scale-98"
-            >
-              <BrainCircuit size={20} strokeWidth={1.75} className="text-modern-glow" />
-              <div>
-                <p className="font-semibold text-sm text-modern-glow">Testes de QI</p>
-                <p className="text-[10px] text-modern-glow/70">Matrizes progressivas</p>
-              </div>
-            </button>
-          </div>
-
-          {/* Futuro */}
-          <div className="rounded-xl border border-neon/30 bg-future-deep/40 p-4">
-            <h2 className="font-display text-sm font-semibold tracking-[0.2em] text-neon uppercase mb-3">
-              2100 · O Futuro
-            </h2>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => handleModuleClick("robot-lab")}
-                className="w-full flex items-center gap-3 rounded-lg border border-neon/50 bg-future/20 p-3 text-left transition-all hover:bg-future/30 active:scale-98"
-              >
-                <FlaskConical size={20} strokeWidth={1.75} className="text-neon" />
-                <div>
-                  <p className="font-semibold text-sm text-neon">O Laboratório</p>
-                  <p className="text-[10px] text-neon/70">Robótica e IA</p>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleModuleClick("chat-ai")}
-                className="w-full flex items-center gap-3 rounded-lg border border-neon/50 bg-future/20 p-3 text-left transition-all hover:bg-future/30 active:scale-98"
-              >
-                <Bot size={20} strokeWidth={1.75} className="text-neon" />
-                <div>
-                  <p className="font-semibold text-sm text-neon">Chat da IA</p>
-                  <p className="text-[10px] text-neon/70">Assistente virtual</p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="relative h-screen w-full overflow-hidden bg-[var(--future-deep)] font-body">

@@ -55,6 +55,12 @@ CREATE TABLE orders (
   cidadela_access_type TEXT CHECK (cidadela_access_type IN ('15_min', '15_dias')),
   webhook_sent BOOLEAN DEFAULT false,
   webhook_error TEXT,
+  -- Campos de pagamento PIX
+  payment_status TEXT DEFAULT 'pending' CHECK (payment_status IN ('pending', 'awaiting_confirmation', 'paid', 'rejected')),
+  payment_proof_url TEXT,
+  payment_confirmed_at TIMESTAMPTZ,
+  payment_confirmed_by TEXT,
+  payment_rejected_reason TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 
 import { CobraFumando } from "@/components/CobraFumando";
+import { PaymentScreen } from "@/components/cardapio/PaymentScreen";
 import { useStore } from "@/modules/cidadela-core/store";
 import {
   brl,
@@ -24,6 +25,8 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [success, setSuccess] = useState<Order | null>(null);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
 
   const allItems = useMemo(() => state.categories.flatMap((c) => c.items), [state.categories]);
 
@@ -57,8 +60,23 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     });
 
   async function submitOrder(order: Order) {
+    // Salvar pedido localmente e abrir tela de pagamento
+    update((prev) => ({
+      ...prev,
+      orders: [order, ...prev.orders],
+    }));
+    setPendingOrder(order);
+    setPaymentOpen(true);
+    setCart({});
+    setCheckoutOpen(false);
+    setCartOpen(false);
+  }
+
+  async function handlePaymentSuccess() {
+    if (!pendingOrder) return;
+
     // Determinar tipo de acesso baseado no valor total
-    const accessType = order.total >= 200 ? "15_dias" : "15_min";
+    const accessType = pendingOrder.total >= 200 ? "15_dias" : "15_min";
 
     // Gerar código promocional para acesso à Cidadela
     const promoCode = generatePromoCode(undefined, accessType);
@@ -70,21 +88,20 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       .insert({
         code: promoCode.code,
         store_id: state.admin.storeId || state.admin.accessKey,
-        customer_phone: order.telefone,
+        customer_phone: pendingOrder.telefone,
         access_type: accessType,
-        order_total: order.total,
+        order_total: pendingOrder.total,
         expires_at: expiresAt.toISOString(),
         is_active: true,
       });
 
     if (supabaseError) {
       console.error("Erro ao salvar código no Supabase:", supabaseError);
-      // Continuar mesmo se falhar (não bloquear o pedido)
     }
 
     // Payload completo conforme documentação do N8N com código da Cidadela
     const payloadWithCode = buildOrderPayload(
-      order,
+      pendingOrder,
       promoCode.code,
       accessType,
       state.admin.phone || state.whatsapp,
@@ -96,12 +113,12 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
     console.log("RESULTADO WEBHOOK:", synced);
 
-    const finalOrder = { ...order, synced };
+    const finalOrder = { ...pendingOrder, synced };
 
     // Salvar código localmente para validação
     update((prev) => ({
       ...prev,
-      orders: [finalOrder, ...prev.orders],
+      orders: prev.orders.map((o) => o.id === finalOrder.id ? finalOrder : o),
       cidadela: {
         ...prev.cidadela,
         codes: [...prev.cidadela.codes, promoCode],
@@ -109,9 +126,8 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     }));
 
     setSuccess(finalOrder);
-    setCart({});
-    setCheckoutOpen(false);
-    setCartOpen(false);
+    setPaymentOpen(false);
+    setPendingOrder(null);
   }
 
   return (
@@ -947,6 +963,19 @@ function CheckoutModal({
       </form>
     </div>
   );
+
+  if (paymentOpen && pendingOrder) {
+    return (
+      <PaymentScreen
+        order={pendingOrder}
+        onSuccess={handlePaymentSuccess}
+        onCancel={() => {
+          setPaymentOpen(false);
+          setPendingOrder(null);
+        }}
+      />
+    );
+  }
 }
 
 function SuccessModal({ order, onClose }: { order: Order; onClose: () => void }) {

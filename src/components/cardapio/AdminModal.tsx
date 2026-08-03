@@ -6,6 +6,7 @@ import { ConfigOperacional } from "@/components/cidadela/Config";
 import { MenuPrincipal } from "./admin/MenuPrincipal";
 import { GerenciarCategorias } from "./admin/GerenciarCategorias";
 import { GerenciarLanches } from "./admin/GerenciarLanches";
+import { GerenciarPedidos } from "./admin/GerenciarPedidos";
 import { useStore } from "@/modules/cidadela-core/store";
 import { useAdminTrial } from "@/modules/supabase/admin";
 import { sendAdminTrial } from "@/modules/fluxos-n8n/webhook";
@@ -288,11 +289,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
           {module === "config" && <ConfigOperacional />}
           {module === "categorias" && <GerenciarCategorias onBack={() => setModule("menu")} />}
           {module === "lanches" && <GerenciarLanches onBack={() => setModule("menu")} />}
-          {module === "pedidos" && (
-            <div className="text-center text-sm text-gray-300">
-              Módulo de comandas em desenvolvimento
-            </div>
-          )}
+          {module === "pedidos" && <GerenciarPedidos />}
         </div>
       </div>
     </div>

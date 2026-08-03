@@ -1,0 +1,689 @@
+{
+  "name": "Cardápio Digital Cidadela - Jogos Online",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution-webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "evolution-webhook",
+      "name": "Evolution Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 50]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lógica completa de atendimento WhatsApp\nconst message = $input.all()[0].json;\n\n// VALIDAÇÃO CRÍTICA: Verificar se a requisição contém dados válidos de WhatsApp\nif (!message || !message.key || !message.key.remoteJid) {\n  return [];\n}\n\nconst remoteJid = message.key.remoteJid;\n\n// Validar se remoteJid não está vazio e é um número válido\nif (!remoteJid || typeof remoteJid !== 'string' || remoteJid.trim() === '') {\n  return [];\n}\n\n// Filtro: ignorar mensagens próprias e grupos\nif (message.key.fromMe === true || remoteJid.includes('@g.us')) {\n  return [];\n}\n\nconst messageText = message.message && message.message.conversation ? message.message.conversation : '';\nconst textLower = messageText.toLowerCase().trim();\n\n// Configurações\nconst evolutionApiUrl = 'https://api.pracinha.online';\nconst instanceName = 'Variant';\nconst apiKey = '429683C4C977415CAAFCCE10F7D57E11';\nconst cardapioLink = 'cardapio-cidadela.vercel.app';\n\n// Detectar rota e preparar resposta\nlet responseText = '';\n\nif (textLower === '1' || textLower === '1️⃣') {\n  responseText = `Acesse nosso cardápio no link abaixo para escolher seus itens e fazer o pedido: ${cardapioLink}`;\n} else if (textLower === '2' || textLower === '2️⃣') {\n  responseText = 'Perfeito! Lembramos que a nossa taxa de visita técnica é de R$ 100,00 (mais o valor do serviço a ser executado).\\n\\nPor favor, informe seu nome completo:';\n} else if (textLower === '3' || textLower === '3️⃣') {\n  responseText = `🎮 Acesse a Arena de Batalha da Cidadela: ${cardapioLink}/cidadela/battle\\n\\nJogue online contra outros pracinhas!`;\n} else {\n  responseText = 'Olá! Seja bem-vindo(a). Por favor, responda digitando o número da opção desejada:\\n\\n1️⃣ - Cardápio / Fazer Pedido\\n2️⃣ - Assistência Técnica\\n3️⃣ - Arena de Batalha (Jogos Online)';\n}\n\nreturn [{\n  json: {\n    evolutionApiUrl,\n    instanceName,\n    apiKey,\n    number: remoteJid,\n    text: responseText\n  }\n}];"
+      },
+      "id": "process-whatsapp",
+      "name": "Processar WhatsApp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 50]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.evolutionApiUrl }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $json.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.number }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "send-evolution",
+      "name": "Enviar Evolution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 50],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pracinha",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-pedido",
+      "name": "Webhook Pedido",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar pedido do cardápio\nconst payload = $input.all()[0].json;\n\n// Validar campos obrigatórios\nconst required = ['cliente', 'telefone', 'endereco', 'total', 'itens', 'tipo_entrega', 'origem', 'comanda', 'evento', 'timestamp', 'pagamento'];\nconst missing = required.filter(f => !payload[f]);\n\nif (missing.length > 0 || payload.origem !== 'CIDADELA_PWA') {\n  return [{\n    json: {\n      success: false,\n      error: 'validation_error',\n      message: 'Dados inválidos'\n    }\n  }];\n}\n\n// Configurações Evolution API\nconst evolutionApiUrl = 'https://api.pracinha.online';\nconst instanceName = 'Variant';\nconst apiKey = '429683C4C977415CAAFCCE10F7D57E11';\nconst restauranteNumber = payload.restaurante_whatsapp || '5548999880030';\n\n// Formatar mensagem comanda\nlet pagamentoText = payload.pagamento;\nif (payload.pagamento === 'dinheiro') pagamentoText = `Dinheiro (Troco p/ R$ ${payload.troco || '0'})`;\nelse if (payload.pagamento === 'cartao') pagamentoText = 'Cartão';\n\nconst itensText = payload.itens.map(i => `- ${i.quantity}x ${i.name} (R$ ${i.total.toFixed(2)})${i.observacoes ? `\\n  _Obs: ${i.observacoes}_` : ''}`).join('\\n');\nconst enderecoText = payload.tipo_entrega === 'entrega' ? payload.endereco : 'Retirada no balcão';\nconst tipoText = payload.tipo_entrega === 'entrega' ? 'Delivery' : 'Retirada';\n\nconst mensagem = `==============================\\n   *NOVO PEDIDO - CIDADELA*\\n==============================\\n*Cliente:* ${payload.cliente}\\n*Telefone:* ${payload.telefone}\\n*Tipo:* ${tipoText}\\n*Endereço:* ${enderecoText}\\n\\n------------------------------\\n*ITENS DO PEDIDO:*\\n${itensText}\\n------------------------------\\n\\n*FORMA DE PAGAMENTO:* ${pagamentoText}\\n*TAXA DE ENTREGA:* R$ ${payload.taxa_entrega.toFixed(2)}\\n*TOTAL DO PEDIDO:* R$ ${payload.total.toFixed(2)}\\n==============================`;\n\nreturn [{\n  json: {\n    success: true,\n    comanda: payload.comanda,\n    mensagem_formatada: mensagem,\n    pedido: payload,\n    cliente_number: payload.telefone,\n    restaurante_number: restauranteNumber,\n    evolutionApiUrl,\n    instanceName,\n    apiKey\n  }\n}];"
+      },
+      "id": "process-pedido",
+      "name": "Processar Pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.evolutionApiUrl }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $json.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.restaurante_number }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.mensagem_formatada }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "send-comanda",
+      "name": "Enviar Comanda",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 200],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.evolutionApiUrl }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $json.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.cliente_number }}"
+            },
+            {
+              "name": "text",
+              "value": "OK! Seu pedido foi recebido com sucesso e já está sendo preparado. Aguarde só mais um pouquinho!"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "confirm-cliente",
+      "name": "Confirmar Cliente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 200],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"comanda\": $json.comanda,\n  \"mensagem\": \"Pedido processado com sucesso\"\n} }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "response-pedido",
+      "name": "Resposta Pedido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cidadela",
+        "respondWith": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-auth",
+      "name": "Webhook Auth",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar código de autenticação\nconst payload = $input.all()[0].json;\n\nif (!payload.codigo || payload.origem !== 'CIDADELA_PWA') {\n  return [{\n    json: {\n      success: false,\n      autenticado: false,\n      erro: 'invalid_code'\n    }\n  }];\n}\n\n// Simular validação (em produção usar banco real)\nconst validCodes = {\n  'ADMIN123': { nivel: 'admin' },\n  'OPER456': { nivel: 'operador' }\n};\n\nconst codeData = validCodes[payload.codigo];\nif (!codeData) {\n  return [{\n    json: {\n      success: false,\n      autenticado: false,\n      erro: 'invalid_code'\n    }\n  }];\n}\n\nconst token = Buffer.from(`${payload.codigo}_${Date.now()}`).toString('base64');\n\nreturn [{\n  json: {\n    success: true,\n    autenticado: true,\n    nivel_acesso: codeData.nivel,\n    token_sessao: token,\n    expiracao: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()\n  }\n}];"
+      },
+      "id": "process-auth",
+      "name": "Processar Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "response-auth",
+      "name": "Resposta Auth",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 350]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "games/session",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-games-session",
+      "name": "Webhook Games Session",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar eventos de sessão de jogo\nconst payload = $input.all()[0].json;\n\nconst supabaseUrl = 'https://seu-projeto.supabase.co';\nconst supabaseKey = 'sua-chave-anon-publica';\nconst evolutionApiUrl = 'https://api.pracinha.online';\nconst instanceName = 'Variant';\nconst apiKey = '429683C4C977415CAAFCCE10F7D57E11';\n\n// Validar campos obrigatórios\nif (!payload.acao || !payload.game_type) {\n  return [{\n    json: {\n      success: false,\n      error: 'missing_fields',\n      message: 'Campos obrigatórios: acao, game_type'\n    }\n  }];\n}\n\nconst acao = payload.acao; // 'criar', 'entrar', 'atualizar', 'completar'\nconst gameType = payload.game_type; // 'battle', 'trilha', 'iq_test'\n\nlet result = { success: false };\nlet whatsappNotification = null;\n\nif (acao === 'criar') {\n  // Criar nova sessão de jogo\n  const sessionData = {\n    game_type: gameType,\n    player1_id: payload.player1_id,\n    player1_name: payload.player1_name || 'Player 1',\n    player1_data: payload.player1_data || {},\n    status: 'waiting',\n    current_turn: 1,\n    game_state: payload.game_state || {}\n  };\n  \n  // Em produção: fazer POST para Supabase REST API\n  result = {\n    success: true,\n    acao: 'criar',\n    session_id: 'temp_' + Date.now(),\n    message: 'Sessão criada com sucesso'\n  };\n  \n} else if (acao === 'entrar') {\n  // Entrar em sessão existente\n  if (!payload.session_id) {\n    return [{\n      json: {\n        success: false,\n        error: 'missing_session_id'\n      }\n    }];\n  }\n  \n  // Em produção: fazer UPDATE para Supabase\n  result = {\n    success: true,\n    acao: 'entrar',\n    session_id: payload.session_id,\n    message: 'Entrou na sessão com sucesso'\n  };\n  \n  // Notificar player1 via WhatsApp se tiver número\n  if (payload.player1_phone) {\n    whatsappNotification = {\n      number: payload.player1_phone,\n      text: `⚔️ Oponente encontrado!\\n\\nJogador: ${payload.player2_name || 'Player 2'}\\nJogo: ${gameType}\\n\\nA batalha vai começar!`\n    };\n  }\n  \n} else if (acao === 'atualizar') {\n  // Atualizar estado do jogo\n  if (!payload.session_id) {\n    return [{\n      json: {\n        success: false,\n        error: 'missing_session_id'\n      }\n    }];\n  }\n  \n  result = {\n    success: true,\n    acao: 'atualizar',\n    session_id: payload.session_id,\n    message: 'Estado atualizado'\n  };\n  \n} else if (acao === 'completar') {\n  // Completar jogo\n  if (!payload.session_id || !payload.winner) {\n    return [{\n      json: {\n        success: false,\n        error: 'missing_fields'\n      }\n    }];\n  }\n  \n  result = {\n    success: true,\n    acao: 'completar',\n    session_id: payload.session_id,\n    winner: payload.winner,\n    message: 'Jogo completado'\n  };\n  \n  // Notificar ambos os jogadores se tiver números\n  if (payload.player1_phone) {\n    whatsappNotification = {\n      number: payload.player1_phone,\n      text: `🏆 Jogo Finalizado!\\n\\nVencedor: ${payload.winner}\\nJogo: ${gameType}\\n\\nParabéns aos combatentes!`\n    };\n  }\n}\n\nreturn [{\n  json: {\n    ...result,\n    whatsappNotification,\n    evolutionApiUrl,\n    instanceName,\n    apiKey\n  }\n}];"
+      },
+      "id": "process-games-session",
+      "name": "Processar Games Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "response-games-session",
+      "name": "Resposta Games Session",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enviar notificação WhatsApp se houver\nconst data = $input.all()[0].json;\n\nif (!data.whatsappNotification) {\n  return [];\n}\n\nreturn [{\n  json: {\n    evolutionApiUrl: data.evolutionApiUrl,\n    instanceName: data.instanceName,\n    apiKey: data.apiKey,\n    number: data.whatsappNotification.number,\n    text: data.whatsappNotification.text\n  }\n}];"
+      },
+      "id": "check-whatsapp-notification",
+      "name": "Check WhatsApp Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.evolutionApiUrl }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $json.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.number }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "send-game-notification",
+      "name": "Send Game Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 500],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "games/move",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-games-move",
+      "name": "Webhook Games Move",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 650]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar movimentos/jogadas de jogo\nconst payload = $input.all()[0].json;\n\nconst supabaseUrl = 'https://seu-projeto.supabase.co';\nconst supabaseKey = 'sua-chave-anon-publica';\n\n// Validar campos obrigatórios\nif (!payload.session_id || !payload.player_id || !payload.move_type) {\n  return [{\n    json: {\n      success: false,\n      error: 'missing_fields',\n      message: 'Campos obrigatórios: session_id, player_id, move_type'\n    }\n  }];\n}\n\nconst moveData = {\n  session_id: payload.session_id,\n  player_id: payload.player_id,\n  player_number: payload.player_number || 1,\n  move_type: payload.move_type,\n  move_data: payload.move_data || {},\n  round_number: payload.round_number || 1\n};\n\n// Em produção: fazer POST para Supabase REST API\n// POST /rest/v1/game_moves\n\nreturn [{\n  json: {\n    success: true,\n    move_id: 'move_' + Date.now(),\n    message: 'Movimento registrado com sucesso',\n    move: moveData\n  }\n}];"
+      },
+      "id": "process-games-move",
+      "name": "Processar Games Move",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 650]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "response-games-move",
+      "name": "Resposta Games Move",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 650]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admin-trial",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-admin-trial",
+      "name": "Webhook Admin Trial",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar criação de trial administrativo\nconst payload = $input.all()[0].json;\n\nconst evolutionApiUrl = 'https://api.pracinha.online';\nconst instanceName = 'Variant';\nconst apiKey = '429683C4C977415CAAFCCE10F7D57E11';\n\n// Validar campos obrigatórios\nif (!payload.acao || payload.acao !== 'criar_trial' || !payload.store_name || !payload.admin_phone) {\n  return [{\n    json: {\n      success: false,\n      error: 'missing_fields',\n      message: 'Campos obrigatórios: acao, store_name, admin_phone'\n    }\n  }];\n}\n\n// Gerar código de acesso\nconst accessCode = `FEB-${Math.random().toString(36).toUpperCase().slice(2, 8)}-TRIAL`;\n\n// Calcular data de expiração (2 dias)\nconst trialStartedAt = new Date();\nconst trialExpiresAt = new Date(trialStartedAt);\ntrialExpiresAt.setDate(trialExpiresAt.getDate() + 2);\n\n// Em produção: salvar no Supabase\n// POST /rest/v1/admin_trials\n\nreturn [{\n  json: {\n    success: true,\n    access_code: accessCode,\n    trial_expires_at: trialExpiresAt.toISOString(),\n    message: 'Trial criado com sucesso',\n    store_name: payload.store_name,\n    admin_phone: payload.admin_phone,\n    evolutionApiUrl,\n    instanceName,\n    apiKey\n  }\n}];"
+      },
+      "id": "process-admin-trial",
+      "name": "Processar Admin Trial",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 800]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "response-admin-trial",
+      "name": "Resposta Admin Trial",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enviar WhatsApp com código de acesso\nconst data = $input.all()[0].json;\n\nif (!data.success || !data.access_code) {\n  return [];\n}\n\nconst mensagem = `🎉 *TRIAL CRIADO COM SUCESSO!*\\n\\n📱 *Loja:* ${data.store_name}\\n🔑 *Código de Acesso:* ${data.access_code}\\n⏰ *Expira em:* 2 dias\\n\\nUse este código para acessar o painel administrativo.\\n\\nApós expirar, entre em contato para obter o código definitivo de 1 ano.`;\n\nreturn [{\n  json: {\n    evolutionApiUrl: data.evolutionApiUrl,\n    instanceName: data.instanceName,\n    apiKey: data.apiKey,\n    number: data.admin_phone,\n    text: mensagem\n  }\n}];"
+      },
+      "id": "format-trial-whatsapp",
+      "name": "Format Trial WhatsApp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 800]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.evolutionApiUrl }}/message/sendText/{{ $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $json.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.number }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "send-trial-whatsapp",
+      "name": "Send Trial WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 800],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Evolution Webhook": {
+      "main": [
+        [
+          {
+            "node": "Processar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Enviar Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Pedido": {
+      "main": [
+        [
+          {
+            "node": "Processar Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Pedido": {
+      "main": [
+        [
+          {
+            "node": "Enviar Comanda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Comanda": {
+      "main": [
+        [
+          {
+            "node": "Confirmar Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar Cliente": {
+      "main": [
+        [
+          {
+            "node": "Resposta Pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Auth": {
+      "main": [
+        [
+          {
+            "node": "Processar Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Auth": {
+      "main": [
+        [
+          {
+            "node": "Resposta Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Games Session": {
+      "main": [
+        [
+          {
+            "node": "Processar Games Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Games Session": {
+      "main": [
+        [
+          {
+            "node": "Resposta Games Session",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check WhatsApp Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check WhatsApp Notification": {
+      "main": [
+        [
+          {
+            "node": "Send Game Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Games Move": {
+      "main": [
+        [
+          {
+            "node": "Processar Games Move",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Games Move": {
+      "main": [
+        [
+          {
+            "node": "Resposta Games Move",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Admin Trial": {
+      "main": [
+        [
+          {
+            "node": "Processar Admin Trial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar Admin Trial": {
+      "main": [
+        [
+          {
+            "node": "Resposta Admin Trial",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Trial WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Trial WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Send Trial WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-08-03T00:00:00.000Z"
+}

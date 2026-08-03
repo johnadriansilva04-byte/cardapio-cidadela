@@ -1,7 +1,8 @@
 import { Bot, HelpCircle, LayoutGrid, Lock, Settings, Receipt, X, Map } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { CobraFumando } from "@/components/CobraFumando";
+import { CodeTimer } from "@/components/cidadela/CodeTimer";
 import { CidadelaDashboard } from "@/components/cidadela/Dashboard";
 import { PracinhaIA } from "@/components/cidadela/Praxinha";
 import { ConfigOperacional } from "@/components/cidadela/Config";
@@ -32,6 +33,42 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("lobby");
   const [activeModule, setActiveModule] = useState<"trilha" | null>(null);
+  const [codeExpiresAt, setCodeExpiresAt] = useState<string | null>(null);
+
+  // Salvar dados do usuário ao desbloquear
+  const saveUserData = (userPhone: string, accessCode: string) => {
+    const userData = {
+      phone: userPhone,
+      accessCode,
+      unlockedAt: new Date().toISOString(),
+      expiresAt: codeExpiresAt,
+    };
+    localStorage.setItem("cidadela_user_data", JSON.stringify(userData));
+  };
+
+  // Recuperar dados do usuário ao carregar
+  useEffect(() => {
+    const savedData = localStorage.getItem("cidadela_user_data");
+    if (savedData) {
+      try {
+        const userData = JSON.parse(savedData);
+        // Verificar se o código ainda é válido
+        if (userData.expiresAt && new Date(userData.expiresAt) > new Date()) {
+          setCode(userData.accessCode);
+          setCodeExpiresAt(userData.expiresAt);
+        }
+      } catch (e) {
+        console.error("Erro ao recuperar dados do usuário:", e);
+      }
+    }
+  }, []);
+
+  const handleCodeExpire = () => {
+    setUnlocked(false);
+    setCode("");
+    setCodeExpiresAt(null);
+    localStorage.removeItem("cidadela_user_data");
+  };
 
   async function tryUnlock(e: React.FormEvent) {
     e.preventDefault();
@@ -60,6 +97,23 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
       const response = await validateCidadelaCode(state.integrations.cidadelaAuthUrl, value);
 
       if (response.success && response.autenticado) {
+        // Calcular expiração baseado no tipo de código
+        const now = new Date();
+        let expiresAt: Date;
+        
+        if (value.startsWith("VIP")) {
+          // 15 dias
+          expiresAt = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+        } else if (value.startsWith("CID")) {
+          // 15 minutos
+          expiresAt = new Date(now.getTime() + 15 * 60 * 1000);
+        } else {
+          // Padrão: 15 minutos
+          expiresAt = new Date(now.getTime() + 15 * 60 * 1000);
+        }
+        
+        setCodeExpiresAt(expiresAt.toISOString());
+        
         update((prev) => ({
           ...prev,
           cidadela: {
@@ -73,6 +127,17 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
         // Fallback para validação local de códigos promocionais
         const codeEntry = state.cidadela.codes.find((c) => c.code.toUpperCase() === value);
         if (codeEntry && isCodeValid(codeEntry)) {
+          const now = new Date();
+          let expiresAt: Date;
+          
+          if (codeEntry.label.includes("15 dias")) {
+            expiresAt = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+          } else {
+            expiresAt = new Date(now.getTime() + 15 * 60 * 1000);
+          }
+          
+          setCodeExpiresAt(expiresAt.toISOString());
+          
           update((prev) => ({
             ...prev,
             cidadela: {
@@ -104,6 +169,17 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
       // Fallback para validação local em caso de erro
       const codeEntry = state.cidadela.codes.find((c) => c.code.toUpperCase() === value);
       if (codeEntry && isCodeValid(codeEntry)) {
+        const now = new Date();
+        let expiresAt: Date;
+        
+        if (codeEntry.label.includes("15 dias")) {
+          expiresAt = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+        } else {
+          expiresAt = new Date(now.getTime() + 15 * 60 * 1000);
+        }
+        
+        setCodeExpiresAt(expiresAt.toISOString());
+        
         update((prev) => ({
           ...prev,
           cidadela: {
@@ -226,6 +302,9 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
           </>
         ) : (
           <>
+            {codeExpiresAt && (
+              <CodeTimer expiresAt={codeExpiresAt} onExpire={handleCodeExpire} />
+            )}
             {activeModule === "trilha" ? (
               <div className="h-[calc(100vh-73px)] overflow-auto">
                 <button

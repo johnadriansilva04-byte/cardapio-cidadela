@@ -38,6 +38,15 @@ function securityMiddleware(request: Request): { allowed: boolean; error?: strin
   const url = new URL(request.url);
   const pathname = url.pathname;
 
+  // Aplicar segurança APENAS para webhooks específicos
+  // Não bloquear requisições normais do cardápio (assets, páginas, etc)
+  const webhookPaths = ['/webhook/pracinha', '/webhook/cidadela', '/webhook/games', '/webhook/admin-trial'];
+  const isWebhook = webhookPaths.some(path => pathname.includes(path));
+
+  if (!isWebhook) {
+    return { allowed: true }; // Não aplicar segurança para requisições normais
+  }
+
   // Rate limiting por endpoint
   let rateLimitType: 'webhook' | 'auth' | 'games' | 'default' = 'default';
   

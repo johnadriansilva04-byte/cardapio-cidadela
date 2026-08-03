@@ -12,6 +12,7 @@ const RATE_LIMITS = {
   webhook: { max: 10, windowMs: 60000 }, // 10 req/min
   auth: { max: 5, windowMs: 60000 }, // 5 req/min
   games: { max: 30, windowMs: 60000 }, // 30 req/min
+  default: { max: 100, windowMs: 60000 }, // 100 req/min (para requisições normais)
 };
 
 // Armazenamento em memória (em produção usar Redis)

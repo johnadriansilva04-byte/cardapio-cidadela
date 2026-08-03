@@ -4,7 +4,7 @@ const DB_NAME = "CardapioDB";
 const STORE = "kv";
 const STATE_KEY = "currentState";
 const LS_KEY = "cardapio_state_backup";
-const STATE_VERSION = 5; // Increment to force state reset
+const STATE_VERSION = 6; // Increment to force state reset
 
 function openDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {

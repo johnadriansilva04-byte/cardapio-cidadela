@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { checkRateLimit, detectLoop, detectMassOperation } from "./lib/security";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -16,6 +17,53 @@ async function getServerEntry(): Promise<ServerEntry> {
     );
   }
   return serverEntryPromise;
+}
+
+/**
+ * Extrai IP da requisição (considerando proxies)
+ */
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  const realIp = request.headers.get('x-real-ip');
+  const cfConnectingIp = request.headers.get('cf-connecting-ip');
+  
+  return cfConnectingIp || realIp || forwarded?.split(',')[0]?.trim() || 'unknown';
+}
+
+/**
+ * Middleware de segurança
+ */
+function securityMiddleware(request: Request): { allowed: boolean; error?: string } {
+  const ip = getClientIp(request);
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+
+  // Rate limiting por endpoint
+  let rateLimitType: 'webhook' | 'auth' | 'games' | 'default' = 'default';
+  
+  if (pathname.includes('/pracinha')) rateLimitType = 'webhook';
+  else if (pathname.includes('/cidadela')) rateLimitType = 'auth';
+  else if (pathname.includes('/games')) rateLimitType = 'games';
+
+  const rateLimit = checkRateLimit(ip, rateLimitType);
+  if (!rateLimit.allowed) {
+    console.error(`[SECURITY] Rate limit exceeded for IP: ${ip}, endpoint: ${pathname}`);
+    return { allowed: false, error: 'Rate limit exceeded' };
+  }
+
+  // Detectar loops em operações repetidas
+  if (detectLoop(ip, pathname, 20, 10000)) {
+    console.error(`[SECURITY] Loop detected for IP: ${ip}, endpoint: ${pathname}`);
+    return { allowed: false, error: 'Too many requests' };
+  }
+
+  // Detectar disparo em massa
+  if (detectMassOperation(ip, 200, 60000)) {
+    console.error(`[SECURITY] Mass operation detected for IP: ${ip}`);
+    return { allowed: false, error: 'Mass operation blocked' };
+  }
+
+  return { allowed: true };
 }
 
 // h3 swallows in-handler throws into a normal 500 Response with body
@@ -48,7 +96,24 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const url = request.url;
     const method = request.method;
-    console.log(`[SERVER REQUEST] ${method} ${url}`);
+    const ip = getClientIp(request);
+    console.log(`[SERVER REQUEST] ${method} ${url} - IP: ${ip}`);
+
+    // Aplicar middleware de segurança
+    const securityCheck = securityMiddleware(request);
+    if (!securityCheck.allowed) {
+      console.error(`[SECURITY BLOCK] ${method} ${url} - ${securityCheck.error}`);
+      return new Response(
+        JSON.stringify({ error: securityCheck.error, retryAfter: 60 }),
+        {
+          status: 429,
+          headers: {
+            "content-type": "application/json",
+            "retry-after": "60",
+          },
+        },
+      );
+    }
 
     try {
       const handler = await getServerEntry();

@@ -55,7 +55,7 @@ export function useAdminTrial() {
   }
 
   async function createTrial(storeName: string, adminPhone: string) {
-    const accessCode = `FEB-${Math.random().toString(36).toUpperCase().slice(2, 8)}-TRIAL`;
+    const accessCode = `FEB-${Math.random().toString(36).toUpperCase().slice(2, 8)}-CID`;
     const trialStartedAt = new Date();
     const trialExpiresAt = new Date(trialStartedAt);
     trialExpiresAt.setDate(trialExpiresAt.getDate() + 2); // 2 dias de trial
@@ -110,7 +110,7 @@ export function useAdminTrial() {
       checkExpiration(trialData);
     }
 
-    return { valid: isValid, trial: trialData, adminPhone: trialData.admin_phone };
+    return { valid: isValid, trial: trialData, adminPhone: trialData.admin_phone, storeId: trialData.id };
   }
 
   async function activateLiberationCode(code: string) {

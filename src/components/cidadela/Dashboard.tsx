@@ -1,13 +1,11 @@
-import { useMemo, useState } from "react";
-import { Copy, Trash2 } from "lucide-react";
+import { useMemo } from "react";
 
 import { useStore } from "@/modules/cidadela-core/store";
-import { brl, generatePromoCode } from "@/modules/cidadela-core/utils";
+import { brl } from "@/modules/cidadela-core/utils";
 import { pendingCount } from "@/modules/fluxos-n8n/webhook";
 
 export function CidadelaDashboard() {
   const { state, update, online } = useStore();
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const metrics = useMemo(() => {
     const faturamento = state.orders.reduce((s, o) => s + o.total, 0);
@@ -44,96 +42,6 @@ export function CidadelaDashboard() {
             style={{ width: `${progresso}%` }}
           />
         </div>
-      </section>
-
-      <section className="rounded-xl border border-border p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-tech text-[10px] text-muted-foreground">Códigos FEB</h3>
-          <button
-            type="button"
-            onClick={() =>
-              update((prev) => ({
-                ...prev,
-                cidadela: {
-                  ...prev.cidadela,
-                  codes: [generatePromoCode(), ...prev.cidadela.codes],
-                },
-              }))
-            }
-            className="text-tech rounded-md bg-[color:var(--olive)] px-3 py-1.5 text-[10px]"
-          >
-            Emitir código
-          </button>
-        </div>
-        <ul className="mt-3 space-y-2">
-          {state.cidadela.codes.length === 0 && (
-            <li className="text-xs text-muted-foreground">Nenhum código emitido ainda.</li>
-          )}
-          {state.cidadela.codes.map((c) => (
-            <li
-              key={c.code}
-              className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-tech text-[11px] font-semibold">{c.code}</span>
-                <span className="text-tech text-[9px] text-muted-foreground">
-                  {c.discount}% · {c.used ? "USADO" : "ATIVO"}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(c.code);
-                    setCopiedCode(c.code);
-                    setTimeout(() => setCopiedCode(null), 2000);
-                  }}
-                  className="grid size-6 place-items-center rounded hover:bg-muted"
-                  title="Copiar código"
-                >
-                  <Copy className="size-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    update((prev) => ({
-                      ...prev,
-                      cidadela: {
-                        ...prev.cidadela,
-                        codes: prev.cidadela.codes.map((code) =>
-                          code.code === c.code ? { ...code, used: !code.used } : code,
-                        ),
-                      },
-                    }))
-                  }
-                  className="text-tech rounded px-2 py-1 text-[9px] hover:bg-muted"
-                  title={c.used ? "Marcar como ativo" : "Marcar como usado"}
-                >
-                  {c.used ? "Reativar" : "Usar"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    update((prev) => ({
-                      ...prev,
-                      cidadela: {
-                        ...prev.cidadela,
-                        codes: prev.cidadela.codes.filter((code) => code.code !== c.code),
-                      },
-                    }))
-                  }
-                  className="grid size-6 place-items-center rounded text-destructive hover:bg-destructive/10"
-                  title="Remover código"
-                >
-                  <Trash2 className="size-3" />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-        {copiedCode && (
-          <p className="mt-2 text-[9px] text-green-600">Código {copiedCode} copiado!</p>
-        )}
       </section>
 
       <section className="flex flex-wrap gap-2">

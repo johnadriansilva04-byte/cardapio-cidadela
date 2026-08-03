@@ -11,6 +11,7 @@ import {
   newComanda,
 } from "@/modules/cidadela-core/utils";
 import { buildOrderPayload, sendToN8n } from "@/modules/fluxos-n8n/webhook";
+import { supabase } from "@/modules/supabase/client";
 import type { Order, OrderItem } from "@/lib/types";
 
 type Cart = Record<string, number>;
@@ -60,10 +61,26 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     const accessType = order.total >= 200 ? "15_dias" : "15_min";
 
     // Gerar código promocional para acesso à Cidadela
-    const promoCode = generatePromoCode(
-      accessType === "15_dias" ? "FEB-VIP" : "FEB-ACESSO",
-      accessType,
-    );
+    const promoCode = generatePromoCode(undefined, accessType);
+
+    // Salvar código no Supabase
+    const expiresAt = new Date(promoCode.expiration);
+    const { error: supabaseError } = await supabase
+      .from("cidadela_codes")
+      .insert({
+        code: promoCode.code,
+        store_id: state.admin.storeId || state.admin.accessKey,
+        customer_phone: order.telefone,
+        access_type: accessType,
+        order_total: order.total,
+        expires_at: expiresAt.toISOString(),
+        is_active: true,
+      });
+
+    if (supabaseError) {
+      console.error("Erro ao salvar código no Supabase:", supabaseError);
+      // Continuar mesmo se falhar (não bloquear o pedido)
+    }
 
     // Payload completo conforme documentação do N8N com código da Cidadela
     const payloadWithCode = buildOrderPayload(
@@ -71,6 +88,8 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       promoCode.code,
       accessType,
       state.admin.phone || state.whatsapp,
+      state.admin.accessCode,
+      state.admin.storeId,
     );
 
     console.log("ENVIANDO WEBHOOK COMPLETO PARA:", state.integrations.n8nWebhookUrl);

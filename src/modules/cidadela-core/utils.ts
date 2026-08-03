@@ -11,9 +11,10 @@ export function generatePromoCode(
   prefix = "FEB-VIP",
   accessType?: "15_min" | "15_dias",
 ): PromoCode {
-  const rand = Math.random().toString(36).toUpperCase().slice(2, 6);
+  const rand = Math.random().toString(36).toUpperCase().slice(2, 8);
+  const codePrefix = accessType === "15_dias" ? "VIP" : "CID";
   return {
-    code: `${prefix}-${rand}-1944`,
+    code: `${codePrefix}-${rand}`,
     label:
       accessType === "15_dias"
         ? "Código VIP - 15 dias de acesso"

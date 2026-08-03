@@ -56,7 +56,7 @@ export interface AppState {
   store: { name: string; slogan: string; marquee: string; coverPhoto?: string };
   payment: { pixKey: string };
   promo: { meta: number; cidadelaDate: string };
-  admin: { accessKey: string; phone?: string };
+  admin: { accessKey: string; phone?: string; accessCode?: string; storeId?: string };
   whatsapp: string;
   integrations: {
     geminiApiKey: string;

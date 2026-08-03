@@ -37,6 +37,7 @@ CREATE TABLE menu_items (
 -- Tabela de pedidos
 CREATE TABLE orders (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  store_id TEXT NOT NULL REFERENCES admin_trials(id) ON DELETE CASCADE,
   customer_name TEXT NOT NULL,
   customer_phone TEXT NOT NULL,
   delivery_address TEXT,
@@ -100,6 +101,57 @@ CREATE TABLE liberation_codes (
   used BOOLEAN NOT NULL DEFAULT false,
   used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL
+);
+
+-- Tabela de configurações da loja (cardápio)
+CREATE TABLE store_configs (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  store_id TEXT NOT NULL REFERENCES admin_trials(id) ON DELETE CASCADE,
+  
+  -- Dados da loja
+  store_name TEXT NOT NULL,
+  slogan TEXT,
+  marquee TEXT,
+  cover_photo TEXT,
+  
+  -- Configurações de pagamento
+  pix_key TEXT NOT NULL,
+  
+  -- Cardápio (categorias e itens em JSONB)
+  categories JSONB NOT NULL DEFAULT '[]',
+  
+  -- Metadados
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  
+  -- Garantir uma config por loja
+  UNIQUE(store_id)
+);
+
+-- Tabela de códigos da Cidadela
+CREATE TABLE cidadela_codes (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  code TEXT UNIQUE NOT NULL,
+  store_id TEXT NOT NULL REFERENCES admin_trials(id) ON DELETE CASCADE,
+  customer_phone TEXT NOT NULL,
+  order_id TEXT REFERENCES orders(id),
+  
+  -- Tipo de acesso
+  access_type TEXT NOT NULL CHECK (access_type IN ('15_min', '15_dias')),
+  
+  -- Valores
+  order_total DECIMAL(10,2) NOT NULL,
+  
+  -- Controle de validade
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  is_used BOOLEAN NOT NULL DEFAULT false,
+  used_at TIMESTAMPTZ,
+  
+  -- Metadados
+  usage_count INTEGER DEFAULT 0,
+  last_used_at TIMESTAMPTZ
 );
 
 -- ============================================
@@ -190,6 +242,16 @@ CREATE INDEX idx_admin_trials_is_active ON admin_trials(is_active);
 CREATE INDEX idx_liberation_codes_code ON liberation_codes(code);
 CREATE INDEX idx_liberation_codes_store_id ON liberation_codes(store_id);
 CREATE INDEX idx_liberation_codes_used ON liberation_codes(used);
+
+-- store_configs
+CREATE INDEX idx_store_configs_store_id ON store_configs(store_id);
+
+-- cidadela_codes
+CREATE INDEX idx_cidadela_codes_code ON cidadela_codes(code);
+CREATE INDEX idx_cidadela_codes_store_id ON cidadela_codes(store_id);
+CREATE INDEX idx_cidadela_codes_customer_phone ON cidadela_codes(customer_phone);
+CREATE INDEX idx_cidadela_codes_expires_at ON cidadela_codes(expires_at);
+CREATE INDEX idx_cidadela_codes_is_active ON cidadela_codes(is_active);
 
 -- chat_messages
 CREATE INDEX idx_chat_messages_room_id ON chat_messages(room_id);

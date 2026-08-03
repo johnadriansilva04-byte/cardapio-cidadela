@@ -23,6 +23,8 @@ export interface N8nPayload {
   cidadela_code?: string;
   cidadela_access_type?: "15_min" | "15_dias";
   restaurante_whatsapp?: string;
+  access_code?: string;
+  store_id?: string;
 }
 
 export function buildOrderPayload(
@@ -30,6 +32,8 @@ export function buildOrderPayload(
   cidadelaCode?: string,
   accessType?: "15_min" | "15_dias",
   restauranteWhatsApp?: string,
+  accessCode?: string,
+  storeId?: string,
 ): N8nPayload {
   return {
     cliente: order.cliente,
@@ -52,6 +56,8 @@ export function buildOrderPayload(
     cidadela_code: cidadelaCode,
     cidadela_access_type: accessType,
     restaurante_whatsapp: restauranteWhatsApp,
+    access_code: accessCode,
+    store_id: storeId,
   };
 }
 

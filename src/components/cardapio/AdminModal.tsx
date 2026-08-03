@@ -1,23 +1,21 @@
-import { Settings, X, Lock, AlertCircle } from "lucide-react";
+import { X, Lock, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 
 import { CobraFumando } from "@/components/CobraFumando";
 import { ConfigOperacional } from "@/components/cidadela/Config";
+import { MenuPrincipal } from "./admin/MenuPrincipal";
+import { GerenciarCategorias } from "./admin/GerenciarCategorias";
+import { GerenciarLanches } from "./admin/GerenciarLanches";
 import { useStore } from "@/modules/cidadela-core/store";
 import { useAdminTrial } from "@/modules/supabase/admin";
 import { sendAdminTrial } from "@/modules/fluxos-n8n/webhook";
 
-type Tab = "config" | "pedidos";
+type Module = "menu" | "config" | "categorias" | "lanches" | "pedidos";
 type LoginStep = "login" | "trial" | "premium" | "blocked";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "config", label: "Operacional" },
-  { id: "pedidos", label: "Comandas" },
-];
 
 export function AdminModal({ onClose }: { onClose: () => void }) {
   const { state, update } = useStore();
-  const [tab, setTab] = useState<Tab>("config");
+  const [module, setModule] = useState<Module>("menu");
   const [loginStep, setLoginStep] = useState<LoginStep>("login");
   const [accessCode, setAccessCode] = useState("");
   const [storeName, setStoreName] = useState("");
@@ -54,13 +52,16 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
 
     const result = await validateAccessCode(accessCode.trim());
     if (result.valid) {
-      // Carregar WhatsApp do dono no state
-      if (result.adminPhone) {
-        update((prev) => ({
-          ...prev,
-          admin: { ...prev.admin, phone: result.adminPhone },
-        }));
-      }
+      // Carregar dados do dono no state
+      update((prev) => ({
+        ...prev,
+        admin: { 
+          ...prev.admin, 
+          phone: result.adminPhone,
+          storeId: result.storeId,
+          accessCode: accessCode.trim(),
+        },
+      }));
 
       if (result.trial?.is_premium) {
         setLoginStep("premium");
@@ -282,26 +283,12 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <nav className="flex gap-1 overflow-x-auto border-b border-border px-3 py-2 bg-slate-800">
-          {TABS.map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={`text-tech flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-[10px] ${
-                tab === id
-                  ? "bg-[color:var(--olive)] text-white"
-                  : "text-gray-300 hover:bg-slate-700"
-              }`}
-            >
-              <Settings className="size-3.5" /> {label}
-            </button>
-          ))}
-        </nav>
-
         <div className="px-5 py-6 bg-slate-900">
-          {tab === "config" && <ConfigOperacional />}
-          {tab === "pedidos" && (
+          {module === "menu" && <MenuPrincipal onSelectModule={setModule} />}
+          {module === "config" && <ConfigOperacional />}
+          {module === "categorias" && <GerenciarCategorias onBack={() => setModule("menu")} />}
+          {module === "lanches" && <GerenciarLanches onBack={() => setModule("menu")} />}
+          {module === "pedidos" && (
             <div className="text-center text-sm text-gray-300">
               Módulo de comandas em desenvolvimento
             </div>

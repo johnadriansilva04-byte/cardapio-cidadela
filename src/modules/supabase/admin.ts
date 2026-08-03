@@ -68,6 +68,7 @@ export function useAdminTrial() {
         access_code: accessCode,
         trial_started_at: trialStartedAt.toISOString(),
         trial_expires_at: trialExpiresAt.toISOString(),
+        created_at: new Date().toISOString(),
       })
       .select()
       .single();

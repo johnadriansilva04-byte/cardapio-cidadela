@@ -102,7 +102,7 @@ export const DEFAULT_STATE: AppState = {
   integrations: {
     geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
     n8nWebhookUrl:
-      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://pracinha.online/webhook/pracinha",
+      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://above-improvement-endless-acne.trycloudflare.com/webhook/cardapio-pedido",
     cidadelaAuthUrl:
       import.meta.env.VITE_N8N_CIDADELA_AUTH_URL ||
       "https://pracinha.online/webhook/cidadela",

@@ -21,9 +21,30 @@ export const NODE_COUNT = 24;
 
 /** Coordenadas em grade 0..6 (x, y) usadas para renderização SVG. */
 export const NODE_COORDS: ReadonlyArray<readonly [number, number]> = [
-  [0, 0], [3, 0], [6, 0], [6, 3], [6, 6], [3, 6], [0, 6], [0, 3], // anel externo 0-7
-  [1, 1], [3, 1], [5, 1], [5, 3], [5, 5], [3, 5], [1, 5], [1, 3], // anel médio  8-15
-  [2, 2], [3, 2], [4, 2], [4, 3], [4, 4], [3, 4], [2, 4], [2, 3], // anel interno 16-23
+  [0, 0],
+  [3, 0],
+  [6, 0],
+  [6, 3],
+  [6, 6],
+  [3, 6],
+  [0, 6],
+  [0, 3], // anel externo 0-7
+  [1, 1],
+  [3, 1],
+  [5, 1],
+  [5, 3],
+  [5, 5],
+  [3, 5],
+  [1, 5],
+  [1, 3], // anel médio  8-15
+  [2, 2],
+  [3, 2],
+  [4, 2],
+  [4, 3],
+  [4, 4],
+  [3, 4],
+  [2, 4],
+  [2, 3], // anel interno 16-23
 ];
 
 /** Nomes táticos dos setores (usado no log de operações). */
@@ -43,10 +64,14 @@ const EDGES: Array<[number, number]> = [
   ...ringCycle(8),
   ...ringCycle(16),
   // eixos ortogonais (meio de cada lado)
-  [1, 9], [9, 17],
-  [3, 11], [11, 19],
-  [5, 13], [13, 21],
-  [7, 15], [15, 23],
+  [1, 9],
+  [9, 17],
+  [3, 11],
+  [11, 19],
+  [5, 13],
+  [13, 21],
+  [7, 15],
+  [15, 23],
 ];
 
 /** Matriz de adjacência: vizinhos diretos permitidos para movimentação. */
@@ -61,10 +86,22 @@ export const ADJACENCY: ReadonlyArray<readonly number[]> = (() => {
 
 /** Todas as 16 trincas (moinhos) possíveis. */
 export const MILLS: ReadonlyArray<readonly [number, number, number]> = [
-  [0, 1, 2], [2, 3, 4], [4, 5, 6], [6, 7, 0],
-  [8, 9, 10], [10, 11, 12], [12, 13, 14], [14, 15, 8],
-  [16, 17, 18], [18, 19, 20], [20, 21, 22], [22, 23, 16],
-  [1, 9, 17], [3, 11, 19], [5, 13, 21], [7, 15, 23],
+  [0, 1, 2],
+  [2, 3, 4],
+  [4, 5, 6],
+  [6, 7, 0],
+  [8, 9, 10],
+  [10, 11, 12],
+  [12, 13, 14],
+  [14, 15, 8],
+  [16, 17, 18],
+  [18, 19, 20],
+  [20, 21, 22],
+  [22, 23, 16],
+  [1, 9, 17],
+  [3, 11, 19],
+  [5, 13, 21],
+  [7, 15, 23],
 ];
 
 /** Índice: nó -> moinhos que o contêm (pré-computado para performance da IA). */

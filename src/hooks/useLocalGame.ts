@@ -51,36 +51,42 @@ export function useLocalGame(difficulty: Difficulty, human: Player = 1): LocalGa
     return next;
   }, []);
 
-  const commit = useCallback(
-    (move: Move) => {
-      setState((cur) => {
-        if (!validateMove(cur, move, cur.turn).ok) {
-          playSfx("invalid");
-          return cur;
-        }
-        const actor = cur.turn;
-        const next = applyMove(cur, move);
-        setLog((l) => [describeMove(move, actor, cur.ply), ...l].slice(0, 60));
-        setLastMove(move);
-        return next;
-      });
-    },
-    [],
-  );
+  const commit = useCallback((move: Move) => {
+    setState((cur) => {
+      if (!validateMove(cur, move, cur.turn).ok) {
+        playSfx("invalid");
+        return cur;
+      }
+      const actor = cur.turn;
+      const next = applyMove(cur, move);
+      setLog((l) => [describeMove(move, actor, cur.ply), ...l].slice(0, 60));
+      setLastMove(move);
+      return next;
+    });
+  }, []);
 
   // Turno da máquina
   useEffect(() => {
     if (state.phase === "over" || state.turn === human) return;
     setThinking(true);
     const profile = AI_PROFILES[difficulty];
-    timer.current = window.setTimeout(() => {
-      const decision = chooseMove(state, difficulty);
-      setThinking(false);
-      setAiInfo({ depth: decision.depth, nodes: decision.nodes, elapsedMs: decision.elapsedMs });
-      if (!decision.move) return;
-      playSfx(decision.move.remove !== null ? "capture" : decision.move.from === null ? "place" : "move");
-      push(state, decision.move);
-    }, Math.max(320, profile.timeBudgetMs * 0.35));
+    timer.current = window.setTimeout(
+      () => {
+        const decision = chooseMove(state, difficulty);
+        setThinking(false);
+        setAiInfo({ depth: decision.depth, nodes: decision.nodes, elapsedMs: decision.elapsedMs });
+        if (!decision.move) return;
+        playSfx(
+          decision.move.remove !== null
+            ? "capture"
+            : decision.move.from === null
+              ? "place"
+              : "move",
+        );
+        push(state, decision.move);
+      },
+      Math.max(320, profile.timeBudgetMs * 0.35),
+    );
 
     return () => {
       if (timer.current) window.clearTimeout(timer.current);

@@ -22,9 +22,15 @@ export interface N8nPayload {
   troco?: string;
   cidadela_code?: string;
   cidadela_access_type?: "15_min" | "15_dias";
+  restaurante_whatsapp?: string;
 }
 
-export function buildOrderPayload(order: Order, cidadelaCode?: string, accessType?: "15_min" | "15_dias"): N8nPayload {
+export function buildOrderPayload(
+  order: Order,
+  cidadelaCode?: string,
+  accessType?: "15_min" | "15_dias",
+  restauranteWhatsApp?: string,
+): N8nPayload {
   return {
     cliente: order.cliente,
     telefone: order.telefone,
@@ -45,6 +51,7 @@ export function buildOrderPayload(order: Order, cidadelaCode?: string, accessTyp
     troco: order.troco,
     cidadela_code: cidadelaCode,
     cidadela_access_type: accessType,
+    restaurante_whatsapp: restauranteWhatsApp,
   };
 }
 
@@ -184,13 +191,13 @@ export interface GameSessionPayload {
   session_id?: string;
   player1_id?: string;
   player1_name?: string;
-  player1_data?: Record<string, any>;
+  player1_data?: Record<string, unknown>;
   player2_id?: string;
   player2_name?: string;
-  player2_data?: Record<string, any>;
+  player2_data?: Record<string, unknown>;
   player1_phone?: string;
   player2_phone?: string;
-  game_state?: Record<string, any>;
+  game_state?: Record<string, unknown>;
   winner?: string;
 }
 
@@ -238,7 +245,7 @@ export interface GameMovePayload {
   player_id: string;
   player_number?: number;
   move_type: string;
-  move_data?: Record<string, any>;
+  move_data?: Record<string, unknown>;
   round_number?: number;
 }
 

@@ -1,10 +1,5 @@
 import { useMemo } from "react";
-import {
-  BOARD_EDGES,
-  MILLS,
-  NODE_COORDS,
-  NODE_LABELS,
-} from "@/lib/trilha/board";
+import { BOARD_EDGES, MILLS, NODE_COORDS, NODE_LABELS } from "@/lib/trilha/board";
 import type { Cell, GameState, Player } from "@/lib/trilha/engine";
 import { cn } from "@/lib/utils";
 
@@ -82,9 +77,7 @@ function Piece({
           style={{ animation: "mill-pulse 1s ease-in-out infinite" }}
         />
       )}
-      {isSelected && (
-        <circle r="5.8" fill="none" stroke="var(--lantern)" strokeWidth="0.9" />
-      )}
+      {isSelected && <circle r="5.8" fill="none" stroke="var(--lantern)" strokeWidth="0.9" />}
       <ellipse cx="0.5" cy="1.3" rx="4.2" ry="3.6" fill="var(--ink)" fillOpacity="0.45" />
       <circle
         r="4.1"
@@ -108,7 +101,14 @@ function Piece({
         </g>
       )}
       {isLast && (
-        <circle r="5.2" fill="none" stroke="var(--lantern)" strokeOpacity="0.7" strokeWidth="0.5" strokeDasharray="1 1" />
+        <circle
+          r="5.2"
+          fill="none"
+          stroke="var(--lantern)"
+          strokeOpacity="0.7"
+          strokeWidth="0.5"
+          strokeDasharray="1 1"
+        />
       )}
     </g>
   );
@@ -168,9 +168,7 @@ export function TrilhaBoard({
           {BOARD_EDGES.map(([a, b]) => {
             const [ax, ay] = NODE_COORDS[a]!;
             const [bx, by] = NODE_COORDS[b]!;
-            return (
-              <line key={`${a}-${b}`} x1={px(ax)} y1={px(ay)} x2={px(bx)} y2={px(by)} />
-            );
+            return <line key={`${a}-${b}`} x1={px(ax)} y1={px(ay)} x2={px(bx)} y2={px(by)} />;
           })}
         </g>
 
@@ -235,7 +233,8 @@ export function TrilhaBoard({
               inMill={millNodes.has(node)}
               isLast={lastMove?.to === node}
               clickable={
-                interactive && (captureTargets.has(node) || (cell === state.turn && targets.size >= 0))
+                interactive &&
+                (captureTargets.has(node) || (cell === state.turn && targets.size >= 0))
               }
               onClick={() => onNodeClick(node)}
             />

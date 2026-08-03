@@ -84,7 +84,14 @@ export const WEAPONS: Record<WeaponType, Weapon> = {
   club: { type: "club", damage: 8, fireRate: 0, bulletSpeed: 0, level: 0, melee: true }, // Bastão de combate
   pistol: { type: "pistol", damage: 10, fireRate: 0.5, bulletSpeed: 1200, level: 1, melee: false }, // Pistola M1911
   rifle: { type: "rifle", damage: 8, fireRate: 0.15, bulletSpeed: 1500, level: 3, melee: false }, // Garand M1
-  shotgun: { type: "shotgun", damage: 15, fireRate: 0.8, bulletSpeed: 1000, level: 5, melee: false }, // Browning Auto-5
+  shotgun: {
+    type: "shotgun",
+    damage: 15,
+    fireRate: 0.8,
+    bulletSpeed: 1000,
+    level: 5,
+    melee: false,
+  }, // Browning Auto-5
 };
 
 export const getWeaponForLevel = (level: number): Weapon => {
@@ -94,7 +101,14 @@ export const getWeaponForLevel = (level: number): Weapon => {
   return WEAPONS.club;
 };
 
-export const emptyInputs = (): Inputs => ({ left: false, right: false, jump: false, crouch: false, shoot: false, melee: false });
+export const emptyInputs = (): Inputs => ({
+  left: false,
+  right: false,
+  jump: false,
+  crouch: false,
+  shoot: false,
+  melee: false,
+});
 
 export function createFighter(id: 1 | 2, name: string, level: number = 0): Fighter {
   return {
@@ -120,7 +134,12 @@ export function createFighter(id: 1 | 2, name: string, level: number = 0): Fight
   };
 }
 
-export function createBattle(name1: string, name2: string, level1: number = 0, level2: number = 0): BattleState {
+export function createBattle(
+  name1: string,
+  name2: string,
+  level1: number = 0,
+  level2: number = 0,
+): BattleState {
   return {
     robot1: createFighter(1, name1, level1),
     robot2: createFighter(2, name2, level2),
@@ -175,7 +194,7 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
 
   // Handle shooting/melee based on weapon type and user preference
   const useMeleeAttack = f.weapon.melee || f.useMelee;
-  
+
   if (useMeleeAttack) {
     // Melee attack (punch/club) - usa tanto shoot quanto melee
     if (
@@ -191,12 +210,7 @@ function stepFighter(f: Fighter, input: Inputs, dt: number, state: BattleState, 
     }
   } else {
     // Ranged attack (shooting) - ONLY CREATE PROJECTILES FOR RANGED WEAPONS
-    if (
-      input.shoot &&
-      f.attackCooldown === 0 &&
-      f.hitStun === 0 &&
-      f.state !== "shoot"
-    ) {
+    if (input.shoot && f.attackCooldown === 0 && f.hitStun === 0 && f.state !== "shoot") {
       f.state = "shoot";
       f.stateTimer = 0.15;
       f.attackCooldown = f.weapon.fireRate;
@@ -260,15 +274,22 @@ function resolveMeleeHit(attacker: Fighter, defender: Fighter, state: BattleStat
 
   // Check if hit is on head or body based on height difference
   const isHeadHit = defender.y < 30 && Math.abs(defender.y - attacker.y) > 20;
-  const damage = attacker.weapon.type === "club" 
-    ? attacker.weapon.damage 
-    : isHeadHit ? MELEE_DAMAGE_HEAD : MELEE_DAMAGE_BODY;
-  
+  const damage =
+    attacker.weapon.type === "club"
+      ? attacker.weapon.damage
+      : isHeadHit
+        ? MELEE_DAMAGE_HEAD
+        : MELEE_DAMAGE_BODY;
+
   defender.hp = Math.max(0, defender.hp - damage);
   defender.hitStun = HIT_STUN;
   defender.state = "hit";
   defender.stateTimer = HIT_STUN;
-  defender.x = clamp(defender.x + attacker.facing * 15, FIGHTER_WIDTH / 2, ARENA_WIDTH - FIGHTER_WIDTH / 2);
+  defender.x = clamp(
+    defender.x + attacker.facing * 15,
+    FIGHTER_WIDTH / 2,
+    ARENA_WIDTH - FIGHTER_WIDTH / 2,
+  );
   defender.damageTaken += damage;
   defender.combo = 0;
   attacker.damageDealt += damage;
@@ -283,18 +304,23 @@ function resolveMeleeHit(attacker: Fighter, defender: Fighter, state: BattleStat
   };
 }
 
-function resolveProjectileHit(projectile: Projectile, defender: Fighter, state: BattleState, now: number) {
+function resolveProjectileHit(
+  projectile: Projectile,
+  defender: Fighter,
+  state: BattleState,
+  now: number,
+) {
   if (!projectile.active) return;
   if (defender.state === "ko" || defender.hitStun > 0) return;
 
   // Check if projectile is in range of defender
   const dx = Math.abs(projectile.x - defender.x);
   const dy = Math.abs(projectile.y - defender.y);
-  
+
   // Hitbox size varies by crouching state
   const hitboxHeight = defender.isCrouching ? CROUCH_HEIGHT : 60;
   const hitboxWidth = FIGHTER_WIDTH * 0.7;
-  
+
   if (dx < hitboxWidth && dy < hitboxHeight) {
     // Check if crouching avoids high shots
     if (defender.isCrouching && projectile.y > CROUCH_HEIGHT + 15) {
@@ -333,18 +359,18 @@ function resolveProjectileHit(projectile: Projectile, defender: Fighter, state: 
 }
 
 function stepProjectiles(state: BattleState, dt: number) {
-  state.projectiles.forEach(p => {
+  state.projectiles.forEach((p) => {
     if (!p.active) return;
     p.x += p.vx * dt;
-    
+
     // Remove projectile if out of bounds
     if (p.x < 0 || p.x > ARENA_WIDTH) {
       p.active = false;
     }
   });
-  
+
   // Clean up inactive projectiles
-  state.projectiles = state.projectiles.filter(p => p.active);
+  state.projectiles = state.projectiles.filter((p) => p.active);
 }
 
 export function stepBattle(
@@ -380,7 +406,7 @@ export function stepBattle(
 
   // Step projectiles and check hits
   stepProjectiles(s, dt);
-  s.projectiles.forEach(p => {
+  s.projectiles.forEach((p) => {
     if (p.ownerId === 1) resolveProjectileHit(p, b, s, now);
     else resolveProjectileHit(p, a, s, now);
   });
@@ -405,7 +431,18 @@ export function stepBattle(
 
 export type FighterSnapshot = Pick<
   Fighter,
-  "x" | "y" | "hp" | "facing" | "state" | "combo" | "damageDealt" | "damageTaken" | "level" | "weapon" | "isCrouching" | "useMelee"
+  | "x"
+  | "y"
+  | "hp"
+  | "facing"
+  | "state"
+  | "combo"
+  | "damageDealt"
+  | "damageTaken"
+  | "level"
+  | "weapon"
+  | "isCrouching"
+  | "useMelee"
 >;
 
 export const snapshot = (f: Fighter): FighterSnapshot => ({

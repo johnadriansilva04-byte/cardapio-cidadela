@@ -1,10 +1,6 @@
 import { Shield, Skull } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  countOnBoard,
-  type GameState,
-  type Player,
-} from "@/lib/trilha/engine";
+import { countOnBoard, type GameState, type Player } from "@/lib/trilha/engine";
 import { cn } from "@/lib/utils";
 
 export interface SideInfo {
@@ -41,23 +37,24 @@ export function HQPanel({
   return (
     <aside className="flex w-full flex-col gap-3 lg:w-72">
       <div
-        className={cn(
-          "panel-field rounded-md p-3",
-          awaitingCapture && "ring-2 ring-destructive",
-        )}
+        className={cn("panel-field rounded-md p-3", awaitingCapture && "ring-2 ring-destructive")}
       >
         <p className="text-typewriter text-sm text-white">{status}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className={cn("panel-field rounded-md p-3", state.turn === 1 && "ring-2 ring-lantern")}>
+        <div
+          className={cn("panel-field rounded-md p-3", state.turn === 1 && "ring-2 ring-lantern")}
+        >
           <p className="text-stencil text-sm font-medium text-white">{p1.name}</p>
           <div className="mt-2 flex justify-between text-xs">
             <span className="text-white/90">Campo: {countOnBoard(state.board, 1)}</span>
             <span className="text-white/90">Reserva: {state.hand[1]}</span>
           </div>
         </div>
-        <div className={cn("panel-field rounded-md p-3", state.turn === 2 && "ring-2 ring-lantern")}>
+        <div
+          className={cn("panel-field rounded-md p-3", state.turn === 2 && "ring-2 ring-lantern")}
+        >
           <p className="text-stencil text-sm font-medium text-white">{p2.name}</p>
           <div className="mt-2 flex justify-between text-xs">
             <span className="text-white/90">Campo: {countOnBoard(state.board, 2)}</span>

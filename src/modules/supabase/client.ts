@@ -18,14 +18,14 @@ export type GameSession = {
   game_type: GameType;
   player1_id: string;
   player1_name: string;
-  player1_data: Record<string, any>;
+  player1_data: Record<string, unknown>;
   player2_id: string | null;
   player2_name: string | null;
-  player2_data: Record<string, any>;
+  player2_data: Record<string, unknown>;
   status: GameStatus;
   current_turn: number;
   winner: string | null;
-  game_state: Record<string, any>;
+  game_state: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -37,7 +37,7 @@ export type GameMove = {
   player_id: string;
   player_number: 1 | 2;
   move_type: string;
-  move_data: Record<string, any>;
+  move_data: Record<string, unknown>;
   timestamp: string;
   round_number: number;
 };

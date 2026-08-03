@@ -22,7 +22,7 @@ export function cpuInputs(state: BattleState, t: number): Inputs {
   // Attack AI - shoot or punch based on weapon type and distance
   const useMelee = me.weapon.melee || me.useMelee;
   const attackRange = useMelee ? 120 : 400;
-  
+
   if (dist < attackRange && Math.sin(t * 5) > 0.2) {
     i.shoot = true;
   }
@@ -37,7 +37,7 @@ export function cpuInputs(state: BattleState, t: number): Inputs {
 
   // Crouch AI - crouch to dodge incoming shots
   const incomingProjectile = state.projectiles.find(
-    p => p.ownerId === 1 && p.active && Math.abs(p.x - me.x) < 100
+    (p) => p.ownerId === 1 && p.active && Math.abs(p.x - me.x) < 100,
   );
   if (incomingProjectile && incomingProjectile.y > 50) {
     i.crouch = true;

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase, type GameSession, type GameMove, type GameType } from "./client";
 
-export function useGameMatchmaking<T extends Record<string, any>>(
+export function useGameMatchmaking<T extends Record<string, unknown>>(
   gameType: GameType,
-  playerData: T | null
+  playerData: T | null,
 ) {
   const [session, setSession] = useState<GameSession | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -33,9 +33,9 @@ export function useGameMatchmaking<T extends Record<string, any>>(
           },
           (payload) => {
             console.log("Game session update:", payload);
-            if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
+            if (payload.new && typeof payload.new === "object" && "id" in payload.new) {
               const newSession = payload.new as GameSession;
-              
+
               // Se eu sou player1 e a sessão mudou para active (player2 entrou)
               if (newSession.player1_id === playerId && newSession.status === "active") {
                 setSession(newSession);
@@ -48,7 +48,7 @@ export function useGameMatchmaking<T extends Record<string, any>>(
                 }
                 setSearchTimeElapsed(0);
               }
-              
+
               // Se eu sou player2 e entrei na sessão
               if (newSession.player2_id === playerId && newSession.status === "active") {
                 setSession(newSession);
@@ -61,11 +61,11 @@ export function useGameMatchmaking<T extends Record<string, any>>(
                 }
                 setSearchTimeElapsed(0);
               }
-              
+
               // Atualiza sessão existente
               if (session && newSession.id === session.id) {
                 setSession(newSession);
-                
+
                 if (newSession.status === "active") {
                   const isPlayer1 = newSession.player1_id === playerId;
                   const currentTurn = newSession.current_turn;
@@ -89,7 +89,7 @@ export function useGameMatchmaking<T extends Record<string, any>>(
     };
   }, [gameType, playerId, session]);
 
-  async function createSession(initialGameState: Record<string, any> = {}) {
+  async function createSession(initialGameState: Record<string, unknown> = {}) {
     if (!playerData) return;
 
     setIsSearching(true);
@@ -161,22 +161,20 @@ export function useGameMatchmaking<T extends Record<string, any>>(
     setIsMyTurn(false);
   }
 
-  async function sendMove(moveType: string, moveData: Record<string, any>) {
+  async function sendMove(moveType: string, moveData: Record<string, unknown>) {
     if (!session) return;
 
     const playerNumber = session.player1_id === playerId ? 1 : 2;
 
     // Insere o movimento
-    const { error: moveError } = await supabase
-      .from("game_moves")
-      .insert({
-        session_id: session.id,
-        player_id: playerId,
-        player_number: playerNumber,
-        move_type: moveType,
-        move_data: moveData,
-        round_number: session.current_turn,
-      });
+    const { error: moveError } = await supabase.from("game_moves").insert({
+      session_id: session.id,
+      player_id: playerId,
+      player_number: playerNumber,
+      move_type: moveType,
+      move_data: moveData,
+      round_number: session.current_turn,
+    });
 
     if (moveError) {
       console.error("Error sending move:", moveError);
@@ -203,7 +201,7 @@ export function useGameMatchmaking<T extends Record<string, any>>(
     setIsMyTurn(false);
   }
 
-  async function updateGameState(newGameState: Record<string, any>) {
+  async function updateGameState(newGameState: Record<string, unknown>) {
     if (!session) return;
 
     const { data, error } = await supabase

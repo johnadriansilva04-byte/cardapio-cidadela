@@ -23,20 +23,20 @@ export function useTouchControls(enabled: boolean) {
     const rect = e.currentTarget.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    
+
     const dx = touch.clientX - centerX;
     const dy = touch.clientY - centerY;
-    
+
     const maxDistance = 50;
     const distance = Math.sqrt(dx * dx + dy * dy);
     const clampedDistance = Math.min(distance, maxDistance);
     const angle = Math.atan2(dy, dx);
-    
+
     const clampedX = Math.cos(angle) * clampedDistance;
     const clampedY = Math.sin(angle) * clampedDistance;
-    
+
     setJoystickPosition({ x: clampedX, y: clampedY });
-    
+
     const threshold = 15;
     inputs.current.left = clampedX < -threshold;
     inputs.current.right = clampedX > threshold;
@@ -50,20 +50,20 @@ export function useTouchControls(enabled: boolean) {
     const rect = e.currentTarget.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    
+
     const dx = touch.clientX - centerX;
     const dy = touch.clientY - centerY;
-    
+
     const maxDistance = 50;
     const distance = Math.sqrt(dx * dx + dy * dy);
     const clampedDistance = Math.min(distance, maxDistance);
     const angle = Math.atan2(dy, dx);
-    
+
     const clampedX = Math.cos(angle) * clampedDistance;
     const clampedY = Math.sin(angle) * clampedDistance;
-    
+
     setJoystickPosition({ x: clampedX, y: clampedY });
-    
+
     const threshold = 15;
     inputs.current.left = clampedX < -threshold;
     inputs.current.right = clampedX > threshold;
@@ -71,10 +71,20 @@ export function useTouchControls(enabled: boolean) {
     inputs.current.crouch = clampedY > threshold;
   }, []);
 
-  const handleJoystickEnd = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
-    resetJoystick();
-  }, [resetJoystick]);
+  const handleJoystickEnd = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
+      resetJoystick();
+    },
+    [resetJoystick],
+  );
 
-  return { inputs, setAction, joystickPosition, handleJoystickStart, handleJoystickMove, handleJoystickEnd };
+  return {
+    inputs,
+    setAction,
+    joystickPosition,
+    handleJoystickStart,
+    handleJoystickMove,
+    handleJoystickEnd,
+  };
 }

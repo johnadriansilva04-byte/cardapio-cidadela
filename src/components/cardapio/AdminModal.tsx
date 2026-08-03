@@ -1,5 +1,5 @@
 import { Settings, X, Lock, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { CobraFumando } from "@/components/CobraFumando";
 import { ConfigOperacional } from "@/components/cidadela/Config";
@@ -35,6 +35,16 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
     activateLiberationCode,
   } = useAdminTrial();
 
+  // Carregar WhatsApp do trial no state quando trial carrega
+  useEffect(() => {
+    if (trial && trial.admin_phone && !state.admin.phone) {
+      update((prev) => ({
+        ...prev,
+        admin: { ...prev.admin, phone: trial.admin_phone },
+      }));
+    }
+  }, [trial, state.admin.phone, update]);
+
   async function handleLogin() {
     setError("");
     if (!accessCode.trim()) {
@@ -44,6 +54,14 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
 
     const result = await validateAccessCode(accessCode.trim());
     if (result.valid) {
+      // Carregar WhatsApp do dono no state
+      if (result.adminPhone) {
+        update((prev) => ({
+          ...prev,
+          admin: { ...prev.admin, phone: result.adminPhone },
+        }));
+      }
+
       if (result.trial?.is_premium) {
         setLoginStep("premium");
       } else {
@@ -61,11 +79,17 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
+    // Salvar WhatsApp do dono no state
+    update((prev) => ({
+      ...prev,
+      admin: { ...prev.admin, phone: adminPhone.trim() },
+    }));
+
     // Enviar para o webhook N8N
     const webhookResult = await sendAdminTrial(
       state.integrations.adminTrialUrl,
       storeName.trim(),
-      adminPhone.trim()
+      adminPhone.trim(),
     );
 
     if (!webhookResult.success) {

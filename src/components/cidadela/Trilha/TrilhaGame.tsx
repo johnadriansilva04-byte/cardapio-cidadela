@@ -19,7 +19,15 @@ interface TrilhaGameProps {
 export function TrilhaGame({ onBack }: TrilhaGameProps = {}) {
   const [difficulty, setDifficulty] = useState<Difficulty>("sargento");
   const [seed, setSeed] = useState(0);
-  return <TrilhaGameBoard key={`${difficulty}-${seed}`} difficulty={difficulty} onDifficulty={(d) => setDifficulty(d)} onReset={() => setSeed((s) => s + 1)} onBack={onBack} />;
+  return (
+    <TrilhaGameBoard
+      key={`${difficulty}-${seed}`}
+      difficulty={difficulty}
+      onDifficulty={(d) => setDifficulty(d)}
+      onReset={() => setSeed((s) => s + 1)}
+      onBack={onBack}
+    />
+  );
 }
 
 function TrilhaGameBoard({
@@ -53,7 +61,8 @@ function TrilhaGameBoard({
             : "Sua tropa foi reduzida abaixo do mínimo operacional.";
       return `Derrota. ${motive}`;
     }
-    if (interaction.awaitingCapture) return "TRILHA FECHADA! Selecione a peça inimiga a neutralizar.";
+    if (interaction.awaitingCapture)
+      return "TRILHA FECHADA! Selecione a peça inimiga a neutralizar.";
     if (game.thinking) return "Rádio em silêncio... o estado-maior inimigo calcula a resposta.";
     if (s.turn !== 1) return "Aguardando o inimigo.";
     if (s.phase === "placing") return `Desdobre um pracinha. Reserva: ${s.hand[1]}.`;
@@ -61,7 +70,13 @@ function TrilhaGameBoard({
     return interaction.selected === null
       ? "Selecione um pracinha para manobrar."
       : "Escolha a interseção adjacente de destino.";
-  }, [game.state, game.thinking, interaction.awaitingCapture, interaction.flying, interaction.selected]);
+  }, [
+    game.state,
+    game.thinking,
+    interaction.awaitingCapture,
+    interaction.flying,
+    interaction.selected,
+  ]);
 
   const profile = AI_PROFILES[difficulty];
 
@@ -86,8 +101,8 @@ function TrilhaGameBoard({
             <span>Voltar à Cidadela</span>
           </button>
         ) : (
-          <Link 
-            to="/cidadela" 
+          <Link
+            to="/cidadela"
             className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg font-medium transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -118,33 +133,33 @@ function TrilhaGameBoard({
           </div>
         </div>
 
-      <div className="flex gap-6 items-start flex-col lg:flex-row">
-        <div className="flex flex-1 flex-col items-center w-full">
-          <TrilhaBoard
+        <div className="flex gap-6 items-start flex-col lg:flex-row">
+          <div className="flex flex-1 flex-col items-center w-full">
+            <TrilhaBoard
+              state={game.state}
+              perspective={1}
+              selected={interaction.selected}
+              targets={interaction.targets}
+              captureTargets={interaction.captureTargets}
+              lastMove={game.lastMove}
+              interactive={!game.thinking}
+              onNodeClick={interaction.handleNode}
+            />
+          </div>
+
+          <HQPanel
             state={game.state}
-            perspective={1}
-            selected={interaction.selected}
-            targets={interaction.targets}
-            captureTargets={interaction.captureTargets}
-            lastMove={game.lastMove}
-            interactive={!game.thinking}
-            onNodeClick={interaction.handleNode}
+            myPlayer={1}
+            p1={{ name: "Pracinhas da FEB", slot: 1, subtitle: "Você" }}
+            p2={{ name: `Comando inimigo`, slot: 2, subtitle: profile.label }}
+            status={status}
+            log={game.log}
+            awaitingCapture={interaction.awaitingCapture}
+            onRestart={onReset}
+            onResign={game.resign}
           />
         </div>
-
-        <HQPanel
-          state={game.state}
-          myPlayer={1}
-          p1={{ name: "Pracinhas da FEB", slot: 1, subtitle: "Você" }}
-          p2={{ name: `Comando inimigo`, slot: 2, subtitle: profile.label }}
-          status={status}
-          log={game.log}
-          awaitingCapture={interaction.awaitingCapture}
-          onRestart={onReset}
-          onResign={game.resign}
-        />
-      </div>
-    </main>
+      </main>
     </div>
   );
 }

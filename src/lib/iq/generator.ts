@@ -11,7 +11,7 @@ export type Figure = {
 
 export type MatrixItem = {
   id: string;
-  cells: Figure[];
+  cells: (Figure | null)[];
   options: Figure[];
   answerIndex: number;
   difficulty: number;
@@ -83,25 +83,29 @@ function cloneFigure(fig: Figure): Figure {
 function applyRule(fig: Figure, rule: string, rng: () => number): Figure {
   const cloned = cloneFigure(fig);
   switch (rule) {
-    case "shape_cycle":
+    case "shape_cycle": {
       const shapeIdx = SHAPES.indexOf(cloned.shape);
       cloned.shape = SHAPES[(shapeIdx + 1) % SHAPES.length];
       break;
-    case "size_grow":
+    }
+    case "size_grow": {
       const sizeIdx = SIZES.indexOf(cloned.size);
       cloned.size = SIZES[Math.min(sizeIdx + 1, SIZES.length - 1)];
       break;
-    case "color_cycle":
+    }
+    case "color_cycle": {
       const colorIdx = COLORS.indexOf(cloned.color);
       cloned.color = COLORS[(colorIdx + 1) % COLORS.length];
       break;
+    }
     case "rotate_45":
       cloned.rotation = ((cloned.rotation + 45) % 360) as Figure["rotation"];
       break;
-    case "fill_cycle":
+    case "fill_cycle": {
       const fillIdx = FILLS.indexOf(cloned.fill);
       cloned.fill = FILLS[(fillIdx + 1) % FILLS.length];
       break;
+    }
     case "add_inner":
       if (!cloned.innerFigure && rng() > 0.5) {
         cloned.innerFigure = generateFigure(rng, 2);
@@ -145,12 +149,12 @@ export function buildTest(seed: number, itemCount: number): { seed: number; item
     });
 
     const baseFigure = generateFigure(rng);
-    const cells: Figure[] = [];
+    const cells: (Figure | null)[] = [];
 
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 3; col++) {
         if (row === 2 && col === 2) {
-          cells.push(null as any);
+          cells.push(null);
           continue;
         }
 

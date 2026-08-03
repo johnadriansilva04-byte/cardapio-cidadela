@@ -497,7 +497,8 @@
 }
 
 @keyframes screenShake {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateX(0);
   }
   25% {
@@ -782,4 +783,3 @@
 @utility fill-axis-foreground {
   fill: var(--axis-foreground);
 }
-

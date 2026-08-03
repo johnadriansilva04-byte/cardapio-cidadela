@@ -34,8 +34,17 @@ type Options = {
  * Online: player 1 is authoritative — it simulates and broadcasts state,
  * player 2 streams its inputs and renders the host snapshot.
  */
-export function useBattleMatch({ mode, names, levels = [0, 0], online, running, touchInputs }: Options) {
-  const [state, setState] = useState<BattleState>(() => createBattle(names[0], names[1], levels[0], levels[1]));
+export function useBattleMatch({
+  mode,
+  names,
+  levels = [0, 0],
+  online,
+  running,
+  touchInputs,
+}: Options) {
+  const [state, setState] = useState<BattleState>(() =>
+    createBattle(names[0], names[1], levels[0], levels[1]),
+  );
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -50,17 +59,17 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
 
   // Merge keyboard and touch inputs
   const localInputs = useRef<Inputs>(emptyInputs());
-  
+
   useEffect(() => {
     if (!running) {
       localInputs.current = emptyInputs();
       return;
     }
-    
+
     const updateInputs = () => {
       const touch = touchInputs?.current || emptyInputs();
       const kb = keyboardInputs.current;
-      
+
       // Merge com OR lógico - qualquer input ativo conta
       const merged: Inputs = {
         left: kb.left || touch.left,
@@ -72,7 +81,7 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
       };
       localInputs.current = merged;
     };
-    
+
     updateInputs(); // Initial update
     const interval = setInterval(updateInputs, 16); // ~60fps
     return () => {
@@ -122,11 +131,9 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
       broadcastAcc += dt;
 
       if (isHost) {
-        const p1 = mode === "cpu" || online?.playerNumber === 1 ? localInputs.current : remoteInputs.current;
-        const p2 =
-          mode === "cpu"
-            ? cpuInputs(stateRef.current, now / 1000)
-            : remoteInputs.current;
+        const p1 =
+          mode === "cpu" || online?.playerNumber === 1 ? localInputs.current : remoteInputs.current;
+        const p2 = mode === "cpu" ? cpuInputs(stateRef.current, now / 1000) : remoteInputs.current;
         const next = stepBattle(stateRef.current, { ...p1 }, { ...p2 }, dt, now);
         stateRef.current = next;
         setState(next);
@@ -183,7 +190,7 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
   }, [state, mode]);
 
   const logMove = useCallback(
-    (moveType: string, data: Record<string, any>) => {
+    (moveType: string, data: Record<string, unknown>) => {
       if (mode !== "online" || !online) return;
       void supabase.from("game_moves").insert({
         session_id: online.sessionId,
@@ -202,14 +209,17 @@ export function useBattleMatch({ mode, names, levels = [0, 0], online, running, 
 
 async function persistResult(state: BattleState, sessionId: string | null, startedAt: number) {
   const { robot1, robot2, winner } = state;
-  
+
   // Tabela match_history não existe no schema atual, vamos usar game_sessions
   if (sessionId) {
-    await supabase.from("game_sessions").update({
-      status: "completed",
-      winner,
-      completed_at: new Date().toISOString(),
-    }).eq("id", sessionId);
+    await supabase
+      .from("game_sessions")
+      .update({
+        status: "completed",
+        winner,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", sessionId);
   }
 
   // Tabela robot_stats não existe no schema atual, vamos pular por enquanto

@@ -3,7 +3,15 @@ import { Swords, BrainCircuit, FlaskConical, Bot, Target } from "lucide-react";
 import { MapBuilding } from "./map/MapBuilding";
 
 type ActiveModule =
-  "battle-arena" | "iq-test" | "robot-lab" | "chat-ai" | "dashboard" | "config" | "pedidos" | "trilha" | null;
+  | "battle-arena"
+  | "iq-test"
+  | "robot-lab"
+  | "chat-ai"
+  | "dashboard"
+  | "config"
+  | "pedidos"
+  | "trilha"
+  | null;
 
 export function TemporalLobby({ onNavigate }: { onNavigate: (module: ActiveModule) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);

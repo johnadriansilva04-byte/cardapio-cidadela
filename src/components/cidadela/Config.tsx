@@ -8,7 +8,6 @@ export function ConfigOperacional() {
 
   return (
     <div className="space-y-6">
-
       <section className="space-y-3 rounded-xl border border-border p-4">
         <h3 className="text-tech text-[10px] text-white">Loja</h3>
         <input

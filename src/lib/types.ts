@@ -53,10 +53,10 @@ export interface ChatMessage {
 }
 
 export interface AppState {
-  store: { name: string; slogan: string; marquee: string };
+  store: { name: string; slogan: string; marquee: string; coverPhoto?: string };
   payment: { pixKey: string };
   promo: { meta: number; cidadelaDate: string };
-  admin: { accessKey: string };
+  admin: { accessKey: string; phone?: string };
   whatsapp: string;
   integrations: {
     geminiApiKey: string;

@@ -66,12 +66,17 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     );
 
     // Payload completo conforme documentação do N8N com código da Cidadela
-    const payloadWithCode = buildOrderPayload(order, promoCode.code, accessType);
+    const payloadWithCode = buildOrderPayload(
+      order,
+      promoCode.code,
+      accessType,
+      state.admin.phone || state.whatsapp,
+    );
 
     console.log("ENVIANDO WEBHOOK COMPLETO PARA:", state.integrations.n8nWebhookUrl);
     const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
     console.log("RESULTADO WEBHOOK:", synced);
-    
+
     const finalOrder = { ...order, synced };
 
     // Salvar código localmente para validação

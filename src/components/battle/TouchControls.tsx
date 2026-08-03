@@ -4,7 +4,14 @@ import type { Inputs } from "@/lib/battle/engine";
 
 export function TouchControls({ enabled }: { enabled: boolean }) {
   const isMobile = useIsMobile();
-  const { inputs, setAction, joystickPosition, handleJoystickStart, handleJoystickMove, handleJoystickEnd } = useTouchControls(enabled);
+  const {
+    inputs,
+    setAction,
+    joystickPosition,
+    handleJoystickStart,
+    handleJoystickMove,
+    handleJoystickEnd,
+  } = useTouchControls(enabled);
 
   if (!enabled || !isMobile) return null;
 
@@ -21,22 +28,23 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[999] flex h-48 bg-black/90 backdrop-blur-sm pb-4" style={{ touchAction: 'none' }}>
+    <div
+      className="fixed inset-x-0 bottom-0 z-[999] flex h-48 bg-black/90 backdrop-blur-sm pb-4"
+      style={{ touchAction: "none" }}
+    >
       {/* Lado Esquerdo - Joystick Virtual */}
       <div className="flex-1 flex items-end justify-center p-2 pb-4">
-        <div 
+        <div
           className="relative h-32 w-32 touch-none"
           onTouchStart={handleJoystickStart}
           onTouchMove={handleJoystickMove}
           onTouchEnd={handleJoystickEnd}
           onTouchCancel={handleJoystickEnd}
-          style={{ touchAction: 'none' }}
-          onPointerUp={handleJoystickEnd}
-          onPointerLeave={handleJoystickEnd}
+          style={{ touchAction: "none" }}
         >
           {/* Base do joystick */}
           <div className="absolute inset-0 rounded-full border-4 border-blue-500/40 bg-blue-500/10 backdrop-blur-sm shadow-lg shadow-blue-500/20" />
-          
+
           {/* Knob do joystick (bolinha que se move) */}
           <div
             className="absolute top-1/2 left-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-3 border-blue-400/60 bg-blue-400/30 shadow-lg shadow-blue-400/30 transition-transform"
@@ -48,12 +56,20 @@ export function TouchControls({ enabled }: { enabled: boolean }) {
               <div className="h-2 w-2 rounded-full bg-blue-300" />
             </div>
           </div>
-          
+
           {/* Indicador visual de direção */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[10px] text-blue-400/60 font-bold">↑</div>
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-blue-400/60 font-bold">↓</div>
-          <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-blue-400/60 font-bold">←</div>
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-blue-400/60 font-bold">→</div>
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[10px] text-blue-400/60 font-bold">
+            ↑
+          </div>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-blue-400/60 font-bold">
+            ↓
+          </div>
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-blue-400/60 font-bold">
+            ←
+          </div>
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-blue-400/60 font-bold">
+            →
+          </div>
         </div>
       </div>
 

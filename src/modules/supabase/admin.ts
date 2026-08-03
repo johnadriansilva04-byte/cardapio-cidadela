@@ -110,7 +110,7 @@ export function useAdminTrial() {
       checkExpiration(trialData);
     }
 
-    return { valid: isValid, trial: trialData };
+    return { valid: isValid, trial: trialData, adminPhone: trialData.admin_phone };
   }
 
   async function activateLiberationCode(code: string) {

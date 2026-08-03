@@ -22,15 +22,18 @@ export function BattleArena() {
 
   const { progress, addWin, addLoss, isLevelUnlocked, winsToNextLevel } = usePlayerProgress();
 
-  const { session, isSearching, searchTimeElapsed, createSession, findAvailableSession, joinSession } = 
-    useGameMatchmaking<RobotConfig>("battle", selectedRobot);
+  const {
+    session,
+    isSearching,
+    searchTimeElapsed,
+    createSession,
+    findAvailableSession,
+    joinSession,
+  } = useGameMatchmaking<RobotConfig>("battle", selectedRobot);
 
   const { state: battleState, reset } = useBattleMatch({
     mode,
-    names: [
-      selectedRobot?.name || "Cobra Fumante",
-      mode === "cpu" ? "CPU" : "Oponente"
-    ],
+    names: [selectedRobot?.name || "Cobra Fumante", mode === "cpu" ? "CPU" : "Oponente"],
     levels: [selectedLevel, mode === "cpu" ? Math.min(progress.unlockedLevel, 2) : 0],
     online: onlineInfo,
     running,
@@ -66,7 +69,9 @@ export function BattleArena() {
 
     // Bloquear online até nível 3
     if (progress.unlockedLevel < 3) {
-      alert(`Você precisa alcançar o nível 3 para jogar online! Vitórias necessárias: ${3 * 3 - progress.wins}`);
+      alert(
+        `Você precisa alcançar o nível 3 para jogar online! Vitórias necessárias: ${3 * 3 - progress.wins}`,
+      );
       return;
     }
 
@@ -89,7 +94,7 @@ export function BattleArena() {
 
     // Cria nova sessão como player 1
     const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newSession = await createSession({
+    await createSession({
       topic: "arcade_fight",
       current_round: 1,
       time_left: 90,
@@ -103,9 +108,10 @@ export function BattleArena() {
       },
     });
 
-    if (newSession) {
+    // Session será atualizada via hook
+    if (session) {
       setOnlineInfo({
-        sessionId: newSession.id,
+        sessionId: session.id,
         playerNumber: 1,
         playerId,
       });
@@ -124,19 +130,29 @@ export function BattleArena() {
         {!running && (
           <>
             <div className="mb-6">
-              <h2 className="text-stencil text-3xl font-bold text-green-600 drop-shadow-lg sm:text-4xl">Arena de Batalha</h2>
+              <h2 className="text-stencil text-3xl font-bold text-green-600 drop-shadow-lg sm:text-4xl">
+                Arena de Batalha
+              </h2>
               <div className="mt-2 flex items-center gap-3">
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-700 to-transparent" />
-                <span className="text-stencil text-base font-medium text-green-700 tracking-wider sm:text-lg">FEB</span>
+                <span className="text-stencil text-base font-medium text-green-700 tracking-wider sm:text-lg">
+                  FEB
+                </span>
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-700 to-transparent" />
               </div>
               <p className="mt-3 text-center text-xs text-green-800 sm:text-sm">
                 Força Expedicionária Brasileira • Itália 1944-1945
               </p>
               <div className="mt-2 flex flex-wrap justify-center gap-1 text-[10px] text-green-900 sm:gap-2 sm:text-xs">
-                <span className="rounded-full bg-green-200/30 px-2 py-1 border border-green-700/50 sm:px-3">WASD: Mover</span>
-                <span className="rounded-full bg-green-200/30 px-2 py-1 border border-green-700/50 sm:px-3">K/Space: Atirar</span>
-                <span className="rounded-full bg-green-200/30 px-2 py-1 border border-green-700/50 sm:px-3">L/E: Trocar</span>
+                <span className="rounded-full bg-green-200/30 px-2 py-1 border border-green-700/50 sm:px-3">
+                  WASD: Mover
+                </span>
+                <span className="rounded-full bg-green-200/30 px-2 py-1 border border-green-700/50 sm:px-3">
+                  K/Space: Atirar
+                </span>
+                <span className="rounded-full bg-green-200/30 px-2 py-1 border border-green-700/50 sm:px-3">
+                  L/E: Trocar
+                </span>
               </div>
             </div>
 
@@ -150,8 +166,10 @@ export function BattleArena() {
                   </p>
                   <p className="mt-1 text-xs text-green-800 font-medium">
                     Vitórias: <span className="text-green-900 font-bold">{progress.wins}</span> •
-                    Patente: <span className="text-green-900 font-bold">Nível {progress.unlockedLevel}</span> •
-                    Campanhas: <span className="text-green-900 font-bold">{progress.totalBattles}</span>
+                    Patente:{" "}
+                    <span className="text-green-900 font-bold">Nível {progress.unlockedLevel}</span>{" "}
+                    • Campanhas:{" "}
+                    <span className="text-green-900 font-bold">{progress.totalBattles}</span>
                   </p>
                 </div>
                 {progress.unlockedLevel < 5 && (
@@ -165,13 +183,15 @@ export function BattleArena() {
               <div className="mt-3 h-2 w-full rounded-full bg-green-200 overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-green-700 to-green-600 transition-all duration-500"
-                  style={{ width: `${(progress.wins % 3) / 3 * 100}%` }}
+                  style={{ width: `${((progress.wins % 3) / 3) * 100}%` }}
                 />
               </div>
             </div>
 
             <div className="mt-6 rounded-xl border-2 border-green-800 bg-green-50/60 p-6">
-              <h3 className="text-stencil text-lg mb-4 text-green-900">🤖 Selecione seu Robô de Combate</h3>
+              <h3 className="text-stencil text-lg mb-4 text-green-900">
+                🤖 Selecione seu Robô de Combate
+              </h3>
               <div className="grid gap-3">
                 {state.cidadela.robots.map((robot, index) => (
                   <button
@@ -219,7 +239,8 @@ export function BattleArena() {
                 <div className="mt-4 rounded-lg border-2 border-yellow-700 bg-yellow-100/30 px-4 py-3 text-center animate-pulse">
                   <p className="text-sm font-medium text-yellow-900">⚔️ Buscando camarada...</p>
                   <p className="text-xs text-yellow-800">
-                    Tempo de busca: {Math.floor(searchTimeElapsed / 60)}:{(searchTimeElapsed % 60).toString().padStart(2, '0')}
+                    Tempo de busca: {Math.floor(searchTimeElapsed / 60)}:
+                    {(searchTimeElapsed % 60).toString().padStart(2, "0")}
                   </p>
                   <div className="mt-2 h-2 w-full rounded-full bg-yellow-200 overflow-hidden">
                     <div
@@ -277,9 +298,12 @@ export function BattleArena() {
                   ✕
                 </button>
               </div>
-              
+
               <div className="mb-4 text-sm text-green-800">
-                <p>Patente atual: <span className="font-medium text-green-900">Nível {progress.unlockedLevel}</span></p>
+                <p>
+                  Patente atual:{" "}
+                  <span className="font-medium text-green-900">Nível {progress.unlockedLevel}</span>
+                </p>
                 <p>Ganhe 3 vitórias contra CPU para promover à próxima patente</p>
               </div>
 
@@ -294,7 +318,7 @@ export function BattleArena() {
                     4: "Capitão (Rifle)",
                     5: "Major (Shotgun)",
                   };
-                  
+
                   return (
                     <button
                       key={level}
@@ -310,15 +334,13 @@ export function BattleArena() {
                         selectedLevel === level
                           ? "border-green-700 bg-green-200/50"
                           : unlocked
-                          ? "border-green-700 bg-white hover:bg-green-100"
-                          : "border-gray-400 bg-gray-100 opacity-50 cursor-not-allowed"
+                            ? "border-green-700 bg-white hover:bg-green-100"
+                            : "border-gray-400 bg-gray-100 opacity-50 cursor-not-allowed"
                       }`}
                     >
                       <p className="text-sm font-medium text-green-900">Nível {level}</p>
                       <p className="text-xs text-green-800">{weaponNames[level]}</p>
-                      {!unlocked && (
-                        <p className="text-xs text-gray-500">🔒 Bloqueado</p>
-                      )}
+                      {!unlocked && <p className="text-xs text-gray-500">🔒 Bloqueado</p>}
                     </button>
                   );
                 })}
@@ -326,7 +348,8 @@ export function BattleArena() {
 
               <div className="mt-4 text-center">
                 <p className="text-xs text-green-800">
-                  Patente selecionada: <span className="font-medium text-green-900">Nível {selectedLevel}</span>
+                  Patente selecionada:{" "}
+                  <span className="font-medium text-green-900">Nível {selectedLevel}</span>
                 </p>
               </div>
             </div>

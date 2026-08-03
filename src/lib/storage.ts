@@ -61,9 +61,9 @@ export async function loadFromIndexedDB<T>(key: string): Promise<T | null> {
 /** Merge persisted state onto defaults so new fields never break old installs. */
 export function mergeState(persisted: Partial<AppState> | null): AppState {
   if (!persisted) return DEFAULT_STATE;
-  
+
   // Check if persisted state has old version or missing version
-  const persistedVersion = (persisted as any)._version ?? 0;
+  const persistedVersion = (persisted as Partial<AppState> & { _version?: number })._version ?? 0;
   if (persistedVersion !== STATE_VERSION) {
     // Version mismatch - clear webhook queue and return default state to force reset
     try {
@@ -73,7 +73,7 @@ export function mergeState(persisted: Partial<AppState> | null): AppState {
     }
     return DEFAULT_STATE;
   }
-  
+
   return {
     ...DEFAULT_STATE,
     ...persisted,

@@ -15,9 +15,23 @@ export function RobotSprite({ fighter, palette }: Props) {
   const jumping = fighter.state === "jump";
 
   // Weapon display based on type
-  const hasWeapon = fighter.weapon.type !== "none";
-  const weaponSize = fighter.weapon.type === "shotgun" ? 28 : fighter.weapon.type === "rifle" ? 32 : fighter.weapon.type === "club" ? 24 : 20;
-  const weaponColor = fighter.weapon.type === "shotgun" ? "#ff6b6b" : fighter.weapon.type === "rifle" ? "#4ecdc4" : fighter.weapon.type === "club" ? "#8b4513" : "#ffe66d";
+  const hasWeapon = fighter.weapon.type !== undefined && fighter.weapon.type !== null;
+  const weaponSize =
+    fighter.weapon.type === "shotgun"
+      ? 28
+      : fighter.weapon.type === "rifle"
+        ? 32
+        : fighter.weapon.type === "club"
+          ? 24
+          : 20;
+  const weaponColor =
+    fighter.weapon.type === "shotgun"
+      ? "#ff6b6b"
+      : fighter.weapon.type === "rifle"
+        ? "#4ecdc4"
+        : fighter.weapon.type === "club"
+          ? "#8b4513"
+          : "#ffe66d";
 
   return (
     <div
@@ -35,10 +49,13 @@ export function RobotSprite({ fighter, palette }: Props) {
           background: "var(--card)",
           borderColor: color,
           boxShadow: glow,
-          top: crouching ? "18px" : "0"
+          top: crouching ? "18px" : "0",
         }}
       >
-        <div className="absolute left-1 top-1.5 h-1 w-5" style={{ background: color, boxShadow: glow }} />
+        <div
+          className="absolute left-1 top-1.5 h-1 w-5"
+          style={{ background: color, boxShadow: glow }}
+        />
       </div>
 
       {/* torso */}
@@ -53,10 +70,10 @@ export function RobotSprite({ fighter, palette }: Props) {
       >
         <div
           className="absolute left-1/2 top-1.5 h-1.5 w-1.5 -translate-x-1/2 rotate-45"
-          style={{ background: color, opacity: (shooting || punching) ? 1 : 0.6 }}
+          style={{ background: color, opacity: shooting || punching ? 1 : 0.6 }}
         />
       </div>
-      
+
       {/* Weapon/Melee arm */}
       {hasWeapon && !fighter.useMelee ? (
         <div
@@ -107,7 +124,7 @@ export function RobotSprite({ fighter, palette }: Props) {
           )}
         </div>
       )}
-      
+
       {/* rear arm */}
       <div
         className="absolute h-2 rounded-sm"
@@ -116,7 +133,7 @@ export function RobotSprite({ fighter, palette }: Props) {
           opacity: 0.55,
           left: 2,
           width: 14,
-          top: crouching ? "30px" : "22px"
+          top: crouching ? "30px" : "22px",
         }}
       />
 
@@ -164,17 +181,17 @@ export function RobotSprite({ fighter, palette }: Props) {
           />
         </>
       )}
-      
+
       {/* muzzle flash when shooting ONLY */}
       {shooting && hasWeapon && !fighter.useMelee && (
         <div
           className="absolute h-3 w-3 rounded-full"
-          style={{ 
-            left: 50, 
-            top: crouching ? "34px" : "22px", 
-            background: weaponColor, 
+          style={{
+            left: 50,
+            top: crouching ? "34px" : "22px",
+            background: weaponColor,
             filter: "blur(2px)",
-            opacity: 0.8
+            opacity: 0.8,
           }}
         />
       )}

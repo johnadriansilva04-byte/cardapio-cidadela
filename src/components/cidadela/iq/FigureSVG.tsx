@@ -76,20 +76,22 @@ export function FigureSVG({ figure, className }: { figure: Figure | null; classN
             {...commonProps}
           />
         );
-      case "pentagon":
+      case "pentagon": {
         const pentagonPoints = Array.from({ length: 5 }, (_, i) => {
           const angle = (i * 72 - 90) * (Math.PI / 180);
           const r = 38 * scale;
           return `${50 + r * Math.cos(angle)},${50 + r * Math.sin(angle)}`;
         }).join(" ");
         return <polygon points={pentagonPoints} {...commonProps} />;
-      case "star":
+      }
+      case "star": {
         const starPoints = Array.from({ length: 10 }, (_, i) => {
           const angle = (i * 36 - 90) * (Math.PI / 180);
           const r = i % 2 === 0 ? 38 * scale : 18 * scale;
           return `${50 + r * Math.cos(angle)},${50 + r * Math.sin(angle)}`;
         }).join(" ");
         return <polygon points={starPoints} {...commonProps} />;
+      }
     }
   }
 

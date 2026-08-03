@@ -3,7 +3,8 @@
  * Passos na lama, estalo de madeira, rádio transmissor, sirene de vitória.
  */
 
-type Sfx = "place" | "move" | "mill" | "capture" | "select" | "invalid" | "victory" | "defeat" | "radio";
+type Sfx =
+  "place" | "move" | "mill" | "capture" | "select" | "invalid" | "victory" | "defeat" | "radio";
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -12,7 +13,9 @@ let enabled = true;
 function ensure(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!ctx) {
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AC =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
     ctx = new AC();
     master = ctx.createGain();
@@ -32,7 +35,12 @@ export function isSfxEnabled() {
   return enabled;
 }
 
-function noise(duration: number, filterFreq: number, gain: number, type: BiquadFilterType = "lowpass") {
+function noise(
+  duration: number,
+  filterFreq: number,
+  gain: number,
+  type: BiquadFilterType = "lowpass",
+) {
   const ac = ensure();
   if (!ac || !master) return;
   const frames = Math.floor(ac.sampleRate * duration);
@@ -52,7 +60,13 @@ function noise(duration: number, filterFreq: number, gain: number, type: BiquadF
   src.start();
 }
 
-function tone(freq: number, duration: number, gain = 0.18, type: OscillatorType = "sine", slideTo?: number) {
+function tone(
+  freq: number,
+  duration: number,
+  gain = 0.18,
+  type: OscillatorType = "sine",
+  slideTo?: number,
+) {
   const ac = ensure();
   if (!ac || !master) return;
   const osc = ac.createOscillator();

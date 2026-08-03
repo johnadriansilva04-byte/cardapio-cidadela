@@ -58,7 +58,14 @@ export interface AppState {
   promo: { meta: number; cidadelaDate: string };
   admin: { accessKey: string };
   whatsapp: string;
-  integrations: { geminiApiKey: string; n8nWebhookUrl: string; cidadelaAuthUrl: string };
+  integrations: {
+    geminiApiKey: string;
+    n8nWebhookUrl: string;
+    cidadelaAuthUrl: string;
+    adminTrialUrl: string;
+    gamesSessionUrl: string;
+    gamesMoveUrl: string;
+  };
   categories: Category[];
   cidadela: {
     codes: PromoCode[];
@@ -102,10 +109,19 @@ export const DEFAULT_STATE: AppState = {
   integrations: {
     geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
     n8nWebhookUrl:
-      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://webhook.pracinha.online/webhook/cardapio-pedido",
+      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://webhook.pracinha.online/webhook/pracinha",
     cidadelaAuthUrl:
       import.meta.env.VITE_N8N_CIDADELA_AUTH_URL ||
       "https://webhook.pracinha.online/webhook/cidadela",
+    adminTrialUrl:
+      import.meta.env.VITE_N8N_ADMIN_TRIAL_URL ||
+      "https://webhook.pracinha.online/webhook/admin-trial",
+    gamesSessionUrl:
+      import.meta.env.VITE_N8N_GAMES_SESSION_URL ||
+      "https://webhook.pracinha.online/webhook/games/session",
+    gamesMoveUrl:
+      import.meta.env.VITE_N8N_GAMES_MOVE_URL ||
+      "https://webhook.pracinha.online/webhook/games/move",
   },
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],

@@ -173,3 +173,168 @@ export async function validateCidadelaCode(
     clearTimeout(timer);
   }
 }
+
+// ============================================
+// WEBHOOKS DE JOGOS ONLINE
+// ============================================
+
+export interface GameSessionPayload {
+  acao: "criar" | "entrar" | "atualizar" | "completar";
+  game_type: "battle" | "trilha" | "iq_test";
+  session_id?: string;
+  player1_id?: string;
+  player1_name?: string;
+  player1_data?: Record<string, any>;
+  player2_id?: string;
+  player2_name?: string;
+  player2_data?: Record<string, any>;
+  player1_phone?: string;
+  player2_phone?: string;
+  game_state?: Record<string, any>;
+  winner?: string;
+}
+
+export interface GameSessionResponse {
+  success: boolean;
+  acao?: string;
+  session_id?: string;
+  message?: string;
+  error?: string;
+}
+
+/** Envia eventos de sessão de jogo via webhook */
+export async function sendGameSession(
+  url: string,
+  payload: GameSessionPayload,
+): Promise<GameSessionResponse> {
+  if (!url) {
+    return { success: false, error: "missing_url" };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.error("Game session webhook error:", res.status, res.statusText);
+      return { success: false, error: `http_${res.status}` };
+    }
+    const data: GameSessionResponse = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Erro ao enviar game session webhook:", error);
+    return { success: false, error: "network_error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export interface GameMovePayload {
+  session_id: string;
+  player_id: string;
+  player_number?: number;
+  move_type: string;
+  move_data?: Record<string, any>;
+  round_number?: number;
+}
+
+export interface GameMoveResponse {
+  success: boolean;
+  move_id?: string;
+  message?: string;
+  error?: string;
+}
+
+/** Envia movimentos/jogadas de jogo via webhook */
+export async function sendGameMove(
+  url: string,
+  payload: GameMovePayload,
+): Promise<GameMoveResponse> {
+  if (!url) {
+    return { success: false, error: "missing_url" };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.error("Game move webhook error:", res.status, res.statusText);
+      return { success: false, error: `http_${res.status}` };
+    }
+    const data: GameMoveResponse = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Erro ao enviar game move webhook:", error);
+    return { success: false, error: "network_error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ============================================
+// WEBHOOK DE TRIAL ADMINISTRATIVO
+// ============================================
+
+export interface AdminTrialPayload {
+  acao: "criar_trial";
+  store_name: string;
+  admin_phone: string;
+  origem: "CIDADELA_PWA";
+  timestamp: string;
+}
+
+export interface AdminTrialResponse {
+  success: boolean;
+  access_code?: string;
+  trial_expires_at?: string;
+  message?: string;
+  error?: string;
+}
+
+/** Envia solicitação de criação de trial administrativo via webhook */
+export async function sendAdminTrial(
+  url: string,
+  storeName: string,
+  adminPhone: string,
+): Promise<AdminTrialResponse> {
+  if (!url) {
+    return { success: false, error: "missing_url" };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const payload: AdminTrialPayload = {
+      acao: "criar_trial",
+      store_name: storeName,
+      admin_phone: adminPhone,
+      origem: "CIDADELA_PWA",
+      timestamp: new Date().toISOString(),
+    };
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.error("Admin trial webhook error:", res.status, res.statusText);
+      return { success: false, error: `http_${res.status}` };
+    }
+    const data: AdminTrialResponse = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Erro ao enviar admin trial webhook:", error);
+    return { success: false, error: "network_error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}

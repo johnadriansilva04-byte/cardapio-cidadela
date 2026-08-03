@@ -5,6 +5,7 @@ import { CobraFumando } from "@/components/CobraFumando";
 import { ConfigOperacional } from "@/components/cidadela/Config";
 import { useStore } from "@/modules/cidadela-core/store";
 import { useAdminTrial } from "@/modules/supabase/admin";
+import { sendAdminTrial } from "@/modules/fluxos-n8n/webhook";
 
 type Tab = "config" | "pedidos";
 type LoginStep = "login" | "trial" | "premium" | "blocked";
@@ -60,6 +61,19 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
+    // Enviar para o webhook N8N
+    const webhookResult = await sendAdminTrial(
+      state.integrations.adminTrialUrl,
+      storeName.trim(),
+      adminPhone.trim()
+    );
+
+    if (!webhookResult.success) {
+      console.error("Erro ao enviar webhook:", webhookResult.error);
+      // Continuar mesmo se webhook falhar (fallback para Supabase)
+    }
+
+    // Criar trial no Supabase
     const result = await createTrial(storeName.trim(), adminPhone.trim());
     if (result) {
       setLoginStep("trial");

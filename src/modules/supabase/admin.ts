@@ -1,6 +1,26 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./client";
 
+type SoberaniaPoints = {
+  id: string;
+  customer_phone: string;
+  customer_email?: string;
+  points: number;
+  last_updated: string;
+  created_at: string;
+};
+
+type SoberaniaTransaction = {
+  id: string;
+  customer_phone: string;
+  type: "earned" | "lost" | "spent" | "rewarded";
+  amount: number;
+  reason: string;
+  source: "game" | "order" | "ad" | "admin";
+  timestamp: string;
+  created_at: string;
+};
+
 type AdminTrial = {
   id: string;
   store_name: string;
@@ -236,6 +256,95 @@ export function useAdminTrial() {
     setDaysRemaining(0);
   }
 
+  // Funções para gerenciar pontos de soberania
+  async function getSoberaniaPoints(customerPhone: string) {
+    const { data, error } = await supabase
+      .from("soberania_points")
+      .select("*")
+      .eq("customer_phone", customerPhone)
+      .single();
+
+    if (error) {
+      console.error("Erro ao buscar pontos de soberania:", error);
+      return null;
+    }
+
+    return data as SoberaniaPoints;
+  }
+
+  async function updateSoberaniaPoints(customerPhone: string, amount: number, reason: string, source: SoberaniaTransaction["source"]) {
+    // Buscar pontos atuais
+    const current = await getSoberaniaPoints(customerPhone);
+    
+    if (!current) {
+      // Criar novo registro
+      const { data, error } = await supabase
+        .from("soberania_points")
+        .insert({
+          customer_phone: customerPhone,
+          points: amount,
+          last_updated: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Erro ao criar pontos de soberania:", error);
+        return false;
+      }
+    } else {
+      // Atualizar pontos existentes
+      const newPoints = Math.max(0, current.points + amount);
+      const { error } = await supabase
+        .from("soberania_points")
+        .update({
+          points: newPoints,
+          last_updated: new Date().toISOString(),
+        })
+        .eq("customer_phone", customerPhone);
+
+      if (error) {
+        console.error("Erro ao atualizar pontos de soberania:", error);
+        return false;
+      }
+    }
+
+    // Registrar transação
+    const { error: transactionError } = await supabase
+      .from("soberania_transactions")
+      .insert({
+        customer_phone: customerPhone,
+        type: amount >= 0 ? "earned" : "lost",
+        amount: Math.abs(amount),
+        reason,
+        source,
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      });
+
+    if (transactionError) {
+      console.error("Erro ao registrar transação de soberania:", transactionError);
+    }
+
+    return true;
+  }
+
+  async function getSoberaniaHistory(customerPhone: string) {
+    const { data, error } = await supabase
+      .from("soberania_transactions")
+      .select("*")
+      .eq("customer_phone", customerPhone)
+      .order("timestamp", { ascending: false });
+
+    if (error) {
+      console.error("Erro ao buscar histórico de soberania:", error);
+      return [];
+    }
+
+    return data as SoberaniaTransaction[];
+  }
+
   return {
     trial,
     isLoading,
@@ -246,5 +355,8 @@ export function useAdminTrial() {
     loadOrdersFromSupabase,
     activateLiberationCode,
     clearTrial,
+    getSoberaniaPoints,
+    updateSoberaniaPoints,
+    getSoberaniaHistory,
   };
 }

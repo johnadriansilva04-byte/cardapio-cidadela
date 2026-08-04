@@ -115,9 +115,33 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <HeadContent />
+        
+        {/* Meta tags essenciais para SEO */}
+        <meta name="description" content="Cardápio Digital Cidadela - Faça pedidos online, ganhe acesso à Cidadela e aproveite jogos exclusivos. Sistema completo para restaurantes e delivery." />
+        <meta name="keywords" content="cardápio digital, delivery, restaurante, pedidos online, cidadela, jogos, food delivery" />
+        <meta name="robots" content="index, follow" />
+        <meta name="author" content="Cidadela Pracinha" />
+        <meta name="theme-color" content="#000000" />
+        
+        {/* Open Graph tags para redes sociais */}
+        <meta property="og:title" content="Cardápio Digital Cidadela" />
+        <meta property="og:description" content="Peça online e ganhe acesso à Cidadela - Sistema completo de delivery com jogos exclusivos" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://pracinha.online" />
+        <meta property="og:image" content="https://pracinha.online/cobra-fumando.png" />
+        <meta property="og:locale" content="pt_BR" />
+        
+        {/* Twitter Card tags */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Cardápio Digital Cidadela" />
+        <meta name="twitter:description" content="Peça online e ganhe acesso à Cidadela" />
+        <meta name="twitter:image" content="https://pracinha.online/cobra-fumando.png" />
+        
         {/* Google Analytics */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
         <script

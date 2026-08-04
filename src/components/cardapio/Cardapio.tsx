@@ -678,6 +678,25 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             <span className="text-[10px] font-semibold text-gray-500">PAINEL</span>
           </button>
         </div>
+        
+        {/* Footer com links legais */}
+        <div className="flex items-center justify-center gap-4 border-t border-red-500/10 pt-2 pb-3">
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/privacy" })}
+            className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            Privacidade
+          </button>
+          <span className="text-[9px] text-gray-600">|</span>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/terms" })}
+            className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            Termos
+          </button>
+        </div>
       </nav>
 
       {count > 0 && !cartOpen && !checkoutOpen && (

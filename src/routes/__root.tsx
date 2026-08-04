@@ -12,7 +12,6 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerAppServiceWorker } from "../lib/pwa";
-import { useGoogleAnalytics } from "../hooks/useGoogleAnalytics";
 
 function NotFoundComponent() {
   return (
@@ -155,9 +154,6 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   console.log('[ROOT] RootComponent mounted');
-
-  // Load Google Analytics safely
-  useGoogleAnalytics();
 
   useEffect(() => {
     console.log('[ROOT] useEffect running');

@@ -60,16 +60,25 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     });
 
   async function submitOrder(order: Order) {
-    // Salvar pedido localmente e abrir tela de pagamento
+    // Salvar pedido localmente
     update((prev) => ({
       ...prev,
       orders: [order, ...prev.orders],
     }));
     setPendingOrder(order);
-    setPaymentOpen(true);
     setCart({});
     setCheckoutOpen(false);
     setCartOpen(false);
+
+    // Se pagamento for PIX, abre tela de pagamento com QR Code
+    // Se for dinheiro ou cartão, vai direto para processamento
+    if (order.pagamento === 'pix') {
+      setPaymentOpen(true);
+    } else {
+      // Pagamento em dinheiro ou cartão - processa direto
+      setPendingOrder(order);
+      await handlePaymentSuccess();
+    }
   }
 
   async function handlePaymentSuccess() {

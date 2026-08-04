@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useStore } from "@/modules/cidadela-core/store";
 
 const STORAGE_KEY = "cidade_battle_progress";
 
@@ -19,6 +20,7 @@ const WINS_PER_LEVEL = 3;
 
 export function usePlayerProgress() {
   const [progress, setProgress] = useState<PlayerProgress>(DEFAULT_PROGRESS);
+  const { addSoberaniaPoints, removeSoberaniaPoints } = useStore();
 
   // Carregar progresso do localStorage
   useEffect(() => {
@@ -42,7 +44,7 @@ export function usePlayerProgress() {
     }
   };
 
-  // Adicionar vitória
+  // Adicionar vitória + ganhar pontos de soberania
   const addWin = () => {
     const newWins = progress.wins + 1;
     const newLevel = Math.floor(newWins / WINS_PER_LEVEL);
@@ -52,15 +54,21 @@ export function usePlayerProgress() {
       totalBattles: progress.totalBattles + 1,
     };
     saveProgress(newProgress);
+    
+    // Ganhar pontos de soberania por vitória (100 pontos)
+    addSoberaniaPoints(100, "Vitória na batalha", "game");
   };
 
-  // Adicionar derrota
+  // Adicionar derrota + perder pontos de soberania
   const addLoss = () => {
     const newProgress: PlayerProgress = {
       ...progress,
       totalBattles: progress.totalBattles + 1,
     };
     saveProgress(newProgress);
+    
+    // Perder pontos de soberania por derrota (50 pontos)
+    removeSoberaniaPoints(50, "Derrota na batalha", "game");
   };
 
   // Resetar progresso (para testes)

@@ -32,6 +32,14 @@ export interface Move {
   remove: number | null;
 }
 
+export type GameEndCallback = (winner: Player, reason: string) => void;
+
+let gameEndCallback: GameEndCallback | null = null;
+
+export function setGameEndCallback(callback: GameEndCallback | null) {
+  gameEndCallback = callback;
+}
+
 export const PIECES_PER_PLAYER = 9;
 
 export function opponent(p: Player): Player {
@@ -251,10 +259,12 @@ export function applyMove(s: GameState, move: Move): GameState {
       next.phase = "over";
       next.winner = actor;
       next.reason = "annihilation";
+      if (gameEndCallback) gameEndCallback(actor, "annihilation");
     } else if (!hasAnyMove(next)) {
       next.phase = "over";
       next.winner = actor;
       next.reason = "blockade";
+      if (gameEndCallback) gameEndCallback(actor, "blockade");
     }
   }
 

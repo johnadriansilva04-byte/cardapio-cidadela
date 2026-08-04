@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { HQPanel } from "./HQPanel";
 import { TrilhaBoard } from "./TrilhaBoard";
@@ -9,6 +9,8 @@ import { useLocalGame } from "@/hooks/useLocalGame";
 import { cn } from "@/lib/utils";
 import { CobraFumando } from "@/components/CobraFumando";
 import { Link } from "@tanstack/react-router";
+import { useStore } from "@/modules/cidadela-core/store";
+import { setGameEndCallback } from "@/lib/trilha/engine";
 
 const ORDER: Difficulty[] = ["recruta", "sargento", "general"];
 
@@ -41,6 +43,7 @@ function TrilhaGameBoard({
   onReset: () => void;
   onBack?: () => void;
 }) {
+  const { addSoberaniaPoints, removeSoberaniaPoints } = useStore();
   const game = useLocalGame(difficulty, 1);
   const interaction = useBoardInteraction(
     game.state,
@@ -48,6 +51,23 @@ function TrilhaGameBoard({
     game.commit,
     !game.thinking && game.state.phase !== "over",
   );
+
+  // Configurar callback de fim de jogo para adicionar/remover pontos
+  useEffect(() => {
+    setGameEndCallback((winner, reason) => {
+      if (winner === 1) {
+        // Jogador ganhou - adicionar pontos (150 por vitória na trilha)
+        addSoberaniaPoints(150, `Vitória na trilha (${reason})`, "game");
+      } else {
+        // Jogador perdeu - remover pontos (75 por derrota na trilha)
+        removeSoberaniaPoints(75, `Derrota na trilha (${reason})`, "game");
+      }
+    });
+
+    return () => {
+      setGameEndCallback(null);
+    };
+  }, [addSoberaniaPoints, removeSoberaniaPoints]);
 
   const status = useMemo(() => {
     const s = game.state;

@@ -34,6 +34,25 @@ CREATE TABLE menu_items (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ============================================
+-- AUTENTICAÇÃO E ADMINISTRAÇÃO
+-- ============================================
+
+-- Tabela de trials de administradores (MOVIDA PARA CIMA PARA RESOLVER FOREIGN KEY)
+CREATE TABLE admin_trials (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  store_name TEXT NOT NULL,
+  admin_phone TEXT NOT NULL,
+  access_code TEXT UNIQUE NOT NULL,
+  trial_started_at TIMESTAMPTZ NOT NULL,
+  trial_expires_at TIMESTAMPTZ NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  is_premium BOOLEAN NOT NULL DEFAULT false,
+  premium_expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Tabela de pedidos
 CREATE TABLE orders (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -76,25 +95,6 @@ CREATE TABLE order_items (
   total DECIMAL(10,2) NOT NULL,
   observations TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ============================================
--- AUTENTICAÇÃO E ADMINISTRAÇÃO
--- ============================================
-
--- Tabela de trials de administradores
-CREATE TABLE admin_trials (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  store_name TEXT NOT NULL,
-  admin_phone TEXT NOT NULL,
-  access_code TEXT UNIQUE NOT NULL,
-  trial_started_at TIMESTAMPTZ NOT NULL,
-  trial_expires_at TIMESTAMPTZ NOT NULL,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  is_premium BOOLEAN NOT NULL DEFAULT false,
-  premium_expires_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Tabela de códigos de liberação
@@ -446,3 +446,12 @@ CREATE POLICY "Permitir inserção pública em game_moves" ON game_moves FOR INS
 CREATE POLICY "Permitir leitura pública em game_moves" ON game_moves FOR SELECT USING (true);
 CREATE POLICY "Permitir atualização pública em game_moves" ON game_moves FOR UPDATE WITH CHECK (true);
 CREATE POLICY "Permitir deleção pública em game_moves" ON game_moves FOR DELETE USING (true);
+
+-- cidadela_codes
+ALTER TABLE cidadela_codes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir inserção pública em cidadela_codes" ON cidadela_codes;
+DROP POLICY IF EXISTS "Permitir leitura pública em cidadela_codes" ON cidadela_codes;
+DROP POLICY IF EXISTS "Permitir atualização pública em cidadela_codes" ON cidadela_codes;
+CREATE POLICY "Permitir inserção pública em cidadela_codes" ON cidadela_codes FOR INSERT WITH CHECK (true);
+CREATE POLICY "Permitir leitura pública em cidadela_codes" ON cidadela_codes FOR SELECT USING (true);
+CREATE POLICY "Permitir atualização pública em cidadela_codes" ON cidadela_codes FOR UPDATE WITH CHECK (true);

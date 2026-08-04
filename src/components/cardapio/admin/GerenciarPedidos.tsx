@@ -180,8 +180,8 @@ export function GerenciarPedidos() {
 
       {/* Modal para ver comprovante */}
       {selectedOrder && selectedOrder.payment_proof_url && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-6">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/90 backdrop-blur-sm p-0 sm:items-center sm:p-4">
+          <div className="w-full max-w-2xl rounded-t-2xl border border-border bg-card p-6 sm:rounded-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-tech">Comprovante de Pagamento</h3>
               <button
@@ -221,8 +221,8 @@ export function GerenciarPedidos() {
 
       {/* Modal para rejeitar pagamento */}
       {showRejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/90 backdrop-blur-sm p-0 sm:items-center sm:p-4">
+          <div className="w-full max-w-md rounded-t-2xl border border-border bg-card p-6 sm:rounded-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-tech">Rejeitar Pagamento</h3>
               <button

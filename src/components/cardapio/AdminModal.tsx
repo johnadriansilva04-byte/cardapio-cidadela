@@ -100,7 +100,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
 
     // Mostrar código para o usuário e pedir que digite para entrar
     setAccessCode(result.access_code);
-    setError("");
+    setError("✓ Trial criado! Código enviado via WhatsApp. Clique em 'Entrar' para acessar.");
   }
 
   async function handleActivateCode() {
@@ -211,7 +211,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
                   Entrar
                 </button>
 
-                {error && <p className="text-sm text-red-400">{error}</p>}
+                {error && <p className={`text-sm ${error.startsWith("✓") ? "text-green-400" : "text-red-400"}`}>{error}</p>}
 
                 <div className="border-t border-border pt-4">
                   <p className="text-sm text-gray-300 mb-3">Primeira vez?</p>

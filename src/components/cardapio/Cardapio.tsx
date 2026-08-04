@@ -1009,19 +1009,24 @@ ${itemsText}
 
   const waText = encodeURIComponent(formatComandaMessage(order));
 
+  const verses = [
+    '"Tudo quanto te vier à mão para fazer, faze-o conforme as tuas forças." — Eclesiastes 9:10',
+    '"Não deis lugar ao diabo." — Efésios 4:27',
+    '"Sede fortes e corajosos." — Josué 1:9',
+    '"O Senhor é minha força e meu escudo." — Salmos 28:7',
+    '"Confia no Senhor de todo o teu coração." — Provérbios 3:5',
+  ];
+
+  const randomVerse = verses[Math.floor(Math.random() * verses.length)];
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-5">
       <div className="feb-scope w-full max-w-sm rounded-2xl border border-border p-6 text-center">
         <CobraFumando className="mx-auto size-14 text-[color:var(--brass)]" />
         <p className="text-tech mt-4 text-[10px] text-[color:var(--brass)]">Pedido confirmado</p>
         <h2 className="text-stencil mt-1 text-2xl">{order.comanda}</h2>
-        <p className="mt-3 text-sm text-muted-foreground">
-          {order.synced
-            ? "Comanda transmitida ao comando. Confirmação chega no WhatsApp."
-            : "Comanda registrada localmente e será transmitida assim que a conexão voltar."}
-        </p>
         <p className="mt-4 text-xs italic text-muted-foreground/80">
-          “Tudo quanto te vier à mão para fazer, faze-o conforme as tuas forças.” — Eclesiastes 9:10
+          {randomVerse}
         </p>
         <div className="mt-6 flex flex-col gap-2">
           <a
@@ -1030,7 +1035,7 @@ ${itemsText}
             rel="noreferrer"
             className="rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground"
           >
-            Finalizar Pedido no WhatsApp
+            Acompanhar no WhatsApp
           </a>
           <button type="button" onClick={onClose} className="text-tech py-2 text-[11px]">
             Voltar ao cardápio

@@ -16,23 +16,14 @@ type LoginStep = "login" | "trial" | "premium" | "blocked";
 
 export function AdminModal({ onClose }: { onClose: () => void }) {
   const { state, update } = useStore();
-  const [module, setModule] = useState<Module>("menu");
-  const [loginStep, setLoginStep] = useState<LoginStep>("login");
+  const { trial, isLoading, isExpired, daysRemaining, createTrial, validateAccessCode, activateLiberationCode } = useAdminTrial();
+  const [loginStep, setLoginStep] = useState<"login" | "trial" | "premium">("login");
   const [accessCode, setAccessCode] = useState("");
+  const [liberationCode, setLiberationCode] = useState("");
   const [storeName, setStoreName] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
-  const [liberationCode, setLiberationCode] = useState("");
   const [error, setError] = useState("");
-
-  const {
-    trial,
-    isLoading,
-    isExpired,
-    daysRemaining,
-    createTrial,
-    validateAccessCode,
-    activateLiberationCode,
-  } = useAdminTrial();
+  const [module, setModule] = useState<Module>("menu");
 
   // Carregar WhatsApp do trial no state quando trial carrega
   useEffect(() => {
@@ -108,8 +99,8 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
     }
 
     // Mostrar código para o usuário e pedir que digite para entrar
-    setError(`Trial criado! Seu código de acesso: ${result.access_code}. Digite para entrar.`);
-    setAccessCode("");
+    setAccessCode(result.access_code);
+    setError("");
   }
 
   async function handleActivateCode() {

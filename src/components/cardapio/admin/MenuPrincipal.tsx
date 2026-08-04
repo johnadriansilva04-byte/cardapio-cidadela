@@ -1,11 +1,13 @@
 import { Store, Utensils, Settings, Receipt } from "lucide-react";
 
-export function MenuPrincipal({ onSelectModule }: { onSelectModule: (module: string) => void }) {
+type Module = "menu" | "config" | "categorias" | "lanches" | "pedidos";
+
+export function MenuPrincipal({ onSelectModule }: { onSelectModule: (module: Module) => void }) {
   const modules = [
-    { id: "config", label: "Configurações da Loja", icon: Settings, color: "text-[color:var(--brass)]" },
-    { id: "categorias", label: "Gerenciar Categorias", icon: Store, color: "text-[color:var(--olive)]" },
-    { id: "lanches", label: "Gerenciar Lanches", icon: Utensils, color: "text-[color:var(--brass)]" },
-    { id: "pedidos", label: "Pedidos / Comandas", icon: Receipt, color: "text-gray-400" },
+    { id: "config" as const, label: "Configurações da Loja", icon: Settings, color: "text-[color:var(--brass)]" },
+    { id: "categorias" as const, label: "Gerenciar Categorias", icon: Store, color: "text-[color:var(--olive)]" },
+    { id: "lanches" as const, label: "Gerenciar Lanches", icon: Utensils, color: "text-[color:var(--brass)]" },
+    { id: "pedidos" as const, label: "Pedidos / Comandas", icon: Receipt, color: "text-gray-400" },
   ];
 
   return (

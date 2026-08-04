@@ -12,6 +12,10 @@ export function useScript({ src, async = true, crossOrigin, onLoad, onError }: U
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     // Check if script is already loaded
     const existingScript = document.querySelector(`script[src="${src}"]`);
     if (existingScript) {

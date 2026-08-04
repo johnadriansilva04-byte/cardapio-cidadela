@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useScript } from '../../hooks/useScript';
+import { AdErrorBoundary } from './AdErrorBoundary';
+
+const ADSENSE_CLIENT_ID =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_ADS_CLIENT_ID) ||
+  'ca-pub-2783546143377409';
 
 interface AdBannerProps {
   adSlot: string;
@@ -17,10 +22,15 @@ export function AdBanner({
   const adRef = useRef<HTMLModElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load AdSense script safely
   const scriptStatus = useScript({
-    src: 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409',
+    src: `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`,
     async: true,
     crossOrigin: 'anonymous',
     onError: () => {
@@ -67,8 +77,11 @@ export function AdBanner({
     }
   }, [scriptStatus, isInitialized, hasError]);
 
-  // Don't render anything if there's an error or on server-side
-  if (hasError || typeof window === 'undefined') {
+  // Evita mismatch de hidratação: SSR e primeiro paint client-side ficam iguais (null)
+  if (!mounted || hasError || !ADSENSE_CLIENT_ID) {
+    if (mounted && !ADSENSE_CLIENT_ID) {
+      console.warn('[AdBanner] VITE_GOOGLE_ADS_CLIENT_ID não configurado — anúncio ignorado');
+    }
     return null;
   }
 
@@ -78,12 +91,21 @@ export function AdBanner({
         ref={adRef}
         className="adsbygoogle block"
         style={{ display: 'block' }}
-        data-ad-client="ca-pub-2783546143377409"
+        data-ad-client={ADSENSE_CLIENT_ID}
         data-ad-slot={adSlot}
         data-ad-format={adFormat}
         data-full-width-responsive={fullWidthResponsive.toString()}
       />
     </div>
+  );
+}
+
+/** AdBanner isolado por Error Boundary — use este export em rotas/páginas. */
+export function SafeAdBanner(props: AdBannerProps) {
+  return (
+    <AdErrorBoundary>
+      <AdBanner {...props} />
+    </AdErrorBoundary>
   );
 }
 

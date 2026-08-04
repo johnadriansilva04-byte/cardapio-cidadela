@@ -132,6 +132,12 @@ export default {
       const response = await handler.fetch(request, env, ctx);
       console.log(`[SERVER] Handler response received, status: ${response.status}`);
 
+      // Clone response to read body without consuming it
+      const clonedResponse = response.clone();
+      const bodyText = await clonedResponse.text();
+      console.log(`[SERVER] Response body length: ${bodyText.length}`);
+      console.log(`[SERVER] Response body preview (first 500 chars):`, bodyText.substring(0, 500));
+
       // Log detailed response info
       console.log(`[SERVER RESPONSE] ${method} ${url} - Status: ${response.status}`);
       if (response.status === 404) {

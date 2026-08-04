@@ -7,12 +7,19 @@ declare global {
   }
 }
 
-const GA_MEASUREMENT_ID = 'G-8WTB9PQBWH';
+const GA_MEASUREMENT_ID =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GA_MEASUREMENT_ID) ||
+  'G-8WTB9PQBWH';
 
 export function useGoogleAnalytics() {
   useEffect(() => {
     // Only run on client-side
     if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (!GA_MEASUREMENT_ID) {
+      console.warn('[GoogleAnalytics] VITE_GA_MEASUREMENT_ID não configurado — analytics ignorado');
       return;
     }
 

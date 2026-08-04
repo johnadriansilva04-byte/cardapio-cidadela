@@ -38,3 +38,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# N8N workflow files with secrets
+fluxo cidadela.json

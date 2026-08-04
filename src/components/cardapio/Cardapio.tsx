@@ -73,7 +73,13 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   }
 
   async function handlePaymentSuccess() {
-    if (!pendingOrder) return;
+    console.log("handlePaymentSuccess chamado");
+    if (!pendingOrder) {
+      console.error("pendingOrder é null");
+      return;
+    }
+
+    console.log("Processando pedido:", pendingOrder);
 
     // Determinar tipo de acesso baseado no valor total
     const accessType = pendingOrder.total >= 200 ? "15_dias" : "15_min";
@@ -109,7 +115,9 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       state.admin.storeId,
     );
 
+    console.log("Enviando webhook para:", state.integrations.n8nWebhookUrl);
     const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
+    console.log("Webhook resultado:", synced);
 
     const finalOrder = { ...pendingOrder, synced };
 
@@ -126,6 +134,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     setSuccess(finalOrder);
     setPaymentOpen(false);
     setPendingOrder(null);
+    console.log("Pagamento processado com sucesso");
   }
 
   return (
@@ -143,12 +152,6 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             >
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
-          </button>
-          <button
-            type="button"
-            className="rounded-lg bg-cyan-500 px-4 py-2 text-[10px] font-semibold text-white shadow-[0_0_10px_rgba(6,182,212,0.5)]"
-          >
-            Exportar
           </button>
         </div>
 
@@ -525,14 +528,9 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                     key={item.id}
                     className="group relative flex items-center gap-4 rounded-xl border border-red-500/20 bg-black/40 p-4 transition-all hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
                   >
-                    {/* Dish Image - Circular with red circuit border */}
+                    {/* Dish Image - Red neon pulsing dot */}
                     <div className="relative shrink-0">
-                      <div className="absolute inset-0 animate-pulse rounded-full border border-red-500/30" />
-                      <div className="relative size-16 overflow-hidden rounded-full border-2 border-red-500/50 bg-black/50">
-                        <div className="flex size-full items-center justify-center text-2xl">
-                          {item.img}
-                        </div>
-                      </div>
+                      <div className="size-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8),0_0_16px_rgba(239,68,68,0.6),0_0_24px_rgba(239,68,68,0.4)] animate-pulse" />
                     </div>
 
                     {/* Name and Description */}

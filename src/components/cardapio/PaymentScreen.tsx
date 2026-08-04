@@ -23,6 +23,7 @@ export function PaymentScreen({ order, onSuccess, onCancel }: PaymentScreenProps
   };
 
   const handleConfirmPayment = () => {
+    console.log("Botão 'Já paguei' clicado");
     onSuccess();
   };
 

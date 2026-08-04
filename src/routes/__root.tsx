@@ -113,15 +113,17 @@ function RootShell({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
         {/* Google tag (gtag.js) */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-R2CJS0CR2K"></script>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-X281E74V1H"></script>
         <script dangerouslySetInnerHTML={{
           __html: `
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-R2CJS0CR2K');
+            gtag('config', 'G-X281E74V1H');
           `
         }} />
+        {/* Google AdSense */}
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409" crossOrigin="anonymous"></script>
       </head>
       <body>
         {children}

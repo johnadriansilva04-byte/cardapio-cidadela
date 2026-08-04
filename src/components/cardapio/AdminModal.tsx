@@ -107,7 +107,9 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       // Continuar mesmo se webhook falhar (trial já foi criado)
     }
 
-    setLoginStep("trial");
+    // Mostrar código para o usuário e pedir que digite para entrar
+    setError(`Trial criado! Seu código de acesso: ${result.access_code}. Digite para entrar.`);
+    setAccessCode("");
   }
 
   async function handleActivateCode() {

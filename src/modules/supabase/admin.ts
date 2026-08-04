@@ -31,16 +31,63 @@ export function useAdminTrial() {
   const [isExpired, setIsExpired] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState<number>(0);
 
+  const SESSION_TIMEOUT = 2 * 60 * 60 * 1000; // 2 horas em ms
+
+  // Verificar timeout de sessão
+  function checkSessionTimeout() {
+    const lastActivity = localStorage.getItem("admin_last_activity");
+    if (lastActivity) {
+      const elapsed = Date.now() - parseInt(lastActivity);
+      if (elapsed > SESSION_TIMEOUT) {
+        // Sessão expirou, limpar trial
+        localStorage.removeItem("admin_trial");
+        localStorage.removeItem("admin_last_activity");
+        setTrial(null);
+        setIsExpired(true);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Atualizar timestamp de atividade
+  function updateLastActivity() {
+    localStorage.setItem("admin_last_activity", Date.now().toString());
+  }
+
   // Carregar trial do localStorage
   useEffect(() => {
     const savedTrial = localStorage.getItem("admin_trial");
     if (savedTrial) {
-      const parsed = JSON.parse(savedTrial);
-      setTrial(parsed);
-      checkExpiration(parsed);
+      // Verificar timeout antes de carregar
+      if (!checkSessionTimeout()) {
+        const parsed = JSON.parse(savedTrial);
+        setTrial(parsed);
+        checkExpiration(parsed);
+        updateLastActivity();
+      }
     }
     setIsLoading(false);
   }, []);
+
+  // Atualizar atividade em eventos do usuário
+  useEffect(() => {
+    const handleActivity = () => {
+      if (trial) {
+        updateLastActivity();
+      }
+    };
+
+    window.addEventListener("click", handleActivity);
+    window.addEventListener("keydown", handleActivity);
+    window.addEventListener("scroll", handleActivity);
+
+    return () => {
+      window.removeEventListener("click", handleActivity);
+      window.removeEventListener("keydown", handleActivity);
+      window.removeEventListener("scroll", handleActivity);
+    };
+  }, [trial]);
 
   function checkExpiration(trialData: AdminTrial) {
     const now = new Date();
@@ -108,6 +155,7 @@ export function useAdminTrial() {
       localStorage.setItem("admin_trial", JSON.stringify(trialData));
       setTrial(trialData);
       checkExpiration(trialData);
+      updateLastActivity(); // Atualizar timestamp de atividade ao entrar
     }
 
     return { valid: isValid, trial: trialData, adminPhone: trialData.admin_phone, storeId: trialData.id };

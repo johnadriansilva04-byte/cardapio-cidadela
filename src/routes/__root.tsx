@@ -141,6 +141,22 @@ function RootShell({ children }: { children: ReactNode }) {
         <meta name="twitter:title" content="Cardápio Digital Cidadela" />
         <meta name="twitter:description" content="Peça online e ganhe acesso à Cidadela" />
         <meta name="twitter:image" content="https://pracinha.online/cobra-fumando.png" />
+
+        {/* Google Analytics - SSR-safe: script tag no head, fora da árvore React */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-8WTB9PQBWH"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-8WTB9PQBWH');
+            `,
+          }}
+        />
       </head>
       <body>
         {children}

@@ -12,13 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerAppServiceWorker } from "../lib/pwa";
-import { AdErrorBoundary } from "../components/ads/AdErrorBoundary";
 import { useGoogleAnalytics } from "../hooks/useGoogleAnalytics";
-
-function GoogleAnalyticsInit() {
-  useGoogleAnalytics();
-  return null;
-}
 
 function NotFoundComponent() {
   return (
@@ -162,6 +156,9 @@ function RootComponent() {
 
   console.log('[ROOT] RootComponent mounted');
 
+  // Load Google Analytics safely
+  useGoogleAnalytics();
+
   useEffect(() => {
     console.log('[ROOT] useEffect running');
     // Temporarily disabled to prevent 404 errors
@@ -170,9 +167,6 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AdErrorBoundary>
-        <GoogleAnalyticsInit />
-      </AdErrorBoundary>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
     </QueryClientProvider>

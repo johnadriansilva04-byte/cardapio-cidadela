@@ -140,9 +140,9 @@ CREATE TABLE store_configs (
 CREATE TABLE cidadela_codes (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   code TEXT UNIQUE NOT NULL,
-  store_id TEXT NOT NULL REFERENCES admin_trials(id) ON DELETE CASCADE,
+  store_id TEXT NOT NULL,
   customer_phone TEXT NOT NULL,
-  order_id TEXT REFERENCES orders(id),
+  order_id TEXT,
   
   -- Tipo de acesso
   access_type TEXT NOT NULL CHECK (access_type IN ('15_min', '15_dias')),

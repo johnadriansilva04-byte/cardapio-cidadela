@@ -109,9 +109,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       state.admin.storeId,
     );
 
-    console.log("ENVIANDO WEBHOOK COMPLETO PARA:", state.integrations.n8nWebhookUrl);
     const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
-    console.log("RESULTADO WEBHOOK:", synced);
 
     const finalOrder = { ...pendingOrder, synced };
 

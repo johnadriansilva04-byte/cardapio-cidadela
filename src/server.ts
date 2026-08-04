@@ -107,6 +107,7 @@ export default {
     const method = request.method;
     const ip = getClientIp(request);
     console.log(`[SERVER REQUEST] ${method} ${url} - IP: ${ip}`);
+    console.log(`[SERVER] Headers:`, Object.fromEntries(request.headers.entries()));
 
     // Aplicar middleware de segurança
     const securityCheck = securityMiddleware(request);
@@ -125,8 +126,11 @@ export default {
     }
 
     try {
+      console.log(`[SERVER] Getting server entry...`);
       const handler = await getServerEntry();
+      console.log(`[SERVER] Server entry obtained, calling handler.fetch...`);
       const response = await handler.fetch(request, env, ctx);
+      console.log(`[SERVER] Handler response received, status: ${response.status}`);
 
       // Log detailed response info
       console.log(`[SERVER RESPONSE] ${method} ${url} - Status: ${response.status}`);
@@ -141,6 +145,7 @@ export default {
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       console.error(`[SERVER ERROR] ${method} ${url}:`, error);
+      console.error(`[SERVER ERROR] Stack:`, error instanceof Error ? error.stack : 'No stack');
       return new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },

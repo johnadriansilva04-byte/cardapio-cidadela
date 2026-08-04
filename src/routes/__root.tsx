@@ -154,12 +154,6 @@ function RootShell({ children }: { children: ReactNode }) {
             `,
           }}
         />
-        {/* Google AdSense */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409"
-          crossOrigin="anonymous"
-        ></script>
       </head>
       <body>
         {children}
@@ -175,6 +169,13 @@ function RootComponent() {
   useEffect(() => {
     // Temporarily disabled to prevent 404 errors
     // void registerAppServiceWorker();
+
+    // Load Google AdSense only on client side
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409';
+    script.crossOrigin = 'anonymous';
+    document.head.appendChild(script);
   }, []);
 
   return (

@@ -7,11 +7,12 @@ import { MenuPrincipal } from "./admin/MenuPrincipal";
 import { GerenciarCategorias } from "./admin/GerenciarCategorias";
 import { GerenciarLanches } from "./admin/GerenciarLanches";
 import { GerenciarPedidos } from "./admin/GerenciarPedidos";
+import { DescontosConfig } from "./admin/DescontosConfig";
 import { useStore } from "@/modules/cidadela-core/store";
 import { useAdminTrial } from "@/modules/supabase/admin";
 import { sendAdminTrial } from "@/modules/fluxos-n8n/webhook";
 
-type Module = "menu" | "config" | "categorias" | "lanches" | "pedidos";
+type Module = "menu" | "config" | "categorias" | "lanches" | "pedidos" | "descontos";
 type LoginStep = "login" | "trial" | "premium" | "blocked";
 
 export function AdminModal({ onClose }: { onClose: () => void }) {
@@ -342,6 +343,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
           {module === "categorias" && <GerenciarCategorias onBack={() => setModule("menu")} />}
           {module === "lanches" && <GerenciarLanches onBack={() => setModule("menu")} />}
           {module === "pedidos" && <GerenciarPedidos />}
+          {module === "descontos" && <DescontosConfig onBack={() => setModule("menu")} />}
         </div>
       </div>
     </div>

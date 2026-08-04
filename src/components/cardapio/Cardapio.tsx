@@ -51,6 +51,21 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const total = cartItems.reduce((sum, i) => sum + i.total, 0);
   const count = cartItems.reduce((sum, i) => sum + i.quantity, 0);
 
+  // Calcular desconto baseado em pontos de soberania
+  const discountPercentage = useMemo(() => {
+    const tiers = state.admin.discountTiers || [];
+    let bestDiscount = 0;
+    for (const tier of tiers) {
+      if (state.soberania.points >= tier.points && tier.percentage > bestDiscount) {
+        bestDiscount = tier.percentage;
+      }
+    }
+    return bestDiscount;
+  }, [state.soberania.points, state.admin.discountTiers]);
+
+  const discountAmount = total * (discountPercentage / 100);
+  const totalWithDiscount = total - discountAmount;
+
   const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
   const remove = (id: string) =>
     setCart((c) => {
@@ -182,8 +197,8 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     }));
 
     // Adicionar pontos de soberania pelo pedido (1 ponto por R$1)
-    const pointsEarned = Math.floor(pendingOrder.total);
-    addSoberaniaPoints(pointsEarned, `Pedido de R$${pendingOrder.total.toFixed(2)}`, "order");
+    const pointsEarned = Math.floor(finalOrder.total);
+    addSoberaniaPoints(pointsEarned, `Pedido de R$${finalOrder.total.toFixed(2)}`, "order");
 
     setSuccess(finalOrder);
     setPaymentOpen(false);
@@ -729,6 +744,9 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         <CartSheet
           items={cartItems}
           total={total}
+          discountPercentage={discountPercentage}
+          discountAmount={discountAmount}
+          totalWithDiscount={totalWithDiscount}
           onClose={() => setCartOpen(false)}
           onAdd={add}
           onRemove={remove}
@@ -743,6 +761,9 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         <CheckoutModal
           items={cartItems}
           subtotal={total}
+          discountPercentage={discountPercentage}
+          discountAmount={discountAmount}
+          totalWithDiscount={totalWithDiscount}
           onClose={() => setCheckoutOpen(false)}
           onConfirm={submitOrder}
         />
@@ -767,6 +788,9 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
 function CartSheet({
   items,
   total,
+  discountPercentage,
+  discountAmount,
+  totalWithDiscount,
   onClose,
   onAdd,
   onRemove,
@@ -774,6 +798,9 @@ function CartSheet({
 }: {
   items: OrderItem[];
   total: number;
+  discountPercentage: number;
+  discountAmount: number;
+  totalWithDiscount: number;
   onClose: () => void;
   onAdd: (id: string) => void;
   onRemove: (id: string) => void;
@@ -808,9 +835,15 @@ function CartSheet({
             </li>
           ))}
         </ul>
+        {discountPercentage > 0 && (
+          <div className="mt-3 flex items-center justify-between text-green-400">
+            <span className="text-sm">Desconto ({discountPercentage}%)</span>
+            <span className="text-sm font-semibold">-{brl(discountAmount)}</span>
+          </div>
+        )}
         <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
           <span className="text-sm text-muted-foreground">Total</span>
-          <span className="text-lg font-bold">{brl(total)}</span>
+          <span className="text-lg font-bold">{brl(totalWithDiscount)}</span>
         </div>
         <button
           type="button"
@@ -827,11 +860,17 @@ function CartSheet({
 function CheckoutModal({
   items,
   subtotal,
+  discountPercentage,
+  discountAmount,
+  totalWithDiscount,
   onClose,
   onConfirm,
 }: {
   items: OrderItem[];
   subtotal: number;
+  discountPercentage: number;
+  discountAmount: number;
+  totalWithDiscount: number;
   onClose: () => void;
   onConfirm: (order: Order) => void | Promise<void>;
 }) {
@@ -852,7 +891,7 @@ function CheckoutModal({
   const [copiedPix, setCopiedPix] = useState(false);
 
   const taxa = tipo === "entrega" ? 0 : 0;
-  const total = Number((subtotal + taxa).toFixed(2));
+  const total = Number((totalWithDiscount + taxa).toFixed(2));
   const pixQr = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(state.payment.pixKey)}`;
 
   const valid =
@@ -1035,9 +1074,16 @@ function CheckoutModal({
           />
         )}
 
+        {discountPercentage > 0 && (
+          <div className="mt-3 flex items-center justify-between text-green-400">
+            <span className="text-sm">Desconto ({discountPercentage}%)</span>
+            <span className="text-sm font-semibold">-{brl(discountAmount)}</span>
+          </div>
+        )}
+
         <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
           <span className="text-sm text-muted-foreground">Total</span>
-          <span className="text-lg font-bold">{brl(total)}</span>
+          <span className="text-lg font-bold">{brl(totalWithDiscount)}</span>
         </div>
 
         <button

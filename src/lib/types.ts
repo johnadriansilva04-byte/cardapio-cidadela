@@ -57,7 +57,7 @@ export interface AppState {
   store: { name: string; slogan: string; marquee: string; coverPhoto?: string };
   payment: { pixKey: string };
   promo: { meta: number; cidadelaDate: string };
-  admin: { accessKey: string; phone?: string; email?: string; storeId?: string };
+  admin: { accessKey: string; phone?: string; email?: string; storeId?: string; discountTiers?: DiscountTier[] };
   whatsapp: string;
   integrations: {
     geminiApiKey: string;
@@ -80,7 +80,6 @@ export interface AppState {
   soberania: {
     points: number;
     history: SoberaniaTransaction[];
-    discountPercentage: number;
   };
   _version?: number; // State version for migration
 }
@@ -110,6 +109,11 @@ export interface SoberaniaTransaction {
   source: "game" | "order" | "ad" | "admin";
 }
 
+export interface DiscountTier {
+  points: number;
+  percentage: number;
+}
+
 export const DEFAULT_STATE: AppState = {
   store: {
     name: "Cantina do Pracinha",
@@ -119,7 +123,7 @@ export const DEFAULT_STATE: AppState = {
   },
   payment: { pixKey: "cantina@pracinha.com.br" },
   promo: { meta: 100, cidadelaDate: new Date().toISOString().slice(0, 10) },
-  admin: { accessKey: import.meta.env.VITE_ADMIN_ACCESS_KEY || "FEB-1944" },
+  admin: { accessKey: import.meta.env.VITE_ADMIN_ACCESS_KEY || "FEB-1944", discountTiers: [] },
   whatsapp: import.meta.env.VITE_WHATSAPP_NUMBER || "5511999999999",
   integrations: {
     geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
@@ -141,8 +145,8 @@ export const DEFAULT_STATE: AppState = {
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],
   conversation: [],
-  soberania: { points: 0, history: [], discountPercentage: 0 },
-  _version: 7, // State version for migration
+  soberania: { points: 0, history: [] },
+  _version: 8, // State version for migration
   categories: [
     {
       name: "Lanches",

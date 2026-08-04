@@ -1,6 +1,6 @@
-import { Store, Utensils, Settings, Receipt } from "lucide-react";
+import { Store, Utensils, Settings, Receipt, Gift } from "lucide-react";
 
-type Module = "menu" | "config" | "categorias" | "lanches" | "pedidos";
+type Module = "menu" | "config" | "categorias" | "lanches" | "pedidos" | "descontos";
 
 export function MenuPrincipal({ onSelectModule }: { onSelectModule: (module: Module) => void }) {
   const modules = [
@@ -8,6 +8,7 @@ export function MenuPrincipal({ onSelectModule }: { onSelectModule: (module: Mod
     { id: "categorias" as const, label: "Gerenciar Categorias", icon: Store, color: "text-[color:var(--olive)]" },
     { id: "lanches" as const, label: "Gerenciar Lanches", icon: Utensils, color: "text-[color:var(--brass)]" },
     { id: "pedidos" as const, label: "Pedidos / Comandas", icon: Receipt, color: "text-gray-400" },
+    { id: "descontos" as const, label: "Configurar Descontos", icon: Gift, color: "text-green-400" },
   ];
 
   return (
@@ -37,6 +38,7 @@ export function MenuPrincipal({ onSelectModule }: { onSelectModule: (module: Mod
                   {module.id === "categorias" && "Adicionar, editar, remover categorias"}
                   {module.id === "lanches" && "Adicionar, editar, remover produtos"}
                   {module.id === "pedidos" && "Visualizar e gerenciar pedidos"}
+                  {module.id === "descontos" && "Configurar descontos por pontos de soberania"}
                 </p>
               </div>
             </div>

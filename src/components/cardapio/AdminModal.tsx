@@ -80,6 +80,8 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
             troco: order.change_for,
             comanda: order.comanda,
             synced: order.webhook_sent,
+            status: order.status === 'pending' ? 'pendente' : order.status === 'confirmed' || order.status === 'preparing' ? 'andamento' : 'entregue',
+            createdAt: order.created_at,
           })),
         }));
       }

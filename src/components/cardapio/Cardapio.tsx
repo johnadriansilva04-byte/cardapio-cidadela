@@ -968,43 +968,13 @@ function SuccessModal({ order, onClose }: { order: Order; onClose: () => void })
   const { state } = useStore();
   // Format WhatsApp message for thermal printer (Comanda format)
   const formatComandaMessage = (order: Order): string => {
-    const itemsText = order.itens
-      .map((item) => {
-        let text = `- ${item.quantity}x ${item.name} (${brl(item.total)})`;
-        if (order.observacoes) {
-          text += `\n  _Obs: ${order.observacoes}_`;
-        }
-        return text;
-      })
-      .join("\n");
+    return ` Olá! Sou o dono do pedido *${order.comanda}*
 
-    const paymentText =
-      order.pagamento === "dinheiro"
-        ? `Dinheiro (Troco p/ R$ ${order.troco || "0"})`
-        : order.pagamento === "cartao"
-          ? "Cartão"
-          : "PIX";
+ Meu número: ${order.telefone}
+ ${order.tipo_entrega === "entrega" ? order.endereco : "Retirada no balcão"}
+ Total: ${brl(order.total)}
 
-    const addressText =
-      order.tipo_entrega === "entrega" ? `${order.endereco}` : "Retirada no balcão";
-
-    return `==============================
-   *NOVO PEDIDO - ${state.store.name}*
-==============================
-*Cliente:* ${order.cliente}
-*Telefone:* ${order.telefone}
-*Tipo:* ${order.tipo_entrega === "entrega" ? "Delivery" : "Retirada"}
-*Endereço:* ${addressText}
-
-------------------------------
-*ITENS DO PEDIDO:*
-${itemsText}
-------------------------------
-
-*FORMA DE PAGAMENTO:* ${paymentText}
-*TAXA DE ENTREGA:* ${brl(order.taxa_entrega)}
-*TOTAL DO PEDIDO:* ${brl(order.total)}
-==============================`;
+Aguardando confirmação!`;
   };
 
   const waText = encodeURIComponent(formatComandaMessage(order));

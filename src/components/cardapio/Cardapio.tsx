@@ -81,13 +81,15 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     // Gerar código promocional para acesso à Cidadela
     const promoCode = generatePromoCode(undefined, accessType);
 
+    const storeId = state.admin.storeId || state.admin.accessKey;
+
     // Salvar código no Supabase
     const expiresAt = new Date(promoCode.expiration);
-    const { error: supabaseError } = await supabase
+    const { error: codeError } = await supabase
       .from("cidadela_codes")
       .insert({
         code: promoCode.code,
-        store_id: state.admin.storeId || state.admin.accessKey,
+        store_id: storeId,
         customer_phone: pendingOrder.telefone,
         access_type: accessType,
         order_total: pendingOrder.total,
@@ -95,8 +97,55 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         is_active: true,
       });
 
-    if (supabaseError) {
-      console.error("Erro ao salvar código no Supabase:", supabaseError);
+    if (codeError) {
+      console.error("Erro ao salvar código no Supabase:", codeError);
+    }
+
+    // Salvar pedido no Supabase
+    const { data: orderData, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        store_id: storeId,
+        customer_name: pendingOrder.cliente,
+        customer_phone: pendingOrder.telefone,
+        delivery_address: pendingOrder.endereco,
+        delivery_type: pendingOrder.tipo_entrega,
+        observations: pendingOrder.observacoes,
+        subtotal: pendingOrder.total,
+        delivery_fee: pendingOrder.taxa_entrega,
+        total: pendingOrder.total,
+        payment_method: pendingOrder.pagamento,
+        change_for: pendingOrder.troco,
+        comanda: pendingOrder.comanda,
+        status: 'pending',
+        cidadela_code: promoCode.code,
+        cidadela_access_type: accessType,
+        payment_status: 'paid',
+        payment_confirmed_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error("Erro ao salvar pedido no Supabase:", orderError);
+    } else if (orderData) {
+      // Salvar itens do pedido no Supabase
+      const orderItems = pendingOrder.itens.map(item => ({
+        order_id: orderData.id,
+        product_id: item.id,
+        product_name: item.name,
+        quantity: item.quantity,
+        unit_price: item.price,
+        total: item.total,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error("Erro ao salvar itens do pedido no Supabase:", itemsError);
+      }
     }
 
     // Payload completo conforme documentação do N8N com código da Cidadela
@@ -106,7 +155,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       accessType,
       state.admin.phone || state.whatsapp,
       state.admin.accessCode,
-      state.admin.storeId,
+      storeId,
     );
 
     const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);

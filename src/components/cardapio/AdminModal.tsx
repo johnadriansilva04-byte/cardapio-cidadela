@@ -16,7 +16,7 @@ type LoginStep = "login" | "trial" | "premium" | "blocked";
 
 export function AdminModal({ onClose }: { onClose: () => void }) {
   const { state, update } = useStore();
-  const { trial, isLoading, isExpired, daysRemaining, createTrial, validateAccessCode, activateLiberationCode } = useAdminTrial();
+  const { trial, isLoading, isExpired, daysRemaining, createTrial, validateAccessCode, loadOrdersFromSupabase, activateLiberationCode } = useAdminTrial();
   const [loginStep, setLoginStep] = useState<"login" | "trial" | "premium">("login");
   const [accessCode, setAccessCode] = useState("");
   const [liberationCode, setLiberationCode] = useState("");
@@ -54,6 +54,35 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
           accessCode: accessCode.trim(),
         },
       }));
+
+      // Carregar pedidos do Supabase
+      if (result.storeId) {
+        const orders = await loadOrdersFromSupabase(result.storeId);
+        update((prev) => ({
+          ...prev,
+          orders: orders.map(order => ({
+            id: order.id,
+            cliente: order.customer_name,
+            telefone: order.customer_phone,
+            endereco: order.delivery_address || '',
+            observacoes: order.observations || '',
+            itens: order.order_items?.map((item: any) => ({
+              id: item.product_id,
+              name: item.product_name,
+              quantity: item.quantity,
+              price: item.unit_price,
+              total: item.total,
+            })) || [],
+            total: order.total,
+            tipo_entrega: order.delivery_type,
+            taxa_entrega: order.delivery_fee,
+            pagamento: order.payment_method,
+            troco: order.change_for,
+            comanda: order.comanda,
+            synced: order.webhook_sent,
+          })),
+        }));
+      }
 
       if (result.trial?.is_premium) {
         setLoginStep("premium");

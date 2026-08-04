@@ -156,19 +156,27 @@ export function useAdminTrial() {
       setTrial(trialData);
       checkExpiration(trialData);
       updateLastActivity(); // Atualizar timestamp de atividade ao entrar
-      
-      // Atualizar estado global com storeId do trial
-      update((prev) => ({
-        ...prev,
-        admin: {
-          ...prev.admin,
-          storeId: trialData.id,
-          accessCode: code,
-        },
-      }));
     }
 
     return { valid: isValid, trial: trialData, adminPhone: trialData.admin_phone, storeId: trialData.id };
+  }
+
+  async function loadOrdersFromSupabase(storeId: string) {
+    const { data: orders, error } = await supabase
+      .from("orders")
+      .select(`
+        *,
+        order_items (*)
+      `)
+      .eq("store_id", storeId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Erro ao carregar pedidos do Supabase:", error);
+      return [];
+    }
+
+    return orders || [];
   }
 
   async function activateLiberationCode(code: string) {
@@ -236,6 +244,7 @@ export function useAdminTrial() {
     daysRemaining,
     createTrial,
     validateAccessCode,
+    loadOrdersFromSupabase,
     activateLiberationCode,
     clearTrial,
   };

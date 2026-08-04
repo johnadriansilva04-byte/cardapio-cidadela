@@ -12,6 +12,7 @@ import { TrilhaGame } from "@/components/cidadela/Trilha/TrilhaGame";
 import { useStore } from "@/modules/cidadela-core/store";
 import { isCodeValid } from "@/modules/cidadela-core/utils";
 import { validateCidadelaCode } from "@/modules/fluxos-n8n/webhook";
+import { supabase } from "@/modules/supabase/client";
 
 type Tab = "core" | "praxinha" | "config" | "pedidos";
 type ViewMode = "tabs" | "lobby";
@@ -35,31 +36,29 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
   const [activeModule, setActiveModule] = useState<"trilha" | null>(null);
   const [codeExpiresAt, setCodeExpiresAt] = useState<string | null>(null);
 
-  // Salvar dados do usuário ao desbloquear
-  const saveUserData = (userPhone: string, accessCode: string) => {
-    const userData = {
-      phone: userPhone,
-      accessCode,
-      unlockedAt: new Date().toISOString(),
-      expiresAt: codeExpiresAt,
-    };
-    localStorage.setItem("cidadela_user_data", JSON.stringify(userData));
+  // Salvar último código usado no localStorage (para facilitar reentrada)
+  const saveUserData = (accessCode: string) => {
+    localStorage.setItem("cidadela_last_code", accessCode);
   };
 
-  // Recuperar dados do usuário ao carregar
+  // Recuperar dados do usuário ao carregar (busca no Supabase pelo último código usado)
   useEffect(() => {
-    const savedData = localStorage.getItem("cidadela_user_data");
-    if (savedData) {
-      try {
-        const userData = JSON.parse(savedData);
-        // Verificar se o código ainda é válido
-        if (userData.expiresAt && new Date(userData.expiresAt) > new Date()) {
-          setCode(userData.accessCode);
-          setCodeExpiresAt(userData.expiresAt);
-        }
-      } catch (e) {
-        console.error("Erro ao recuperar dados do usuário:", e);
-      }
+    const savedCode = localStorage.getItem("cidadela_last_code");
+    if (savedCode) {
+      // Buscar código no Supabase para verificar validade
+      supabase
+        .from("cidadela_codes")
+        .select("*")
+        .eq("code", savedCode)
+        .single()
+        .then(({ data, error }: { data: any; error: any }) => {
+          if (data && !error && data.is_active && new Date(data.expires_at) > new Date()) {
+            setCode(savedCode);
+            setCodeExpiresAt(data.expires_at);
+          } else {
+            localStorage.removeItem("cidadela_last_code");
+          }
+        });
     }
   }, []);
 
@@ -115,8 +114,8 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
         
         setCodeExpiresAt(expiresAt.toISOString());
         
-        // Salvar dados do usuário
-        saveUserData("", value);
+        // Salvar último código usado
+        saveUserData(value);
         
         update((prev) => ({
           ...prev,
@@ -187,8 +186,8 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
         
         setCodeExpiresAt(expiresAt.toISOString());
         
-        // Salvar dados do usuário
-        saveUserData("", value);
+        // Salvar último código usado
+        saveUserData(value);
         
         update((prev) => ({
           ...prev,

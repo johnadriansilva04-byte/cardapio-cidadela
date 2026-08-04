@@ -142,28 +142,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <meta name="twitter:description" content="Peça online e ganhe acesso à Cidadela" />
         <meta name="twitter:image" content="https://pracinha.online/cobra-fumando.png" />
 
-        {/* Google Analytics - SSR-safe: script tag no head, fora da árvore React */}
-        {(() => {
-          const GA_ID = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GA_MEASUREMENT_ID) || 'G-8WTB9PQBWH';
-          return (
-            <>
-              <script
-                async
-                src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-              />
-              <script
-                dangerouslySetInnerHTML={{
-                  __html: `
-                    window.dataLayer = window.dataLayer || [];
-                    function gtag(){dataLayer.push(arguments);}
-                    gtag('js', new Date());
-                    gtag('config', '${GA_ID}');
-                  `,
-                }}
-              />
-            </>
-          );
-        })()}
+        {/* PLACEHOLDER: INSERIR GOOGLE ANALYTICS / ADS AQUI FUTURAMENTE */}
       </head>
       <body>
         {children}

@@ -89,9 +89,11 @@
 ### 1. Usuário Cria Trial (Admin)
 
 - Frontend cria trial no Supabase (tabela `admin_trials`)
-- Gera código: `FEB-{RANDOM}-TRIAL`
+- Gera código: `FEB-{RANDOM}-CID`
 - Expira em 2 dias
 - Salva no localStorage e Supabase
+- Envia webhook para n8n com o código gerado
+- n8n envia código via WhatsApp para o administrador
 
 ### 2. Trial Expira - Usuário Clica WhatsApp
 
@@ -105,7 +107,26 @@
 - Insere na tabela `liberation_codes` do Supabase
 - Envia código e PIX para o usuário
 
-### 4. Usuário Insere Código
+### 4. Webhook de Criação de Trial
+
+**URL:** `https://webhook.pracinha.online/webhook/admin-trial` (configurável via `VITE_N8N_ADMIN_TRIAL_URL`)
+
+**Payload Recebido:**
+
+```json
+{
+  "acao": "criar_trial",
+  "store_name": "string",
+  "admin_phone": "string",
+  "access_code": "string",
+  "origem": "CIDADELA_PWA",
+  "timestamp": "ISO8601"
+}
+```
+
+**Resposta Esperada:** HTTP 200 (sucesso) ou HTTP 500 (erro)
+
+### 5. Usuário Insere Código
 
 - Frontend valida código na tabela `liberation_codes`
 - Ativa premium no trial do usuário

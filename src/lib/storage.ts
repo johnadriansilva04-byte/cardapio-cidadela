@@ -87,6 +87,7 @@ export function mergeState(persisted: Partial<AppState> | null): AppState {
       geminiApiKey: persisted.integrations?.geminiApiKey ?? DEFAULT_STATE.integrations.geminiApiKey,
       n8nWebhookUrl: DEFAULT_STATE.integrations.n8nWebhookUrl,
       cidadelaAuthUrl: DEFAULT_STATE.integrations.cidadelaAuthUrl,
+      adminTrialUrl: DEFAULT_STATE.integrations.adminTrialUrl,
     },
     cidadela: { ...DEFAULT_STATE.cidadela, ...persisted.cidadela },
     categories: persisted.categories?.length ? persisted.categories : DEFAULT_STATE.categories,

@@ -87,25 +87,27 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       admin: { ...prev.admin, phone: adminPhone.trim() },
     }));
 
-    // Enviar para o webhook N8N
+    // Criar trial no Supabase primeiro (gera o access_code)
+    const result = await createTrial(storeName.trim(), adminPhone.trim());
+    if (!result) {
+      setError("Erro ao criar trial");
+      return;
+    }
+
+    // Enviar para o webhook N8N com o código gerado
     const webhookResult = await sendAdminTrial(
       state.integrations.adminTrialUrl,
       storeName.trim(),
       adminPhone.trim(),
+      result.access_code,
     );
 
     if (!webhookResult.success) {
       console.error("Erro ao enviar webhook:", webhookResult.error);
-      // Continuar mesmo se webhook falhar (fallback para Supabase)
+      // Continuar mesmo se webhook falhar (trial já foi criado)
     }
 
-    // Criar trial no Supabase
-    const result = await createTrial(storeName.trim(), adminPhone.trim());
-    if (result) {
-      setLoginStep("trial");
-    } else {
-      setError("Erro ao criar trial");
-    }
+    setLoginStep("trial");
   }
 
   async function handleActivateCode() {

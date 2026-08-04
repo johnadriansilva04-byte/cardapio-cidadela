@@ -301,6 +301,7 @@ export interface AdminTrialPayload {
   acao: "criar_trial";
   store_name: string;
   admin_phone: string;
+  access_code: string;
   origem: "CIDADELA_PWA";
   timestamp: string;
 }
@@ -318,6 +319,7 @@ export async function sendAdminTrial(
   url: string,
   storeName: string,
   adminPhone: string,
+  accessCode: string,
 ): Promise<AdminTrialResponse> {
   if (!url) {
     return { success: false, error: "missing_url" };
@@ -329,6 +331,7 @@ export async function sendAdminTrial(
       acao: "criar_trial",
       store_name: storeName,
       admin_phone: adminPhone,
+      access_code: accessCode,
       origem: "CIDADELA_PWA",
       timestamp: new Date().toISOString(),
     };

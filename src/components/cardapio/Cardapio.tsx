@@ -679,6 +679,17 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         />
       )}
 
+      {paymentOpen && pendingOrder && (
+        <PaymentScreen
+          order={pendingOrder}
+          onSuccess={handlePaymentSuccess}
+          onCancel={() => {
+            setPaymentOpen(false);
+            setPendingOrder(null);
+          }}
+        />
+      )}
+
       {success && <SuccessModal order={success} onClose={() => setSuccess(null)} />}
     </div>
   );
@@ -963,19 +974,6 @@ function CheckoutModal({
       </form>
     </div>
   );
-
-  if (paymentOpen && pendingOrder) {
-    return (
-      <PaymentScreen
-        order={pendingOrder}
-        onSuccess={handlePaymentSuccess}
-        onCancel={() => {
-          setPaymentOpen(false);
-          setPendingOrder(null);
-        }}
-      />
-    );
-  }
 }
 
 function SuccessModal({ order, onClose }: { order: Order; onClose: () => void }) {

@@ -163,7 +163,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       promoCode.code,
       accessType,
       state.admin.phone || state.whatsapp,
-      state.admin.accessCode,
+      state.admin.email,
       storeId,
     );
 

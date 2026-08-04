@@ -18,7 +18,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
   const { state, update } = useStore();
   const { trial, isLoading, isExpired, daysRemaining, createTrial, validateAccessCode, loadOrdersFromSupabase, activateLiberationCode } = useAdminTrial();
   const [loginStep, setLoginStep] = useState<"login" | "trial" | "premium">("login");
-  const [accessCode, setAccessCode] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
   const [liberationCode, setLiberationCode] = useState("");
   const [storeName, setStoreName] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
@@ -37,21 +37,28 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
 
   async function handleLogin() {
     setError("");
-    if (!accessCode.trim()) {
-      setError("Digite o código de acesso");
+    if (!adminEmail.trim()) {
+      setError("Digite seu e-mail");
       return;
     }
 
-    const result = await validateAccessCode(accessCode.trim());
+    // Validar formato de e-mail
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(adminEmail.trim())) {
+      setError("E-mail inválido");
+      return;
+    }
+
+    const result = await validateAccessCode(adminEmail.trim());
     if (result.valid) {
       // Carregar dados do dono no state
       update((prev) => ({
         ...prev,
         admin: { 
           ...prev.admin, 
+          email: adminEmail.trim(),
           phone: result.adminPhone,
           storeId: result.storeId,
-          accessCode: accessCode.trim(),
         },
       }));
 
@@ -92,36 +99,47 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
         setLoginStep("trial");
       }
     } else {
-      setError("Código inválido");
+      setError("E-mail não encontrado. Crie um novo trial.");
     }
   }
 
   async function handleCreateTrial() {
     setError("");
-    if (!storeName.trim() || !adminPhone.trim()) {
+    if (!storeName.trim() || !adminPhone.trim() || !adminEmail.trim()) {
       setError("Preencha todos os campos");
       return;
     }
 
-    // Salvar WhatsApp do dono no state
+    // Validar formato de e-mail
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(adminEmail.trim())) {
+      setError("E-mail inválido");
+      return;
+    }
+
+    // Salvar dados do dono no state
     update((prev) => ({
       ...prev,
-      admin: { ...prev.admin, phone: adminPhone.trim() },
+      admin: { 
+        ...prev.admin, 
+        email: adminEmail.trim(),
+        phone: adminPhone.trim() 
+      },
     }));
 
-    // Criar trial no Supabase primeiro (gera o access_code)
-    const result = await createTrial(storeName.trim(), adminPhone.trim());
+    // Criar trial no Supabase usando e-mail como identificador
+    const result = await createTrial(storeName.trim(), adminPhone.trim(), adminEmail.trim());
     if (!result) {
       setError("Erro ao criar trial");
       return;
     }
 
-    // Enviar para o webhook N8N com o código gerado
+    // Enviar para o webhook N8N com os dados do trial
     const webhookResult = await sendAdminTrial(
       state.integrations.adminTrialUrl,
       storeName.trim(),
       adminPhone.trim(),
-      result.access_code,
+      adminEmail.trim(),
     );
 
     if (!webhookResult.success) {
@@ -129,9 +147,9 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       // Continuar mesmo se webhook falhar (trial já foi criado)
     }
 
-    // Mostrar código para o usuário e pedir que digite para entrar
-    setAccessCode(result.access_code);
-    setError("✓ Trial criado! Código enviado via WhatsApp. Clique em 'Entrar' para acessar.");
+    // Acesso direto - não precisa mais digitar código
+    setLoginStep("trial");
+    setError("");
   }
 
   async function handleActivateCode() {
@@ -166,7 +184,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
               <div>
                 <h2 className="text-stencil text-lg text-white">ACESSO ADMINISTRATIVO</h2>
                 <p className="text-tech text-[9px] text-gray-300">
-                  {isExpired ? "Trial expirado" : "Insira seu código de acesso"}
+                  {isExpired ? "Trial expirado" : "Insira seu e-mail"}
                 </p>
               </div>
             </div>
@@ -224,12 +242,13 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-2">
-                    Código de Acesso
+                    E-mail
                   </label>
                   <input
-                    value={accessCode}
-                    onChange={(e) => setAccessCode(e.target.value)}
-                    placeholder="Digite seu código"
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    type="email"
                     className="w-full rounded-lg border border-input bg-slate-800 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-slate-500 placeholder:text-gray-500"
                   />
                 </div>
@@ -257,6 +276,13 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
                       value={adminPhone}
                       onChange={(e) => setAdminPhone(e.target.value)}
                       placeholder="WhatsApp do administrador"
+                      className="w-full rounded-lg border border-input bg-slate-800 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-slate-500 placeholder:text-gray-500"
+                    />
+                    <input
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="E-mail do administrador"
+                      type="email"
                       className="w-full rounded-lg border border-input bg-slate-800 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-slate-500 placeholder:text-gray-500"
                     />
                     <button

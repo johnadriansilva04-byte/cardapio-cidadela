@@ -23,7 +23,7 @@ export interface N8nPayload {
   cidadela_code?: string;
   cidadela_access_type?: "15_min" | "15_dias";
   restaurante_whatsapp?: string;
-  access_code?: string;
+  admin_email?: string;
   store_id?: string;
 }
 
@@ -301,14 +301,14 @@ export interface AdminTrialPayload {
   acao: "criar_trial";
   store_name: string;
   admin_phone: string;
-  access_code: string;
+  admin_email: string;
   origem: "CIDADELA_PWA";
   timestamp: string;
 }
 
 export interface AdminTrialResponse {
   success: boolean;
-  access_code?: string;
+  admin_email?: string;
   trial_expires_at?: string;
   message?: string;
   error?: string;
@@ -319,7 +319,7 @@ export async function sendAdminTrial(
   url: string,
   storeName: string,
   adminPhone: string,
-  accessCode: string,
+  adminEmail: string,
 ): Promise<AdminTrialResponse> {
   if (!url) {
     return { success: false, error: "missing_url" };
@@ -331,7 +331,7 @@ export async function sendAdminTrial(
       acao: "criar_trial",
       store_name: storeName,
       admin_phone: adminPhone,
-      access_code: accessCode,
+      admin_email: adminEmail,
       origem: "CIDADELA_PWA",
       timestamp: new Date().toISOString(),
     };

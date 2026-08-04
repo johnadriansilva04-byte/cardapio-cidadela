@@ -5,7 +5,7 @@ type AdminTrial = {
   id: string;
   store_name: string;
   admin_phone: string;
-  access_code: string;
+  admin_email: string;
   trial_started_at: string;
   trial_expires_at: string;
   is_active: boolean;
@@ -101,8 +101,7 @@ export function useAdminTrial() {
     }
   }
 
-  async function createTrial(storeName: string, adminPhone: string) {
-    const accessCode = `FEB-${Math.random().toString(36).toUpperCase().slice(2, 8)}-CID`;
+  async function createTrial(storeName: string, adminPhone: string, adminEmail: string) {
     const trialStartedAt = new Date();
     const trialExpiresAt = new Date(trialStartedAt);
     trialExpiresAt.setDate(trialExpiresAt.getDate() + 2); // 2 dias de trial
@@ -112,7 +111,7 @@ export function useAdminTrial() {
       .insert({
         store_name: storeName,
         admin_phone: adminPhone,
-        access_code: accessCode,
+        admin_email: adminEmail,
         trial_started_at: trialStartedAt.toISOString(),
         trial_expires_at: trialExpiresAt.toISOString(),
         created_at: new Date().toISOString(),
@@ -133,11 +132,11 @@ export function useAdminTrial() {
     return data;
   }
 
-  async function validateAccessCode(code: string) {
+  async function validateAccessCode(email: string) {
     const { data, error } = await supabase
       .from("admin_trials")
       .select("*")
-      .eq("access_code", code)
+      .eq("admin_email", email)
       .single();
 
     if (error || !data) {

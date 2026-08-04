@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Copy, Check, QrCode } from "lucide-react";
+import { X, Copy, Check, Loader2 } from "lucide-react";
 import { useStore } from "@/modules/cidadela-core/store";
 import type { Order } from "@/lib/types";
 
@@ -12,6 +12,7 @@ type PaymentScreenProps = {
 export function PaymentScreen({ order, onSuccess, onCancel }: PaymentScreenProps) {
   const { state } = useStore();
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const pixKey = state.payment.pixKey || "Chave PIX não configurada";
   const pixQr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixKey)}`;
@@ -23,7 +24,11 @@ export function PaymentScreen({ order, onSuccess, onCancel }: PaymentScreenProps
   };
 
   const handleConfirmPayment = () => {
-    onSuccess();
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      onSuccess();
+    }, 3000);
   };
 
   return (
@@ -85,16 +90,25 @@ export function PaymentScreen({ order, onSuccess, onCancel }: PaymentScreenProps
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 px-4 py-3 rounded-lg border border-border text-sm font-semibold hover:bg-muted transition-colors active:scale-95"
+              disabled={loading}
+              className="flex-1 px-4 py-3 rounded-lg border border-border text-sm font-semibold hover:bg-muted transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleConfirmPayment}
-              className="flex-1 px-4 py-3 rounded-lg bg-[color:var(--olive)] text-sm font-semibold text-white hover:opacity-90 active:scale-95 transition-all"
+              disabled={loading}
+              className="flex-1 px-4 py-3 rounded-lg bg-[color:var(--olive)] text-sm font-semibold text-white hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Já paguei
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                "Já paguei"
+              )}
             </button>
           </div>
         </div>

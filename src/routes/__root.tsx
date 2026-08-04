@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerAppServiceWorker } from "../lib/pwa";
+import { useGoogleAnalytics } from "../hooks/useGoogleAnalytics";
 
 function NotFoundComponent() {
   return (
@@ -155,31 +156,13 @@ function RootComponent() {
 
   console.log('[ROOT] RootComponent mounted');
 
+  // Load Google Analytics safely
+  useGoogleAnalytics();
+
   useEffect(() => {
     console.log('[ROOT] useEffect running');
     // Temporarily disabled to prevent 404 errors
     // void registerAppServiceWorker();
-
-    // Load Google Analytics script client-side only
-    try {
-      const gtagScript = document.createElement('script');
-      gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-8WTB9PQBWH';
-      gtagScript.async = true;
-      document.head.appendChild(gtagScript);
-      console.log('[ROOT] gtag script added');
-
-      const gtagConfigScript = document.createElement('script');
-      gtagConfigScript.innerHTML = `
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-8WTB9PQBWH');
-      `;
-      document.head.appendChild(gtagConfigScript);
-      console.log('[ROOT] gtag config added');
-    } catch (error) {
-      console.error('[ROOT] Error loading analytics scripts:', error);
-    }
   }, []);
 
   return (

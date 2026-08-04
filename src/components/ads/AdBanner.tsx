@@ -14,7 +14,7 @@ export function AdBanner({
   fullWidthResponsive = true,
   className = ''
 }: AdBannerProps) {
-  const adRef = useRef<HTMLElement>(null);
+  const adRef = useRef<HTMLModElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -46,9 +46,12 @@ export function AdBanner({
           return;
         }
 
-        // Prevent duplicate initialization
+        // Prevent duplicate initialization - check both possible attributes
         const adElement = adRef.current;
-        if (adElement.getAttribute('data-ad-status') === 'filled') {
+        if (
+          adElement.getAttribute('data-ad-status') === 'filled' ||
+          adElement.getAttribute('data-adsbygoogle-status') === 'done'
+        ) {
           console.log('[AdBanner] Ad already filled');
           return;
         }

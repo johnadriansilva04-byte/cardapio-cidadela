@@ -105,25 +105,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
-    scripts: [
-      {
-        src: "https://www.googletagmanager.com/gtag/js?id=G-8WTB9PQBWH",
-        async: true,
-      },
-      {
-        innerHTML: `
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', 'G-8WTB9PQBWH');
-        `,
-      },
-      {
-        src: "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409",
-        async: true,
-        crossOrigin: "anonymous",
-      },
-    ],
   }),
 
   shellComponent: RootShell,
@@ -175,6 +156,27 @@ function RootComponent() {
   useEffect(() => {
     // Temporarily disabled to prevent 404 errors
     // void registerAppServiceWorker();
+
+    // Load Google Analytics and Ads scripts client-side only
+    const gtagScript = document.createElement('script');
+    gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-8WTB9PQBWH';
+    gtagScript.async = true;
+    document.head.appendChild(gtagScript);
+
+    const gtagConfigScript = document.createElement('script');
+    gtagConfigScript.innerHTML = `
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-8WTB9PQBWH');
+    `;
+    document.head.appendChild(gtagConfigScript);
+
+    const adsScript = document.createElement('script');
+    adsScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409';
+    adsScript.async = true;
+    adsScript.crossOrigin = 'anonymous';
+    document.head.appendChild(adsScript);
   }, []);
 
   return (

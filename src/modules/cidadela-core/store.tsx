@@ -18,6 +18,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [online, setOnline] = useState(true);
 
   useEffect(() => {
+    // Only load from IndexedDB on client side
+    if (typeof window === 'undefined') {
+      setReady(true);
+      return;
+    }
     let alive = true;
     loadFromIndexedDB<Partial<AppState>>(STATE_STORAGE_KEY).then((persisted) => {
       if (!alive) return;
@@ -35,6 +40,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [state, ready]);
 
   useEffect(() => {
+    // Only add event listeners on client side
+    if (typeof window === 'undefined') return;
     const sync = () => {
       setOnline(navigator.onLine);
     };

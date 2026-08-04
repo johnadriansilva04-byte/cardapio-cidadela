@@ -10,13 +10,15 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useTouchControls } from "@/lib/battle/useTouchControls";
 
 export function BattleArena() {
-  const { state } = useStore();
+  const { state, addSoberaniaPoints, removeSoberaniaPoints } = useStore();
   const [selectedRobot, setSelectedRobot] = useState<RobotConfig | null>(null);
   const [mode, setMode] = useState<MatchMode>("cpu");
   const [running, setRunning] = useState(false);
   const [onlineInfo, setOnlineInfo] = useState<OnlineInfo | null>(null);
   const [showLevelMenu, setShowLevelMenu] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState(0);
+  const [betAmount, setBetAmount] = useState(0);
+  const [showBetModal, setShowBetModal] = useState(false);
   const isMobile = useIsMobile();
   const touchControls = useTouchControls(running);
 
@@ -41,16 +43,37 @@ export function BattleArena() {
   });
 
   async function startCPUBattle() {
+    // Mostrar modal de aposta se tiver pontos
+    if (state.soberania.points > 0) {
+      setShowBetModal(true);
+    } else {
+      setMode("cpu");
+      setOnlineInfo(null);
+      setRunning(true);
+    }
+  }
+
+  function startBattleWithBet() {
+    // Deduzir aposta de soberania antes de começar
+    if (betAmount > 0 && betAmount <= state.soberania.points) {
+      removeSoberaniaPoints(betAmount, `Aposta na batalha (${selectedRobot?.name})`, "game");
+    }
+    
     setMode("cpu");
     setOnlineInfo(null);
     setRunning(true);
+    setShowBetModal(false);
   }
 
-  // Monitorar fim da batalha para registrar progresso
+  // Monitorar fim da batalha para registrar progresso e processar apostas
   useEffect(() => {
     if (battleState.finished && running && mode === "cpu") {
       if (battleState.winner === (selectedRobot?.name || "Cobra Fumante")) {
         addWin();
+        // Se houve aposta, devolve o dobro como recompensa
+        if (betAmount > 0) {
+          addSoberaniaPoints(betAmount * 2, `Vitória com aposta de ${betAmount} pontos`, "game");
+        }
         // Atualizar nível selecionado para o novo nível desbloqueado
         if (progress.unlockedLevel < 5) {
           setSelectedLevel(progress.unlockedLevel + 1);
@@ -351,6 +374,77 @@ export function BattleArena() {
                   Patente selecionada:{" "}
                   <span className="font-medium text-green-900">Nível {selectedLevel}</span>
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de aposta de soberania */}
+        {showBetModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="bg-slate-900 border border-green-700 rounded-xl p-6 max-w-sm w-full mx-4">
+              <h3 className="text-lg font-bold text-green-400 mb-4">Apostar Soberania</h3>
+              <p className="text-sm text-gray-300 mb-4">
+                Seus pontos: <span className="text-yellow-400 font-bold">{state.soberania.points}</span>
+              </p>
+              <div className="space-y-3 mb-4">
+                <button
+                  onClick={() => setBetAmount(0)}
+                  className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    betAmount === 0
+                      ? "bg-green-700 text-white"
+                      : "bg-slate-800 text-gray-300 hover:bg-slate-700"
+                  }`}
+                >
+                  Sem aposta
+                </button>
+                <button
+                  onClick={() => setBetAmount(50)}
+                  disabled={state.soberania.points < 50}
+                  className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    betAmount === 50
+                      ? "bg-green-700 text-white"
+                      : "bg-slate-800 text-gray-300 hover:bg-slate-700"
+                  }`}
+                >
+                  50 pontos (2x se ganhar)
+                </button>
+                <button
+                  onClick={() => setBetAmount(100)}
+                  disabled={state.soberania.points < 100}
+                  className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    betAmount === 100
+                      ? "bg-green-700 text-white"
+                      : "bg-slate-800 text-gray-300 hover:bg-slate-700"
+                  }`}
+                >
+                  100 pontos (2x se ganhar)
+                </button>
+                <button
+                  onClick={() => setBetAmount(200)}
+                  disabled={state.soberania.points < 200}
+                  className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    betAmount === 200
+                      ? "bg-green-700 text-white"
+                      : "bg-slate-800 text-gray-300 hover:bg-slate-700"
+                  }`}
+                >
+                  200 pontos (2x se ganhar)
+                </button>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowBetModal(false)}
+                  className="flex-1 rounded-lg border border-gray-600 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-slate-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={startBattleWithBet}
+                  className="flex-1 rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600 transition-colors"
+                >
+                  Começar Batalha
+                </button>
               </div>
             </div>
           </div>

@@ -11,7 +11,6 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { registerAppServiceWorker } from "../lib/pwa";
 
 function NotFoundComponent() {
   return (
@@ -78,17 +77,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "Cidadela & Cardápio Digital" },
-      {
-        name: "description",
-        content: "Cardápio digital instalável com painel operacional Cidadela.",
-      },
-      { name: "theme-color", content: "#3f4a33" },
-      { name: "mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Cidadela" },
+      { title: "Cantina do Pracinha" },
+      { name: "description", content: "Cardápio digital e universo interativo Cidadela." },
+      { name: "author", content: "Cantina do Pracinha" },
+      { property: "og:title", content: "Cantina do Pracinha" },
+      { property: "og:description", content: "Cardápio digital e universo interativo Cidadela." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
@@ -102,11 +98,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Saira+Stencil+One&display=swap",
       },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
-
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -118,7 +112,6 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="pt-BR">
       <head>
         <HeadContent />
-        {/* PLACEHOLDER: INSERIR GOOGLE ANALYTICS / ADS AQUI FUTURAMENTE */}
       </head>
       <body>
         {children}
@@ -130,14 +123,6 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-
-  console.log('[ROOT] RootComponent mounted');
-
-  useEffect(() => {
-    console.log('[ROOT] useEffect running');
-    // Temporarily disabled to prevent 404 errors
-    // void registerAppServiceWorker();
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

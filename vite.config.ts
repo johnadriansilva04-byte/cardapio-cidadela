@@ -11,45 +11,5 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
-    nitro: {
-      preset: "vercel",
-    },
-  },
-  vite: {
-    server: {
-      port: 5173,
-      strictPort: false,
-    },
-    // Temporarily disabled PWA to eliminate 404 issues
-    // plugins: [
-    //   VitePWA({
-    //     registerType: "autoUpdate",
-    //     injectRegister: null,
-    //     filename: "sw.js",
-    //     devOptions: { enabled: false },
-    //     manifest: false,
-    //     workbox: {
-    //       navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//],
-    //       globDirectory: ".output/public",
-    //       globPatterns: ["**/*.{js,wasm,css,html,ico,png,svg}"],
-    //       runtimeCaching: [
-    //         {
-    //           urlPattern: ({ request }) => request.mode === "navigate",
-    //           handler: "NetworkFirst",
-    //           options: { cacheName: "html-nav", networkTimeoutSeconds: 5 },
-    //         },
-    //         {
-    //           urlPattern: ({ request, sameOrigin }) =>
-    //             sameOrigin && ["style", "script", "image", "font"].includes(request.destination),
-    //           handler: "NetworkFirst",
-    //           options: {
-    //             cacheName: "static-assets",
-    //             expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 30 },
-    //           },
-    //         },
-    //       ],
-    //     },
-    //   }),
-    // ],
   },
 });

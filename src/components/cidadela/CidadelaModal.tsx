@@ -115,6 +115,9 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
         
         setCodeExpiresAt(expiresAt.toISOString());
         
+        // Salvar dados do usuário
+        saveUserData("", value);
+        
         update((prev) => ({
           ...prev,
           cidadela: {
@@ -138,6 +141,9 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
           }
           
           setCodeExpiresAt(expiresAt.toISOString());
+          
+          // Salvar dados do usuário
+          saveUserData("", value);
           
           update((prev) => ({
             ...prev,
@@ -180,6 +186,9 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
         }
         
         setCodeExpiresAt(expiresAt.toISOString());
+        
+        // Salvar dados do usuário
+        saveUserData("", value);
         
         update((prev) => ({
           ...prev,

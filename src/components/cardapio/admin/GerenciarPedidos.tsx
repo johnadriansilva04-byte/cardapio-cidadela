@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, X, Eye, Loader2 } from "lucide-react";
 import { supabase } from "@/modules/supabase/client";
 import { useStore } from "@/modules/cidadela-core/store";
@@ -41,9 +41,9 @@ export function GerenciarPedidos() {
   };
 
   // Carregar pedidos ao montar
-  useState(() => {
+  useEffect(() => {
     fetchOrders();
-  });
+  }, []);
 
   const handleConfirmPayment = async (orderId: string) => {
     const { error } = await supabase

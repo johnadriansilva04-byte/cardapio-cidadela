@@ -160,7 +160,7 @@ function RootComponent() {
     // Temporarily disabled to prevent 404 errors
     // void registerAppServiceWorker();
 
-    // Load Google Analytics and Ads scripts client-side only
+    // Load Google Analytics script client-side only
     try {
       const gtagScript = document.createElement('script');
       gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-8WTB9PQBWH';
@@ -177,15 +177,8 @@ function RootComponent() {
       `;
       document.head.appendChild(gtagConfigScript);
       console.log('[ROOT] gtag config added');
-
-      const adsScript = document.createElement('script');
-      adsScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409';
-      adsScript.async = true;
-      adsScript.crossOrigin = 'anonymous';
-      document.head.appendChild(adsScript);
-      console.log('[ROOT] ads script added');
     } catch (error) {
-      console.error('[ROOT] Error loading scripts:', error);
+      console.error('[ROOT] Error loading analytics scripts:', error);
     }
   }, []);
 

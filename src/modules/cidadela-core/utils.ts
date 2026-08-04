@@ -1,10 +1,11 @@
 import type { Order, PromoCode } from "@/lib/types";
 
 export function newComanda(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const stamp = `${String(d.getFullYear()).slice(2)}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-  return `FEB${stamp}`;
+  // Usar contador sequencial simples
+  const counter = parseInt(localStorage.getItem("comanda_counter") || "0");
+  const newCounter = counter + 1;
+  localStorage.setItem("comanda_counter", newCounter.toString());
+  return `#${newCounter}`;
 }
 
 export function generatePromoCode(

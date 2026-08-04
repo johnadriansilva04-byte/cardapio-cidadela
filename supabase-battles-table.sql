@@ -15,6 +15,8 @@ DROP TABLE IF EXISTS admin_trials CASCADE;
 DROP TABLE IF EXISTS order_items CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS menu_items CASCADE;
+DROP TABLE IF EXISTS store_configs CASCADE;
+DROP TABLE IF EXISTS cidadela_codes CASCADE;
 
 -- ============================================
 -- CARDÁPIO E PEDIDOS

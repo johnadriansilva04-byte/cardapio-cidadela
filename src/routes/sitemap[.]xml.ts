@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-// Substitua com sua URL de produção da Vercel
-const BASE_URL = "https://seu-prod.vercel.app";
+const BASE_URL = "https://cardapio-cidadela.vercel.app";
 
 interface SitemapEntry {
   path: string;

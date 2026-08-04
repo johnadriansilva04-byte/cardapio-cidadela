@@ -67,7 +67,8 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
     setUnlocked(false);
     setCode("");
     setCodeExpiresAt(null);
-    localStorage.removeItem("cidadela_user_data");
+    // Não remover dados do usuário - manter para recuperação futura
+    // localStorage.removeItem("cidadela_user_data");
   };
 
   async function tryUnlock(e: React.FormEvent) {

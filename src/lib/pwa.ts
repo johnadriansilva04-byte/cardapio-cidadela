@@ -5,8 +5,9 @@
 const SW_URL = "/sw.js";
 
 function shouldRefuse(): boolean {
-  if (!import.meta.env.PROD) return true;
+  // Verificação SSR antes de acessar variáveis de ambiente
   if (typeof window === "undefined") return true;
+  if (typeof import.meta !== 'undefined' && !import.meta.env.PROD) return true;
   if (window.self !== window.top) return true;
 
   const host = window.location.hostname;

@@ -73,13 +73,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   }
 
   async function handlePaymentSuccess() {
-    console.log("handlePaymentSuccess chamado");
-    if (!pendingOrder) {
-      console.error("pendingOrder é null");
-      return;
-    }
-
-    console.log("Processando pedido:", pendingOrder);
+    if (!pendingOrder) return;
 
     // Determinar tipo de acesso baseado no valor total
     const accessType = pendingOrder.total >= 200 ? "15_dias" : "15_min";
@@ -115,9 +109,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       state.admin.storeId,
     );
 
-    console.log("Enviando webhook para:", state.integrations.n8nWebhookUrl);
     const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
-    console.log("Webhook resultado:", synced);
 
     const finalOrder = { ...pendingOrder, synced };
 
@@ -134,7 +126,6 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     setSuccess(finalOrder);
     setPaymentOpen(false);
     setPendingOrder(null);
-    console.log("Pagamento processado com sucesso");
   }
 
   return (

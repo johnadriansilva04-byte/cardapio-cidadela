@@ -23,7 +23,6 @@ export function PaymentScreen({ order, onSuccess, onCancel }: PaymentScreenProps
   };
 
   const handleConfirmPayment = () => {
-    console.log("Botão 'Já paguei' clicado");
     onSuccess();
   };
 
@@ -86,14 +85,14 @@ export function PaymentScreen({ order, onSuccess, onCancel }: PaymentScreenProps
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 px-4 py-3 rounded-lg border border-border text-sm font-semibold hover:bg-muted transition-colors"
+              className="flex-1 px-4 py-3 rounded-lg border border-border text-sm font-semibold hover:bg-muted transition-colors active:scale-95"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleConfirmPayment}
-              className="flex-1 px-4 py-3 rounded-lg bg-[color:var(--olive)] text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+              className="flex-1 px-4 py-3 rounded-lg bg-[color:var(--olive)] text-sm font-semibold text-white hover:opacity-90 active:scale-95 transition-all"
             >
               Já paguei
             </button>

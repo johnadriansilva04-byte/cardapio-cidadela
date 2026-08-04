@@ -153,30 +153,40 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  console.log('[ROOT] RootComponent mounted');
+
   useEffect(() => {
+    console.log('[ROOT] useEffect running');
     // Temporarily disabled to prevent 404 errors
     // void registerAppServiceWorker();
 
     // Load Google Analytics and Ads scripts client-side only
-    const gtagScript = document.createElement('script');
-    gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-8WTB9PQBWH';
-    gtagScript.async = true;
-    document.head.appendChild(gtagScript);
+    try {
+      const gtagScript = document.createElement('script');
+      gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-8WTB9PQBWH';
+      gtagScript.async = true;
+      document.head.appendChild(gtagScript);
+      console.log('[ROOT] gtag script added');
 
-    const gtagConfigScript = document.createElement('script');
-    gtagConfigScript.innerHTML = `
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-8WTB9PQBWH');
-    `;
-    document.head.appendChild(gtagConfigScript);
+      const gtagConfigScript = document.createElement('script');
+      gtagConfigScript.innerHTML = `
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-8WTB9PQBWH');
+      `;
+      document.head.appendChild(gtagConfigScript);
+      console.log('[ROOT] gtag config added');
 
-    const adsScript = document.createElement('script');
-    adsScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409';
-    adsScript.async = true;
-    adsScript.crossOrigin = 'anonymous';
-    document.head.appendChild(adsScript);
+      const adsScript = document.createElement('script');
+      adsScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409';
+      adsScript.async = true;
+      adsScript.crossOrigin = 'anonymous';
+      document.head.appendChild(adsScript);
+      console.log('[ROOT] ads script added');
+    } catch (error) {
+      console.error('[ROOT] Error loading scripts:', error);
+    }
   }, []);
 
   return (

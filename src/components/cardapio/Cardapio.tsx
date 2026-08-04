@@ -18,7 +18,7 @@ import type { Order, OrderItem } from "@/lib/types";
 type Cart = Record<string, number>;
 
 export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
-  const { state, update, online } = useStore();
+  const { state, update, online, addSoberaniaPoints } = useStore();
   const navigate = useNavigate();
   const [cart, setCart] = useState<Cart>({});
   const [activeCat, setActiveCat] = useState(state.categories[0]?.name ?? "");
@@ -180,6 +180,10 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         codes: [...prev.cidadela.codes, promoCode],
       },
     }));
+
+    // Adicionar pontos de soberania pelo pedido (1 ponto por R$1)
+    const pointsEarned = Math.floor(pendingOrder.total);
+    addSoberaniaPoints(pointsEarned, `Pedido de R$${pendingOrder.total.toFixed(2)}`, "order");
 
     setSuccess(finalOrder);
     setPaymentOpen(false);

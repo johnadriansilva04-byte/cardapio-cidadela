@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { STATE_STORAGE_KEY, loadFromIndexedDB, mergeState, saveToIndexedDB } from "@/lib/storage";
-import { DEFAULT_STATE, type AppState } from "@/lib/types";
+import { DEFAULT_STATE, type AppState, type SoberaniaTransaction } from "@/lib/types";
 
 interface StoreContextValue {
   state: AppState;
@@ -58,7 +58,57 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => patch(prev));
   }, []);
 
-  const value = useMemo(() => ({ state, ready, online, update }), [state, ready, online, update]);
+  // Funções para gerenciar pontos de soberania
+  const addSoberaniaPoints = useCallback((amount: number, reason: string, source: SoberaniaTransaction["source"]) => {
+    update((prev) => ({
+      ...prev,
+      soberania: {
+        ...prev.soberania,
+        points: prev.soberania.points + amount,
+        history: [
+          {
+            id: crypto.randomUUID(),
+            type: "earned",
+            amount,
+            reason,
+            timestamp: new Date().toISOString(),
+            source,
+          },
+          ...prev.soberania.history,
+        ],
+      },
+    }));
+  }, [update]);
+
+  const removeSoberaniaPoints = useCallback((amount: number, reason: string, source: SoberaniaTransaction["source"]) => {
+    update((prev) => ({
+      ...prev,
+      soberania: {
+        ...prev.soberania,
+        points: Math.max(0, prev.soberania.points - amount),
+        history: [
+          {
+            id: crypto.randomUUID(),
+            type: "lost",
+            amount,
+            reason,
+            timestamp: new Date().toISOString(),
+            source,
+          },
+          ...prev.soberania.history,
+        ],
+      },
+    }));
+  }, [update]);
+
+  const value = useMemo(() => ({ 
+    state, 
+    ready, 
+    online, 
+    update,
+    addSoberaniaPoints,
+    removeSoberaniaPoints,
+  }), [state, ready, online, update, addSoberaniaPoints, removeSoberaniaPoints]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

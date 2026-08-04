@@ -57,7 +57,7 @@ export interface AppState {
   store: { name: string; slogan: string; marquee: string; coverPhoto?: string };
   payment: { pixKey: string };
   promo: { meta: number; cidadelaDate: string };
-  admin: { accessKey: string; phone?: string; accessCode?: string; storeId?: string };
+  admin: { accessKey: string; phone?: string; email?: string; storeId?: string };
   whatsapp: string;
   integrations: {
     geminiApiKey: string;
@@ -77,6 +77,11 @@ export interface AppState {
   };
   orders: Order[];
   conversation: ChatMessage[];
+  soberania: {
+    points: number;
+    history: SoberaniaTransaction[];
+    discountPercentage: number;
+  };
   _version?: number; // State version for migration
 }
 
@@ -94,6 +99,15 @@ export interface CustomTopic {
   id: string;
   name: string;
   createdAt: string;
+}
+
+export interface SoberaniaTransaction {
+  id: string;
+  type: "earned" | "lost" | "spent" | "rewarded";
+  amount: number;
+  reason: string;
+  timestamp: string;
+  source: "game" | "order" | "ad" | "admin";
 }
 
 export const DEFAULT_STATE: AppState = {
@@ -127,7 +141,8 @@ export const DEFAULT_STATE: AppState = {
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],
   conversation: [],
-  _version: 6, // State version for migration
+  soberania: { points: 0, history: [], discountPercentage: 0 },
+  _version: 7, // State version for migration
   categories: [
     {
       name: "Lanches",

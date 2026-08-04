@@ -776,7 +776,7 @@ function CheckoutModal({
 
   const valid =
     form.cliente.trim().length > 1 &&
-    form.telefone.trim().length >= 8 &&
+    form.telefone.trim().length >= 10 &&
     (tipo === "retirada" ||
       (form.rua.trim().length > 2 &&
         form.numero.trim().length > 0 &&
@@ -792,10 +792,17 @@ function CheckoutModal({
     e.preventDefault();
     if (!valid || sending) return;
     setSending(true);
+    
+    // Formatar telefone para garantir código do país
+    let telefoneLimpo = form.telefone.trim().replace(/\D/g, '');
+    if (!telefoneLimpo.startsWith('55')) {
+      telefoneLimpo = '55' + telefoneLimpo;
+    }
+    
     await onConfirm({
       comanda: newComanda(),
       cliente: form.cliente.trim(),
-      telefone: form.telefone.trim(),
+      telefone: telefoneLimpo,
       endereco:
         tipo === "entrega"
           ? `${form.rua.trim()}, ${form.numero.trim()} - ${form.bairro.trim()}${form.referencia.trim() ? ` (Ref: ${form.referencia.trim()})` : ""}`

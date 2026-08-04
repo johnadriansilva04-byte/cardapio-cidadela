@@ -3,6 +3,10 @@
   "outputDirectory": ".vercel/output",
   "rewrites": [
     {
+      "source": "/src/main.tsx",
+      "destination": "/"
+    },
+    {
       "source": "/(.*)",
       "destination": "/__server"
     }

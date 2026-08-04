@@ -13,6 +13,15 @@ export function generatePromoCode(
 ): PromoCode {
   const rand = Math.random().toString(36).toUpperCase().slice(2, 8);
   const codePrefix = accessType === "15_dias" ? "VIP" : "CID";
+  const now = new Date();
+  const expiration = new Date(now);
+  
+  if (accessType === "15_dias") {
+    expiration.setDate(expiration.getDate() + 15);
+  } else {
+    expiration.setMinutes(expiration.getMinutes() + 15);
+  }
+  
   return {
     code: `${codePrefix}-${rand}`,
     label:
@@ -20,7 +29,8 @@ export function generatePromoCode(
         ? "Código VIP - 15 dias de acesso"
         : "Código temporário - 15 minutos de acesso",
     discount: 10,
-    createdAt: new Date().toISOString(),
+    createdAt: now.toISOString(),
+    expiration: expiration.toISOString(),
     used: false,
   };
 }

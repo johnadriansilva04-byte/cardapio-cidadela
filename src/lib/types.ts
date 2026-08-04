@@ -16,6 +16,7 @@ export interface PromoCode {
   label: string;
   discount: number;
   createdAt: string;
+  expiration: string;
   used: boolean;
 }
 

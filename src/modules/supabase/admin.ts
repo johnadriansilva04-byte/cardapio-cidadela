@@ -156,6 +156,16 @@ export function useAdminTrial() {
       setTrial(trialData);
       checkExpiration(trialData);
       updateLastActivity(); // Atualizar timestamp de atividade ao entrar
+      
+      // Atualizar estado global com storeId do trial
+      update((prev) => ({
+        ...prev,
+        admin: {
+          ...prev.admin,
+          storeId: trialData.id,
+          accessCode: code,
+        },
+      }));
     }
 
     return { valid: isValid, trial: trialData, adminPhone: trialData.admin_phone, storeId: trialData.id };

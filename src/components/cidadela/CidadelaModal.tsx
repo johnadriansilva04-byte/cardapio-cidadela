@@ -89,11 +89,45 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    // Validação via webhook Cidadela
+    // Validação via Supabase primeiro (códigos gerados por pedidos)
     setValidating(true);
     setError("");
 
     try {
+      const { data: codeData, error: codeError } = await supabase
+        .from("cidadela_codes")
+        .select("*")
+        .eq("code", value)
+        .single();
+
+      if (codeData && !codeError) {
+        // Código encontrado no Supabase
+        const now = new Date();
+        const expiresAt = new Date(codeData.expires_at);
+        
+        if (codeData.is_active && now <= expiresAt) {
+          // Código válido
+          saveUserData(value);
+          setCodeExpiresAt(codeData.expires_at);
+          setUnlocked(true);
+          setCode("");
+          setValidating(false);
+          update((prev) => ({
+            ...prev,
+            cidadela: {
+              ...prev.cidadela,
+              accessHistory: [new Date().toISOString(), ...prev.cidadela.accessHistory].slice(0, 20),
+            },
+          }));
+          return;
+        } else {
+          setError("Código expirado ou inválido");
+          setValidating(false);
+          return;
+        }
+      }
+
+      // Se não encontrou no Supabase, tenta validar via webhook Cidadela
       const response = await validateCidadelaCode(state.integrations.cidadelaAuthUrl, value);
 
       if (response.success && response.autenticado) {

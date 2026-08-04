@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-// TODO: replace with your project URL once a project name or custom domain is set.
-const BASE_URL = "";
+// Substitua com sua URL de produção da Vercel
+const BASE_URL = "https://seu-prod.vercel.app";
 
 interface SitemapEntry {
   path: string;
@@ -15,7 +15,12 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
-        const entries: SitemapEntry[] = [{ path: "/", changefreq: "weekly", priority: "1.0" }];
+        const entries: SitemapEntry[] = [
+          { path: "/", changefreq: "weekly", priority: "1.0" },
+          { path: "/privacy", changefreq: "monthly", priority: "0.5" },
+          { path: "/terms", changefreq: "monthly", priority: "0.5" },
+          { path: "/cidadela", changefreq: "weekly", priority: "0.8" },
+        ];
 
         const urls = entries.map((e) =>
           [

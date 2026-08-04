@@ -28,7 +28,10 @@ export function GerenciarPedidos() {
     const storeId = state.admin.storeId || state.admin.accessKey;
     const { data, error } = await supabase
       .from("orders")
-      .select("*")
+      .select(`
+        *,
+        order_items (*)
+      `)
       .eq("store_id", storeId)
       .order("created_at", { ascending: false });
 

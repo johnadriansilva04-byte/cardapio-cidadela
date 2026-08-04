@@ -105,6 +105,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
+    scripts: [
+      {
+        src: "https://www.googletagmanager.com/gtag/js?id=G-8WTB9PQBWH",
+        async: true,
+      },
+      {
+        innerHTML: `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-8WTB9PQBWH');
+        `,
+      },
+      {
+        src: "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409",
+        async: true,
+        crossOrigin: "anonymous",
+      },
+    ],
   }),
 
   shellComponent: RootShell,
@@ -141,19 +160,6 @@ function RootShell({ children }: { children: ReactNode }) {
         <meta name="twitter:title" content="Cardápio Digital Cidadela" />
         <meta name="twitter:description" content="Peça online e ganhe acesso à Cidadela" />
         <meta name="twitter:image" content="https://pracinha.online/cobra-fumando.png" />
-        
-        {/* Google Analytics */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-8WTB9PQBWH"></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-8WTB9PQBWH');
-            `,
-          }}
-        />
       </head>
       <body>
         {children}
@@ -169,13 +175,6 @@ function RootComponent() {
   useEffect(() => {
     // Temporarily disabled to prevent 404 errors
     // void registerAppServiceWorker();
-
-    // Load Google AdSense only on client side
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2783546143377409';
-    script.crossOrigin = 'anonymous';
-    document.head.appendChild(script);
   }, []);
 
   return (

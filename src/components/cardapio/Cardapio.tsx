@@ -285,7 +285,7 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                   <stop offset="100%" stopColor="rgba(50,150,255,0.5)" />
                 </linearGradient>
                 <filter id="shadow3D">
-                  <feDropShadow dx="2" dy="4" stdDeviation="3" flood-opacity="0.3" />
+                  <feDropShadow dx="2" dy="4" stdDeviation="3" floodOpacity="0.3" />
                 </filter>
                 <filter id="glow3D">
                   <feGaussianBlur stdDeviation="2" result="coloredBlur" />

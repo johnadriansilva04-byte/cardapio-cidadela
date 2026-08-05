@@ -1099,7 +1099,15 @@ function CheckoutModal({
 }
 
 function SuccessModal({ order, onClose }: { order: Order; onClose: () => void }) {
-  const { state } = useStore();
+  const { state, addSoberaniaPoints } = useStore();
+  const [videoWatched, setVideoWatched] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
+  
+  // Calcular pontos ganhos pelo pedido
+  const pointsEarned = Math.floor(order.total);
+  const pointsFromVideo = pointsEarned * 2; // Dobra os pontos
+  const totalPoints = pointsEarned + (videoWatched ? pointsFromVideo : 0);
+
   // Format WhatsApp message for thermal printer (Comanda format)
   const formatComandaMessage = (order: Order): string => {
     return ` Olá! Sou o dono do pedido *${order.comanda}*
@@ -1123,6 +1131,16 @@ Aguardando confirmação!`;
 
   const randomVerse = verses[Math.floor(Math.random() * verses.length)];
 
+  function handleWatchVideo() {
+    setShowVideo(true);
+    // Simular assistir vídeo (3 segundos)
+    setTimeout(() => {
+      setShowVideo(false);
+      setVideoWatched(true);
+      addSoberaniaPoints(pointsFromVideo, `Bônus por assistir vídeo do pedido ${order.comanda}`, "ad");
+    }, 3000);
+  }
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-5">
       <div className="feb-scope w-full max-w-sm rounded-2xl border border-border p-6 text-center">
@@ -1132,6 +1150,30 @@ Aguardando confirmação!`;
         <p className="mt-4 text-xs italic text-muted-foreground/80">
           {randomVerse}
         </p>
+        
+        {pointsEarned > 0 && (
+          <div className="mt-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 p-3">
+            <p className="text-tech text-[10px] text-yellow-400 mb-2">Pontos de Soberania</p>
+            <p className="text-sm font-medium text-yellow-300">
+              +{pointsEarned} pontos pelo pedido
+            </p>
+            {!videoWatched && (
+              <button
+                onClick={handleWatchVideo}
+                className="mt-2 flex items-center justify-center gap-2 w-full rounded-lg bg-yellow-600 px-3 py-2 text-xs font-medium text-white hover:bg-yellow-500 transition-colors"
+              >
+                <span>🎬</span>
+                Assistir vídeo e dobrar pontos (+{pointsFromVideo})
+              </button>
+            )}
+            {videoWatched && (
+              <p className="mt-2 text-xs text-green-400">
+                ✓ Vídeo assistido! +{pointsFromVideo} pontos bônus
+              </p>
+            )}
+          </div>
+        )}
+        
         <div className="mt-6 flex flex-col gap-2">
           <a
             href={`https://wa.me/${state.whatsapp}?text=${waText}`}
@@ -1149,6 +1191,25 @@ Aguardando confirmação!`;
           {buildThermalTicket(order, state.store.name).split("\n").length} linhas de comanda prontas
         </p>
       </div>
+      
+      {showVideo && (
+        <div className="fixed inset-0 z-60 grid place-items-center bg-black/90 p-5">
+          <div className="w-full max-w-lg rounded-xl border border-border p-4 bg-slate-900">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-medium text-white">Assistir vídeo para dobrar pontos</p>
+              <button onClick={() => setShowVideo(false)} className="text-gray-400 hover:text-white">
+                ✕
+              </button>
+            </div>
+            <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <div className="size-12 mx-auto mb-3 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-sm text-gray-400">Carregando vídeo...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

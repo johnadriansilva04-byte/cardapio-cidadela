@@ -196,8 +196,8 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       },
     }));
 
-    // Adicionar pontos de soberania pelo pedido (1 ponto por R$1)
-    const pointsEarned = Math.floor(finalOrder.total);
+    // Adicionar pontos de soberania pelo pedido (1 ponto por R$30)
+    const pointsEarned = Math.floor(finalOrder.total / 30);
     addSoberaniaPoints(pointsEarned, `Pedido de R$${finalOrder.total.toFixed(2)}`, "order");
 
     setSuccess(finalOrder);
@@ -1103,8 +1103,8 @@ function SuccessModal({ order, onClose }: { order: Order; onClose: () => void })
   const [videoWatched, setVideoWatched] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   
-  // Calcular pontos ganhos pelo pedido
-  const pointsEarned = Math.floor(order.total);
+  // Calcular pontos ganhos pelo pedido (1 ponto por R$30)
+  const pointsEarned = Math.floor(order.total / 30);
   const pointsFromVideo = pointsEarned * 2; // Dobra os pontos
   const totalPoints = pointsEarned + (videoWatched ? pointsFromVideo : 0);
 

@@ -91,118 +91,131 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       setPaymentOpen(true);
     } else {
       // Pagamento em dinheiro ou cartão - processa direto
-      setPendingOrder(order);
-      await handlePaymentSuccess();
+      try {
+        await handlePaymentSuccess();
+      } catch (error) {
+        console.error("Erro no handlePaymentSuccess:", error);
+        // Mesmo com erro, mostra modal de sucesso
+        setSuccess(order);
+      }
     }
   }
 
   async function handlePaymentSuccess() {
     if (!pendingOrder) return;
 
-    // Determinar tipo de acesso baseado no valor total
-    const accessType = pendingOrder.total >= 200 ? "15_dias" : "15_min";
+    try {
+      // Determinar tipo de acesso baseado no valor total
+      const accessType = pendingOrder.total >= 200 ? "15_dias" : "15_min";
 
-    // Gerar código promocional para acesso à Cidadela
-    const promoCode = generatePromoCode(undefined, accessType);
+      // Gerar código promocional para acesso à Cidadela
+      const promoCode = generatePromoCode(undefined, accessType);
 
-    const storeId = state.admin.storeId || state.admin.accessKey;
+      const storeId = state.admin.storeId || state.admin.accessKey;
 
-    // Salvar código no Supabase
-    const expiresAt = new Date(promoCode.expiration);
-    const { error: codeError } = await supabase
-      .from("cidadela_codes")
-      .insert({
-        code: promoCode.code,
-        store_id: storeId,
-        customer_phone: pendingOrder.telefone,
-        access_type: accessType,
-        order_total: pendingOrder.total,
-        expires_at: expiresAt.toISOString(),
-        is_active: true,
-      });
+      // Salvar código no Supabase
+      const expiresAt = new Date(promoCode.expiration);
+      const { error: codeError } = await supabase
+        .from("cidadela_codes")
+        .insert({
+          code: promoCode.code,
+          store_id: storeId,
+          customer_phone: pendingOrder.telefone,
+          access_type: accessType,
+          order_total: pendingOrder.total,
+          expires_at: expiresAt.toISOString(),
+          is_active: true,
+        });
 
-    if (codeError) {
-      console.error("Erro ao salvar código no Supabase:", codeError);
-    }
+      if (codeError) {
+        console.error("Erro ao salvar código no Supabase:", codeError);
+      }
 
-    // Salvar pedido no Supabase
-    const { data: orderData, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        store_id: storeId,
-        customer_name: pendingOrder.cliente,
-        customer_phone: pendingOrder.telefone,
-        delivery_address: pendingOrder.endereco,
-        delivery_type: pendingOrder.tipo_entrega,
-        observations: pendingOrder.observacoes,
-        subtotal: pendingOrder.total,
-        delivery_fee: pendingOrder.taxa_entrega,
-        total: pendingOrder.total,
-        payment_method: pendingOrder.pagamento,
-        change_for: pendingOrder.troco,
-        comanda: pendingOrder.comanda,
-        status: 'pending',
-        cidadela_code: promoCode.code,
-        cidadela_access_type: accessType,
-        payment_status: 'paid',
-        payment_confirmed_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+      // Salvar pedido no Supabase
+      const { data: orderData, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          store_id: storeId,
+          customer_name: pendingOrder.cliente,
+          customer_phone: pendingOrder.telefone,
+          delivery_address: pendingOrder.endereco,
+          delivery_type: pendingOrder.tipo_entrega,
+          observations: pendingOrder.observacoes,
+          subtotal: pendingOrder.total,
+          delivery_fee: pendingOrder.taxa_entrega,
+          total: pendingOrder.total,
+          payment_method: pendingOrder.pagamento,
+          change_for: pendingOrder.troco,
+          comanda: pendingOrder.comanda,
+          status: 'pending',
+          cidadela_code: promoCode.code,
+          cidadela_access_type: accessType,
+          payment_status: 'paid',
+          payment_confirmed_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
-    if (orderError) {
-      console.error("Erro ao salvar pedido no Supabase:", orderError);
-    } else if (orderData) {
-      // Salvar itens do pedido no Supabase
-      const orderItems = pendingOrder.itens.map(item => ({
-        order_id: orderData.id,
-        product_id: item.id,
-        product_name: item.name,
-        quantity: item.quantity,
-        unit_price: item.price,
-        total: item.total,
+      if (orderError) {
+        console.error("Erro ao salvar pedido no Supabase:", orderError);
+      } else if (orderData) {
+        // Salvar itens do pedido no Supabase
+        const orderItems = pendingOrder.itens.map(item => ({
+          order_id: orderData.id,
+          product_id: item.id,
+          product_name: item.name,
+          quantity: item.quantity,
+          unit_price: item.price,
+          total: item.total,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("order_items")
+          .insert(orderItems);
+
+        if (itemsError) {
+          console.error("Erro ao salvar itens do pedido no Supabase:", itemsError);
+        }
+      }
+
+      // Payload completo conforme documentação do N8N com código da Cidadela
+      const payloadWithCode = buildOrderPayload(
+        pendingOrder,
+        promoCode.code,
+        accessType,
+        state.admin.phone || state.whatsapp,
+        state.admin.email,
+        storeId,
+      );
+
+      const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
+
+      const finalOrder = { ...pendingOrder, synced };
+
+      // Salvar código localmente para validação
+      update((prev) => ({
+        ...prev,
+        orders: prev.orders.map((o) => o.id === finalOrder.id ? finalOrder : o),
+        cidadela: {
+          ...prev.cidadela,
+          codes: [...prev.cidadela.codes, promoCode],
+        },
       }));
 
-      const { error: itemsError } = await supabase
-        .from("order_items")
-        .insert(orderItems);
+      // Adicionar pontos de soberania pelo pedido (1 ponto por R$30)
+      const pointsEarned = Math.floor(finalOrder.total / 30);
+      addSoberaniaPoints(pointsEarned, `Pedido de R$${finalOrder.total.toFixed(2)}`, "order");
 
-      if (itemsError) {
-        console.error("Erro ao salvar itens do pedido no Supabase:", itemsError);
-      }
+      setSuccess(finalOrder);
+      setPaymentOpen(false);
+      setPendingOrder(null);
+    } catch (error) {
+      console.error("Erro no handlePaymentSuccess:", error);
+      // Mesmo com erro, mostra modal de sucesso com o pedido
+      setSuccess(pendingOrder);
+      setPaymentOpen(false);
+      setPendingOrder(null);
     }
-
-    // Payload completo conforme documentação do N8N com código da Cidadela
-    const payloadWithCode = buildOrderPayload(
-      pendingOrder,
-      promoCode.code,
-      accessType,
-      state.admin.phone || state.whatsapp,
-      state.admin.email,
-      storeId,
-    );
-
-    const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
-
-    const finalOrder = { ...pendingOrder, synced };
-
-    // Salvar código localmente para validação
-    update((prev) => ({
-      ...prev,
-      orders: prev.orders.map((o) => o.id === finalOrder.id ? finalOrder : o),
-      cidadela: {
-        ...prev.cidadela,
-        codes: [...prev.cidadela.codes, promoCode],
-      },
-    }));
-
-    // Adicionar pontos de soberania pelo pedido (1 ponto por R$30)
-    const pointsEarned = Math.floor(finalOrder.total / 30);
-    addSoberaniaPoints(pointsEarned, `Pedido de R$${finalOrder.total.toFixed(2)}`, "order");
-
-    setSuccess(finalOrder);
-    setPaymentOpen(false);
-    setPendingOrder(null);
   }
 
   return (

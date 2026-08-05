@@ -78,18 +78,8 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     });
 
   async function submitOrder(order: Order) {
-    // Calcular pontos que seriam ganhos
-    const pointsEarned = Math.floor(order.total / 30);
-    
-    // Se houver pontos para ganhar, mostra modal de vídeo para dobrar
-    if (pointsEarned > 0) {
-      setPendingCheckoutData(order);
-      setCheckoutOpen(false);
-      setVideoBonusOpen(true);
-    } else {
-      // Sem pontos, processa direto
-      await processOrder(order);
-    }
+    // Processa pedido direto (envia webhook, salva no Supabase, etc.)
+    await processOrder(order);
   }
 
   async function processOrder(order: Order) {
@@ -217,8 +207,15 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       const pointsEarned = Math.floor(finalOrder.total / 30);
       addSoberaniaPoints(pointsEarned, `Pedido de R$${finalOrder.total.toFixed(2)}`, "order");
 
-      setSuccess(finalOrder);
       setPaymentOpen(false);
+      
+      // Verifica se deve mostrar modal de vídeo antes do sucesso
+      if (pointsEarned > 0) {
+        setPendingCheckoutData(finalOrder);
+        setVideoBonusOpen(true);
+      } else {
+        setSuccess(finalOrder);
+      }
       setPendingOrder(null);
     } catch (error) {
       console.error("Erro no handlePaymentSuccess:", error);
@@ -799,16 +796,16 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           onSkip={() => {
             setVideoWatched(false);
             setVideoBonusOpen(false);
-            processOrder(pendingCheckoutData);
+            setSuccess(pendingCheckoutData);
             setPendingCheckoutData(null);
           }}
           onWatchVideo={() => {
             setVideoWatched(true);
             setVideoBonusOpen(false);
-            // Adiciona pontos bônus antes de processar
+            // Adiciona pontos bônus
             const pointsEarned = Math.floor(pendingCheckoutData.total / 30);
             addSoberaniaPoints(pointsEarned, `Bônus por assistir vídeo do pedido`, "ad");
-            processOrder(pendingCheckoutData);
+            setSuccess(pendingCheckoutData);
             setPendingCheckoutData(null);
           }}
         />

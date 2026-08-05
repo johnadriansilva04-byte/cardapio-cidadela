@@ -30,3 +30,6 @@ ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS admin_email VARCHAR(255);
 
 -- Adicionar índice para admin_email se não existir
 CREATE INDEX IF NOT EXISTS idx_admin_trials_email ON admin_trials(admin_email);
+
+-- Tornar access_code opcional já que agora usamos e-mail
+ALTER TABLE admin_trials ALTER COLUMN access_code DROP NOT NULL;

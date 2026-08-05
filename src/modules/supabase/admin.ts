@@ -132,6 +132,7 @@ export function useAdminTrial() {
         store_name: storeName,
         admin_phone: adminPhone,
         admin_email: adminEmail,
+        access_code: null, // Não usamos mais access_code, usamos e-mail
         trial_started_at: trialStartedAt.toISOString(),
         trial_expires_at: trialExpiresAt.toISOString(),
         created_at: new Date().toISOString(),

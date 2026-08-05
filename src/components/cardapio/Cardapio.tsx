@@ -1,5 +1,5 @@
 import { Copy, Minus, Plus, Settings, ShoppingBag, Trash2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 
 import { CobraFumando } from "@/components/CobraFumando";
@@ -1151,9 +1151,26 @@ function VideoBonusModal({
 }) {
   const [showVideo, setShowVideo] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState(3);
   
   const pointsEarned = Math.floor(order.total / 30);
   const bonusPoints = pointsEarned; // Dobra os pontos
+
+  // Efeito para iniciar countdown automaticamente
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleWatchVideo();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   function handleWatchVideo() {
     setShowVideo(true);
@@ -1165,13 +1182,17 @@ function VideoBonusModal({
     }, 3000);
   }
 
+  function handleSkip() {
+    onSkip();
+  }
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-5">
       <div className="w-full max-w-sm rounded-2xl border border-border p-6 text-center bg-card">
-        <div className="size-16 mx-auto mb-4 rounded-full bg-yellow-500/20 flex items-center justify-center">
-          <span className="text-3xl">🎬</span>
+        <div className="size-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+          <span className="text-3xl">✓</span>
         </div>
-        <h2 className="text-xl font-bold text-white mb-2">Dobre seus pontos!</h2>
+        <h2 className="text-xl font-bold text-white mb-2">Seu pedido foi realizado com sucesso!</h2>
         <p className="text-sm text-muted-foreground mb-4">
           Assista um vídeo curto e ganhe +{bonusPoints} pontos de soberania bônus
         </p>
@@ -1184,10 +1205,16 @@ function VideoBonusModal({
           <p className="text-2xl font-bold text-green-300">+{pointsEarned + bonusPoints}</p>
         </div>
 
+        <div className="mb-4">
+          <p className="text-sm text-muted-foreground">
+            Vídeo começará em <span className="font-bold text-yellow-400">{countdown}</span> segundos
+          </p>
+        </div>
+
         <div className="flex flex-col gap-3">
           <button
             onClick={handleWatchVideo}
-            disabled={loading}
+            disabled={loading || countdown === 0}
             className="w-full rounded-full bg-yellow-600 py-3 font-semibold text-white hover:bg-yellow-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
@@ -1203,11 +1230,11 @@ function VideoBonusModal({
             )}
           </button>
           <button
-            onClick={onSkip}
+            onClick={handleSkip}
             disabled={loading}
             className="w-full rounded-full border border-border py-3 font-semibold text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Pular, não quero bônus
+            Não assistir vídeo
           </button>
         </div>
       </div>

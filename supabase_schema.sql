@@ -33,3 +33,11 @@ CREATE INDEX IF NOT EXISTS idx_admin_trials_email ON admin_trials(admin_email);
 
 -- Tornar access_code opcional já que agora usamos e-mail
 ALTER TABLE admin_trials ALTER COLUMN access_code DROP NOT NULL;
+
+-- Adicionar colunas para configurações do admin
+ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS store_name VARCHAR(255);
+ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS store_slogan TEXT;
+ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS store_marquee TEXT;
+ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS pix_key VARCHAR(255);
+ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(20);
+ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS config_updated_at TIMESTAMP WITH TIME ZONE;

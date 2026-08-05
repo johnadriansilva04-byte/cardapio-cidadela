@@ -23,7 +23,12 @@ type SoberaniaTransaction = {
 
 type AdminTrial = {
   id: string;
+  store_id?: string;
   store_name: string;
+  store_slogan?: string;
+  store_marquee?: string;
+  pix_key?: string;
+  whatsapp?: string;
   admin_phone: string;
   admin_email: string;
   trial_started_at: string;
@@ -31,6 +36,7 @@ type AdminTrial = {
   is_active: boolean;
   is_premium: boolean;
   premium_expires_at: string | null;
+  config_updated_at?: string;
   created_at: string;
 };
 
@@ -85,6 +91,9 @@ export function useAdminTrial() {
         setTrial(parsed);
         checkExpiration(parsed);
         updateLastActivity();
+        
+        // Carregar configurações do Supabase
+        loadAdminConfig(parsed.id);
       }
     }
     setIsLoading(false);
@@ -118,6 +127,24 @@ export function useAdminTrial() {
     if (!isExpired) {
       const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       setDaysRemaining(Math.max(0, daysLeft));
+    }
+  }
+
+  async function loadAdminConfig(storeId: string) {
+    const { data, error } = await supabase
+      .from("admin_trials")
+      .select("store_name, store_slogan, store_marquee, pix_key, whatsapp")
+      .eq("id", storeId)
+      .single();
+
+    if (error) {
+      console.error("Erro ao carregar configurações do admin:", error);
+      return;
+    }
+
+    if (data) {
+      // Retornar as configurações para serem aplicadas no store
+      return data;
     }
   }
 
@@ -346,6 +373,29 @@ export function useAdminTrial() {
     return data as SoberaniaTransaction[];
   }
 
+  async function updateAdminConfig(storeId: string, config: {
+    store_name?: string;
+    store_slogan?: string;
+    store_marquee?: string;
+    pix_key?: string;
+    whatsapp?: string;
+  }) {
+    const { error } = await supabase
+      .from("admin_trials")
+      .update({
+        ...config,
+        config_updated_at: new Date().toISOString(),
+      })
+      .eq("id", storeId);
+
+    if (error) {
+      console.error("Erro ao atualizar configurações do admin:", error);
+      return false;
+    }
+
+    return true;
+  }
+
   return {
     trial,
     isLoading,
@@ -359,5 +409,7 @@ export function useAdminTrial() {
     getSoberaniaPoints,
     updateSoberaniaPoints,
     getSoberaniaHistory,
+    updateAdminConfig,
+    loadAdminConfig,
   };
 }

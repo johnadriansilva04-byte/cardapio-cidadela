@@ -25,5 +25,8 @@ CREATE INDEX IF NOT EXISTS idx_soberania_points_phone ON soberania_points(custom
 CREATE INDEX IF NOT EXISTS idx_soberania_transactions_phone ON soberania_transactions(customer_phone);
 CREATE INDEX IF NOT EXISTS idx_soberania_transactions_timestamp ON soberania_transactions(timestamp);
 
--- Tabela de trials de admin já existe, mas vamos garantir que tenha admin_email
--- ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS admin_email VARCHAR(255);
+-- Tabela de trials de admin já existe, vamos garantir que tenha admin_email
+ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS admin_email VARCHAR(255);
+
+-- Adicionar índice para admin_email se não existir
+CREATE INDEX IF NOT EXISTS idx_admin_trials_email ON admin_trials(admin_email);

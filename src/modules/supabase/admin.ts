@@ -396,6 +396,40 @@ export function useAdminTrial() {
     return true;
   }
 
+  // Funções para autenticação com Google
+  async function signInWithGoogle() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+
+    if (error) {
+      console.error("Erro ao fazer login com Google:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, url: data.url };
+  }
+
+  // Sign out
+  async function signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Erro ao fazer logout:", error);
+      return false;
+    }
+    clearTrial();
+    return true;
+  }
+
+  // Verificar sessão atual
+  async function checkSession() {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session;
+  }
+
   return {
     trial,
     isLoading,
@@ -411,5 +445,8 @@ export function useAdminTrial() {
     getSoberaniaHistory,
     updateAdminConfig,
     loadAdminConfig,
+    signInWithGoogle,
+    signOut,
+    checkSession,
   };
 }

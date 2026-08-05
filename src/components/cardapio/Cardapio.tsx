@@ -27,6 +27,9 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
   const [success, setSuccess] = useState<Order | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
+  const [videoBonusOpen, setVideoBonusOpen] = useState(false);
+  const [videoWatched, setVideoWatched] = useState(false);
+  const [pendingCheckoutData, setPendingCheckoutData] = useState<any>(null);
 
   const allItems = useMemo(() => state.categories.flatMap((c) => c.items), [state.categories]);
 
@@ -75,6 +78,21 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     });
 
   async function submitOrder(order: Order) {
+    // Calcular pontos que seriam ganhos
+    const pointsEarned = Math.floor(order.total / 30);
+    
+    // Se houver pontos para ganhar, mostra modal de vídeo para dobrar
+    if (pointsEarned > 0) {
+      setPendingCheckoutData(order);
+      setCheckoutOpen(false);
+      setVideoBonusOpen(true);
+    } else {
+      // Sem pontos, processa direto
+      await processOrder(order);
+    }
+  }
+
+  async function processOrder(order: Order) {
     // Salvar pedido localmente
     update((prev) => ({
       ...prev,
@@ -82,7 +100,6 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     }));
     setPendingOrder(order);
     setCart({});
-    setCheckoutOpen(false);
     setCartOpen(false);
 
     // Se pagamento for PIX, abre tela de pagamento com QR Code
@@ -90,14 +107,8 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     if (order.pagamento === 'pix') {
       setPaymentOpen(true);
     } else {
-      // Pagamento em dinheiro ou cartão - processa direto
-      try {
-        await handlePaymentSuccess();
-      } catch (error) {
-        console.error("Erro no handlePaymentSuccess:", error);
-        // Mesmo com erro, mostra modal de sucesso
-        setSuccess(order);
-      }
+      // Pagamento em dinheiro ou cartão - processa direto sem mostrar PaymentScreen
+      await handlePaymentSuccess();
     }
   }
 
@@ -782,6 +793,27 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         />
       )}
 
+      {videoBonusOpen && pendingCheckoutData && (
+        <VideoBonusModal
+          order={pendingCheckoutData}
+          onSkip={() => {
+            setVideoWatched(false);
+            setVideoBonusOpen(false);
+            processOrder(pendingCheckoutData);
+            setPendingCheckoutData(null);
+          }}
+          onWatchVideo={() => {
+            setVideoWatched(true);
+            setVideoBonusOpen(false);
+            // Adiciona pontos bônus antes de processar
+            const pointsEarned = Math.floor(pendingCheckoutData.total / 30);
+            addSoberaniaPoints(pointsEarned, `Bônus por assistir vídeo do pedido`, "ad");
+            processOrder(pendingCheckoutData);
+            setPendingCheckoutData(null);
+          }}
+        />
+      )}
+
       {paymentOpen && pendingOrder && (
         <PaymentScreen
           order={pendingOrder}
@@ -1111,15 +1143,106 @@ function CheckoutModal({
   );
 }
 
-function SuccessModal({ order, onClose }: { order: Order; onClose: () => void }) {
-  const { state, addSoberaniaPoints } = useStore();
-  const [videoWatched, setVideoWatched] = useState(false);
+function VideoBonusModal({ 
+  order, 
+  onSkip, 
+  onWatchVideo 
+}: { 
+  order: Order; 
+  onSkip: () => void; 
+  onWatchVideo: () => void; 
+}) {
   const [showVideo, setShowVideo] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  const pointsEarned = Math.floor(order.total / 30);
+  const bonusPoints = pointsEarned; // Dobra os pontos
+
+  function handleWatchVideo() {
+    setShowVideo(true);
+    setLoading(true);
+    // Simular assistir vídeo (3 segundos)
+    setTimeout(() => {
+      setLoading(false);
+      onWatchVideo();
+    }, 3000);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-5">
+      <div className="w-full max-w-sm rounded-2xl border border-border p-6 text-center bg-card">
+        <div className="size-16 mx-auto mb-4 rounded-full bg-yellow-500/20 flex items-center justify-center">
+          <span className="text-3xl">🎬</span>
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">Dobre seus pontos!</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Assista um vídeo curto e ganhe +{bonusPoints} pontos de soberania bônus
+        </p>
+        
+        <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 p-4 mb-6">
+          <p className="text-xs text-yellow-400 mb-1">Pontos do pedido</p>
+          <p className="text-2xl font-bold text-yellow-300">+{pointsEarned}</p>
+          <div className="my-2 border-t border-yellow-500/20"></div>
+          <p className="text-xs text-green-400 mb-1">Com vídeo bônus</p>
+          <p className="text-2xl font-bold text-green-300">+{pointsEarned + bonusPoints}</p>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={handleWatchVideo}
+            disabled={loading}
+            className="w-full rounded-full bg-yellow-600 py-3 font-semibold text-white hover:bg-yellow-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Assistindo...
+              </>
+            ) : (
+              <>
+                <span>🎬</span>
+                Assistir vídeo e dobrar pontos
+              </>
+            )}
+          </button>
+          <button
+            onClick={onSkip}
+            disabled={loading}
+            className="w-full rounded-full border border-border py-3 font-semibold text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Pular, não quero bônus
+          </button>
+        </div>
+      </div>
+      
+      {showVideo && (
+        <div className="fixed inset-0 z-60 grid place-items-center bg-black/95 p-5">
+          <div className="w-full max-w-lg rounded-xl border border-border p-4 bg-slate-900">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-medium text-white">Assistindo vídeo...</p>
+              <button onClick={() => setShowVideo(false)} className="text-gray-400 hover:text-white">
+                ✕
+              </button>
+            </div>
+            <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <div className="size-12 mx-auto mb-3 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-sm text-gray-400">Carregando vídeo...</p>
+                <p className="text-xs text-gray-500 mt-2">Aguarde 3 segundos</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SuccessModal({ order, onClose }: { order: Order; onClose: () => void }) {
+  const { state } = useStore();
   
   // Calcular pontos ganhos pelo pedido (1 ponto por R$30)
   const pointsEarned = Math.floor(order.total / 30);
-  const pointsFromVideo = pointsEarned * 2; // Dobra os pontos
-  const totalPoints = pointsEarned + (videoWatched ? pointsFromVideo : 0);
 
   // Format WhatsApp message for thermal printer (Comanda format)
   const formatComandaMessage = (order: Order): string => {
@@ -1144,16 +1267,6 @@ Aguardando confirmação!`;
 
   const randomVerse = verses[Math.floor(Math.random() * verses.length)];
 
-  function handleWatchVideo() {
-    setShowVideo(true);
-    // Simular assistir vídeo (3 segundos)
-    setTimeout(() => {
-      setShowVideo(false);
-      setVideoWatched(true);
-      addSoberaniaPoints(pointsFromVideo, `Bônus por assistir vídeo do pedido ${order.comanda}`, "ad");
-    }, 3000);
-  }
-
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-5">
       <div className="feb-scope w-full max-w-sm rounded-2xl border border-border p-6 text-center">
@@ -1170,20 +1283,6 @@ Aguardando confirmação!`;
             <p className="text-sm font-medium text-yellow-300">
               +{pointsEarned} pontos pelo pedido
             </p>
-            {!videoWatched && (
-              <button
-                onClick={handleWatchVideo}
-                className="mt-2 flex items-center justify-center gap-2 w-full rounded-lg bg-yellow-600 px-3 py-2 text-xs font-medium text-white hover:bg-yellow-500 transition-colors"
-              >
-                <span>🎬</span>
-                Assistir vídeo e dobrar pontos (+{pointsFromVideo})
-              </button>
-            )}
-            {videoWatched && (
-              <p className="mt-2 text-xs text-green-400">
-                ✓ Vídeo assistido! +{pointsFromVideo} pontos bônus
-              </p>
-            )}
           </div>
         )}
         
@@ -1204,25 +1303,6 @@ Aguardando confirmação!`;
           {buildThermalTicket(order, state.store.name).split("\n").length} linhas de comanda prontas
         </p>
       </div>
-      
-      {showVideo && (
-        <div className="fixed inset-0 z-60 grid place-items-center bg-black/90 p-5">
-          <div className="w-full max-w-lg rounded-xl border border-border p-4 bg-slate-900">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-medium text-white">Assistir vídeo para dobrar pontos</p>
-              <button onClick={() => setShowVideo(false)} className="text-gray-400 hover:text-white">
-                ✕
-              </button>
-            </div>
-            <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <div className="size-12 mx-auto mb-3 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-sm text-gray-400">Carregando vídeo...</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -211,8 +211,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER IF NOT EXISTS update_orders_updated_at BEFORE UPDATE ON orders
+-- Drop trigger se existir antes de criar
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
+CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER IF NOT EXISTS update_game_sessions_updated_at BEFORE UPDATE ON game_sessions
+DROP TRIGGER IF EXISTS update_game_sessions_updated_at ON game_sessions;
+CREATE TRIGGER update_game_sessions_updated_at BEFORE UPDATE ON game_sessions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

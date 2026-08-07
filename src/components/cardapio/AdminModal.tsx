@@ -37,6 +37,28 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
     }
   }, [trial, state.admin.phone, update]);
 
+  // Limpar trials antigos no localStorage com mais de 2 minutos
+  useEffect(() => {
+    const savedTrial = localStorage.getItem("admin_trial");
+    if (savedTrial) {
+      try {
+        const parsed = JSON.parse(savedTrial);
+        const expiresAt = new Date(parsed.trial_expires_at);
+        const startedAt = new Date(parsed.trial_started_at);
+        const diffMinutes = (expiresAt.getTime() - startedAt.getTime()) / (1000 * 60);
+        
+        // Se o trial tem mais de 2 minutos, limpar
+        if (diffMinutes > 2) {
+          console.log("Limpando trial antigo com mais de 2 minutos");
+          localStorage.removeItem("admin_trial");
+          localStorage.removeItem("admin_last_activity");
+        }
+      } catch (e) {
+        console.error("Erro ao verificar trial antigo:", e);
+      }
+    }
+  }, []);
+
   // Cronômetro em tempo real para o trial
   useEffect(() => {
     if (!trial || trial.is_premium || isExpired) {

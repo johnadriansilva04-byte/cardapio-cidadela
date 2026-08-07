@@ -11,14 +11,7 @@ import AdminModal from "./AdminModal";
 import { useStore } from "@/modules/cidadela-core/store";
 import { supabase } from "@/modules/supabase/client";
 import type { MenuItem, Order } from "@/lib/types";
-import {
-  brl,
-  newComanda,
-  generatePromoCode,
-  buildThermalTicket,
-  printTicket,
-  sendToN8n,
-} from "@/modules/cidadela-core/utils";
+import { brl, newComanda, generatePromoCode, buildThermalTicket, printTicket, sendToN8N } from "@/modules/cidadela-core/utils";
 import { buildOrderPayload } from "@/modules/fluxos-n8n/webhook";
 
 export default function Cardapio() {
@@ -194,7 +187,7 @@ export default function Cardapio() {
       storeId,
     );
 
-    await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
+    await sendToN8N(state.integrations.n8nWebhookUrl, payloadWithCode);
 
     setCart({});
     setPendingOrder(null);

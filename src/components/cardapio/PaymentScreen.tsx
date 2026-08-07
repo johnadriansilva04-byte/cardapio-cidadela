@@ -9,7 +9,7 @@ type PaymentScreenProps = {
   onCancel: () => void;
 };
 
-export function PaymentScreen({ order, onSuccess, onCancel }: PaymentScreenProps) {
+export default function PaymentScreen({ order, onSuccess, onCancel }: PaymentScreenProps) {
   const { state } = useStore();
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);

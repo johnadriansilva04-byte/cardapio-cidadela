@@ -15,7 +15,7 @@ import { sendAdminTrial } from "@/modules/fluxos-n8n/webhook";
 type Module = "menu" | "config" | "categorias" | "lanches" | "pedidos" | "descontos";
 type LoginStep = "login" | "trial" | "premium" | "blocked";
 
-export function AdminModal({ onClose }: { onClose: () => void }) {
+export default function AdminModal({ onClose }: { onClose: () => void }) {
   const { state, update } = useStore();
   const { trial, isLoading, isExpired, daysRemaining, createTrial, validateAccessCode, loadOrdersFromSupabase, activateLiberationCode, signInWithGoogle, signOut, checkSession, reloadTrial } = useAdminTrial();
   const [loginStep, setLoginStep] = useState<"login" | "trial" | "premium">("login");

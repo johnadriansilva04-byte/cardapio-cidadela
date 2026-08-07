@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { Cardapio } from "@/components/cardapio/Cardapio";
+import Cardapio from "@/components/cardapio/Cardapio";
 import { AdminModal } from "@/components/cardapio/AdminModal";
 import { StoreProvider } from "@/modules/cidadela-core/store";
 
@@ -28,12 +28,9 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [adminOpen, setAdminOpen] = useState(false);
-
   return (
     <StoreProvider>
-      <Cardapio onOpenAdmin={() => setAdminOpen(true)} />
-      {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
+      <Cardapio />
     </StoreProvider>
   );
 }

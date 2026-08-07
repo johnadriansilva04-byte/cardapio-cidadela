@@ -115,7 +115,7 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
   function handlePaymentComplete(plan: { years: number; price: number }) {
     setShowPaymentModal(false);
     const whatsappMessage = `Trial acabou, quero o código premium - Plano: ${plan.years} ${plan.years === 1 ? 'ano' : 'anos'} - R$ ${plan.price}`;
-    const whatsappUrl = `https://wa.me/5511999999999?text=${encodeURIComponent(whatsappMessage)}`;
+    const whatsappUrl = `https://wa.me/5548999880030?text=${encodeURIComponent(whatsappMessage)}`;
     window.open(whatsappUrl, '_blank');
   }
 
@@ -375,7 +375,7 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
                 <button
                   onClick={() => {
                     const whatsappMessage = "Perdi meu código de acesso do cardápio";
-                    const whatsappUrl = `https://wa.me/5511999999999?text=${encodeURIComponent(whatsappMessage)}`;
+                    const whatsappUrl = `https://wa.me/5548999880030?text=${encodeURIComponent(whatsappMessage)}`;
                     window.open(whatsappUrl, '_blank');
                   }}
                   className="mt-2 w-full rounded-lg border border-gray-500/30 py-2 text-xs text-gray-400 hover:border-gray-500/50"

@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useMemo, useRef, useState, useEffect } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ShoppingBag, Plus, Minus, Menu, User, Settings } from "lucide-react";
 import RobotWaiter from "./RobotWaiter";
 import CartSheet from "./CartSheet";
@@ -22,6 +22,7 @@ import {
 
 export default function Cardapio() {
   const navigate = useNavigate();
+  const search = useSearch({ from: "/" });
   const state = useStore();
   const update = useStore((s) => s.update);
 
@@ -40,6 +41,40 @@ export default function Cardapio() {
   const [successPoints, setSuccessPoints] = useState(0);
   const [ownerWhatsApp, setOwnerWhatsApp] = useState(state.whatsapp);
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({});
+
+  // Carregar configurações do restaurante baseado no store_id da URL
+  useEffect(() => {
+    const storeIdFromUrl = search.store_id as string | undefined;
+    if (storeIdFromUrl) {
+      loadStoreConfig(storeIdFromUrl);
+    }
+  }, [search.store_id]);
+
+  async function loadStoreConfig(storeId: string) {
+    try {
+      const { data: adminData } = await supabase
+        .from("admin_trials")
+        .select("*")
+        .eq("store_id", storeId)
+        .maybeSingle();
+
+      if (adminData) {
+        update((s) => {
+          s.admin.storeId = adminData.store_id;
+          s.admin.email = adminData.admin_email ?? "";
+          s.admin.phone = adminData.admin_phone ?? "";
+          s.store.name = adminData.store_name || s.store.name;
+          s.store.slogan = adminData.store_slogan || s.store.slogan;
+          s.store.marquee = adminData.store_marquee || s.store.marquee;
+          s.payment.pixKey = adminData.pix_key || s.payment.pixKey;
+          s.whatsapp = adminData.whatsapp || s.whatsapp;
+        });
+        setOwnerWhatsApp(adminData.whatsapp || state.whatsapp);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar configurações do restaurante:", error);
+    }
+  }
 
   const allItems = useMemo(
     () => state.categories.flatMap((c) => c.items),

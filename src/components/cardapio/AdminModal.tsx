@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, ArrowLeft } from "lucide-react";
+import { X, ArrowLeft, Copy } from "lucide-react";
 import MenuPrincipal, { type AdminScreen } from "./admin/MenuPrincipal";
 import GerenciarCategorias from "./admin/GerenciarCategorias";
 import GerenciarLanches from "./admin/GerenciarLanches";
@@ -254,6 +254,31 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
               >
                 Perdeu seu código de acesso? Recuperar
               </button>
+
+              {trial?.store_id && (
+                <div className="mt-4 rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3">
+                  <p className="mb-2 text-xs text-gray-400">Seu link personalizado:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs text-cyan-300 break-all">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/?store_id=${trial.store_id}` : `/?store_id=${trial.store_id}`}
+                    </code>
+                    <button
+                      onClick={() => {
+                        const url = typeof window !== 'undefined' ? `${window.location.origin}/?store_id=${trial.store_id}` : `/?store_id=${trial.store_id}`;
+                        navigator.clipboard.writeText(url);
+                        setMessage("Link copiado!");
+                      }}
+                      className="rounded border border-cyan-500/50 p-1 text-cyan-300 hover:border-cyan-400"
+                      aria-label="Copiar link"
+                    >
+                      <Copy className="size-4" />
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Compartilhe este link no seu WhatsApp
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : (

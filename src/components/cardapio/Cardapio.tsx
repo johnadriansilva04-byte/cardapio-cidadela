@@ -38,6 +38,7 @@ export default function Cardapio() {
     access_type: "15_min" | "15_dias";
   } | null>(null);
   const [successPoints, setSuccessPoints] = useState(0);
+  const [ownerWhatsApp, setOwnerWhatsApp] = useState(state.whatsapp);
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({});
 
   const allItems = useMemo(
@@ -118,7 +119,21 @@ export default function Cardapio() {
     const accessType: "15_min" | "15_dias" = order.total >= 200 ? "15_dias" : "15_min";
     const { code, expiration } = generatePromoCode(undefined, accessType);
 
+    let ownerWhatsApp = state.whatsapp;
+
     try {
+      // Buscar WhatsApp do dono correto baseado no store_id
+      if (storeId) {
+        const { data: adminData } = await supabase
+          .from("admin_trials")
+          .select("whatsapp")
+          .eq("store_id", storeId)
+          .maybeSingle();
+        if (adminData?.whatsapp) {
+          ownerWhatsApp = adminData.whatsapp;
+        }
+      }
+
       await supabase.from("cidadela_codes").insert({
         code,
         store_id: storeId,
@@ -182,9 +197,20 @@ export default function Cardapio() {
     });
 
     sendToN8N(state.integrations.n8nWebhookUrl, {
-      order,
+      nome: order.cliente,
+      comanda: order.comanda,
+      telefone: order.telefone,
+      itens: order.itens,
+      total: order.total,
+      endereco: order.endereco,
+      observacao: order.observacoes,
+      pagamento: order.pagamento,
+      troco: order.troco,
+      tipo_entrega: order.tipo_entrega,
+      taxa_entrega: order.taxa_entrega,
       store_id: storeId,
-      store: { name: state.store.name, whatsapp: state.whatsapp },
+      store_name: state.store.name,
+      store_whatsapp: ownerWhatsApp,
       cidadela_code: code,
       cidadela_access_type: accessType,
     });
@@ -192,6 +218,7 @@ export default function Cardapio() {
     setCart({});
     setPendingOrder(null);
     setSuccessCode({ code, access_type: accessType });
+    setOwnerWhatsApp(ownerWhatsApp);
 
     if (points > 0) {
       setVideoPoints(points);
@@ -528,7 +555,7 @@ export default function Cardapio() {
           order={currentOrder}
           cidadelaCode={successCode}
           points={successPoints}
-          ownerWhatsApp={state.whatsapp}
+          ownerWhatsApp={ownerWhatsApp}
           onClose={() => {
             setSuccessOrder(null);
             setSuccessCode(null);

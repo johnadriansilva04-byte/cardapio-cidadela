@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./client";
-import { generatePromoCode } from "../cidadela-core/utils";
+
+// Função para gerar código de administrador
+function generateAdminCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `ADM-${result}`;
+}
 
 type SoberaniaPoints = {
   id: string;
@@ -159,9 +168,8 @@ export function useAdminTrial() {
     const trialStartedAt = new Date();
     const trialExpiresAt = new Date(trialStartedAt.getTime() + 2 * 60 * 1000); // 2 minutos
     
-    // Gerar código aleatório para o trial
-    const promoCode = generatePromoCode("TRIAL", "15_min");
-    const storeId = promoCode.code; // Usar o código gerado como store_id
+    // Gerar código de administrador (ADM-XXXXXX)
+    const storeId = generateAdminCode();
 
     const { data, error } = await supabase
       .from("admin_trials")

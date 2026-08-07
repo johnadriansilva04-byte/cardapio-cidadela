@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./client";
+import { generatePromoCode } from "../cidadela-core/utils";
 
 type SoberaniaPoints = {
   id: string;
@@ -155,20 +156,20 @@ export function useAdminTrial() {
   }
 
   async function createTrial(storeName: string, adminPhone: string, adminEmail: string) {
-    console.log("Criando trial com:", { storeName, adminPhone, adminEmail });
-    
     const trialStartedAt = new Date();
     const trialExpiresAt = new Date(trialStartedAt.getTime() + 2 * 60 * 1000); // 2 minutos
-
-    console.log("Datas:", { trialStartedAt, trialExpiresAt });
+    
+    // Gerar código aleatório para o trial
+    const promoCode = generatePromoCode("TRIAL", "15_min");
+    const storeId = promoCode.code; // Usar o código gerado como store_id
 
     const { data, error } = await supabase
       .from("admin_trials")
       .insert({
+        store_id: storeId,
         store_name: storeName,
         admin_phone: adminPhone,
         admin_email: adminEmail,
-        access_code: null, // Não usamos mais access_code, usamos e-mail
         trial_started_at: trialStartedAt.toISOString(),
         trial_expires_at: trialExpiresAt.toISOString(),
         created_at: new Date().toISOString(),
@@ -177,8 +178,6 @@ export function useAdminTrial() {
       })
       .select()
       .single();
-
-    console.log("Resultado do insert:", { data, error });
 
     if (error) {
       console.error("Error creating trial:", error);

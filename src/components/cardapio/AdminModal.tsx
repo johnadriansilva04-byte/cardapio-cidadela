@@ -35,6 +35,9 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
   const [liberation, setLiberation] = useState("");
   const [message, setMessage] = useState("");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoveredCode, setRecoveredCode] = useState<string | null>(null);
 
   const [cfg, setCfg] = useState({
     store_name: state.store.name,
@@ -109,11 +112,35 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
     setShowPaymentModal(true);
   }
 
-  function handlePaymentComplete() {
+  function handlePaymentComplete(plan: { years: number; price: number }) {
     setShowPaymentModal(false);
-    const whatsappMessage = "Trial acabou, quero o código premium";
+    const whatsappMessage = `Trial acabou, quero o código premium - Plano: ${plan.years} ${plan.years === 1 ? 'ano' : 'anos'} - R$ ${plan.price}`;
     const whatsappUrl = `https://wa.me/5511999999999?text=${encodeURIComponent(whatsappMessage)}`;
     window.open(whatsappUrl, '_blank');
+  }
+
+  async function handleRecoverCode() {
+    if (!recoveryEmail.trim()) {
+      setMessage("Informe seu e-mail cadastrado");
+      return;
+    }
+
+    try {
+      const { data: adminData } = await supabase
+        .from("admin_trials")
+        .select("store_id, admin_email")
+        .eq("admin_email", recoveryEmail.trim())
+        .maybeSingle();
+
+      if (adminData) {
+        setRecoveredCode(adminData.store_id);
+      } else {
+        setMessage("E-mail não encontrado. Verifique ou crie uma nova conta.");
+      }
+    } catch (error) {
+      console.error("Erro ao recuperar código:", error);
+      setMessage("Erro ao buscar código. Tente novamente.");
+    }
   }
 
   async function saveConfig() {
@@ -221,6 +248,12 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
               >
                 Solicitar código premium
               </button>
+              <button
+                onClick={() => setShowRecoveryModal(true)}
+                className="mt-2 w-full rounded-lg border border-gray-500/30 py-2 text-xs text-gray-400 hover:border-gray-500/50"
+              >
+                Perdeu seu código de acesso? Recuperar
+              </button>
             </div>
           </div>
         ) : (
@@ -305,6 +338,87 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
           onClose={() => setShowPaymentModal(false)}
           onPaid={handlePaymentComplete}
         />
+      )}
+
+      {showRecoveryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur">
+          <div className="w-full max-w-md rounded-2xl border border-cyan-500/30 bg-slate-900/95 p-6 text-center">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-white">Recuperar Código de Acesso</h2>
+              <button onClick={() => setShowRecoveryModal(false)} aria-label="Fechar">
+                <X className="size-5 text-gray-400" />
+              </button>
+            </div>
+
+            {!recoveredCode ? (
+              <>
+                <p className="mb-4 text-sm text-gray-300">
+                  Informe o e-mail cadastrado para recuperar seu código de acesso.
+                </p>
+
+                <input
+                  className={field}
+                  placeholder="E-mail cadastrado"
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                />
+
+                {message && <p className="mt-2 text-xs text-destructive">{message}</p>}
+
+                <button
+                  onClick={handleRecoverCode}
+                  className="mt-4 w-full rounded-lg bg-cyan-500/20 border border-cyan-500/50 py-3 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/30 transition-colors"
+                >
+                  Buscar código
+                </button>
+
+                <button
+                  onClick={() => {
+                    const whatsappMessage = "Perdi meu código de acesso do cardápio";
+                    const whatsappUrl = `https://wa.me/5511999999999?text=${encodeURIComponent(whatsappMessage)}`;
+                    window.open(whatsappUrl, '_blank');
+                  }}
+                  className="mt-2 w-full rounded-lg border border-gray-500/30 py-2 text-xs text-gray-400 hover:border-gray-500/50"
+                >
+                  Ou solicitar via WhatsApp
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="mb-4 text-sm text-gray-300">
+                  Seu código de acesso foi encontrado:
+                </p>
+
+                <div className="mb-4 rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-4">
+                  <p className="text-xs text-gray-400 mb-1">Código de acesso (store_id):</p>
+                  <p className="text-2xl font-bold text-cyan-300">{recoveredCode}</p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(recoveredCode);
+                    setMessage("Código copiado!");
+                  }}
+                  className="mt-4 w-full rounded-lg bg-cyan-500/20 border border-cyan-500/50 py-3 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/30 transition-colors"
+                >
+                  Copiar código
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowRecoveryModal(false);
+                    setRecoveredCode(null);
+                    setRecoveryEmail("");
+                    setMessage("");
+                  }}
+                  className="mt-2 w-full rounded-lg border border-gray-500/30 py-2 text-xs text-gray-400 hover:border-gray-500/50"
+                >
+                  Fechar
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

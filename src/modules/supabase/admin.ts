@@ -210,7 +210,7 @@ export function useAdminTrial() {
     }
 
     const premiumExpiresAt = new Date();
-    premiumExpiresAt.setDate(premiumExpiresAt.getDate() + 30);
+    premiumExpiresAt.setFullYear(premiumExpiresAt.getFullYear() + 1); // 1 ano
 
     const { error: updateError } = await supabase
       .from("admin_trials")

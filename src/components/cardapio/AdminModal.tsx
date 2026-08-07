@@ -5,6 +5,7 @@ import GerenciarCategorias from "./admin/GerenciarCategorias";
 import GerenciarLanches from "./admin/GerenciarLanches";
 import GerenciarPedidos from "./admin/GerenciarPedidos";
 import DescontosConfig from "./admin/DescontosConfig";
+import PremiumPaymentModal from "./PremiumPaymentModal";
 import { useAdminTrial } from "@/modules/supabase/admin";
 import { useStore } from "@/modules/core/store";
 
@@ -32,6 +33,7 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
   const [storeName, setStoreName] = useState(state.store.name);
   const [liberation, setLiberation] = useState("");
   const [message, setMessage] = useState("");
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const [cfg, setCfg] = useState({
     store_name: state.store.name,
@@ -75,7 +77,18 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
       s.admin.email = t.admin_email ?? email;
       s.whatsapp = t.whatsapp ?? "";
     });
-    setMessage(valid ? "Acesso liberado" : "Trial expirado — use um código premium");
+    setMessage(valid ? "Acesso liberado" : "Trial expirado");
+  }
+
+  function handleRequestPremium() {
+    setShowPaymentModal(true);
+  }
+
+  function handlePaymentComplete() {
+    setShowPaymentModal(false);
+    const whatsappMessage = "Trial acabou, quero o código premium";
+    const whatsappUrl = `https://wa.me/5511999999999?text=${encodeURIComponent(whatsappMessage)}`;
+    window.open(whatsappUrl, '_blank');
   }
 
   async function saveConfig() {
@@ -177,6 +190,12 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
               >
                 Ativar premium
               </button>
+              <button
+                onClick={handleRequestPremium}
+                className="mt-2 w-full rounded-lg border border-[color:var(--color-brass)]/50 py-2 text-sm font-bold text-[color:var(--color-brass)]"
+              >
+                Solicitar código premium
+              </button>
             </div>
           </div>
         ) : (
@@ -255,6 +274,13 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
+
+      {showPaymentModal && (
+        <PremiumPaymentModal
+          onClose={() => setShowPaymentModal(false)}
+          onPaid={handlePaymentComplete}
+        />
+      )}
     </div>
   );
 }

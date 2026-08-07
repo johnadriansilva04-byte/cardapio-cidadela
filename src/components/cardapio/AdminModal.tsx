@@ -8,6 +8,7 @@ import DescontosConfig from "./admin/DescontosConfig";
 import PremiumPaymentModal from "./PremiumPaymentModal";
 import { useAdminTrial } from "@/modules/supabase/admin";
 import { useStore } from "@/modules/core/store";
+import { supabase } from "@/modules/supabase/client";
 
 const field =
   "w-full rounded-lg border border-red-500/30 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-red-500 focus:outline-none";
@@ -53,6 +54,30 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
       setMessage("Informe e-mail e telefone");
       return;
     }
+
+    // Verificar duplicidade no Supabase
+    const { data: existingEmail } = await supabase
+      .from("admin_trials")
+      .select("id")
+      .eq("admin_email", email.trim())
+      .maybeSingle();
+
+    if (existingEmail) {
+      setMessage("Este e-mail já está cadastrado. Use outro e-mail ou faça login.");
+      return;
+    }
+
+    const { data: existingPhone } = await supabase
+      .from("admin_trials")
+      .select("id")
+      .eq("admin_phone", phone.trim())
+      .maybeSingle();
+
+    if (existingPhone) {
+      setMessage("Este telefone já está cadastrado. Use outro número ou faça login.");
+      return;
+    }
+
     const created = await createTrial(storeName, phone, email);
     if (!created) {
       setMessage("Não foi possível criar o trial");

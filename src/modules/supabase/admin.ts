@@ -175,16 +175,16 @@ export function useAdminTrial() {
     const trialStartedAt = new Date();
     const trialExpiresAt = new Date(trialStartedAt.getTime() + 2 * 60 * 1000); // 2 minutos
     
-    // Gerar código de administrador (ADM-XXXXXX)
-    const accessCode = generateAdminCode();
+    // Gerar código de administrador (ADM-XXXXXX) como store_id
+    const storeId = generateAdminCode();
 
     const { data, error } = await supabase
       .from("admin_trials")
       .insert({
+        store_id: storeId,
         store_name: storeName,
         admin_phone: adminPhone,
         admin_email: adminEmail,
-        access_code: accessCode,
         trial_started_at: trialStartedAt.toISOString(),
         trial_expires_at: trialExpiresAt.toISOString(),
         created_at: new Date().toISOString(),
@@ -256,7 +256,7 @@ export function useAdminTrial() {
     const { data, error } = await supabase
       .from("admin_trials")
       .select("*")
-      .eq("access_code", code)
+      .eq("store_id", code)
       .single();
 
     if (error || !data) {

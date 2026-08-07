@@ -270,8 +270,11 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       if (savedTrial) {
         const parsed = JSON.parse(savedTrial);
         console.log("Trial atualizado:", parsed);
+        // Forçar recarregamento da página para atualizar estado
+        window.location.reload();
+      } else {
+        setLoginStep("premium");
       }
-      setLoginStep("premium");
     } else {
       setError(result.message);
     }

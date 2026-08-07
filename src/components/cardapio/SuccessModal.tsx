@@ -1,4 +1,4 @@
-import { CheckCircle2, Printer } from "lucide-react";
+import { CheckCircle2, MessageCircle } from "lucide-react";
 import type { Order } from "@/lib/types";
 import { brl } from "@/modules/core/utils";
 
@@ -7,13 +7,13 @@ export default function SuccessModal({
   cidadelaCode,
   points,
   onClose,
-  onPrint,
+  ownerWhatsApp,
 }: {
   order: Order;
   cidadelaCode?: { code: string; access_type: "15_min" | "15_dias" } | null;
   points: number;
   onClose: () => void;
-  onPrint: () => void;
+  ownerWhatsApp: string;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur">
@@ -44,10 +44,14 @@ export default function SuccessModal({
 
         <div className="mt-5 flex gap-2">
           <button
-            onClick={onPrint}
-            className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[color:var(--color-brass)]/50 py-3 text-sm font-semibold text-[color:var(--color-brass)]"
+            onClick={() => {
+              const message = `Olá! Acabei de fazer o pedido ${order.comanda} no valor de ${brl(order.total)}. Gostaria de acompanhar.`;
+              const whatsappUrl = `https://wa.me/${ownerWhatsApp}?text=${encodeURIComponent(message)}`;
+              window.open(whatsappUrl, '_blank');
+            }}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full border border-green-500/50 py-3 text-sm font-semibold text-green-400"
           >
-            <Printer className="size-4" /> Comanda
+            <MessageCircle className="size-4" /> WhatsApp
           </button>
           <button
             onClick={onClose}

@@ -52,7 +52,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
         .eq("code", savedCode)
         .single()
         .then(({ data, error }: { data: any; error: any }) => {
-          if (data && !error && data.is_active && new Date(data.expires_at) > new Date()) {
+          if (data && !error && data.is_active && new Date(data.expires_at) >= new Date()) {
             setCode(savedCode);
             setCodeExpiresAt(data.expires_at);
           } else {
@@ -105,7 +105,7 @@ export function CidadelaModal({ onClose }: { onClose: () => void }) {
         const now = new Date();
         const expiresAt = new Date(codeData.expires_at);
         
-        if (codeData.is_active && now <= expiresAt) {
+        if (codeData.is_active && now < expiresAt) {
           // Código válido
           saveUserData(value);
           setCodeExpiresAt(codeData.expires_at);

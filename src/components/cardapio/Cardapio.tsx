@@ -528,7 +528,7 @@ export default function Cardapio() {
           order={currentOrder}
           cidadelaCode={successCode}
           points={successPoints}
-          onPrint={() => printTicket(buildThermalTicket(currentOrder, state.store.name))}
+          ownerWhatsApp={state.whatsapp}
           onClose={() => {
             setSuccessOrder(null);
             setSuccessCode(null);

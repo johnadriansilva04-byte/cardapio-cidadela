@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PlaySquare } from "lucide-react";
 
-const DURATION = 180; // 3 minutos
+const DURATION = 45; // 45 segundos
 
 export default function VideoBonusModal({
   points,

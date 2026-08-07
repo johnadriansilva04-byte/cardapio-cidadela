@@ -18,6 +18,7 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
     trial,
     isExpired,
     secondsRemaining,
+    formattedTime,
     createTrial,
     validateAccessCode,
     activateLiberationCode,
@@ -42,10 +43,8 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
     n8n: state.integrations.n8nWebhookUrl,
   });
 
-  const mm = String(Math.floor(secondsRemaining / 60)).padStart(2, "0");
-  const ss = String(secondsRemaining % 60).padStart(2, "0");
   const unlocked = Boolean(trial) && (!isExpired || Boolean(trial?.is_premium));
-  const status = trial?.is_premium ? "PREMIUM ATIVO" : `TRIAL ${mm}:${ss}`;
+  const status = trial?.is_premium ? "PREMIUM ATIVO" : formattedTime;
 
   async function handleCreate() {
     if (!email.trim() || !phone.trim()) {
@@ -74,6 +73,7 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
     update((s) => {
       s.admin.storeId = t.store_id;
       s.admin.email = t.admin_email ?? email;
+      s.whatsapp = t.whatsapp ?? "";
     });
     setMessage(valid ? "Acesso liberado" : "Trial expirado — use um código premium");
   }

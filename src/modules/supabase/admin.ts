@@ -18,6 +18,71 @@ export interface AdminTrial {
   premium_expires_at: string | null;
 }
 
+export function isTrialValid(trial: AdminTrial | null): boolean {
+  if (!trial) return false;
+  if (trial.is_premium) return true;
+  const now = new Date();
+  const expiresAt = new Date(trial.trial_expires_at);
+  return trial.is_active && now <= expiresAt;
+}
+
+export function getRemainingTrialTime(trial: AdminTrial | null): {
+  isExpired: boolean;
+  secondsRemaining: number;
+  formattedTime: string;
+} {
+  if (!trial) {
+    return { isExpired: true, secondsRemaining: 0, formattedTime: "Expirado" };
+  }
+  
+  if (trial.is_premium) {
+    if (trial.premium_expires_at) {
+      const remaining = new Date(trial.premium_expires_at).getTime() - Date.now();
+      const days = Math.max(0, Math.ceil(remaining / 86400000));
+      return {
+        isExpired: false,
+        secondsRemaining: remaining > 0 ? Math.floor(remaining / 1000) : 0,
+        formattedTime: days > 0 ? `${days} dias restantes` : "Premium",
+      };
+    }
+    return { isExpired: false, secondsRemaining: 0, formattedTime: "Premium" };
+  }
+  
+  const now = new Date();
+  const expiresAt = new Date(trial.trial_expires_at);
+  const remaining = expiresAt.getTime() - now.getTime();
+  
+  if (!trial.is_active || remaining <= 0) {
+    return { isExpired: true, secondsRemaining: 0, formattedTime: "Expirado" };
+  }
+  
+  const secondsRemaining = Math.floor(remaining / 1000);
+  const minutes = Math.floor(secondsRemaining / 60);
+  const hours = Math.floor(minutes / 60);
+  
+  if (hours > 0) {
+    return {
+      isExpired: false,
+      secondsRemaining,
+      formattedTime: `${hours}h ${minutes % 60}min restantes`,
+    };
+  }
+  
+  if (minutes > 0) {
+    return {
+      isExpired: false,
+      secondsRemaining,
+      formattedTime: `${minutes}min restantes`,
+    };
+  }
+  
+  return {
+    isExpired: false,
+    secondsRemaining,
+    formattedTime: `${secondsRemaining}s restantes`,
+  };
+}
+
 export function useAdminTrial() {
   const [trial, setTrial] = useState<AdminTrial | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,27 +106,26 @@ export function useAdminTrial() {
     if (!trial) {
       setIsExpired(false);
       setSecondsRemaining(0);
+      setDaysRemaining(0);
       return;
     }
     const tick = () => {
-      if (trial.is_premium) {
-        setIsExpired(false);
-        setSecondsRemaining(0);
+      const { isExpired, secondsRemaining, formattedTime } = getRemainingTrialTime(trial);
+      setIsExpired(isExpired);
+      setSecondsRemaining(secondsRemaining);
+      
+      if (trial.is_premium && trial.premium_expires_at) {
         setDaysRemaining(
-          trial.premium_expires_at
-            ? Math.max(
-                0,
-                Math.ceil(
-                  (new Date(trial.premium_expires_at).getTime() - Date.now()) / 86400000,
-                ),
-              )
-            : 0,
+          Math.max(
+            0,
+            Math.ceil(
+              (new Date(trial.premium_expires_at).getTime() - Date.now()) / 86400000,
+            ),
+          )
         );
-        return;
+      } else {
+        setDaysRemaining(0);
       }
-      const remaining = new Date(trial.trial_expires_at).getTime() - Date.now();
-      setSecondsRemaining(Math.max(0, Math.floor(remaining / 1000)));
-      setIsExpired(remaining <= 0);
     };
     tick();
     const id = setInterval(tick, 1000);
@@ -120,9 +184,7 @@ export function useAdminTrial() {
     }
 
     const trialData = data as AdminTrial;
-    const now = new Date();
-    const expiresAt = new Date(trialData.trial_expires_at);
-    const isValid = trialData.is_active && (now <= expiresAt || trialData.is_premium);
+    const isValid = isTrialValid(trialData);
 
     localStorage.setItem("admin_trial", JSON.stringify(trialData));
     setTrial(trialData);
@@ -234,6 +296,7 @@ export function useAdminTrial() {
     isExpired,
     daysRemaining,
     secondsRemaining,
+    formattedTime: getRemainingTrialTime(trial).formattedTime,
     generateAdminCode,
     createTrial,
     validateAccessCode,

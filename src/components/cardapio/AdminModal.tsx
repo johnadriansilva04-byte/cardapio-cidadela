@@ -260,7 +260,10 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
+    console.log("Ativando código:", liberationCode.trim());
     const result = await activateLiberationCode(liberationCode.trim());
+    console.log("Resultado da ativação:", result);
+    
     if (result.success) {
       setLoginStep("premium");
     } else {

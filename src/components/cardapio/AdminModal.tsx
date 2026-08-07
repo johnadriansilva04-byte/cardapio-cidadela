@@ -36,14 +36,34 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
     }
   }, [trial, state.admin.phone, update]);
 
-  // Verificar sessão do Google ao montar
+  // Verificar sessão do Google ao montar e após callback
   useEffect(() => {
-    checkSession().then((session) => {
+    const checkGoogleSession = async () => {
+      // Verificar se acabou de fazer login com Google via callback
+      const justLoggedIn = localStorage.getItem("google_auth_just_logged_in");
+      const googleEmail = localStorage.getItem("google_auth_email");
+      
+      if (justLoggedIn === "true" && googleEmail) {
+        // Limpar flags
+        localStorage.removeItem("google_auth_just_logged_in");
+        localStorage.removeItem("google_auth_email");
+        
+        // Usar o e-mail do Google
+        setAdminEmail(googleEmail);
+        // Pequeno delay para garantir que o state foi atualizado
+        setTimeout(() => handleLogin(), 100);
+        return;
+      }
+      
+      // Verificar sessão atual do Supabase
+      const session = await checkSession();
       if (session?.user?.email) {
         setAdminEmail(session.user.email);
-        handleLogin();
+        // Pequeno delay para garantir que o state foi atualizado
+        setTimeout(() => handleLogin(), 100);
       }
-    });
+    };
+    checkGoogleSession();
   }, []);
 
   async function handleGoogleLogin() {
@@ -57,62 +77,71 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
 
   async function handleLogin() {
     setError("");
-    if (!adminEmail.trim()) {
+    const email = adminEmail.trim();
+    
+    if (!email) {
       setError("Digite seu e-mail");
       return;
     }
 
     // Validar formato de e-mail
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(adminEmail.trim())) {
+    if (!emailRegex.test(email)) {
       setError("E-mail inválido");
       return;
     }
 
-    const result = await validateAccessCode(adminEmail.trim());
+    // Mostrar loading durante validação
+    setError("Validando...");
+    
+    const result = await validateAccessCode(email);
+    
     if (result.valid) {
       // Carregar dados do dono no state
       update((prev) => ({
         ...prev,
         admin: { 
           ...prev.admin, 
-          email: adminEmail.trim(),
+          email: email,
           phone: result.adminPhone,
           storeId: result.storeId,
         },
       }));
 
-      // Carregar pedidos do Supabase
+      // Carregar pedidos do Supabase em paralelo para evitar delay
       if (result.storeId) {
-        const orders = await loadOrdersFromSupabase(result.storeId);
-        update((prev) => ({
-          ...prev,
-          orders: orders.map(order => ({
-            id: order.id,
-            cliente: order.customer_name,
-            telefone: order.customer_phone,
-            endereco: order.delivery_address || '',
-            observacoes: order.observations || '',
-            itens: order.order_items?.map((item: any) => ({
-              id: item.product_id,
-              name: item.product_name,
-              quantity: item.quantity,
-              price: item.unit_price,
-              total: item.total,
-            })) || [],
-            total: order.total,
-            tipo_entrega: order.delivery_type,
-            taxa_entrega: order.delivery_fee,
-            pagamento: order.payment_method,
-            troco: order.change_for,
-            comanda: order.comanda,
-            synced: order.webhook_sent,
-            status: order.status === 'pending' ? 'pendente' : order.status === 'confirmed' || order.status === 'preparing' ? 'andamento' : 'entregue',
-            createdAt: order.created_at,
-          })),
-        }));
+        loadOrdersFromSupabase(result.storeId).then((orders) => {
+          update((prev) => ({
+            ...prev,
+            orders: orders.map(order => ({
+              id: order.id,
+              cliente: order.customer_name,
+              telefone: order.customer_phone,
+              endereco: order.delivery_address || '',
+              observacoes: order.observations || '',
+              itens: order.order_items?.map((item: any) => ({
+                id: item.product_id,
+                name: item.product_name,
+                quantity: item.quantity,
+                price: item.unit_price,
+                total: item.total,
+              })) || [],
+              total: order.total,
+              tipo_entrega: order.delivery_type,
+              taxa_entrega: order.delivery_fee,
+              pagamento: order.payment_method,
+              troco: order.change_for,
+              comanda: order.comanda,
+              synced: order.webhook_sent,
+              status: order.status === 'pending' ? 'pendente' : order.status === 'confirmed' || order.status === 'preparing' ? 'andamento' : 'entregue',
+              createdAt: order.created_at,
+            })),
+          }));
+        });
       }
 
+      setError(""); // Limpar mensagem de loading
+      
       if (result.trial?.is_premium) {
         setLoginStep("premium");
       } else {

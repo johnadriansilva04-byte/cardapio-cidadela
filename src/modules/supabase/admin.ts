@@ -83,20 +83,26 @@ export function useAdminTrial() {
 
   // Carregar trial do localStorage
   useEffect(() => {
-    const savedTrial = localStorage.getItem("admin_trial");
-    if (savedTrial) {
-      // Verificar timeout antes de carregar
-      if (!checkSessionTimeout()) {
-        const parsed = JSON.parse(savedTrial);
-        setTrial(parsed);
-        checkExpiration(parsed);
-        updateLastActivity();
-        
-        // Carregar configurações do Supabase
-        loadAdminConfig(parsed.id);
+    const loadTrialFromStorage = async () => {
+      const savedTrial = localStorage.getItem("admin_trial");
+      if (savedTrial) {
+        // Verificar timeout antes de carregar
+        if (!checkSessionTimeout()) {
+          const parsed = JSON.parse(savedTrial);
+          setTrial(parsed);
+          checkExpiration(parsed);
+          updateLastActivity();
+          
+          // Carregar configurações do Supabase em background
+          loadAdminConfig(parsed.id).catch(err => {
+            console.error("Erro ao carregar config:", err);
+          });
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+    
+    loadTrialFromStorage();
   }, []);
 
   // Atualizar atividade em eventos do usuário

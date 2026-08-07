@@ -106,21 +106,58 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     if (!pendingOrder) return;
 
     try {
+      const storeId = state.admin.storeId || state.admin.accessKey;
+      
+      // Criar ou buscar cliente no Supabase
+      let customerId = null;
+      const { data: existingCustomer, error: customerError } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("store_id", storeId)
+        .eq("email", pendingOrder.email || pendingOrder.telefone)
+        .single();
+
+      if (customerError && customerError.code !== 'PGRST116') {
+        console.error("Erro ao buscar cliente:", customerError);
+      }
+
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+      } else {
+        // Criar novo cliente
+        const { data: newCustomer, error: createError } = await supabase
+          .from("customers")
+          .insert({
+            store_id: storeId,
+            name: pendingOrder.cliente,
+            email: pendingOrder.email || pendingOrder.telefone,
+            phone: pendingOrder.telefone,
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error("Erro ao criar cliente:", createError);
+        } else {
+          customerId = newCustomer.id;
+        }
+      }
+
       // Determinar tipo de acesso baseado no valor total
       const accessType = pendingOrder.total >= 200 ? "15_dias" : "15_min";
 
       // Gerar código promocional para acesso à Cidadela
       const promoCode = generatePromoCode(undefined, accessType);
 
-      const storeId = state.admin.storeId || state.admin.accessKey;
-
-      // Salvar código no Supabase
+      // Salvar código no Supabase com customer_email
       const expiresAt = new Date(promoCode.expiration);
       const { error: codeError } = await supabase
         .from("cidadela_codes")
         .insert({
           code: promoCode.code,
           store_id: storeId,
+          customer_id: customerId,
+          customer_email: pendingOrder.email || pendingOrder.telefone,
           customer_phone: pendingOrder.telefone,
           access_type: accessType,
           order_total: pendingOrder.total,
@@ -132,12 +169,14 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         console.error("Erro ao salvar código no Supabase:", codeError);
       }
 
-      // Salvar pedido no Supabase
+      // Salvar pedido no Supabase com customer_id e customer_email
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .insert({
           store_id: storeId,
+          customer_id: customerId,
           customer_name: pendingOrder.cliente,
+          customer_email: pendingOrder.email || pendingOrder.telefone,
           customer_phone: pendingOrder.telefone,
           delivery_address: pendingOrder.endereco,
           delivery_type: pendingOrder.tipo_entrega,
@@ -205,7 +244,8 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
 
       // Adicionar pontos de soberania pelo pedido (1 ponto por R$30)
       const pointsEarned = Math.floor(finalOrder.total / 30);
-      addSoberaniaPoints(pointsEarned, `Pedido de R$${finalOrder.total.toFixed(2)}`, "order");
+      const customerEmail = pendingOrder.email || pendingOrder.telefone;
+      addSoberaniaPoints(storeId, customerEmail, pendingOrder.telefone, pointsEarned, `Pedido de R$${finalOrder.total.toFixed(2)}`, "order");
 
       setPaymentOpen(false);
       
@@ -804,7 +844,9 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
             setVideoBonusOpen(false);
             // Adiciona pontos bônus
             const pointsEarned = Math.floor(pendingCheckoutData.total / 30);
-            addSoberaniaPoints(pointsEarned, `Bônus por assistir vídeo do pedido`, "ad");
+            const storeId = state.admin.storeId || state.admin.accessKey;
+            const customerEmail = pendingCheckoutData.email || pendingCheckoutData.telefone;
+            addSoberaniaPoints(storeId, customerEmail, pendingCheckoutData.telefone, pointsEarned, `Bônus por assistir vídeo do pedido`, "ad");
             setSuccess(pendingCheckoutData);
             setPendingCheckoutData(null);
           }}
@@ -919,6 +961,7 @@ function CheckoutModal({
   const { state } = useStore();
   const [form, setForm] = useState({
     cliente: "",
+    email: "",
     telefone: "",
     rua: "",
     numero: "",
@@ -938,6 +981,7 @@ function CheckoutModal({
 
   const valid =
     form.cliente.trim().length > 1 &&
+    form.email.trim().length > 5 &&
     form.telefone.trim().length >= 10 &&
     (tipo === "retirada" ||
       (form.rua.trim().length > 2 &&
@@ -964,6 +1008,7 @@ function CheckoutModal({
     await onConfirm({
       comanda: newComanda(),
       cliente: form.cliente.trim(),
+      email: form.email.trim(),
       telefone: telefoneLimpo,
       endereco:
         tipo === "entrega"
@@ -1020,6 +1065,13 @@ function CheckoutModal({
             placeholder="Seu nome"
             value={form.cliente}
             onChange={(e) => setForm({ ...form, cliente: e.target.value })}
+          />
+          <input
+            className={field}
+            placeholder="E-mail"
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
           <input
             className={field}

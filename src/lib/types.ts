@@ -33,6 +33,7 @@ export type OrderStatus = "pendente" | "andamento" | "entregue";
 export interface Order {
   comanda: string;
   cliente: string;
+  email?: string;
   telefone: string;
   endereco: string;
   observacoes: string;

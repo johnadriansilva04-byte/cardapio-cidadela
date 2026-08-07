@@ -59,7 +59,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Funções para gerenciar pontos de soberania
-  const addSoberaniaPoints = useCallback((amount: number, reason: string, source: SoberaniaTransaction["source"]) => {
+  const addSoberaniaPoints = useCallback((storeId: string, customerEmail: string, customerPhone: string, amount: number, reason: string, source: SoberaniaTransaction["source"]) => {
     update((prev) => ({
       ...prev,
       soberania: {
@@ -80,7 +80,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [update]);
 
-  const removeSoberaniaPoints = useCallback((amount: number, reason: string, source: SoberaniaTransaction["source"]) => {
+  const removeSoberaniaPoints = useCallback((storeId: string, customerEmail: string, customerPhone: string, amount: number, reason: string, source: SoberaniaTransaction["source"]) => {
     update((prev) => ({
       ...prev,
       soberania: {

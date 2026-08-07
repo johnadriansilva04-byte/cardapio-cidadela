@@ -291,11 +291,12 @@ export function useAdminTrial() {
   }
 
   // Funções para gerenciar pontos de soberania
-  async function getSoberaniaPoints(customerPhone: string) {
+  async function getSoberaniaPoints(storeId: string, customerEmail: string) {
     const { data, error } = await supabase
       .from("soberania_points")
       .select("*")
-      .eq("customer_phone", customerPhone)
+      .eq("store_id", storeId)
+      .eq("customer_email", customerEmail)
       .single();
 
     if (error) {
@@ -306,15 +307,17 @@ export function useAdminTrial() {
     return data as SoberaniaPoints;
   }
 
-  async function updateSoberaniaPoints(customerPhone: string, amount: number, reason: string, source: SoberaniaTransaction["source"]) {
+  async function updateSoberaniaPoints(storeId: string, customerEmail: string, customerPhone: string, amount: number, reason: string, source: SoberaniaTransaction["source"]) {
     // Buscar pontos atuais
-    const current = await getSoberaniaPoints(customerPhone);
+    const current = await getSoberaniaPoints(storeId, customerEmail);
     
     if (!current) {
       // Criar novo registro
       const { data, error } = await supabase
         .from("soberania_points")
         .insert({
+          store_id: storeId,
+          customer_email: customerEmail,
           customer_phone: customerPhone,
           points: amount,
           last_updated: new Date().toISOString(),
@@ -336,7 +339,8 @@ export function useAdminTrial() {
           points: newPoints,
           last_updated: new Date().toISOString(),
         })
-        .eq("customer_phone", customerPhone);
+        .eq("store_id", storeId)
+        .eq("customer_email", customerEmail);
 
       if (error) {
         console.error("Erro ao atualizar pontos de soberania:", error);
@@ -348,6 +352,8 @@ export function useAdminTrial() {
     const { error: transactionError } = await supabase
       .from("soberania_transactions")
       .insert({
+        store_id: storeId,
+        customer_email: customerEmail,
         customer_phone: customerPhone,
         type: amount >= 0 ? "earned" : "lost",
         amount: Math.abs(amount),
@@ -364,11 +370,12 @@ export function useAdminTrial() {
     return true;
   }
 
-  async function getSoberaniaHistory(customerPhone: string) {
+  async function getSoberaniaHistory(storeId: string, customerEmail: string) {
     const { data, error } = await supabase
       .from("soberania_transactions")
       .select("*")
-      .eq("customer_phone", customerPhone)
+      .eq("store_id", storeId)
+      .eq("customer_email", customerEmail)
       .order("timestamp", { ascending: false });
 
     if (error) {

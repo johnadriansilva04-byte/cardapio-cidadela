@@ -27,6 +27,11 @@ CREATE INDEX IF NOT EXISTS idx_admin_trials_store_id ON admin_trials(store_id);
 -- Tornar access_code opcional já que agora usamos e-mail
 ALTER TABLE admin_trials ALTER COLUMN access_code DROP NOT NULL;
 
+-- Atualizar trials existentes para usar 2 minutos em vez de 2 dias
+UPDATE admin_trials 
+SET trial_expires_at = trial_started_at + INTERVAL '2 minutes'
+WHERE trial_expires_at > trial_started_at + INTERVAL '2 minutes';
+
 -- ============================================
 -- TABELAS DE SOBERANIA
 -- ============================================

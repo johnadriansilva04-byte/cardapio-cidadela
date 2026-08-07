@@ -247,20 +247,25 @@ export function useAdminTrial() {
 
   async function activateLiberationCode(code: string) {
     const { data, error } = await supabase
-      .from("liberation_codes")
+      .from("admin_trials")
       .select("*")
-      .eq("code", code)
-      .eq("used", false)
+      .eq("access_code", code)
       .single();
 
     if (error || !data) {
-      return { success: false, message: "Código inválido ou já utilizado" };
+      return { success: false, message: "Código inválido ou não encontrado" };
     }
 
-    const liberationCode = data as LiberationCode;
+    const adminTrial = data as AdminTrial;
+    
+    // Verificar se já é premium
+    if (adminTrial.is_premium) {
+      return { success: false, message: "Esta conta já é premium" };
+    }
+
     const now = new Date();
     const premiumExpiresAt = new Date();
-    premiumExpiresAt.setDate(premiumExpiresAt.getDate() + liberationCode.duration_days);
+    premiumExpiresAt.setDate(premiumExpiresAt.getDate() + 30); // 30 dias de premium
 
     // Atualizar trial para premium
     const { error: updateError } = await supabase
@@ -269,17 +274,11 @@ export function useAdminTrial() {
         is_premium: true,
         premium_expires_at: premiumExpiresAt.toISOString(),
       })
-      .eq("id", liberationCode.store_id);
+      .eq("id", adminTrial.id);
 
     if (updateError) {
       return { success: false, message: "Erro ao ativar código" };
     }
-
-    // Marcar código como usado
-    await supabase
-      .from("liberation_codes")
-      .update({ used: true, used_at: now.toISOString() })
-      .eq("id", liberationCode.id);
 
     // Atualizar trial local
     if (trial) {

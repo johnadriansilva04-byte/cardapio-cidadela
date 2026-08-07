@@ -108,41 +108,6 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     try {
       const storeId = state.admin.storeId || state.admin.accessKey;
       
-      // Criar ou buscar cliente no Supabase
-      let customerId = null;
-      const { data: existingCustomer, error: customerError } = await supabase
-        .from("customers")
-        .select("id")
-        .eq("store_id", storeId)
-        .eq("email", pendingOrder.email || pendingOrder.telefone)
-        .single();
-
-      if (customerError && customerError.code !== 'PGRST116') {
-        console.error("Erro ao buscar cliente:", customerError);
-      }
-
-      if (existingCustomer) {
-        customerId = existingCustomer.id;
-      } else {
-        // Criar novo cliente
-        const { data: newCustomer, error: createError } = await supabase
-          .from("customers")
-          .insert({
-            store_id: storeId,
-            name: pendingOrder.cliente,
-            email: pendingOrder.email || pendingOrder.telefone,
-            phone: pendingOrder.telefone,
-          })
-          .select()
-          .single();
-
-        if (createError) {
-          console.error("Erro ao criar cliente:", createError);
-        } else {
-          customerId = newCustomer.id;
-        }
-      }
-
       // Determinar tipo de acesso baseado no valor total
       const accessType = pendingOrder.total >= 200 ? "15_dias" : "15_min";
 
@@ -156,7 +121,6 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         .insert({
           code: promoCode.code,
           store_id: storeId,
-          customer_id: customerId,
           customer_email: pendingOrder.email || pendingOrder.telefone,
           customer_phone: pendingOrder.telefone,
           access_type: accessType,
@@ -169,12 +133,11 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         console.error("Erro ao salvar código no Supabase:", codeError);
       }
 
-      // Salvar pedido no Supabase com customer_id e customer_email
+      // Salvar pedido no Supabase com customer_email
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .insert({
           store_id: storeId,
-          customer_id: customerId,
           customer_name: pendingOrder.cliente,
           customer_email: pendingOrder.email || pendingOrder.telefone,
           customer_phone: pendingOrder.telefone,

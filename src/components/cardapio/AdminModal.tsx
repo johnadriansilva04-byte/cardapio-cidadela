@@ -347,6 +347,18 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
                   >
                     Ativar Código
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      signOut();
+                      setAdminEmail("");
+                      setLiberationCode("");
+                      setError("");
+                    }}
+                    className="mt-2 w-full rounded-lg border border-border px-4 py-2 text-sm text-gray-300 hover:bg-slate-700 transition-colors"
+                  >
+                    Entrar com outra conta
+                  </button>
                 </div>
 
                 {error && <p className="text-sm text-red-400">{error}</p>}

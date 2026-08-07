@@ -317,23 +317,32 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
                   value={cfg.whatsapp}
                   onChange={(e) => setCfg({ ...cfg, whatsapp: e.target.value })}
                 />
-                <input
-                  className={field}
-                  placeholder="Webhook N8N"
-                  value={cfg.n8n}
-                  onChange={(e) => setCfg({ ...cfg, n8n: e.target.value })}
-                />
-                <input
-                  className={field}
-                  placeholder="Chave administrativa"
-                  value={cfg.accessKey}
-                  onChange={(e) => setCfg({ ...cfg, accessKey: e.target.value })}
-                />
                 <button
                   onClick={saveConfig}
                   className="w-full rounded-lg bg-[color:var(--color-brass)] py-2 text-sm font-bold text-black"
                 >
                   Salvar
+                </button>
+
+                <button
+                  onClick={async () => {
+                    if (confirm("Tem certeza que deseja excluir sua conta? Esta ação não pode ser desfeita e excluirá todos os seus dados do banco de dados.")) {
+                      try {
+                        if (trial?.store_id) {
+                          await supabase.from("admin_trials").delete().eq("store_id", trial.store_id);
+                          clearTrial();
+                          setMessage("Conta excluída com sucesso");
+                          setTimeout(() => onClose(), 2000);
+                        }
+                      } catch (error) {
+                        console.error("Erro ao excluir conta:", error);
+                        setMessage("Erro ao excluir conta. Tente novamente.");
+                      }
+                    }
+                  }}
+                  className="mt-4 w-full rounded-lg border border-red-500/50 py-2 text-sm font-bold text-red-400 hover:border-red-400"
+                >
+                  Excluir minha conta
                 </button>
               </div>
             )}

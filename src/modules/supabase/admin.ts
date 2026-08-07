@@ -131,8 +131,8 @@ export function useAdminTrial() {
     setIsExpired(isExpired);
 
     if (!isExpired) {
-      const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      setDaysRemaining(Math.max(0, daysLeft));
+      const minutesLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60));
+      setDaysRemaining(Math.max(0, minutesLeft));
     }
   }
 
@@ -156,8 +156,7 @@ export function useAdminTrial() {
 
   async function createTrial(storeName: string, adminPhone: string, adminEmail: string) {
     const trialStartedAt = new Date();
-    const trialExpiresAt = new Date(trialStartedAt);
-    trialExpiresAt.setDate(trialExpiresAt.getDate() + 2); // 2 dias de trial
+    const trialExpiresAt = new Date(trialStartedAt.getTime() + 2 * 60 * 1000); // 2 minutos
 
     const { data, error } = await supabase
       .from("admin_trials")

@@ -25,6 +25,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
   const [adminPhone, setAdminPhone] = useState("");
   const [error, setError] = useState("");
   const [module, setModule] = useState<Module>("menu");
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
 
   // Carregar WhatsApp do trial no state quando trial carrega
   useEffect(() => {
@@ -35,6 +36,34 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       }));
     }
   }, [trial, state.admin.phone, update]);
+
+  // Cronômetro em tempo real para o trial
+  useEffect(() => {
+    if (!trial || trial.is_premium || isExpired) {
+      setTimeRemaining("");
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date();
+      const expiresAt = new Date(trial.trial_expires_at);
+      const diff = expiresAt.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setTimeRemaining("00:00");
+        return;
+      }
+
+      const minutes = Math.floor(diff / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeRemaining(`${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [trial, isExpired]);
 
   // Verificar sessão do Google ao montar e após callback
   useEffect(() => {
@@ -386,7 +415,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
             <div>
               <h2 className="text-stencil text-xl text-white">PAINEL ADMINISTRATIVO</h2>
               <p className="text-tech text-[9px] text-gray-300">
-                {trial.is_premium ? "Premium" : `Trial - ${daysRemaining} dias restantes`}
+                {trial.is_premium ? "Premium" : timeRemaining ? `Trial - ${timeRemaining}` : `Trial - ${daysRemaining} min`}
               </p>
             </div>
           </div>
@@ -403,7 +432,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
         {showTrialBanner && (
           <div className="bg-yellow-500/10 border-b border-yellow-500/30 px-5 py-3">
             <p className="text-sm text-yellow-400">
-              ⚠️ Trial expira em {daysRemaining} dias. Adquira o código.
+              ⚠️ Trial expira em {timeRemaining || `${daysRemaining} min`}. Adquira o código.
             </p>
           </div>
         )}

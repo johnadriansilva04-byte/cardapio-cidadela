@@ -17,7 +17,7 @@ type LoginStep = "login" | "trial" | "premium" | "blocked";
 
 export function AdminModal({ onClose }: { onClose: () => void }) {
   const { state, update } = useStore();
-  const { trial, isLoading, isExpired, daysRemaining, createTrial, validateAccessCode, loadOrdersFromSupabase, activateLiberationCode, signInWithGoogle, signOut, checkSession } = useAdminTrial();
+  const { trial, isLoading, isExpired, daysRemaining, createTrial, validateAccessCode, loadOrdersFromSupabase, activateLiberationCode, signInWithGoogle, signOut, checkSession, reloadTrial } = useAdminTrial();
   const [loginStep, setLoginStep] = useState<"login" | "trial" | "premium">("login");
   const [adminEmail, setAdminEmail] = useState("");
   const [liberationCode, setLiberationCode] = useState("");
@@ -270,11 +270,11 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       if (savedTrial) {
         const parsed = JSON.parse(savedTrial);
         console.log("Trial atualizado:", parsed);
-        // Forçar recarregamento da página para atualizar estado
-        window.location.reload();
-      } else {
-        setLoginStep("premium");
       }
+      // Recarregar trial no hook para atualizar estado
+      reloadTrial();
+      setError("");
+      setLiberationCode("");
     } else {
       setError(result.message);
     }

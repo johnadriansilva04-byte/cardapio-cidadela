@@ -321,6 +321,16 @@ export function useAdminTrial() {
     setDaysRemaining(0);
   }
 
+  function reloadTrial() {
+    const savedTrial = localStorage.getItem("admin_trial");
+    if (savedTrial) {
+      const parsed = JSON.parse(savedTrial);
+      setTrial(parsed);
+      checkExpiration(parsed);
+      updateLastActivity();
+    }
+  }
+
   // Funções para gerenciar pontos de soberania
   async function getSoberaniaPoints(storeId: string, customerEmail: string) {
     const { data, error } = await supabase
@@ -484,6 +494,7 @@ export function useAdminTrial() {
     loadOrdersFromSupabase,
     activateLiberationCode,
     clearTrial,
+    reloadTrial,
     getSoberaniaPoints,
     updateSoberaniaPoints,
     getSoberaniaHistory,

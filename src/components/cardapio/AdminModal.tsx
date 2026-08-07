@@ -148,8 +148,8 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
     
     const result = await validateAccessCode(email);
     
-    if (result.valid) {
-      // Carregar dados do dono no state
+    if (result.trial) {
+      // E-mail encontrado, carregar dados do dono no state
       update((prev) => ({
         ...prev,
         admin: { 

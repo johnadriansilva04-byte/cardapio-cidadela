@@ -218,12 +218,11 @@ export function useAdminTrial() {
     // Verificar se está no trial ou premium
     const isValid = trialData.is_active && (now <= expiresAt || trialData.is_premium);
 
-    if (isValid) {
-      localStorage.setItem("admin_trial", JSON.stringify(trialData));
-      setTrial(trialData);
-      checkExpiration(trialData);
-      updateLastActivity(); // Atualizar timestamp de atividade ao entrar
-    }
+    // Salvar no localStorage mesmo se expirou, para poder mostrar mensagem correta
+    localStorage.setItem("admin_trial", JSON.stringify(trialData));
+    setTrial(trialData);
+    checkExpiration(trialData);
+    updateLastActivity(); // Atualizar timestamp de atividade ao entrar
 
     return { valid: isValid, trial: trialData, adminPhone: trialData.admin_phone, storeId: trialData.id };
   }

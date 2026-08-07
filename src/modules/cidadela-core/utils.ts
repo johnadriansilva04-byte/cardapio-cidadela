@@ -110,3 +110,18 @@ export function printTicket(ticket: string) {
   win.focus();
   win.print();
 }
+
+export async function sendToN8N(webhookUrl: string, payload: unknown) {
+  if (!webhookUrl) return false;
+  try {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return response.ok;
+  } catch (error) {
+    console.error("Erro ao enviar webhook:", error);
+    return false;
+  }
+}

@@ -1,240 +1,228 @@
-import { Copy, Minus, Plus, Settings, ShoppingBag, Trash2, X } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-
-import { CobraFumando } from "@/components/CobraFumando";
-import { PaymentScreen } from "@/components/cardapio/PaymentScreen";
+import { ShoppingBag, Plus, Minus, Menu, User, Settings } from "lucide-react";
+import RobotWaiter from "./RobotWaiter";
+import CartSheet from "./CartSheet";
+import CheckoutModal, { type CheckoutForm } from "./CheckoutModal";
+import PaymentScreen from "./PaymentScreen";
+import SuccessModal from "./SuccessModal";
+import VideoBonusModal from "./VideoBonusModal";
+import AdminModal from "./AdminModal";
 import { useStore } from "@/modules/cidadela-core/store";
+import { supabase } from "@/modules/supabase/client";
+import type { MenuItem, Order } from "@/lib/types";
 import {
   brl,
-  buildThermalTicket,
-  generatePromoCode,
   newComanda,
+  generatePromoCode,
+  buildThermalTicket,
+  printTicket,
+  sendToN8n,
 } from "@/modules/cidadela-core/utils";
-import { buildOrderPayload, sendToN8n } from "@/modules/fluxos-n8n/webhook";
-import { supabase } from "@/modules/supabase/client";
-import type { Order, OrderItem } from "@/lib/types";
+import { buildOrderPayload } from "@/modules/fluxos-n8n/webhook";
 
-type Cart = Record<string, number>;
-
-export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
-  const { state, update, online, addSoberaniaPoints } = useStore();
+export default function Cardapio() {
   const navigate = useNavigate();
-  const [cart, setCart] = useState<Cart>({});
-  const [activeCat, setActiveCat] = useState(state.categories[0]?.name ?? "");
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const { state, update, addSoberaniaPoints } = useStore();
+
+  const [cart, setCart] = useState<Record<string, number>>({});
+  const [activeCat, setActiveCat] = useState(state.categories[0]?.id ?? "");
   const [cartOpen, setCartOpen] = useState(false);
-  const [success, setSuccess] = useState<Order | null>(null);
-  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
-  const [videoBonusOpen, setVideoBonusOpen] = useState(false);
-  const [videoWatched, setVideoWatched] = useState(false);
-  const [pendingCheckoutData, setPendingCheckoutData] = useState<any>(null);
+  const [videoPoints, setVideoPoints] = useState(0);
+  const [successOrder, setSuccessOrder] = useState<Order | null>(null);
+  const [successCode, setSuccessCode] = useState<{
+    code: string;
+    access_type: "15_min" | "15_dias";
+  } | null>(null);
+  const [successPoints, setSuccessPoints] = useState(0);
+  const sectionsRef = useRef<Record<string, HTMLElement | null>>({});
 
-  const allItems = useMemo(() => state.categories.flatMap((c) => c.items), [state.categories]);
+  const allItems = useMemo(
+    () => state.categories.flatMap((c) => c.items),
+    [state.categories],
+  );
 
-  const cartItems: OrderItem[] = useMemo(
+  const lines = useMemo(
     () =>
       Object.entries(cart)
-        .map(([id, quantity]) => {
-          const item = allItems.find((i) => i.id === id);
-          if (!item || quantity <= 0) return null;
-          return {
-            id,
-            name: item.name,
-            quantity,
-            price: item.price,
-            total: Number((item.price * quantity).toFixed(2)),
-          };
-        })
-        .filter(Boolean) as OrderItem[],
+        .map(([id, qty]) => ({ item: allItems.find((i) => i.id === id) as MenuItem, qty }))
+        .filter((l) => Boolean(l.item)),
     [cart, allItems],
   );
 
-  const total = cartItems.reduce((sum, i) => sum + i.total, 0);
-  const count = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+  const count = lines.reduce((s, l) => s + l.qty, 0);
+  const subtotal = lines.reduce((s, l) => s + l.item.price * l.qty, 0);
 
-  // Calcular desconto baseado em pontos de soberania
   const discountPercentage = useMemo(() => {
-    const tiers = state.admin.discountTiers || [];
-    let bestDiscount = 0;
-    for (const tier of tiers) {
-      if (state.soberania.points >= tier.points && tier.percentage > bestDiscount) {
-        bestDiscount = tier.percentage;
-      }
-    }
-    return bestDiscount;
-  }, [state.soberania.points, state.admin.discountTiers]);
+    const tiers = state.admin.discountTiers ?? [];
+    const points = state.soberania.points;
+    return tiers
+      .filter((t) => points >= t.points)
+      .reduce((max, t) => Math.max(max, t.percentage), 0);
+  }, [state.admin.discountTiers, state.soberania.points]);
 
-  const discountAmount = total * (discountPercentage / 100);
-  const totalWithDiscount = total - discountAmount;
+  const discountAmount = subtotal * (discountPercentage / 100);
+  const totalWithDiscount = subtotal - discountAmount;
 
-  const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
-  const remove = (id: string) =>
+  function add(id: string) {
+    setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
+  }
+  function remove(id: string) {
     setCart((c) => {
-      const next = { ...c, [id]: (c[id] ?? 0) - 1 };
-      if (next[id] <= 0) delete next[id];
+      const next = { ...c };
+      const cur = next[id] ?? 0;
+      if (cur <= 1) delete next[id];
+      else next[id] = cur - 1;
       return next;
     });
-
-  async function submitOrder(order: Order) {
-    // Processa pedido direto (envia webhook, salva no Supabase, etc.)
-    await processOrder(order);
   }
 
-  async function processOrder(order: Order) {
-    // Salvar pedido localmente
-    update((prev) => ({
-      ...prev,
-      orders: [order, ...prev.orders],
-    }));
+  function scrollToCat(id: string) {
+    setActiveCat(id);
+    sectionsRef.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function handleCheckout(form: CheckoutForm) {
+    const order: Order = {
+      comanda: newComanda(),
+      cliente: form.cliente,
+      ...(form.email ? { email: form.email } : {}),
+      telefone: form.telefone,
+      endereco: form.endereco,
+      observacoes: form.observacoes,
+      itens: lines.map((l) => ({
+        id: l.item.id,
+        name: l.item.name,
+        quantity: l.qty,
+        price: l.item.price,
+        total: l.item.price * l.qty,
+      })),
+      total: totalWithDiscount,
+      tipo_entrega: form.tipo_entrega,
+      taxa_entrega: 0,
+      pagamento: form.pagamento,
+      ...(form.troco ? { troco: form.troco } : {}),
+      status: "pendente",
+      createdAt: new Date().toISOString(),
+      synced: false,
+    };
+    setCheckoutOpen(false);
     setPendingOrder(order);
-    setCart({});
-    setCartOpen(false);
-
-    // Se pagamento for PIX, abre tela de pagamento com QR Code
-    // Se for dinheiro ou cartão, vai direto para processamento
-    if (order.pagamento === 'pix') {
-      setPaymentOpen(true);
-    } else {
-      // Pagamento em dinheiro ou cartão - processa direto sem mostrar PaymentScreen
-      await handlePaymentSuccess();
-    }
   }
 
-  async function handlePaymentSuccess() {
-    if (!pendingOrder) return;
+  async function finalizeOrder(order: Order) {
+    const storeId = state.admin.storeId ?? "";
+    const accessType: "15_min" | "15_dias" = order.total >= 200 ? "15_dias" : "15_min";
+    const { code, expiration } = generatePromoCode(undefined, accessType);
 
     try {
-      const storeId = state.admin.storeId || state.admin.accessKey;
-      
-      // Determinar tipo de acesso baseado no valor total
-      const accessType = pendingOrder.total >= 200 ? "15_dias" : "15_min";
+      await supabase.from("cidadela_codes").insert({
+        code,
+        store_id: storeId,
+        customer_email: order.email ?? null,
+        customer_phone: order.telefone,
+        access_type: accessType,
+        order_total: order.total,
+        expires_at: expiration.toISOString(),
+        is_active: true,
+      });
 
-      // Gerar código promocional para acesso à Cidadela
-      const promoCode = generatePromoCode(undefined, accessType);
-
-      // Salvar código no Supabase com customer_email
-      const expiresAt = new Date(promoCode.expiration);
-      const { error: codeError } = await supabase
-        .from("cidadela_codes")
-        .insert({
-          code: promoCode.code,
-          store_id: storeId,
-          customer_email: pendingOrder.email || pendingOrder.telefone,
-          customer_phone: pendingOrder.telefone,
-          access_type: accessType,
-          order_total: pendingOrder.total,
-          expires_at: expiresAt.toISOString(),
-          is_active: true,
-        });
-
-      if (codeError) {
-        console.error("Erro ao salvar código no Supabase:", codeError);
-      }
-
-      // Salvar pedido no Supabase com customer_email
-      const { data: orderData, error: orderError } = await supabase
+      const { data: inserted } = await supabase
         .from("orders")
         .insert({
           store_id: storeId,
-          customer_name: pendingOrder.cliente,
-          customer_email: pendingOrder.email || pendingOrder.telefone,
-          customer_phone: pendingOrder.telefone,
-          delivery_address: pendingOrder.endereco,
-          delivery_type: pendingOrder.tipo_entrega,
-          observations: pendingOrder.observacoes,
-          subtotal: pendingOrder.total,
-          delivery_fee: pendingOrder.taxa_entrega,
-          total: pendingOrder.total,
-          payment_method: pendingOrder.pagamento,
-          change_for: pendingOrder.troco,
-          comanda: pendingOrder.comanda,
-          status: 'pending',
-          cidadela_code: promoCode.code,
+          customer_name: order.cliente,
+          customer_email: order.email ?? null,
+          customer_phone: order.telefone,
+          delivery_address: order.endereco,
+          delivery_type: order.tipo_entrega,
+          observations: order.observacoes,
+          subtotal,
+          delivery_fee: order.taxa_entrega,
+          total: order.total,
+          payment_method: order.pagamento,
+          change_for: order.troco ? Number(order.troco.replace(/[^\d.,]/g, "").replace(",", ".")) || null : null,
+          comanda: order.comanda,
+          status: "pendente",
+          cidadela_code: code,
           cidadela_access_type: accessType,
-          payment_status: 'paid',
-          payment_confirmed_at: new Date().toISOString(),
+          payment_status: order.pagamento === "pix" ? "awaiting_confirmation" : "pending",
         })
         .select()
         .single();
 
-      if (orderError) {
-        console.error("Erro ao salvar pedido no Supabase:", orderError);
-      } else if (orderData) {
-        // Salvar itens do pedido no Supabase
-        const orderItems = pendingOrder.itens.map(item => ({
-          order_id: orderData.id,
-          product_id: item.id,
-          product_name: item.name,
-          quantity: item.quantity,
-          unit_price: item.price,
-          total: item.total,
-        }));
-
-        const { error: itemsError } = await supabase
-          .from("order_items")
-          .insert(orderItems);
-
-        if (itemsError) {
-          console.error("Erro ao salvar itens do pedido no Supabase:", itemsError);
-        }
+      if (inserted) {
+        await supabase.from("order_items").insert(
+          order.itens.map((i) => ({
+            order_id: inserted.id,
+            product_id: i.id,
+            product_name: i.name,
+            quantity: i.quantity,
+            unit_price: i.price,
+            total: i.total,
+          })),
+        );
       }
-
-      // Payload completo conforme documentação do N8N com código da Cidadela
-      const payloadWithCode = buildOrderPayload(
-        pendingOrder,
-        promoCode.code,
-        accessType,
-        state.admin.phone || state.whatsapp,
-        state.admin.email,
-        storeId,
-      );
-
-      const synced = await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
-
-      const finalOrder = { ...pendingOrder, synced };
-
-      // Salvar código localmente para validação
-      update((prev) => ({
-        ...prev,
-        orders: prev.orders.map((o) => o.id === finalOrder.id ? finalOrder : o),
-        cidadela: {
-          ...prev.cidadela,
-          codes: [...prev.cidadela.codes, promoCode],
-        },
-      }));
-
-      // Adicionar pontos de soberania pelo pedido (1 ponto por R$30)
-      const pointsEarned = Math.floor(finalOrder.total / 30);
-      const customerEmail = pendingOrder.email || pendingOrder.telefone;
-      addSoberaniaPoints(storeId, customerEmail, pendingOrder.telefone, pointsEarned, `Pedido de R$${finalOrder.total.toFixed(2)}`, "order");
-
-      setPaymentOpen(false);
-      
-      // Verifica se deve mostrar modal de vídeo antes do sucesso
-      if (pointsEarned > 0) {
-        setPendingCheckoutData(finalOrder);
-        setVideoBonusOpen(true);
-      } else {
-        setSuccess(finalOrder);
-      }
-      setPendingOrder(null);
-    } catch (error) {
-      console.error("Erro no handlePaymentSuccess:", error);
-      // Mesmo com erro, mostra modal de sucesso com o pedido
-      setSuccess(pendingOrder);
-      setPaymentOpen(false);
-      setPendingOrder(null);
+    } catch (e) {
+      console.error("Erro ao salvar pedido", e);
     }
+
+    const points = Math.floor(order.total / 30);
+    if (points > 0) {
+      const customerEmail = order.email || order.telefone;
+      addSoberaniaPoints(storeId, customerEmail, order.telefone, points, `Pedido de R$${order.total.toFixed(2)}`, "order");
+    }
+
+    update((s) => {
+      s.orders = [order, ...s.orders];
+      s.cidadela.codes = [
+        { code, access_type: accessType, expires_at: expiration.toISOString() },
+        ...s.cidadela.codes,
+      ];
+    });
+
+    // Payload completo conforme documentação do N8N com código da Cidadela
+    const payloadWithCode = buildOrderPayload(
+      order,
+      code,
+      accessType,
+      state.admin.phone || state.whatsapp,
+      state.admin.email,
+      storeId,
+    );
+
+    await sendToN8n(state.integrations.n8nWebhookUrl, payloadWithCode);
+
+    setCart({});
+    setPendingOrder(null);
+    setSuccessCode({ code, access_type: accessType });
+
+    if (points > 0) {
+      setVideoPoints(points);
+    } else {
+      setSuccessPoints(0);
+      setSuccessOrder(order);
+    }
+  }
+
+  function handlePrint() {
+    if (!successOrder) return;
+    const ticket = buildThermalTicket(successOrder, state.store.name);
+    printTicket(ticket);
   }
 
   return (
     <div className="min-h-screen bg-black">
       <header className="relative">
-        {/* Title Bar */}
         <div className="flex items-center justify-between px-4 py-3">
-          <button type="button" onClick={() => navigate({ to: "/" })} className="text-white">
+          <button 
+            type="button" 
+            onClick={() => navigate({ to: "/" })} 
+            className="text-white"
+          >
             <svg
               viewBox="0 0 24 24"
               className="size-6"
@@ -245,11 +233,16 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
+          <button
+            type="button"
+            onClick={() => setAdminOpen(true)}
+            className="text-[color:var(--color-brass)]"
+          >
+            <Settings className="size-6" />
+          </button>
         </div>
 
-        {/* Banner with Profile and Business Info */}
         <div className="relative">
-          {/* Cover Photo Banner */}
           <div
             className="h-64 w-full bg-cover bg-center bg-no-repeat"
             style={{
@@ -258,19 +251,13 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                 : "radial-gradient(ellipse at center top, #e8f4fc 0%, #87ceeb 30%, #4682b4 60%, #1e3a5f 100%)",
             }}
           />
-
-          {/* Gradient Overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black" />
-
-          {/* Business Name and Slogan - Moved to Top */}
           <div className="absolute top-4 left-0 right-0 px-4 text-center">
             <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
               {state.store.name}
             </h1>
             <p className="mt-1 text-sm font-medium text-cyan-300">Qual será o seu pedido?</p>
           </div>
-
-          {/* Robot Waiter - Below Name */}
           <div className="absolute left-1/2 top-20 -translate-x-1/2 flex flex-col items-center animate-float">
             <style>
               {`
@@ -292,384 +279,71 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
                 }
               `}
             </style>
-            <svg
-              viewBox="0 0 200 240"
-              className="size-40"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <defs>
-                {/* 3D Rendering Gradients */}
-                <radialGradient id="head3D" cx="30%" cy="30%" r="70%">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="50%" stopColor="#e8f4fc" />
-                  <stop offset="100%" stopColor="#1e88e5" />
-                </radialGradient>
-                <linearGradient id="body3D" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="30%" stopColor="#f0f8ff" />
-                  <stop offset="70%" stopColor="#1e88e5" />
-                  <stop offset="100%" stopColor="#0d47a1" />
-                </linearGradient>
-                <linearGradient id="suitGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#2c2c2c" />
-                  <stop offset="50%" stopColor="#1a1a1a" />
-                  <stop offset="100%" stopColor="#0d0d0d" />
-                </linearGradient>
-                <linearGradient id="shirtGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="50%" stopColor="#f5f5f5" />
-                  <stop offset="100%" stopColor="#e0e0e0" />
-                </linearGradient>
-                <linearGradient id="trayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#c0c0c0" />
-                  <stop offset="50%" stopColor="#e8e8e8" />
-                  <stop offset="100%" stopColor="#a0a0a0" />
-                </linearGradient>
-                <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(255,255,255,0.8)" />
-                  <stop offset="50%" stopColor="rgba(200,230,255,0.6)" />
-                  <stop offset="100%" stopColor="rgba(150,200,255,0.4)" />
-                </linearGradient>
-                <linearGradient id="waterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(100,200,255,0.7)" />
-                  <stop offset="100%" stopColor="rgba(50,150,255,0.5)" />
-                </linearGradient>
-                <filter id="shadow3D">
-                  <feDropShadow dx="2" dy="4" stdDeviation="3" floodOpacity="0.3" />
-                </filter>
-                <filter id="glow3D">
-                  <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-                  <feMerge>
-                    <feMergeNode in="coloredBlur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-
-              {/* Robot Head - 3D Sphere */}
-              <ellipse
-                cx="100"
-                cy="45"
-                rx="35"
-                ry="40"
-                fill="url(#head3D)"
-                filter="url(#shadow3D)"
-              />
-              <ellipse cx="100" cy="45" rx="30" ry="35" fill="rgba(0,0,0,0.3)" />
-
-              {/* Face Display - Smiling */}
-              <rect
-                x="75"
-                y="35"
-                width="50"
-                height="25"
-                rx="5"
-                fill="rgba(0,0,0,0.8)"
-                stroke="#1e88e5"
-                strokeWidth="2"
-              />
-
-              {/* Eyes - Animated Color LED */}
-              <ellipse
-                cx="85"
-                cy="42"
-                rx="6"
-                ry="4"
-                fill="#00ffff"
-                filter="url(#glow3D)"
-                className="animate-eye-color"
-              />
-              <ellipse
-                cx="115"
-                cy="42"
-                rx="6"
-                ry="4"
-                fill="#00ffff"
-                filter="url(#glow3D)"
-                className="animate-eye-color"
-                style={{ animationDelay: "0.5s" }}
-              />
-              <circle cx="85" cy="42" r="2" fill="#ffffff" />
-              <circle cx="115" cy="42" r="2" fill="#ffffff" />
-
-              {/* Smile */}
-              <path
-                d="M85 52 Q100 60 115 52"
-                stroke="#00ffff"
-                strokeWidth="2"
-                fill="none"
-                filter="url(#glow3D)"
-              />
-
-              {/* Neck */}
-              <rect
-                x="90"
-                y="82"
-                width="20"
-                height="12"
-                fill="url(#body3D)"
-                filter="url(#shadow3D)"
-              />
-
-              {/* Body - White/Blue 3D */}
-              <path
-                d="M70 95 L130 95 L135 170 L65 170 Z"
-                fill="url(#body3D)"
-                filter="url(#shadow3D)"
-              />
-
-              {/* Suit Jacket */}
-              <path d="M70 95 L130 95 L135 170 L65 170 Z" fill="url(#suitGradient)" opacity="0.9" />
-              <path d="M75 100 L125 100 L130 165 L70 165 Z" fill="url(#suitGradient)" />
-
-              {/* Vest */}
-              <path d="M85 105 L115 105 L118 160 L82 160 Z" fill="url(#suitGradient)" />
-
-              {/* White Shirt */}
-              <path d="M90 110 L110 110 L112 155 L88 155 Z" fill="url(#shirtGradient)" />
-
-              {/* Bow Tie */}
-              <polygon points="100,105 92,115 100,125 108,115" fill="#000000" />
-              <circle cx="100" cy="115" r="2" fill="#1e88e5" />
-
-              {/* Arms */}
-              {/* Left Arm - Behind Back */}
-              <path
-                d="M65 100 Q45 120 40 150"
-                stroke="url(#suitGradient)"
-                strokeWidth="12"
-                fill="none"
-                filter="url(#shadow3D)"
-              />
-              <circle cx="40" cy="150" r="8" fill="url(#body3D)" />
-
-              {/* Right Arm - With Towel */}
-              <path
-                d="M135 100 Q155 120 160 150"
-                stroke="url(#suitGradient)"
-                strokeWidth="12"
-                fill="none"
-                filter="url(#shadow3D)"
-              />
-              <circle cx="160" cy="150" r="8" fill="url(#body3D)" />
-
-              {/* Service Towel on Right Arm */}
-              <rect
-                x="155"
-                y="130"
-                width="15"
-                height="25"
-                rx="2"
-                fill="#ffffff"
-                stroke="#e0e0e0"
-                strokeWidth="1"
-              />
-              <line x1="158" y1="135" x2="158" y2="150" stroke="#e0e0e0" strokeWidth="1" />
-              <line x1="162" y1="135" x2="162" y2="150" stroke="#e0e0e0" strokeWidth="1" />
-              <line x1="166" y1="135" x2="166" y2="150" stroke="#e0e0e0" strokeWidth="1" />
-
-              {/* Tray in Right Hand */}
-              <ellipse
-                cx="165"
-                cy="145"
-                rx="35"
-                ry="12"
-                fill="url(#trayGradient)"
-                filter="url(#shadow3D)"
-                stroke="#a0a0a0"
-                strokeWidth="2"
-              />
-
-              {/* Napkin on Tray */}
-              <rect
-                x="140"
-                y="138"
-                width="20"
-                height="15"
-                rx="1"
-                fill="#ffffff"
-                stroke="#e0e0e0"
-                strokeWidth="1"
-              />
-              <line x1="145" y1="142" x2="155" y2="142" stroke="#e0e0e0" strokeWidth="0.5" />
-              <line x1="145" y1="146" x2="155" y2="146" stroke="#e0e0e0" strokeWidth="0.5" />
-              <line x1="145" y1="150" x2="155" y2="150" stroke="#e0e0e0" strokeWidth="0.5" />
-
-              {/* Three Water Glasses */}
-              <rect
-                x="165"
-                y="130"
-                width="8"
-                height="12"
-                rx="1"
-                fill="url(#glassGradient)"
-                stroke="#a0a0a0"
-                strokeWidth="1"
-              />
-              <rect x="166" y="132" width="6" height="8" fill="url(#waterGradient)" />
-
-              <rect
-                x="175"
-                y="130"
-                width="8"
-                height="12"
-                rx="1"
-                fill="url(#glassGradient)"
-                stroke="#a0a0a0"
-                strokeWidth="1"
-              />
-              <rect x="176" y="132" width="6" height="8" fill="url(#waterGradient)" />
-              {/* Lemon slice */}
-              <circle cx="180" cy="135" r="2" fill="#ffeb3b" stroke="#ffc107" strokeWidth="0.5" />
-
-              <rect
-                x="185"
-                y="130"
-                width="8"
-                height="12"
-                rx="1"
-                fill="url(#glassGradient)"
-                stroke="#a0a0a0"
-                strokeWidth="1"
-              />
-              <rect x="186" y="132" width="6" height="8" fill="url(#waterGradient)" />
-
-              {/* Legs - Black Pants */}
-              <path
-                d="M75 170 L70 230"
-                stroke="url(#suitGradient)"
-                strokeWidth="14"
-                fill="none"
-                filter="url(#shadow3D)"
-              />
-              <path
-                d="M125 170 L130 230"
-                stroke="url(#suitGradient)"
-                strokeWidth="14"
-                fill="none"
-                filter="url(#shadow3D)"
-              />
-
-              {/* Feet - Parallel */}
-              <ellipse cx="70" cy="232" rx="10" ry="5" fill="#0d0d0d" filter="url(#shadow3D)" />
-              <ellipse cx="130" cy="232" rx="10" ry="5" fill="#0d0d0d" filter="url(#shadow3D)" />
-            </svg>
+            <RobotWaiter />
           </div>
-
-          {/* Cidadela Connection Element */}
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/cidadela" })}
-            className="absolute right-4 top-16 z-50 transition-all hover:scale-105 active:scale-95"
-          >
-            <div className="relative size-20 flex flex-col items-center justify-center rounded-full border-2 border-cyan-400 bg-black/70 shadow-[0_0_30px_rgba(34,211,238,0.7)]">
-              <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-400/60" />
-              <span className="relative text-[10px] font-bold text-cyan-300 tracking-tight leading-tight">
-                CONHEÇA A CIDADELA
-              </span>
-              <svg
-                viewBox="0 0 24 24"
-                className="relative size-7 text-yellow-400 mt-1"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-              >
-                <rect x="5" y="11" width="14" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-              </svg>
-            </div>
-          </button>
         </div>
       </header>
 
-      {/* Category Navigation */}
-      <nav className="sticky top-0 z-20 border-b border-red-500/20 bg-black/90 backdrop-blur">
-        <div className="flex gap-2 overflow-x-auto px-4 py-3">
-          {state.categories.map((cat) => (
-            <button
-              key={cat.name}
-              type="button"
-              onClick={() => {
-                setActiveCat(cat.name);
-                document
-                  .getElementById(`cat-${cat.name}`)
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-              className={`shrink-0 rounded-full px-4 py-2 text-[11px] font-semibold transition-all ${
-                activeCat === cat.name
-                  ? "bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)] border border-red-500"
-                  : "bg-black/50 text-gray-400 hover:bg-red-500/10 border border-red-500/30"
-              }`}
-            >
-              {cat.name}
-            </button>
-          ))}
-        </div>
-      </nav>
-
       <main className="px-4 pb-24">
-        <div className="mx-auto max-w-xl">
+        {/* Categories */}
+        <div className="sticky top-0 z-40 bg-black/95 backdrop-blur py-3">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {state.categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => scrollToCat(cat.id)}
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold uppercase transition-colors ${
+                  activeCat === cat.id
+                    ? "bg-[color:var(--color-brass)] text-black"
+                    : "border border-[color:var(--color-brass)]/30 text-[color:var(--color-brass)]"
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Menu Items */}
+        <div className="mt-4 space-y-6">
           {state.categories.map((cat) => (
-            <section key={cat.name} id={`cat-${cat.name}`} className="scroll-mt-20 pt-6">
-              <h2 className="mb-4 text-lg font-bold text-white">{cat.name}</h2>
-              <div className="space-y-4">
+            <section
+              key={cat.id}
+              ref={(el) => (sectionsRef.current[cat.id] = el)}
+              className="scroll-mt-20"
+            >
+              <h2 className="mb-3 text-lg font-bold text-[color:var(--color-brass)]">{cat.name}</h2>
+              <div className="grid gap-3">
                 {cat.items.map((item) => (
-                  <article
+                  <div
                     key={item.id}
-                    className="group relative flex items-center gap-4 rounded-xl border border-red-500/20 bg-black/40 p-4 transition-all hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                    className="flex gap-3 rounded-xl border border-[color:var(--color-brass)]/20 bg-black/40 p-3"
                   >
-                    {/* Dish Image - Red neon pulsing dot */}
-                    <div className="relative shrink-0">
-                      <div className="size-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8),0_0_16px_rgba(239,68,68,0.6),0_0_24px_rgba(239,68,68,0.4)] animate-pulse" />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-white">{item.name}</h3>
+                      <p className="mt-1 text-xs text-gray-400">{item.desc}</p>
+                      <p className="mt-2 text-sm font-bold text-[color:var(--color-brass)]">{brl(item.price)}</p>
                     </div>
-
-                    {/* Name and Description */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-bold text-white group-hover:text-red-400 transition-colors">
-                        {item.name}
-                      </h3>
-                      <p className="mt-1 text-xs text-gray-400 line-clamp-2">{item.desc}</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => remove(item.id)}
+                        className="grid size-6 place-items-center rounded-full bg-black/50 hover:bg-black/70"
+                        aria-label="Diminuir"
+                      >
+                        <Minus className="size-3 text-white" />
+                      </button>
+                      <span className="w-5 text-center text-sm font-bold text-white">
+                        {cart[item.id] || 0}
+                      </span>
+                      <button
+                        onClick={() => add(item.id)}
+                        className="grid size-6 place-items-center rounded-full bg-[color:var(--color-brass)] hover:bg-[color:var(--color-brass)]/80"
+                        aria-label="Aumentar"
+                      >
+                        <Plus className="size-3 text-black" />
+                      </button>
                     </div>
-
-                    {/* Price and Add Button */}
-                    <div className="flex shrink-0 flex-col items-end gap-2 min-w-[80px]">
-                      <p className="text-sm font-bold text-white">{brl(item.price)}</p>
-                      {cart[item.id] ? (
-                        <div className="flex items-center gap-2 rounded-lg bg-red-500/20 border border-red-500/30 p-1">
-                          <button
-                            type="button"
-                            aria-label={`Remover ${item.name}`}
-                            onClick={() => remove(item.id)}
-                            className="grid size-6 place-items-center rounded-full bg-black/50 hover:bg-black/70"
-                          >
-                            <Minus className="size-3 text-red-400" />
-                          </button>
-                          <span className="w-4 text-center text-sm font-semibold text-white">
-                            {cart[item.id]}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label={`Adicionar ${item.name}`}
-                            onClick={() => add(item.id)}
-                            className="grid size-6 place-items-center rounded-full bg-red-600 hover:bg-red-500"
-                          >
-                            <Plus className="size-3 text-white" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => add(item.id)}
-                          className="flex items-center gap-1 rounded-lg border border-red-500/50 bg-black/50 px-3 py-1.5 text-[10px] font-semibold text-red-400 transition-all hover:bg-red-500/20 hover:shadow-[0_0_10px_rgba(239,68,68,0.3)]"
-                        >
-                          <Plus className="size-3" />
-                          ADD
-                        </button>
-                      )}
-                    </div>
-                  </article>
+                  </div>
                 ))}
               </div>
             </section>
@@ -677,103 +351,29 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
         </div>
       </main>
 
-      {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-red-500/20 bg-black/95 backdrop-blur">
-        <div className="flex items-center justify-around py-3">
-          <button type="button" className="flex flex-col items-center gap-1 transition-all">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-red-500/20 animate-pulse" />
-              <svg
-                viewBox="0 0 24 24"
-                className="relative size-6 text-red-500"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M3 12h18M3 6h18M3 18h18" />
-              </svg>
-            </div>
-            <span className="text-[10px] font-semibold text-red-500">CARDÁPIO</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/cidadela" })}
-            className="flex flex-col items-center gap-1 transition-all hover:text-gray-300"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="size-6 text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            <span className="text-[10px] font-semibold text-gray-500">CIDADELA</span>
-          </button>
-          <button
-            type="button"
-            onClick={onOpenAdmin}
-            className="flex flex-col items-center gap-1 transition-all hover:text-gray-300"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="size-6 text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.39a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <span className="text-[10px] font-semibold text-gray-500">PAINEL</span>
-          </button>
-        </div>
-        
-        {/* Footer com links legais */}
-        <div className="flex items-center justify-center gap-4 border-t border-red-500/10 pt-2 pb-3">
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/privacy" })}
-            className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors"
-          >
-            Privacidade
-          </button>
-          <span className="text-[9px] text-gray-600">|</span>
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/terms" })}
-            className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors"
-          >
-            Termos
-          </button>
-        </div>
-      </nav>
-
-      {count > 0 && !cartOpen && !checkoutOpen && (
+      {/* Floating Cart Button */}
+      {count > 0 && (
         <button
-          type="button"
           onClick={() => setCartOpen(true)}
-          className="fixed inset-x-4 bottom-20 z-30 mx-auto flex max-w-md items-center justify-between rounded-full bg-red-600 px-5 py-4 text-white shadow-[0_0_20px_rgba(220,38,38,0.5)]"
+          className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-[color:var(--color-brass)] px-4 py-3 text-sm font-bold text-black shadow-lg"
         >
-          <span className="flex items-center gap-2 text-sm font-semibold">
-            <ShoppingBag className="size-4" /> {count} {count === 1 ? "item" : "itens"}
-          </span>
-          <span className="text-sm font-bold">{brl(total)}</span>
+          <ShoppingBag className="size-5" />
+          <span>{count} itens</span>
+          <span className="font-black">{brl(totalWithDiscount)}</span>
         </button>
       )}
 
+      {/* Modals */}
       {cartOpen && (
         <CartSheet
-          items={cartItems}
-          total={total}
+          lines={lines}
+          subtotal={subtotal}
           discountPercentage={discountPercentage}
           discountAmount={discountAmount}
-          totalWithDiscount={totalWithDiscount}
+          total={totalWithDiscount}
+          onInc={add}
+          onDec={remove}
           onClose={() => setCartOpen(false)}
-          onAdd={add}
-          onRemove={remove}
           onCheckout={() => {
             setCartOpen(false);
             setCheckoutOpen(true);
@@ -783,565 +383,67 @@ export function Cardapio({ onOpenAdmin }: { onOpenAdmin: () => void }) {
 
       {checkoutOpen && (
         <CheckoutModal
-          items={cartItems}
-          subtotal={total}
-          discountPercentage={discountPercentage}
-          discountAmount={discountAmount}
-          totalWithDiscount={totalWithDiscount}
+          total={totalWithDiscount}
           onClose={() => setCheckoutOpen(false)}
-          onConfirm={submitOrder}
+          onConfirm={handleCheckout}
         />
       )}
 
-      {videoBonusOpen && pendingCheckoutData && (
-        <VideoBonusModal
-          order={pendingCheckoutData}
-          onSkip={() => {
-            setVideoWatched(false);
-            setVideoBonusOpen(false);
-            setSuccess(pendingCheckoutData);
-            setPendingCheckoutData(null);
-          }}
-          onWatchVideo={() => {
-            setVideoWatched(true);
-            setVideoBonusOpen(false);
-            // Adiciona pontos bônus
-            const pointsEarned = Math.floor(pendingCheckoutData.total / 30);
-            const storeId = state.admin.storeId || state.admin.accessKey;
-            const customerEmail = pendingCheckoutData.email || pendingCheckoutData.telefone;
-            addSoberaniaPoints(storeId, customerEmail, pendingCheckoutData.telefone, pointsEarned, `Bônus por assistir vídeo do pedido`, "ad");
-            setSuccess(pendingCheckoutData);
-            setPendingCheckoutData(null);
-          }}
-        />
-      )}
-
-      {paymentOpen && pendingOrder && (
+      {pendingOrder && (
         <PaymentScreen
           order={pendingOrder}
-          onSuccess={handlePaymentSuccess}
-          onCancel={() => {
-            setPaymentOpen(false);
-            setPendingOrder(null);
+          onConfirm={() => {
+            finalizeOrder(pendingOrder);
+          }}
+          onCancel={() => setPendingOrder(null)}
+        />
+      )}
+
+      {videoPoints > 0 && !successOrder && (
+        <VideoBonusModal
+          points={videoPoints}
+          adSlot={state.integrations.adSlot}
+          onFinish={(earnedBonus) => {
+            if (earnedBonus) {
+              // Dobra os pontos
+              const finalPoints = videoPoints * 2;
+              addSoberaniaPoints(
+                state.admin.storeId || "",
+                pendingOrder?.email || pendingOrder?.telefone || "",
+                pendingOrder?.telefone || "",
+                videoPoints,
+                "Bônus de vídeo assistido",
+                "ad"
+              );
+              setSuccessPoints(finalPoints);
+            } else {
+              setSuccessPoints(videoPoints);
+            }
+            setSuccessOrder(pendingOrder);
+            setVideoPoints(0);
           }}
         />
       )}
 
-      {success && <SuccessModal order={success} onClose={() => setSuccess(null)} />}
-    </div>
-  );
-}
-
-function CartSheet({
-  items,
-  total,
-  discountPercentage,
-  discountAmount,
-  totalWithDiscount,
-  onClose,
-  onAdd,
-  onRemove,
-  onCheckout,
-}: {
-  items: OrderItem[];
-  total: number;
-  discountPercentage: number;
-  discountAmount: number;
-  totalWithDiscount: number;
-  onClose: () => void;
-  onAdd: (id: string) => void;
-  onRemove: (id: string) => void;
-  onCheckout: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-6">
-      <div className="w-full max-w-md rounded-t-2xl bg-card p-5 sm:rounded-2xl">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Seu pedido</h2>
-          <button type="button" onClick={onClose} aria-label="Fechar carrinho">
-            <X className="size-5" />
-          </button>
-        </div>
-        <ul className="mt-4 space-y-3">
-          {items.map((i) => (
-            <li key={i.id} className="flex items-center gap-3 text-sm">
-              <div className="flex-1">
-                <p className="font-medium">{i.name}</p>
-                <p className="text-xs text-muted-foreground">{brl(i.price)} un.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button type="button" aria-label="Remover" onClick={() => onRemove(i.id)}>
-                  {i.quantity === 1 ? <Trash2 className="size-4" /> : <Minus className="size-4" />}
-                </button>
-                <span className="w-4 text-center font-semibold">{i.quantity}</span>
-                <button type="button" aria-label="Adicionar" onClick={() => onAdd(i.id)}>
-                  <Plus className="size-4" />
-                </button>
-              </div>
-              <span className="w-20 text-right font-semibold">{brl(i.total)}</span>
-            </li>
-          ))}
-        </ul>
-        {discountPercentage > 0 && (
-          <div className="mt-3 flex items-center justify-between text-green-400">
-            <span className="text-sm">Desconto ({discountPercentage}%)</span>
-            <span className="text-sm font-semibold">-{brl(discountAmount)}</span>
-          </div>
-        )}
-        <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
-          <span className="text-sm text-muted-foreground">Total</span>
-          <span className="text-lg font-bold">{brl(totalWithDiscount)}</span>
-        </div>
-        <button
-          type="button"
-          onClick={onCheckout}
-          className="ember-glow mt-4 w-full rounded-full bg-primary py-3 font-semibold text-primary-foreground"
-        >
-          Finalizar pedido
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CheckoutModal({
-  items,
-  subtotal,
-  discountPercentage,
-  discountAmount,
-  totalWithDiscount,
-  onClose,
-  onConfirm,
-}: {
-  items: OrderItem[];
-  subtotal: number;
-  discountPercentage: number;
-  discountAmount: number;
-  totalWithDiscount: number;
-  onClose: () => void;
-  onConfirm: (order: Order) => void | Promise<void>;
-}) {
-  const { state } = useStore();
-  const [form, setForm] = useState({
-    cliente: "",
-    email: "",
-    telefone: "",
-    rua: "",
-    numero: "",
-    bairro: "",
-    referencia: "",
-    observacoes: "",
-    troco: "",
-  });
-  const [tipo, setTipo] = useState<"entrega" | "retirada">("entrega");
-  const [pagamento, setPagamento] = useState<"pix" | "dinheiro" | "cartao">("pix");
-  const [sending, setSending] = useState(false);
-  const [copiedPix, setCopiedPix] = useState(false);
-
-  const taxa = tipo === "entrega" ? 0 : 0;
-  const total = Number((totalWithDiscount + taxa).toFixed(2));
-  const pixQr = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(state.payment.pixKey)}`;
-
-  const valid =
-    form.cliente.trim().length > 1 &&
-    form.email.trim().length > 5 &&
-    form.telefone.trim().length >= 10 &&
-    (tipo === "retirada" ||
-      (form.rua.trim().length > 2 &&
-        form.numero.trim().length > 0 &&
-        form.bairro.trim().length > 2));
-
-  function copyPixKey() {
-    navigator.clipboard.writeText(state.payment.pixKey);
-    setCopiedPix(true);
-    setTimeout(() => setCopiedPix(false), 2000);
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!valid || sending) return;
-    setSending(true);
-    
-    // Formatar telefone para garantir código do país
-    let telefoneLimpo = form.telefone.trim().replace(/\D/g, '');
-    if (!telefoneLimpo.startsWith('55')) {
-      telefoneLimpo = '55' + telefoneLimpo;
-    }
-    
-    await onConfirm({
-      comanda: newComanda(),
-      cliente: form.cliente.trim(),
-      email: form.email.trim(),
-      telefone: telefoneLimpo,
-      endereco:
-        tipo === "entrega"
-          ? `${form.rua.trim()}, ${form.numero.trim()} - ${form.bairro.trim()}${form.referencia.trim() ? ` (Ref: ${form.referencia.trim()})` : ""}`
-          : "Retirada no balcão",
-      observacoes: form.observacoes.trim(),
-      itens: items,
-      total,
-      tipo_entrega: tipo,
-      taxa_entrega: taxa,
-      pagamento,
-      troco: pagamento === "dinheiro" ? form.troco : undefined,
-      status: "pendente",
-      createdAt: new Date().toISOString(),
-      synced: false,
-    });
-    setSending(false);
-  }
-
-  const field =
-    "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
-
-  return (
-    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-0 sm:p-6">
-      <form
-        onSubmit={handleSubmit}
-        className="mx-auto w-full max-w-md rounded-t-2xl bg-card p-5 sm:rounded-2xl"
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Checkout</h2>
-          <button type="button" onClick={onClose} aria-label="Fechar checkout">
-            <X className="size-5" />
-          </button>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {(["entrega", "retirada"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTipo(t)}
-              className={`text-tech rounded-lg px-3 py-2 text-[11px] ${
-                tipo === t ? "bg-primary text-primary-foreground" : "bg-secondary"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4 space-y-3">
-          <input
-            className={field}
-            placeholder="Seu nome"
-            value={form.cliente}
-            onChange={(e) => setForm({ ...form, cliente: e.target.value })}
-          />
-          <input
-            className={field}
-            placeholder="E-mail"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          <input
-            className={field}
-            placeholder="Telefone / WhatsApp"
-            inputMode="tel"
-            value={form.telefone}
-            onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-          />
-          {tipo === "entrega" && (
-            <div className="space-y-3">
-              <input
-                className={field}
-                placeholder="Rua"
-                value={form.rua}
-                onChange={(e) => setForm({ ...form, rua: e.target.value })}
-              />
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  className={field}
-                  placeholder="Número"
-                  value={form.numero}
-                  onChange={(e) => setForm({ ...form, numero: e.target.value })}
-                />
-                <input
-                  className={`${field} col-span-2`}
-                  placeholder="Bairro"
-                  value={form.bairro}
-                  onChange={(e) => setForm({ ...form, bairro: e.target.value })}
-                />
-              </div>
-              <input
-                className={field}
-                placeholder="Ponto de referência (opcional)"
-                value={form.referencia}
-                onChange={(e) => setForm({ ...form, referencia: e.target.value })}
-              />
-            </div>
-          )}
-          <textarea
-            className={field}
-            rows={2}
-            placeholder="Observações (ex: sem cebola)"
-            value={form.observacoes}
-            onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-          />
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {(["pix", "dinheiro", "cartao"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPagamento(p)}
-              className={`text-tech rounded-lg px-2 py-2 text-[11px] ${
-                pagamento === p ? "bg-primary text-primary-foreground" : "bg-secondary"
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-
-        {pagamento === "pix" && (
-          <div className="mt-4 flex items-center gap-4 rounded-xl bg-secondary p-4">
-            <img
-              src={pixQr}
-              alt="QR Code PIX para pagamento"
-              width={90}
-              height={90}
-              className="rounded-md"
-            />
-            <div className="flex-1 text-xs">
-              <p className="font-semibold">Chave PIX</p>
-              <p className="break-all text-muted-foreground">{state.payment.pixKey}</p>
-              <button
-                type="button"
-                onClick={copyPixKey}
-                className="mt-2 flex items-center gap-1 text-primary hover:underline"
-              >
-                <Copy className="size-3" />
-                {copiedPix ? "Copiado!" : "Copiar chave"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {pagamento === "dinheiro" && (
-          <input
-            className={`${field} mt-4`}
-            placeholder="Troco para quanto?"
-            inputMode="numeric"
-            value={form.troco}
-            onChange={(e) => setForm({ ...form, troco: e.target.value })}
-          />
-        )}
-
-        {discountPercentage > 0 && (
-          <div className="mt-3 flex items-center justify-between text-green-400">
-            <span className="text-sm">Desconto ({discountPercentage}%)</span>
-            <span className="text-sm font-semibold">-{brl(discountAmount)}</span>
-          </div>
-        )}
-
-        <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
-          <span className="text-sm text-muted-foreground">Total</span>
-          <span className="text-lg font-bold">{brl(totalWithDiscount)}</span>
-        </div>
-
-        <button
-          type="submit"
-          disabled={!valid || sending}
-          className="ember-glow mt-4 w-full rounded-full bg-primary py-3 font-semibold text-primary-foreground disabled:opacity-50"
-        >
-          {sending ? "Enviando..." : "Confirmar pedido"}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-function VideoBonusModal({ 
-  order, 
-  onSkip, 
-  onWatchVideo 
-}: { 
-  order: Order; 
-  onSkip: () => void; 
-  onWatchVideo: () => void; 
-}) {
-  const [showVideo, setShowVideo] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [countdown, setCountdown] = useState(3);
-  
-  const pointsEarned = Math.floor(order.total / 30);
-  const bonusPoints = pointsEarned; // Dobra os pontos
-
-  // Efeito para iniciar countdown automaticamente
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleWatchVideo();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  function handleWatchVideo() {
-    setShowVideo(true);
-    setLoading(true);
-    // Simular assistir vídeo (3 segundos)
-    setTimeout(() => {
-      setLoading(false);
-      onWatchVideo();
-    }, 3000);
-  }
-
-  function handleSkip() {
-    onSkip();
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-5">
-      <div className="w-full max-w-sm rounded-2xl border border-border p-6 text-center bg-card">
-        <div className="size-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
-          <span className="text-3xl">✓</span>
-        </div>
-        <h2 className="text-xl font-bold text-white mb-2">Seu pedido foi realizado com sucesso!</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Assista um vídeo curto e ganhe +{bonusPoints} pontos de soberania bônus
-        </p>
-        
-        <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 p-4 mb-6">
-          <p className="text-xs text-yellow-400 mb-1">Pontos do pedido</p>
-          <p className="text-2xl font-bold text-yellow-300">+{pointsEarned}</p>
-          <div className="my-2 border-t border-yellow-500/20"></div>
-          <p className="text-xs text-green-400 mb-1">Com vídeo bônus</p>
-          <p className="text-2xl font-bold text-green-300">+{pointsEarned + bonusPoints}</p>
-        </div>
-
-        <div className="mb-4">
-          <p className="text-sm text-muted-foreground">
-            Vídeo começará em <span className="font-bold text-yellow-400">{countdown}</span> segundos
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={handleWatchVideo}
-            disabled={loading || countdown === 0}
-            className="w-full rounded-full bg-yellow-600 py-3 font-semibold text-white hover:bg-yellow-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Assistindo...
-              </>
-            ) : (
-              <>
-                <span>🎬</span>
-                Assistir vídeo e dobrar pontos
-              </>
-            )}
-          </button>
-          <button
-            onClick={handleSkip}
-            disabled={loading}
-            className="w-full rounded-full border border-border py-3 font-semibold text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Não assistir vídeo
-          </button>
-        </div>
-      </div>
-      
-      {showVideo && (
-        <div className="fixed inset-0 z-60 grid place-items-center bg-black/95 p-5">
-          <div className="w-full max-w-lg rounded-xl border border-border p-4 bg-slate-900">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-medium text-white">Assistindo vídeo...</p>
-              <button onClick={() => setShowVideo(false)} className="text-gray-400 hover:text-white">
-                ✕
-              </button>
-            </div>
-            <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <div className="size-12 mx-auto mb-3 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-sm text-gray-400">Carregando vídeo...</p>
-                <p className="text-xs text-gray-500 mt-2">Aguarde 3 segundos</p>
-              </div>
-            </div>
-          </div>
-        </div>
+      {successOrder && (
+        <SuccessModal
+          order={successOrder}
+          cidadelaCode={successCode}
+          points={successPoints}
+          onClose={() => {
+            setSuccessOrder(null);
+            setSuccessCode(null);
+            setSuccessPoints(0);
+          }}
+          onPrint={handlePrint}
+        />
       )}
-    </div>
-  );
-}
 
-function SuccessModal({ order, onClose }: { order: Order; onClose: () => void }) {
-  const { state } = useStore();
-  
-  // Calcular pontos ganhos pelo pedido (1 ponto por R$30)
-  const pointsEarned = Math.floor(order.total / 30);
-
-  // Format WhatsApp message for thermal printer (Comanda format)
-  const formatComandaMessage = (order: Order): string => {
-    return ` Olá! Sou o dono do pedido *${order.comanda}*
-
- Meu número: ${order.telefone}
- ${order.tipo_entrega === "entrega" ? order.endereco : "Retirada no balcão"}
- Total: ${brl(order.total)}
-
-Aguardando confirmação!`;
-  };
-
-  const waText = encodeURIComponent(formatComandaMessage(order));
-
-  const verses = [
-    '"Tudo quanto te vier à mão para fazer, faze-o conforme as tuas forças." — Eclesiastes 9:10',
-    '"Não deis lugar ao diabo." — Efésios 4:27',
-    '"Sede fortes e corajosos." — Josué 1:9',
-    '"O Senhor é minha força e meu escudo." — Salmos 28:7',
-    '"Confia no Senhor de todo o teu coração." — Provérbios 3:5',
-  ];
-
-  const randomVerse = verses[Math.floor(Math.random() * verses.length)];
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-5">
-      <div className="feb-scope w-full max-w-sm rounded-2xl border border-border p-6 text-center">
-        <CobraFumando className="mx-auto size-14 text-[color:var(--brass)]" />
-        <p className="text-tech mt-4 text-[10px] text-[color:var(--brass)]">Pedido confirmado</p>
-        <h2 className="text-stencil mt-1 text-2xl">{order.comanda}</h2>
-        <p className="mt-4 text-xs italic text-muted-foreground/80">
-          {randomVerse}
-        </p>
-        
-        {pointsEarned > 0 && (
-          <div className="mt-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 p-3">
-            <p className="text-tech text-[10px] text-yellow-400 mb-2">Pontos de Soberania</p>
-            <p className="text-sm font-medium text-yellow-300">
-              +{pointsEarned} pontos pelo pedido
-            </p>
-          </div>
-        )}
-        
-        <div className="mt-6 flex flex-col gap-2">
-          <a
-            href={`https://wa.me/${state.whatsapp}?text=${waText}`}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground"
-          >
-            Acompanhar no WhatsApp
-          </a>
-          <button type="button" onClick={onClose} className="text-tech py-2 text-[11px]">
-            Voltar ao cardápio
-          </button>
-        </div>
-        <p className="text-tech mt-4 text-[9px] text-muted-foreground/60">
-          {buildThermalTicket(order, state.store.name).split("\n").length} linhas de comanda prontas
-        </p>
-      </div>
+      {adminOpen && (
+        <AdminModal
+          onClose={() => setAdminOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -265,6 +265,12 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
     console.log("Resultado da ativação:", result);
     
     if (result.success) {
+      // Recarregar trial do localStorage para pegar dados atualizados
+      const savedTrial = localStorage.getItem("admin_trial");
+      if (savedTrial) {
+        const parsed = JSON.parse(savedTrial);
+        console.log("Trial atualizado:", parsed);
+      }
       setLoginStep("premium");
     } else {
       setError(result.message);

@@ -280,16 +280,28 @@ export function useAdminTrial() {
       return { success: false, message: "Erro ao ativar código" };
     }
 
-    // Atualizar trial local
-    if (trial) {
+    // Buscar trial atualizado do Supabase
+    const { data: updatedData, error: fetchError } = await supabase
+      .from("admin_trials")
+      .select("*")
+      .eq("id", adminTrial.id)
+      .single();
+
+    if (fetchError || !updatedData) {
+      // Se falhar ao buscar, usar dados atualizados localmente
       const updatedTrial = {
-        ...trial,
+        ...adminTrial,
         is_premium: true,
         premium_expires_at: premiumExpiresAt.toISOString(),
       };
       localStorage.setItem("admin_trial", JSON.stringify(updatedTrial));
       setTrial(updatedTrial);
       checkExpiration(updatedTrial);
+    } else {
+      // Usar dados atualizados do Supabase
+      localStorage.setItem("admin_trial", JSON.stringify(updatedData));
+      setTrial(updatedData as AdminTrial);
+      checkExpiration(updatedData as AdminTrial);
     }
 
     return { success: true, message: "Código ativado com sucesso!" };

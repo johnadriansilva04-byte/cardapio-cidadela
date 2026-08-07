@@ -134,17 +134,6 @@ export default function Cardapio() {
         }
       }
 
-      await supabase.from("cidadela_codes").insert({
-        code,
-        store_id: storeId,
-        customer_email: order.email ?? null,
-        customer_phone: order.telefone,
-        access_type: accessType,
-        order_total: order.total,
-        expires_at: expiration.toISOString(),
-        is_active: true,
-      });
-
       const { data: inserted } = await supabase
         .from("orders")
         .insert({
@@ -180,6 +169,19 @@ export default function Cardapio() {
             total: i.total,
           })),
         );
+
+        // Salvar código Cidadela após ter o order_id
+        await supabase.from("cidadela_codes").insert({
+          code,
+          store_id: storeId,
+          customer_email: order.email ?? null,
+          customer_phone: order.telefone,
+          access_type: accessType,
+          order_total: order.total,
+          expires_at: expiration.toISOString(),
+          is_active: true,
+          order_id: inserted.id,
+        });
       }
     } catch (e) {
       console.error("Erro ao salvar pedido", e);

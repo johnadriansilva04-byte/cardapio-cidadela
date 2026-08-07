@@ -137,6 +137,13 @@ export function useAdminTrial() {
   function checkExpiration(trialData: AdminTrial) {
     const now = new Date();
     const expiresAt = new Date(trialData.trial_expires_at);
+    
+    // Se for premium, não está expirado
+    if (trialData.is_premium) {
+      setIsExpired(false);
+      return;
+    }
+    
     const isExpired = now > expiresAt;
     setIsExpired(isExpired);
 

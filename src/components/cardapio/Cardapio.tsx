@@ -373,8 +373,10 @@ export default function Cardapio() {
         </div>
 
         {/* Botão da Cidadela */}
-        <button
-          onClick={() => navigate({ to: "/cidadela" })}
+        <a
+          href="http://localhost:3001"
+          target="_blank"
+          rel="noopener noreferrer"
           className="absolute right-4 top-16 z-50 size-20 transition-transform hover:scale-105 active:scale-95"
           aria-label="Conheça a Cidadela"
         >
@@ -395,7 +397,7 @@ export default function Cardapio() {
               <path d="M8 11V7a4 4 0 0 1 8 0v4" />
             </svg>
           </span>
-        </button>
+        </a>
       </div>
 
       {/* Categorias */}
@@ -504,13 +506,15 @@ export default function Cardapio() {
             </span>
             <span className="text-[10px] font-semibold text-red-500">CARDÁPIO</span>
           </button>
-          <button
-            onClick={() => navigate({ to: "/cidadela" })}
+          <a
+            href="http://localhost:3001"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300"
           >
             <User className="size-6" />
             <span className="text-[10px] font-semibold">CIDADELA</span>
-          </button>
+          </a>
           <button
             onClick={() => setAdminOpen(true)}
             className="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-300"

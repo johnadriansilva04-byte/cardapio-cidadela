@@ -5,6 +5,8 @@ import {
   Pencil,
   Check,
   X,
+  ArrowUp,
+  ArrowDown,
   GripVertical,
 } from "lucide-react";
 import type { Restaurant, Category, Product } from "@/lib/types";
@@ -18,6 +20,9 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  moveProductsToCategory,
+  reorderCategories,
+  reorderProducts,
 } from "@/modules/supabase/menu";
 
 const field =
@@ -26,22 +31,21 @@ const field =
 export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedCatId, setSelectedCatId] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"categories" | "products">("categories");
 
-  // New category
+  // Category states
   const [newCatName, setNewCatName] = useState("");
-
-  // Product form
-  const [prodName, setProdName] = useState("");
-  const [prodDesc, setProdDesc] = useState("");
-  const [prodPrice, setProdPrice] = useState("");
-  const [prodImageUrl, setProdImageUrl] = useState("");
-
-  // Edit states
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editCatName, setEditCatName] = useState("");
+  const [catDeleteConfirm, setCatDeleteConfirm] = useState<string | null>(null);
+
+  // Product form states per category
+  const [openAddFor, setOpenAddFor] = useState<string | null>(null);
+  const [prodForms, setProdForms] = useState<
+    Record<string, { name: string; desc: string; price: string; imageUrl: string }>
+  >({});
+
+  // Product edit states
   const [editingProdId, setEditingProdId] = useState<string | null>(null);
   const [editProd, setEditProd] = useState({
     name: "",
@@ -63,11 +67,10 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
     ]);
     setCategories(cats);
     setProducts(prods);
-    if (cats.length > 0 && !selectedCatId) {
-      setSelectedCatId(cats[0].id);
-    }
     setLoading(false);
   }
+
+  // ---- Category handlers ----
 
   async function addCategory() {
     if (!newCatName.trim()) return;
@@ -75,7 +78,6 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
     if (cat) {
       setCategories([...categories, cat]);
       setNewCatName("");
-      setSelectedCatId(cat.id);
     }
   }
 
@@ -84,57 +86,116 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
     const ok = await updateCategory(id, editCatName);
     if (ok) {
       setCategories(
-        categories.map((c) => (c.id === id ? { ...c, name: editCatName } : c)),
+        categories.map((c) => (c.id === id ? { ...c, name: editCatName } : c))
       );
       setEditingCatId(null);
     }
   }
 
+  async function moveCategory(id: string, direction: "up" | "down") {
+    const sorted = [...categories].sort(
+      (a, b) => a.sort_order - b.sort_order
+    );
+    const idx = sorted.findIndex((c) => c.id === id);
+    if (idx === -1) return;
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === sorted.length - 1) return;
+
+    const swap = direction === "up" ? idx - 1 : idx + 1;
+    const tempOrder = sorted[idx].sort_order;
+    sorted[idx] = { ...sorted[idx], sort_order: sorted[swap].sort_order };
+    sorted[swap] = { ...sorted[swap], sort_order: tempOrder };
+
+    setCategories(sorted);
+    await reorderCategories(sorted.map((c) => c.id));
+  }
+
   async function removeCategory(id: string) {
-    if (!confirm("Excluir esta categoria e todos seus produtos?")) return;
+    const catProducts = products.filter((p) => p.category_id === id);
+    if (catProducts.length > 0) {
+      // Move products to first other category
+      const otherCat = categories.find((c) => c.id !== id);
+      if (otherCat) {
+        await moveProductsToCategory(id, otherCat.id);
+        setProducts(
+          products.map((p) =>
+            p.category_id === id ? { ...p, category_id: otherCat.id } : p
+          )
+        );
+      } else {
+        // No other category — delete products first
+        for (const p of catProducts) {
+          await deleteProduct(p.id);
+        }
+        setProducts(products.filter((p) => p.category_id !== id));
+      }
+    }
+
     const ok = await deleteCategory(id);
     if (ok) {
       setCategories(categories.filter((c) => c.id !== id));
-      setProducts(products.filter((p) => p.category_id !== id));
-      if (selectedCatId === id) {
-        setSelectedCatId(categories.find((c) => c.id !== id)?.id ?? "");
-      }
+      setCatDeleteConfirm(null);
     }
   }
 
-  async function addProduct() {
-    if (!prodName.trim() || !prodPrice || !selectedCatId) return;
-    const price = Number(prodPrice.replace(",", "."));
-    if (isNaN(price)) return;
+  // ---- Product handlers ----
+
+  function openAddForm(catId: string) {
+    setOpenAddFor(catId);
+    setProdForms((prev) => ({
+      ...prev,
+      [catId]: { name: "", desc: "", price: "", imageUrl: "" },
+    }));
+  }
+
+  function updateProdForm(catId: string, field: string, value: string) {
+    setProdForms((prev) => ({
+      ...prev,
+      [catId]: { ...prev[catId], [field]: value },
+    }));
+  }
+
+  async function addProduct(catId: string) {
+    const form = prodForms[catId];
+    if (!form?.name.trim() || !form.price) return;
+    const price = Number(form.price.replace(",", "."));
+    if (isNaN(price) || price <= 0) return;
+
+    const sort = products.filter((p) => p.category_id === catId).length;
 
     const prod = await createProduct({
       restaurant_id: restaurant.id,
-      category_id: selectedCatId,
-      name: prodName,
-      description: prodDesc,
+      category_id: catId,
+      name: form.name,
+      description: form.desc,
       price,
-      image_url: prodImageUrl,
+      image_url: form.imageUrl,
       available: true,
-      sort_order: products.filter((p) => p.category_id === selectedCatId).length,
+      sort_order: sort,
     });
 
     if (prod) {
       setProducts([...products, prod]);
-      setProdName("");
-      setProdDesc("");
-      setProdPrice("");
-      setProdImageUrl("");
+      setOpenAddFor(null);
+      setProdForms((prev) => {
+        const next = { ...prev };
+        delete next[catId];
+        return next;
+      });
     }
   }
 
   async function saveProduct(id: string) {
     const price = Number(editProd.price.replace(",", "."));
+    if (isNaN(price)) return;
+
     const ok = await updateProduct(id, {
       name: editProd.name,
       description: editProd.description,
       price,
       image_url: editProd.image_url,
     });
+
     if (ok) {
       setProducts(
         products.map((p) =>
@@ -146,8 +207,8 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                 price,
                 image_url: editProd.image_url,
               }
-            : p,
-        ),
+            : p
+        )
       );
       setEditingProdId(null);
     }
@@ -157,9 +218,38 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
     const ok = await updateProduct(id, { available });
     if (ok) {
       setProducts(
-        products.map((p) => (p.id === id ? { ...p, available } : p)),
+        products.map((p) => (p.id === id ? { ...p, available } : p))
       );
     }
+  }
+
+  async function moveProduct(id: string, direction: "up" | "down") {
+    const catId = products.find((p) => p.id === id)?.category_id;
+    if (!catId) return;
+
+    const sorted = products
+      .filter((p) => p.category_id === catId)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const idx = sorted.findIndex((p) => p.id === id);
+    if (idx === -1) return;
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === sorted.length - 1) return;
+
+    const swap = direction === "up" ? idx - 1 : idx + 1;
+    const tempOrder = sorted[idx].sort_order;
+    sorted[idx] = { ...sorted[idx], sort_order: sorted[swap].sort_order };
+    sorted[swap] = { ...sorted[swap], sort_order: tempOrder };
+
+    // Update local state for all products in this category
+    setProducts((prev) =>
+      prev.map((p) => {
+        const updated = sorted.find((s) => s.id === p.id);
+        if (updated) return { ...p, sort_order: updated.sort_order };
+        return p;
+      })
+    );
+
+    await reorderProducts(sorted.map((p) => p.id));
   }
 
   async function removeProduct(id: string) {
@@ -178,316 +268,389 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
     );
   }
 
-  const selectedProducts = products.filter(
-    (p) => p.category_id === selectedCatId,
+  const sorted = [...categories].sort(
+    (a, b) => a.sort_order - b.sort_order
   );
 
   return (
     <div className="space-y-4">
-      {/* View toggle */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setView("categories")}
-          className={`flex-1 rounded-lg py-2 text-xs font-semibold ${
-            view === "categories"
-              ? "bg-cyan-600 text-white"
-              : "bg-gray-800 text-gray-400"
-          }`}
-        >
-          Categorias ({categories.length})
-        </button>
-        <button
-          onClick={() => setView("products")}
-          className={`flex-1 rounded-lg py-2 text-xs font-semibold ${
-            view === "products"
-              ? "bg-cyan-600 text-white"
-              : "bg-gray-800 text-gray-400"
-          }`}
-        >
-          Produtos ({products.length})
-        </button>
+      {/* Add category row */}
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+          Categorias do cardápio
+        </p>
+        <div className="flex gap-2">
+          <input
+            className={field + " flex-1"}
+            placeholder="Nova categoria"
+            value={newCatName}
+            onChange={(e) => setNewCatName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addCategory()}
+          />
+          <button
+            onClick={addCategory}
+            className="grid size-10 shrink-0 place-items-center rounded-lg bg-cyan-600 text-white hover:bg-cyan-500"
+            aria-label="Adicionar categoria"
+          >
+            <Plus className="size-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Categories view */}
-      {view === "categories" && (
-        <div className="space-y-3">
-          {/* Add category */}
-          <div className="flex gap-2">
-            <input
-              className={field}
-              placeholder="Nova categoria"
-              value={newCatName}
-              onChange={(e) => setNewCatName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addCategory()}
-            />
-            <button
-              onClick={addCategory}
-              className="grid size-10 shrink-0 place-items-center rounded-lg bg-cyan-600 text-white hover:bg-cyan-500"
-              aria-label="Adicionar categoria"
-            >
-              <Plus className="size-4" />
-            </button>
-          </div>
+      {/* Categories as sections */}
+      {sorted.map((cat, catIndex) => {
+        const catProducts = products
+          .filter((p) => p.category_id === cat.id)
+          .sort((a, b) => a.sort_order - b.sort_order);
+        const isAdding = openAddFor === cat.id;
+        const isEditing = editingCatId === cat.id;
+        const isDeleting = catDeleteConfirm === cat.id;
+        const form = prodForms[cat.id];
 
-          {categories.length === 0 && (
-            <p className="py-6 text-center text-xs text-gray-500">
-              Nenhuma categoria. Crie uma para começar.
-            </p>
-          )}
+        return (
+          <div
+            key={cat.id}
+            className="overflow-hidden rounded-xl border border-cyan-500/20 bg-white/[0.02]"
+          >
+            {/* Category header */}
+            <div className="flex items-center gap-3 border-b border-cyan-500/10 bg-cyan-500/[0.05] px-4 py-3">
+              <GripVertical className="size-4 shrink-0 text-gray-700" />
 
-          {categories.map((c) => {
-            const count = products.filter(
-              (p) => p.category_id === c.id,
-            ).length;
-            return (
-              <div
-                key={c.id}
-                className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-black/40 p-3"
-              >
-                <GripVertical className="size-4 shrink-0 text-gray-700" />
-                {editingCatId === c.id ? (
-                  <>
-                    <input
-                      className={field + " flex-1"}
-                      value={editCatName}
-                      onChange={(e) => setEditCatName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && saveCategory(c.id)}
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => saveCategory(c.id)}
-                      aria-label="Salvar"
-                    >
-                      <Check className="size-4 text-green-400" />
-                    </button>
-                    <button
-                      onClick={() => setEditingCatId(null)}
-                      aria-label="Cancelar"
-                    >
-                      <X className="size-4 text-gray-400" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span className="flex-1 text-sm font-semibold text-white">
-                      {c.name}
-                    </span>
-                    <span className="text-[10px] text-gray-500">
-                      {count} {count === 1 ? "item" : "itens"}
-                    </span>
-                    <button
-                      onClick={() => {
-                        setEditingCatId(c.id);
-                        setEditCatName(c.name);
-                      }}
-                      aria-label="Editar"
-                    >
-                      <Pencil className="size-3 text-gray-400" />
-                    </button>
-                    <button
-                      onClick={() => removeCategory(c.id)}
-                      aria-label="Excluir"
-                    >
-                      <Trash2 className="size-3 text-red-500" />
-                    </button>
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+              {isEditing ? (
+                <div className="flex flex-1 items-center gap-2">
+                  <input
+                    className={field + " flex-1"}
+                    value={editCatName}
+                    onChange={(e) => setEditCatName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && saveCategory(cat.id)}
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => saveCategory(cat.id)}
+                    className="grid size-8 place-items-center rounded-lg hover:bg-green-500/20"
+                    aria-label="Salvar"
+                  >
+                    <Check className="size-4 text-green-400" />
+                  </button>
+                  <button
+                    onClick={() => setEditingCatId(null)}
+                    className="grid size-8 place-items-center rounded-lg hover:bg-gray-500/20"
+                    aria-label="Cancelar"
+                  >
+                    <X className="size-4 text-gray-400" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <h3 className="flex-1 text-sm font-bold text-white uppercase tracking-wide">
+                    {cat.name}
+                  </h3>
+                  <span className="text-[10px] text-gray-500">
+                    {catProducts.length}{" "}
+                    {catProducts.length === 1 ? "item" : "itens"}
+                  </span>
 
-      {/* Products view */}
-      {view === "products" && (
-        <div className="space-y-3">
-          {/* Category filter */}
-          <div className="flex gap-2 overflow-x-auto">
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedCatId(c.id)}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-semibold ${
-                  selectedCatId === c.id
-                    ? "bg-cyan-600 text-white"
-                    : "bg-gray-800 text-gray-400"
-                }`}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
+                  {/* Move buttons */}
+                  <button
+                    onClick={() => moveCategory(cat.id, "up")}
+                    disabled={catIndex === 0}
+                    className="grid size-7 place-items-center rounded text-gray-500 hover:text-white disabled:opacity-30"
+                    aria-label="Mover para cima"
+                  >
+                    <ArrowUp className="size-3" />
+                  </button>
+                  <button
+                    onClick={() => moveCategory(cat.id, "down")}
+                    disabled={catIndex === sorted.length - 1}
+                    className="grid size-7 place-items-center rounded text-gray-500 hover:text-white disabled:opacity-30"
+                    aria-label="Mover para baixo"
+                  >
+                    <ArrowDown className="size-3" />
+                  </button>
 
-          {/* Add product */}
-          {selectedCatId && (
-            <div className="rounded-lg border border-dashed border-cyan-500/30 p-3 space-y-2">
-              <input
-                className={field}
-                placeholder="Nome do produto"
-                value={prodName}
-                onChange={(e) => setProdName(e.target.value)}
-              />
-              <input
-                className={field}
-                placeholder="Descrição (opcional)"
-                value={prodDesc}
-                onChange={(e) => setProdDesc(e.target.value)}
-              />
-              <div className="flex gap-2">
-                <input
-                  className={field + " flex-1"}
-                  placeholder="Preço (R$)"
-                  inputMode="decimal"
-                  value={prodPrice}
-                  onChange={(e) => setProdPrice(e.target.value)}
-                />
-                <input
-                  className={field + " flex-1"}
-                  placeholder="URL da imagem (opcional)"
-                  value={prodImageUrl}
-                  onChange={(e) => setProdImageUrl(e.target.value)}
-                />
-              </div>
-              <button
-                onClick={addProduct}
-                disabled={!prodName.trim() || !prodPrice}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-600 py-2 text-xs font-bold text-white hover:bg-cyan-500 disabled:opacity-50"
-              >
-                <Plus className="size-3" /> Adicionar produto
-              </button>
+                  {/* Edit */}
+                  <button
+                    onClick={() => {
+                      setEditingCatId(cat.id);
+                      setEditCatName(cat.name);
+                    }}
+                    className="grid size-7 place-items-center rounded text-gray-500 hover:text-white"
+                    aria-label="Editar categoria"
+                  >
+                    <Pencil className="size-3" />
+                  </button>
+
+                  {/* Delete */}
+                  {isDeleting ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => removeCategory(cat.id)}
+                        className="rounded bg-red-500 px-2 py-1 text-[10px] font-bold text-white hover:bg-red-400"
+                      >
+                        Confirmar
+                      </button>
+                      <button
+                        onClick={() => setCatDeleteConfirm(null)}
+                        className="rounded bg-gray-800 px-2 py-1 text-[10px] font-bold text-gray-400 hover:text-white"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setCatDeleteConfirm(cat.id)}
+                      className="grid size-7 place-items-center rounded text-gray-500 hover:text-red-400"
+                      aria-label="Excluir categoria"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  )}
+                </>
+              )}
             </div>
-          )}
 
-          {/* Product list */}
-          {selectedProducts.map((p) => (
-            <div
-              key={p.id}
-              className={`rounded-lg border p-3 ${
-                p.available
-                  ? "border-cyan-500/20 bg-black/40"
-                  : "border-gray-700 bg-black/20 opacity-60"
-              }`}
-            >
-              {editingProdId === p.id ? (
-                <div className="space-y-2">
+            {/* Add product button / form */}
+            <div className="px-4 pt-3">
+              {isAdding ? (
+                <div className="rounded-lg border border-dashed border-cyan-500/30 p-3 space-y-2">
                   <input
                     className={field}
-                    value={editProd.name}
+                    placeholder="Nome do produto"
+                    value={form?.name ?? ""}
                     onChange={(e) =>
-                      setEditProd({ ...editProd, name: e.target.value })
+                      updateProdForm(cat.id, "name", e.target.value)
                     }
+                    autoFocus
                   />
                   <input
                     className={field}
-                    value={editProd.description}
+                    placeholder="Descrição (opcional)"
+                    value={form?.desc ?? ""}
                     onChange={(e) =>
-                      setEditProd({ ...editProd, description: e.target.value })
+                      updateProdForm(cat.id, "desc", e.target.value)
                     }
                   />
                   <div className="flex gap-2">
                     <input
                       className={field + " flex-1"}
-                      value={editProd.price}
+                      placeholder="Preço (R$)"
+                      inputMode="decimal"
+                      value={form?.price ?? ""}
                       onChange={(e) =>
-                        setEditProd({ ...editProd, price: e.target.value })
+                        updateProdForm(cat.id, "price", e.target.value)
                       }
                     />
                     <input
                       className={field + " flex-1"}
-                      value={editProd.image_url}
+                      placeholder="URL da imagem"
+                      value={form?.imageUrl ?? ""}
                       onChange={(e) =>
-                        setEditProd({ ...editProd, image_url: e.target.value })
+                        updateProdForm(cat.id, "imageUrl", e.target.value)
                       }
                     />
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => saveProduct(p.id)}
-                      className="flex-1 rounded-lg bg-green-600 py-1.5 text-xs font-bold text-white"
+                      onClick={() => addProduct(cat.id)}
+                      disabled={!form?.name.trim() || !form?.price}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-cyan-600 py-2 text-xs font-bold text-white hover:bg-cyan-500 disabled:opacity-50"
                     >
-                      Salvar
+                      <Plus className="size-3" /> Adicionar produto
                     </button>
                     <button
-                      onClick={() => setEditingProdId(null)}
-                      className="flex-1 rounded-lg bg-gray-800 py-1.5 text-xs font-bold text-gray-400"
+                      onClick={() => setOpenAddFor(null)}
+                      className="rounded-lg bg-gray-800 px-4 py-2 text-xs font-bold text-gray-400 hover:text-white"
                     >
                       Cancelar
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  {p.image_url ? (
-                    <img
-                      src={p.image_url}
-                      alt={p.name}
-                      className="size-12 shrink-0 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="size-12 shrink-0 rounded-lg bg-gray-800" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-white">
-                      {p.name}
-                    </p>
-                    {p.description && (
-                      <p className="truncate text-[10px] text-gray-500">
-                        {p.description}
-                      </p>
-                    )}
-                    <p className="text-xs font-bold text-cyan-400">
-                      {brl(p.price)}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-col gap-1">
-                    <button
-                      onClick={() => toggleAvailability(p.id, !p.available)}
-                      className={`rounded px-2 py-0.5 text-[9px] font-bold ${
-                        p.available
-                          ? "bg-green-500/20 text-green-300"
-                          : "bg-gray-700 text-gray-500"
-                      }`}
-                    >
-                      {p.available ? "ATIVO" : "OFF"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingProdId(p.id);
-                        setEditProd({
-                          name: p.name,
-                          description: p.description,
-                          price: String(p.price),
-                          image_url: p.image_url,
-                        });
-                      }}
-                      className="text-[9px] text-gray-400 hover:text-white"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => removeProduct(p.id)}
-                      className="text-[9px] text-red-400 hover:text-red-300"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </div>
+                <button
+                  onClick={() => openAddForm(cat.id)}
+                  className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-cyan-500/30 py-2 text-[11px] font-semibold text-cyan-400 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/5"
+                >
+                  <Plus className="size-3" /> Adicionar produto
+                </button>
               )}
             </div>
-          ))}
 
-          {selectedCatId && selectedProducts.length === 0 && (
-            <p className="py-6 text-center text-xs text-gray-500">
-              Nenhum produto nesta categoria
-            </p>
-          )}
+            {/* Product list */}
+            <div className="space-y-2 px-4 pb-4">
+              {catProducts.length === 0 && !isAdding && (
+                <p className="py-4 text-center text-[11px] text-gray-600">
+                  Nenhum produto nesta categoria
+                </p>
+              )}
 
-          {!selectedCatId && (
-            <p className="py-6 text-center text-xs text-gray-500">
-              Selecione uma categoria
-            </p>
-          )}
-        </div>
+              {catProducts.map((p, prodIndex) => {
+                const isProdEditing = editingProdId === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    className={`rounded-lg border transition-all ${
+                      p.available
+                        ? "border-cyan-500/10 bg-black/30"
+                        : "border-gray-800 bg-black/10 opacity-50"
+                    }`}
+                  >
+                    {isProdEditing ? (
+                      <div className="space-y-2 p-3">
+                        <input
+                          className={field}
+                          value={editProd.name}
+                          onChange={(e) =>
+                            setEditProd({ ...editProd, name: e.target.value })
+                          }
+                          placeholder="Nome do produto"
+                        />
+                        <input
+                          className={field}
+                          value={editProd.description}
+                          onChange={(e) =>
+                            setEditProd({
+                              ...editProd,
+                              description: e.target.value,
+                            })
+                          }
+                          placeholder="Descrição"
+                        />
+                        <div className="flex gap-2">
+                          <input
+                            className={field + " flex-1"}
+                            value={editProd.price}
+                            onChange={(e) =>
+                              setEditProd({ ...editProd, price: e.target.value })
+                            }
+                            placeholder="Preço"
+                          />
+                          <input
+                            className={field + " flex-1"}
+                            value={editProd.image_url}
+                            onChange={(e) =>
+                              setEditProd({
+                                ...editProd,
+                                image_url: e.target.value,
+                              })
+                            }
+                            placeholder="URL da imagem"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => saveProduct(p.id)}
+                            className="flex-1 rounded-lg bg-green-600 py-1.5 text-xs font-bold text-white hover:bg-green-500"
+                          >
+                            Salvar
+                          </button>
+                          <button
+                            onClick={() => setEditingProdId(null)}
+                            className="flex-1 rounded-lg bg-gray-800 py-1.5 text-xs font-bold text-gray-400 hover:text-white"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3">
+                        {p.image_url ? (
+                          <img
+                            src={p.image_url}
+                            alt={p.name}
+                            className="size-11 shrink-0 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="size-11 shrink-0 rounded-lg bg-gray-800/60" />
+                        )}
+
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-white">
+                            {p.name}
+                          </p>
+                          {p.description && (
+                            <p className="truncate text-[11px] text-gray-500">
+                              {p.description}
+                            </p>
+                          )}
+                          <p className="mt-0.5 text-xs font-bold text-cyan-400">
+                            {brl(p.price)}
+                          </p>
+                        </div>
+
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <button
+                            onClick={() =>
+                              toggleAvailability(p.id, !p.available)
+                            }
+                            className={`rounded px-2 py-0.5 text-[9px] font-bold ${
+                              p.available
+                                ? "bg-green-500/20 text-green-300"
+                                : "bg-gray-700 text-gray-500"
+                            }`}
+                          >
+                            {p.available ? "ATIVO" : "OFF"}
+                          </button>
+
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              onClick={() => moveProduct(p.id, "up")}
+                              disabled={prodIndex === 0}
+                              className="grid size-5 place-items-center text-gray-600 hover:text-white disabled:opacity-30"
+                              aria-label="Mover para cima"
+                            >
+                              <ArrowUp className="size-2.5" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                moveProduct(p.id, "down")
+                              }
+                              disabled={
+                                prodIndex === catProducts.length - 1
+                              }
+                              className="grid size-5 place-items-center text-gray-600 hover:text-white disabled:opacity-30"
+                              aria-label="Mover para baixo"
+                            >
+                              <ArrowDown className="size-2.5" />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingProdId(p.id);
+                                setEditProd({
+                                  name: p.name,
+                                  description: p.description,
+                                  price: String(p.price),
+                                  image_url: p.image_url,
+                                });
+                              }}
+                              className="text-[9px] text-gray-400 hover:text-white"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => removeProduct(p.id)}
+                              className="text-[9px] text-red-400 hover:text-red-300"
+                            >
+                              Excluir
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {sorted.length === 0 && (
+        <p className="py-10 text-center text-xs text-gray-500">
+          Nenhuma categoria. Crie uma para começar.
+        </p>
       )}
     </div>
   );

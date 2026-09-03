@@ -24,7 +24,7 @@ import { Route as AdminPedidosRouteImport } from './routes/admin.pedidos'
 import { Route as AdminRestaurantesRouteImport } from './routes/admin.restaurantes'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
-import { Route as RestaurantSlugRouteImport } from './routes/restaurant.$slug'
+import { Route as CardapioSlugRouteImport } from './routes/cardapio.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -101,9 +101,9 @@ const PedidoOrderIdRoute = PedidoOrderIdRouteImport.update({
   path: '/pedido/$orderId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RestaurantSlugRoute = RestaurantSlugRouteImport.update({
-  id: '/restaurant/$slug',
-  path: '/restaurant/$slug',
+const CardapioSlugRoute = CardapioSlugRouteImport.update({
+  id: '/cardapio/$slug',
+  path: '/cardapio/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -122,7 +122,7 @@ export interface FileRoutesByFullPath {
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/pedido/$orderId': typeof PedidoOrderIdRoute
-  '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/cardapio/$slug': typeof CardapioSlugRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -139,7 +139,7 @@ export interface FileRoutesByTo {
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/pedido/$orderId': typeof PedidoOrderIdRoute
-  '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/cardapio/$slug': typeof CardapioSlugRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -157,7 +157,7 @@ export interface FileRoutesById {
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/pedido/$orderId': typeof PedidoOrderIdRoute
-  '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/cardapio/$slug': typeof CardapioSlugRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -177,7 +177,7 @@ export interface FileRouteTypes {
     | '/admin/restaurantes'
     | '/auth/callback'
     | '/pedido/$orderId'
-    | '/restaurant/$slug'
+    | '/cardapio/$slug'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -194,7 +194,7 @@ export interface FileRouteTypes {
     | '/admin/restaurantes'
     | '/auth/callback'
     | '/pedido/$orderId'
-    | '/restaurant/$slug'
+    | '/cardapio/$slug'
     | '/admin'
   id:
     | '__root__'
@@ -212,7 +212,7 @@ export interface FileRouteTypes {
     | '/admin/restaurantes'
     | '/auth/callback'
     | '/pedido/$orderId'
-    | '/restaurant/$slug'
+    | '/cardapio/$slug'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -226,7 +226,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   PedidoOrderIdRoute: typeof PedidoOrderIdRoute
-  RestaurantSlugRoute: typeof RestaurantSlugRoute
+  CardapioSlugRoute: typeof CardapioSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -336,13 +336,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PedidoOrderIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/restaurant/$slug': {
-      id: '/restaurant/$slug'
-      path: '/restaurant/$slug'
-      fullPath: '/restaurant/$slug'
-      preLoaderRoute: typeof RestaurantSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+  '/cardapio/$slug': {
+    id: '/cardapio/$slug'
+    path: '/cardapio/$slug'
+    fullPath: '/cardapio/$slug'
+    preLoaderRoute: typeof CardapioSlugRouteImport
+    parentRoute: typeof rootRouteImport
+  }
   }
 }
 
@@ -376,7 +376,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   PedidoOrderIdRoute: PedidoOrderIdRoute,
-  RestaurantSlugRoute: RestaurantSlugRoute,
+  CardapioSlugRoute: CardapioSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

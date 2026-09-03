@@ -75,32 +75,30 @@ export function RestaurantManager({
         placeholder="Nome do restaurante"
         value={name}
         onChange={(e) => setName(e.target.value)}
-      />
-
-      <div>
-        <label className="mb-1 block text-[10px] text-gray-500">
-          Identificador (slug)
-        </label>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">/r/</span>
-          <input
-            className={field + " flex-1"}
-            value={slug}
-            onChange={(e) =>
-              setSlug(
-                e.target.value
-                  .toLowerCase()
-                  .replace(/[^a-z0-9-]/g, ""),
-              )
-            }
-          />
+      />        <div>
+          <label className="mb-1 block text-[10px] text-gray-500">
+            Identificador (slug)
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">/cardapio/</span>
+            <input
+              className={field + " flex-1"}
+              value={slug}
+              onChange={(e) =>
+                setSlug(
+                  e.target.value
+                    .toLowerCase()
+                    .replace(/[^a-z0-9-]/g, ""),
+                )
+              }
+            />
+          </div>
+          <p className="mt-1 text-[10px] text-cyan-400">
+            {typeof window !== "undefined"
+              ? `${window.location.origin}/cardapio/${slug}`
+              : `/cardapio/${slug}`}
+          </p>
         </div>
-        <p className="mt-1 text-[10px] text-cyan-400">
-          {typeof window !== "undefined"
-            ? `${window.location.origin}/r/${slug}`
-            : `/r/${slug}`}
-        </p>
-      </div>
 
       <textarea
         className={field}

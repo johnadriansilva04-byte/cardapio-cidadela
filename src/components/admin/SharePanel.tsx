@@ -7,8 +7,8 @@ export function SharePanel({ restaurant }: { restaurant: Restaurant }) {
 
   const publicUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/r/${restaurant.slug}`
-      : `/r/${restaurant.slug}`;
+      ? `${window.location.origin}/cardapio/${restaurant.slug}`
+      : `/cardapio/${restaurant.slug}`;
 
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
 

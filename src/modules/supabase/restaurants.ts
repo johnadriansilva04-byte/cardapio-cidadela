@@ -61,7 +61,29 @@ export async function createRestaurant(
     console.error("Error creating restaurant:", error);
     return null;
   }
+
+  // Seed default categories for the new restaurant
+  if (data) {
+    await seedDefaultCategories(data.id);
+  }
+
   return data as Restaurant;
+}
+
+/**
+ * Seed default categories for a new restaurant
+ */
+async function seedDefaultCategories(restaurantId: string): Promise<void> {
+  const defaultNames = ["Lanches", "Combos", "Bebidas"];
+  const rows = defaultNames.map((name, index) => ({
+    restaurant_id: restaurantId,
+    name,
+    sort_order: index,
+  }));
+  const { error } = await supabase.from("categories").insert(rows);
+  if (error) {
+    console.error("Error seeding default categories:", error);
+  }
 }
 
 /**

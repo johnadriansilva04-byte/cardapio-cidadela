@@ -280,16 +280,16 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
       {/* Categories sticky bar */}
       <div className="sticky top-0 z-20 border-b border-cyan-500/20 bg-black/90 backdrop-blur">
-        <div className="flex gap-2 overflow-x-auto px-4 py-3">
+        <div className="mx-auto flex max-w-xl gap-2 overflow-x-auto px-4 py-2">
           {categories.map((c) => {
-            const catProducts = products.filter((p) => p.category_id === c.id);
+            const catProducts = products.filter((p) => p.category_id === c.id && p.available);
             return (
               <button
                 key={c.id}
                 onClick={() => scrollToCat(c.id)}
-                className={`shrink-0 rounded-full px-4 py-2 text-[11px] font-semibold transition-all ${
+                className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-semibold transition-all ${
                   activeCat === c.id
-                    ? "border border-cyan-500 bg-cyan-600 text-white shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+                    ? "border border-cyan-500 bg-cyan-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.4)]"
                     : "border border-cyan-500/30 bg-black/50 text-gray-400 hover:bg-cyan-500/10"
                 }`}
               >
@@ -305,7 +305,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         <div className="mx-auto max-w-xl">
           {categories.map((cat) => {
             const catProducts = products.filter(
-              (p) => p.category_id === cat.id,
+              (p) => p.category_id === cat.id && p.available,
             );
             if (catProducts.length === 0) return null;
 
@@ -315,9 +315,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                 ref={(el) => {
                   sectionsRef.current[cat.id] = el;
                 }}
-                className="scroll-mt-20 pt-6"
+                className="scroll-mt-16 pt-5"
               >
-                <h2 className="mb-4 text-lg font-bold text-white">
+                <h2 className="mb-3 text-base font-bold text-white uppercase tracking-wide">
                   {cat.name}
                 </h2>
                 <div className="space-y-3">

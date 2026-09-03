@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import PublicMenu from "@/components/cardapio/Cardapio";
 
-export const Route = createFileRoute("/restaurant/$slug")({
+export const Route = createFileRoute("/cardapio/$slug")({
   head: () => ({
     meta: [
       { title: "Cardápio Digital" },
@@ -11,10 +11,10 @@ export const Route = createFileRoute("/restaurant/$slug")({
       },
     ],
   }),
-  component: RestaurantPage,
+  component: CardapioPublicPage,
 });
 
-function RestaurantPage() {
+function CardapioPublicPage() {
   const { slug } = Route.useParams();
   return <PublicMenu slug={slug} />;
 }

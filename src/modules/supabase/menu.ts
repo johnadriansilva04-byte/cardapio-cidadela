@@ -109,6 +109,69 @@ export async function deleteCategory(id: string): Promise<boolean> {
 }
 
 /**
+ * Move all products from one category to another
+ */
+export async function moveProductsToCategory(
+  fromCategoryId: string,
+  toCategoryId: string,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from("products")
+    .update({ category_id: toCategoryId })
+    .eq("category_id", fromCategoryId);
+
+  if (error) {
+    console.error("Error moving products:", error);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Update sort_order for categories in batch
+ */
+export async function reorderCategories(
+  ids: string[],
+): Promise<boolean> {
+  const updates = ids.map((id, index) =>
+    supabase
+      .from("categories")
+      .update({ sort_order: index })
+      .eq("id", id),
+  );
+
+  const results = await Promise.all(updates);
+  const hasError = results.some((r) => r.error);
+  if (hasError) {
+    console.error("Error reordering categories");
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Update sort_order for products in batch
+ */
+export async function reorderProducts(
+  ids: string[],
+): Promise<boolean> {
+  const updates = ids.map((id, index) =>
+    supabase
+      .from("products")
+      .update({ sort_order: index })
+      .eq("id", id),
+  );
+
+  const results = await Promise.all(updates);
+  const hasError = results.some((r) => r.error);
+  if (hasError) {
+    console.error("Error reordering products");
+    return false;
+  }
+  return true;
+}
+
+/**
  * Get products for a category
  */
 export async function getProducts(

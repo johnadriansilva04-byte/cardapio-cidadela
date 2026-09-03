@@ -65,7 +65,7 @@ function RestaurantesPage() {
   }
 
   function copyLink(slug: string) {
-    const url = `${window.location.origin}/r/${slug}`;
+    const url = `${window.location.origin}/cardapio/${slug}`;
     navigator.clipboard.writeText(url);
     setCopied(slug);
     setTimeout(() => setCopied(null), 2000);
@@ -132,7 +132,7 @@ function RestaurantesPage() {
                   URL do cardápio
                 </p>
                 <p className="mt-1 text-sm text-cyan-400 font-mono">
-                  {window.location.origin}/r/{slugPreview}
+                  {window.location.origin}/cardapio/{slugPreview}
                 </p>
               </div>
             )}
@@ -201,7 +201,7 @@ function RestaurantesPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-base font-semibold text-white">{r.name}</p>
                   <p className="mt-0.5 text-xs text-gray-500 font-mono">
-                    /r/{r.slug}
+                    /cardapio/{r.slug}
                   </p>
                 </div>
 
@@ -235,7 +235,7 @@ function RestaurantesPage() {
                   </button>
 
                   <a
-                    href={`/r/${r.slug}`}
+                    href={`/cardapio/${r.slug}`}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded-lg border border-white/10 p-2 text-gray-500 transition-colors hover:border-cyan-500/30 hover:text-cyan-400"

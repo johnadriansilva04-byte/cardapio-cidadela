@@ -261,20 +261,34 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Se a tabela já existe mas faltam colunas, adiciona
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'owner';
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own profile"
-  ON profiles FOR SELECT
-  USING (auth.uid() = id);
+-- Só cria as policies se ainda não existirem
+DO $$ BEGIN
+  CREATE POLICY "Users can view own profile"
+    ON profiles FOR SELECT
+    USING (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Users can update own profile"
-  ON profiles FOR UPDATE
-  USING (auth.uid() = id);
+DO $$ BEGIN
+  CREATE POLICY "Users can update own profile"
+    ON profiles FOR UPDATE
+    USING (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Allow profile creation"
-  ON profiles FOR INSERT
-  WITH CHECK (auth.uid() = id);
+DO $$ BEGIN
+  CREATE POLICY "Allow profile creation"
+    ON profiles FOR INSERT
+    WITH CHECK (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================================
 -- ROW LEVEL SECURITY (optional — enable as needed)

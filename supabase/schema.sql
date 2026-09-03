@@ -359,12 +359,18 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 SELECT drop_policies_if_exist('categories');
 CREATE POLICY "owner_categories" ON categories FOR ALL
   USING (is_restaurant_owner(restaurant_id));
+-- Público lê categorias de restaurantes publicados
+CREATE POLICY "public_read_categories" ON categories FOR SELECT
+  USING (restaurant_id IN (SELECT id FROM restaurants WHERE status = 'published'));
 
 -- PRODUCTS
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 SELECT drop_policies_if_exist('products');
 CREATE POLICY "owner_products" ON products FOR ALL
   USING (is_restaurant_owner(restaurant_id));
+-- Público lê produtos de restaurantes publicados
+CREATE POLICY "public_read_products" ON products FOR SELECT
+  USING (restaurant_id IN (SELECT id FROM restaurants WHERE status = 'published'));
 
 -- ORDERS
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
@@ -397,3 +403,126 @@ ALTER TABLE cidadela_unlocks ENABLE ROW LEVEL SECURITY;
 SELECT drop_policies_if_exist('cidadela_unlocks');
 CREATE POLICY "owner_cidadela" ON cidadela_unlocks FOR ALL
   USING (is_restaurant_owner(restaurant_id));
+
+-- ============================================================
+-- CARDÁPIO PRÉ-PROGRAMADO
+-- Roda uma vez só. Se já existir, não duplica.
+-- ============================================================
+DO $$
+DECLARE
+  rest_id UUID;
+  cat_lanches UUID;
+  cat_bebidas UUID;
+  cat_combos UUID;
+BEGIN
+  -- Só cria se não existir nenhum restaurante ainda
+  IF EXISTS (SELECT 1 FROM restaurants LIMIT 1) THEN
+    RAISE NOTICE 'Restaurantes já existem, pulando seed.';
+    RETURN;
+  END IF;
+
+  -- Criar restaurante
+  INSERT INTO restaurants (
+    owner_id, name, slug, description, status,
+    primary_color, secondary_color
+  ) VALUES (
+    'seed_owner', 'Meu Restaurante', 'meu-restaurante',
+    'Cardápio digital', 'published',
+    '#06b6d4', '#8b5cf6'
+  ) RETURNING id INTO rest_id;
+
+  -- Criar categorias
+  INSERT INTO categories (restaurant_id, name, sort_order) VALUES
+    (rest_id, 'Lanches', 0),
+    (rest_id, 'Bebidas', 1),
+    (rest_id, 'Combos', 2)
+  RETURNING id INTO cat_lanches, cat_bebidas, cat_combos;
+
+  -- se só retornou 1 linha, ajusta
+  IF cat_bebidas IS NULL THEN
+    SELECT id INTO cat_bebidas FROM categories
+      WHERE restaurant_id = rest_id AND name = 'Bebidas';
+    SELECT id INTO cat_combos FROM categories
+      WHERE restaurant_id = rest_id AND name = 'Combos';
+  END IF;
+
+  -- LANCHES
+  INSERT INTO products (restaurant_id, category_id, name, description, price, sort_order) VALUES
+    (rest_id, cat_lanches, 'X-Burger', 'Pão, hambúrguer, queijo, alface e tomate', 18.90, 0),
+    (rest_id, cat_lanches, 'X-Bacon', 'Pão, hambúrguer, queijo, bacon crocante', 21.90, 1),
+    (rest_id, cat_lanches, 'X-Tudo', 'Hambúrguer duplo, queijo, bacon, ovo, presunto', 28.90, 2),
+    (rest_id, cat_lanches, 'Frango Grelhado', 'Peito de frango grelhado com salada', 22.90, 3),
+    (rest_id, cat_lanches, 'Hot Dog Especial', 'Salsicha, purê, milho, batata palha', 16.90, 4);
+
+  -- BEBIDAS
+  INSERT INTO products (restaurant_id, category_id, name, description, price, sort_order) VALUES
+    (rest_id, cat_bebidas, 'Coca-Cola Lata', '350ml gelada', 5.90, 0),
+    (rest_id, cat_bebidas, 'Guaraná Lata', '350ml gelada', 5.90, 1),
+    (rest_id, cat_bebidas, 'Água Mineral', '500ml sem gás', 3.90, 2),
+    (rest_id, cat_bebidas, 'Suco Natural', 'Laranja ou limão 400ml', 7.90, 3),
+    (rest_id, cat_bebidas, 'Cerveja Lata', 'Brahma ou Skol 350ml', 7.90, 4);
+
+  -- COMBOS
+  INSERT INTO products (restaurant_id, category_id, name, description, price, sort_order) VALUES
+    (rest_id, cat_combos, 'Combo Burger + Refri', 'X-Burger + Coca-Cola Lata por apenas', 22.90, 0),
+    (rest_id, cat_combos, 'Combo Família', '2 X-Tudo + 2 Refris + Batata', 69.90, 1),
+    (rest_id, cat_combos, 'Combo Fome Zero', 'X-Bacon + Batata + Refri', 32.90, 2);
+
+  RAISE NOTICE 'Cardápio seed criado com sucesso! Slug: meu-restaurante';
+END
+$$;
+
+-- ============================================================
+-- Função: popular cardápio padrão num restaurante existente
+-- Uso: SELECT setup_default_menu('ID_DO_RESTAURANTE');
+-- ============================================================
+CREATE OR REPLACE FUNCTION setup_default_menu(target_restaurant_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+  cat_lanches UUID;
+  cat_bebidas UUID;
+  cat_combos UUID;
+BEGIN
+  -- Verificar se já tem categorias
+  IF EXISTS (SELECT 1 FROM categories WHERE restaurant_id = target_restaurant_id LIMIT 1) THEN
+    RETURN 'Este restaurante já tem categorias. Limpe antes de popular.';
+  END IF;
+
+  -- Criar categorias
+  INSERT INTO categories (restaurant_id, name, sort_order) VALUES
+    (target_restaurant_id, 'Lanches', 0),
+    (target_restaurant_id, 'Bebidas', 1),
+    (target_restaurant_id, 'Combos', 2);
+
+  SELECT id INTO cat_lanches FROM categories
+    WHERE restaurant_id = target_restaurant_id AND name = 'Lanches';
+  SELECT id INTO cat_bebidas FROM categories
+    WHERE restaurant_id = target_restaurant_id AND name = 'Bebidas';
+  SELECT id INTO cat_combos FROM categories
+    WHERE restaurant_id = target_restaurant_id AND name = 'Combos';
+
+  -- LANCHES
+  INSERT INTO products (restaurant_id, category_id, name, description, price, sort_order) VALUES
+    (target_restaurant_id, cat_lanches, 'X-Burger', 'Pão, hambúrguer, queijo, alface e tomate', 18.90, 0),
+    (target_restaurant_id, cat_lanches, 'X-Bacon', 'Pão, hambúrguer, queijo, bacon crocante', 21.90, 1),
+    (target_restaurant_id, cat_lanches, 'X-Tudo', 'Hambúrguer duplo, queijo, bacon, ovo, presunto', 28.90, 2),
+    (target_restaurant_id, cat_lanches, 'Frango Grelhado', 'Peito de frango grelhado com salada', 22.90, 3),
+    (target_restaurant_id, cat_lanches, 'Hot Dog Especial', 'Salsicha, purê, milho, batata palha', 16.90, 4);
+
+  -- BEBIDAS
+  INSERT INTO products (restaurant_id, category_id, name, description, price, sort_order) VALUES
+    (target_restaurant_id, cat_bebidas, 'Coca-Cola Lata', '350ml gelada', 5.90, 0),
+    (target_restaurant_id, cat_bebidas, 'Guaraná Lata', '350ml gelada', 5.90, 1),
+    (target_restaurant_id, cat_bebidas, 'Água Mineral', '500ml sem gás', 3.90, 2),
+    (target_restaurant_id, cat_bebidas, 'Suco Natural', 'Laranja ou limão 400ml', 7.90, 3),
+    (target_restaurant_id, cat_bebidas, 'Cerveja Lata', 'Brahma ou Skol 350ml', 7.90, 4);
+
+  -- COMBOS
+  INSERT INTO products (restaurant_id, category_id, name, description, price, sort_order) VALUES
+    (target_restaurant_id, cat_combos, 'Combo Burger + Refri', 'X-Burger + Coca-Cola Lata por apenas', 22.90, 0),
+    (target_restaurant_id, cat_combos, 'Combo Família', '2 X-Tudo + 2 Refris + Batata', 69.90, 1),
+    (target_restaurant_id, cat_combos, 'Combo Fome Zero', 'X-Bacon + Batata + Refri', 32.90, 2);
+
+  RETURN 'Cardápio padrão criado com sucesso!';
+END;
+$$ LANGUAGE plpgsql;

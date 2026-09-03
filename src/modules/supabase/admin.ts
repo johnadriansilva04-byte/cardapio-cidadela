@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./client";
 
+/**
+ * Legacy compatibility — now wraps the restaurants table.
+ * Kept for backward compatibility with any code referencing useAdminTrial.
+ */
+
 export interface AdminTrial {
   id: string;
   store_id: string;
@@ -18,77 +23,22 @@ export interface AdminTrial {
   premium_expires_at: string | null;
 }
 
-export function isTrialValid(trial: AdminTrial | null): boolean {
-  if (!trial) return false;
-  if (trial.is_premium) return true;
-  const now = new Date();
-  const expiresAt = new Date(trial.trial_expires_at);
-  return trial.is_active && now <= expiresAt;
+export function isTrialValid(_trial: AdminTrial | null): boolean {
+  // All accounts are now always valid (no more trial system)
+  return true;
 }
 
-export function getRemainingTrialTime(trial: AdminTrial | null): {
-  isExpired: boolean;
-  secondsRemaining: number;
-  formattedTime: string;
-} {
-  if (!trial) {
-    return { isExpired: true, secondsRemaining: 0, formattedTime: "Expirado" };
-  }
-  
-  if (trial.is_premium) {
-    if (trial.premium_expires_at) {
-      const remaining = new Date(trial.premium_expires_at).getTime() - Date.now();
-      const days = Math.max(0, Math.ceil(remaining / 86400000));
-      return {
-        isExpired: false,
-        secondsRemaining: remaining > 0 ? Math.floor(remaining / 1000) : 0,
-        formattedTime: days > 0 ? `${days} dias restantes` : "Premium",
-      };
-    }
-    return { isExpired: false, secondsRemaining: 0, formattedTime: "Premium" };
-  }
-  
-  const now = new Date();
-  const expiresAt = new Date(trial.trial_expires_at);
-  const remaining = expiresAt.getTime() - now.getTime();
-  
-  if (!trial.is_active || remaining <= 0) {
-    return { isExpired: true, secondsRemaining: 0, formattedTime: "Expirado" };
-  }
-  
-  const secondsRemaining = Math.floor(remaining / 1000);
-  const minutes = Math.floor(secondsRemaining / 60);
-  const hours = Math.floor(minutes / 60);
-  
-  if (hours > 0) {
-    return {
-      isExpired: false,
-      secondsRemaining,
-      formattedTime: `${hours}h ${minutes % 60}min restantes`,
-    };
-  }
-  
-  if (minutes > 0) {
-    return {
-      isExpired: false,
-      secondsRemaining,
-      formattedTime: `${minutes}min restantes`,
-    };
-  }
-  
+export function getRemainingTrialTime(_trial: AdminTrial | null) {
   return {
     isExpired: false,
-    secondsRemaining,
-    formattedTime: `${secondsRemaining}s restantes`,
+    secondsRemaining: 0,
+    formattedTime: "Acesso completo",
   };
 }
 
 export function useAdminTrial() {
   const [trial, setTrial] = useState<AdminTrial | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isExpired, setIsExpired] = useState(false);
-  const [daysRemaining, setDaysRemaining] = useState(0);
-  const [secondsRemaining, setSecondsRemaining] = useState(0);
 
   useEffect(() => {
     const saved = localStorage.getItem("admin_trial");
@@ -102,62 +52,19 @@ export function useAdminTrial() {
     setIsLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (!trial) {
-      setIsExpired(false);
-      setSecondsRemaining(0);
-      setDaysRemaining(0);
-      return;
-    }
-    const tick = () => {
-      const { isExpired, secondsRemaining, formattedTime } = getRemainingTrialTime(trial);
-      setIsExpired(isExpired);
-      setSecondsRemaining(secondsRemaining);
-      
-      if (trial.is_premium && trial.premium_expires_at) {
-        setDaysRemaining(
-          Math.max(
-            0,
-            Math.ceil(
-              (new Date(trial.premium_expires_at).getTime() - Date.now()) / 86400000,
-            ),
-          )
-        );
-      } else {
-        setDaysRemaining(0);
-      }
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [trial]);
-
-  function generateAdminCode(): string {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let result = "ADM-";
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }
-
-  async function createTrial(storeName: string, adminPhone: string, adminEmail: string) {
-    const trialStartedAt = new Date();
-    const trialExpiresAt = new Date(trialStartedAt.getTime() + 2 * 60 * 1000); // 2 minutos
-    const storeId = generateAdminCode();
-
+  async function createTrial(storeName: string, _adminPhone: string, adminEmail: string) {
+    // Create restaurant instead
     const { data, error } = await supabase
       .from("admin_trials")
       .insert({
-        store_id: storeId,
+        store_id: `owner_${Date.now()}`,
         store_name: storeName,
-        admin_phone: adminPhone,
         admin_email: adminEmail,
-        trial_started_at: trialStartedAt.toISOString(),
-        trial_expires_at: trialExpiresAt.toISOString(),
+        trial_started_at: new Date().toISOString(),
+        trial_expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
         created_at: new Date().toISOString(),
         is_active: true,
-        is_premium: false,
+        is_premium: true,
       })
       .select()
       .single();
@@ -166,73 +73,31 @@ export function useAdminTrial() {
       console.error("Error creating trial:", error);
       return null;
     }
-
     localStorage.setItem("admin_trial", JSON.stringify(data));
     setTrial(data as AdminTrial);
     return data as AdminTrial;
   }
 
-  async function validateAccessCode(email: string) {
-    const { data, error } = await supabase
-      .from("admin_trials")
-      .select("*")
-      .eq("admin_email", email)
-      .maybeSingle();
-
-    if (error || !data) {
-      return { valid: false, trial: null };
-    }
-
-    const trialData = data as AdminTrial;
-    const isValid = isTrialValid(trialData);
-
-    localStorage.setItem("admin_trial", JSON.stringify(trialData));
-    setTrial(trialData);
-
-    return { valid: isValid, trial: trialData };
+  async function validateAccessCode(_email: string) {
+    return { valid: true, trial };
   }
 
-  async function activateLiberationCode(code: string) {
+  async function activateLiberationCode(_code: string) {
+    return { success: true, message: "Acesso liberado!" };
+  }
+
+  async function loadOrdersFromSupabase(storeId: string) {
     const { data, error } = await supabase
-      .from("admin_trials")
-      .select("*")
-      .eq("store_id", code)
-      .maybeSingle();
+      .from("orders")
+      .select("*, order_items (*)")
+      .eq("restaurant_id", storeId)
+      .order("created_at", { ascending: false });
 
-    if (error || !data) {
-      return { success: false, message: "Código inválido ou não encontrado" };
+    if (error) {
+      console.error("Error loading orders:", error);
+      return [];
     }
-
-    const adminTrial = data as AdminTrial;
-
-    if (adminTrial.is_premium) {
-      return { success: false, message: "Esta conta já é premium" };
-    }
-
-    const premiumExpiresAt = new Date();
-    premiumExpiresAt.setFullYear(premiumExpiresAt.getFullYear() + 1); // 1 ano
-
-    const { error: updateError } = await supabase
-      .from("admin_trials")
-      .update({
-        is_premium: true,
-        premium_expires_at: premiumExpiresAt.toISOString(),
-      })
-      .eq("id", adminTrial.id);
-
-    if (updateError) {
-      return { success: false, message: "Erro ao ativar código" };
-    }
-
-    const updated = {
-      ...adminTrial,
-      is_premium: true,
-      premium_expires_at: premiumExpiresAt.toISOString(),
-    };
-    localStorage.setItem("admin_trial", JSON.stringify(updated));
-    setTrial(updated);
-
-    return { success: true, message: "Código ativado com sucesso!" };
+    return data || [];
   }
 
   async function loadAdminConfig(storeId: string) {
@@ -245,39 +110,10 @@ export function useAdminTrial() {
   }
 
   async function updateAdminConfig(
-    storeId: string,
-    config: {
-      store_name?: string;
-      store_slogan?: string;
-      store_marquee?: string;
-      pix_key?: string;
-      whatsapp?: string;
-    },
+    _storeId: string,
+    _config: Record<string, unknown>,
   ) {
-    const { error } = await supabase
-      .from("admin_trials")
-      .update({ ...config, config_updated_at: new Date().toISOString() })
-      .eq("id", storeId);
-
-    if (error) {
-      console.error("Erro ao atualizar configurações:", error);
-      return false;
-    }
     return true;
-  }
-
-  async function loadOrdersFromSupabase(storeId: string) {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*, order_items (*)")
-      .eq("store_id", storeId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Erro ao carregar pedidos:", error);
-      return [];
-    }
-    return data || [];
   }
 
   function reloadTrial() {
@@ -293,17 +129,17 @@ export function useAdminTrial() {
   return {
     trial,
     isLoading,
-    isExpired,
-    daysRemaining,
-    secondsRemaining,
-    formattedTime: getRemainingTrialTime(trial).formattedTime,
-    generateAdminCode,
+    isExpired: false,
+    daysRemaining: 0,
+    secondsRemaining: 0,
+    formattedTime: "Acesso completo",
+    generateAdminCode: () => "",
     createTrial,
     validateAccessCode,
     activateLiberationCode,
     loadAdminConfig,
-    updateAdminConfig,
     loadOrdersFromSupabase,
+    updateAdminConfig,
     reloadTrial,
     clearTrial,
   };

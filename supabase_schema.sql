@@ -84,10 +84,14 @@ CREATE INDEX IF NOT EXISTS idx_soberania_transactions_timestamp ON soberania_tra
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS store_id VARCHAR(255);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email VARCHAR(255);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_complement TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_neighborhood TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_city TEXT DEFAULT '';
 
 -- Adicionar índices para orders
 CREATE INDEX IF NOT EXISTS idx_orders_store_id ON orders(store_id);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_email ON orders(customer_email);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_neighborhood ON orders(customer_neighborhood);
 
 -- Tabela de itens dos pedidos
 CREATE TABLE IF NOT EXISTS order_items (

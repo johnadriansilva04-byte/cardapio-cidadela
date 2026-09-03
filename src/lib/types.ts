@@ -1,91 +1,174 @@
-﻿export interface MenuItem {
+// ============================================================
+// Types for the multi-restaurant digital menu platform
+// + backward-compatible types for Cidadela game components
+// ============================================================
+
+// --- Restaurant ---
+export type RestaurantStatus = 'draft' | 'published' | 'paused';
+
+export interface Restaurant {
   id: string;
+  owner_id: string;
   name: string;
-  desc: string;
-  price: number;
-  img: string;
+  slug: string;
+  description: string;
+  slogan: string;
+  phone: string;
+  whatsapp: string;
+  address: string;
+  logo_url: string;
+  banner_url: string;
+  primary_color: string;
+  secondary_color: string;
+  status: RestaurantStatus;
+  pix_key: string;
+  created_at: string;
+  updated_at: string;
 }
 
+// --- Category ---
 export interface Category {
+  id: string;
+  restaurant_id: string;
   name: string;
-  items: MenuItem[];
+  sort_order: number;
+  created_at: string;
 }
 
-export interface PromoCode {
-  code: string;
-  label: string;
-  discount: number;
-  createdAt: string;
-  expiration: string;
-  used: boolean;
+// --- Product ---
+export interface Product {
+  id: string;
+  restaurant_id: string;
+  category_id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  available: boolean;
+  sort_order: number;
+  created_at: string;
 }
+
+// --- Add-ons ---
+export interface AddonGroup {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  min_select: number;
+  max_select: number;
+}
+
+export interface Addon {
+  id: string;
+  restaurant_id: string;
+  group_id: string;
+  product_id: string | null;
+  name: string;
+  price: number;
+  available: boolean;
+  sort_order: number;
+}
+
+// --- Orders ---
+export type OrderStatus = 'received' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
 export interface OrderItem {
   id: string;
-  name: string;
+  product_id: string;
+  product_name: string;
   quantity: number;
-  price: number;
+  unit_price: number;
   total: number;
+  notes: string;
 }
-
-export type OrderStatus = "pendente" | "andamento" | "entregue";
 
 export interface Order {
+  id: string;
+  restaurant_id: string;
+  customer_id: string | null;
   comanda: string;
-  cliente: string;
-  email?: string;
-  telefone: string;
-  endereco: string;
-  observacoes: string;
-  itens: OrderItem[];
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  delivery_address: string;
+  customer_complement: string;
+  customer_neighborhood: string;
+  customer_city: string;
+  delivery_type: string;
+  observations: string;
+  subtotal: number;
+  delivery_fee: number;
   total: number;
-  tipo_entrega: "entrega" | "retirada";
-  taxa_entrega: number;
-  pagamento: "pix" | "dinheiro" | "cartao";
-  troco?: string;
+  payment_method: string;
+  payment_status: string;
   status: OrderStatus;
-  createdAt: string;
-  synced: boolean;
+  cidadela_unlocked: boolean;
+  created_at: string;
+  updated_at: string;
+  order_items?: OrderItem[];
 }
 
-export interface ChatMessage {
-  role: "user" | "model";
-  text: string;
-  at: string;
+export interface OrderStatusHistoryEntry {
+  id: string;
+  order_id: string;
+  status: OrderStatus;
+  note: string;
+  created_at: string;
 }
 
-export interface AppState {
-  store: { name: string; slogan: string; marquee: string; coverPhoto?: string };
-  payment: { pixKey: string };
-  promo: { meta: number; cidadelaDate: string };
-  admin: { accessKey: string; phone?: string; email?: string; storeId?: string; discountTiers?: DiscountTier[] };
-  whatsapp: string;
-  integrations: {
-    geminiApiKey: string;
-    n8nWebhookUrl: string;
-    cidadelaAuthUrl: string;
-    adminTrialUrl: string;
-    gamesSessionUrl: string;
-    gamesMoveUrl: string;
-  };
-  categories: Category[];
-  cidadela: {
-    codes: PromoCode[];
-    accessHistory: string[];
-    robots: RobotConfig[];
-    customTopics: CustomTopic[];
-    isPremium: boolean;
-  };
-  orders: Order[];
-  conversation: ChatMessage[];
-  soberania: {
-    points: number;
-    history: SoberaniaTransaction[];
-  };
-  _version?: number; // State version for migration
+// --- Cidadela ---
+export interface CidadelaUnlock {
+  id: string;
+  restaurant_id: string;
+  order_id: string | null;
+  customer_phone: string;
+  unlocked_at: string;
 }
+
+// --- Cart (client-side) ---
+export interface CartItem {
+  product: Product;
+  quantity: number;
+  notes: string;
+}
+
+// --- Checkout form ---
+export interface CheckoutForm {
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  delivery_address: string;
+  delivery_type: 'entrega' | 'retirada';
+  observations: string;
+  payment_method: 'pix' | 'dinheiro' | 'cartao';
+  change_for: string;
+}
+
+// --- Order Status labels ---
+export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  received: 'RECEBIDO',
+  preparing: 'EM PREPARAÇÃO',
+  ready: 'PRONTO',
+  out_for_delivery: 'A CAMINHO',
+  delivered: 'ENTREGUE',
+  cancelled: 'CANCELADO',
+};
+
+export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
+  received: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  preparing: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+  ready: 'bg-green-500/20 text-green-300 border-green-500/30',
+  out_for_delivery: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+  delivered: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
+  cancelled: 'bg-red-500/20 text-red-300 border-red-500/30',
+};
+
+// ============================================================
+// Backward-compatible types for Cidadela game components
+// ============================================================
 
 export interface RobotConfig {
+  [key: string]: unknown;
   name: string;
   ideology: string;
   personality: string;
@@ -101,13 +184,28 @@ export interface CustomTopic {
   createdAt: string;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+  at: string;
+}
+
+export interface PromoCode {
+  code: string;
+  label: string;
+  discount: number;
+  createdAt: string;
+  expiration: string;
+  used: boolean;
+}
+
 export interface SoberaniaTransaction {
   id: string;
-  type: "earned" | "lost" | "spent" | "rewarded";
+  type: 'earned' | 'lost' | 'spent' | 'rewarded';
   amount: number;
   reason: string;
   timestamp: string;
-  source: "game" | "order" | "ad" | "admin";
+  source: 'game' | 'order' | 'ad' | 'admin';
 }
 
 export interface DiscountTier {
@@ -115,124 +213,88 @@ export interface DiscountTier {
   percentage: number;
 }
 
-export const DEFAULT_STATE: AppState = {
-  store: {
-    name: "Cantina do Pracinha",
-    slogan: "Sabor de trincheira, brio de veterano",
-    marquee:
-      "ENTREGA EM ATÃ‰ 35 MIN â€¢ PIX APROVADO NA HORA â€¢ PEDIDOS ACIMA DE R$100 GANHAM CÃ“DIGO FEB-VIP â€¢ HONRA, DIGNIDADE E SABOR",
-  },
-  payment: { pixKey: "cantina@pracinha.com.br" },
-  promo: { meta: 100, cidadelaDate: new Date().toISOString().slice(0, 10) },
-  admin: { accessKey: import.meta.env.VITE_ADMIN_ACCESS_KEY || "FEB-1944", discountTiers: [] },
-  whatsapp: import.meta.env.VITE_WHATSAPP_NUMBER || "5511999999999",
+// Legacy AppState for Cidadela components
+export interface AppState {
+  store: { name: string; slogan: string; marquee: string; coverPhoto?: string };
+  payment: { pixKey: string };
+  promo: { meta: number; cidadelaDate: string };
+  admin: { accessKey: string; phone?: string; email?: string; storeId?: string; discountTiers?: DiscountTier[] };
+  whatsapp: string;
   integrations: {
-    geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
-    n8nWebhookUrl:
-      import.meta.env.VITE_N8N_WEBHOOK_URL || "https://webhook.pracinha.online/webhook/pracinha",
-    cidadelaAuthUrl:
-      import.meta.env.VITE_N8N_CIDADELA_AUTH_URL ||
-      "https://webhook.pracinha.online/webhook/cidadela",
-    adminTrialUrl:
-      import.meta.env.VITE_N8N_ADMIN_TRIAL_URL ||
-      "https://webhook.pracinha.online/webhook/admin-trial",
-    gamesSessionUrl:
-      import.meta.env.VITE_N8N_GAMES_SESSION_URL ||
-      "https://webhook.pracinha.online/webhook/games/session",
-    gamesMoveUrl:
-      import.meta.env.VITE_N8N_GAMES_MOVE_URL ||
-      "https://webhook.pracinha.online/webhook/games/move",
+    geminiApiKey: string;
+    n8nWebhookUrl: string;
+    cidadelaAuthUrl: string;
+    adminTrialUrl: string;
+    gamesSessionUrl: string;
+    gamesMoveUrl: string;
+  };
+  categories: LegacyCategory[];
+  cidadela: {
+    codes: PromoCode[];
+    accessHistory: string[];
+    robots: RobotConfig[];
+    customTopics: CustomTopic[];
+    isPremium: boolean;
+  };
+  orders: LegacyOrder[];
+  conversation: ChatMessage[];
+  soberania: {
+    points: number;
+    history: SoberaniaTransaction[];
+  };
+  _version?: number;
+}
+
+export interface LegacyCategory {
+  id: string;
+  name: string;
+  items: LegacyMenuItem[];
+}
+
+export interface LegacyMenuItem {
+  id: string;
+  name: string;
+  desc: string;
+  price: number;
+  img: string;
+}
+
+export interface LegacyOrder {
+  comanda: string;
+  cliente: string;
+  email?: string;
+  telefone: string;
+  endereco: string;
+  observacoes: string;
+  itens: { id: string; name: string; quantity: number; price: number; total: number }[];
+  total: number;
+  tipo_entrega: 'entrega' | 'retirada';
+  taxa_entrega: number;
+  pagamento: 'pix' | 'dinheiro' | 'cartao';
+  troco?: string;
+  status: 'pendente' | 'andamento' | 'entregue';
+  createdAt: string;
+  synced: boolean;
+}
+
+export const DEFAULT_STATE: AppState = {
+  store: { name: '', slogan: '', marquee: '' },
+  payment: { pixKey: '' },
+  promo: { meta: 100, cidadelaDate: new Date().toISOString().slice(0, 10) },
+  admin: { accessKey: 'FEB-1944', discountTiers: [] },
+  whatsapp: '',
+  integrations: {
+    geminiApiKey: '',
+    n8nWebhookUrl: '',
+    cidadelaAuthUrl: '',
+    adminTrialUrl: '',
+    gamesSessionUrl: '',
+    gamesMoveUrl: '',
   },
   cidadela: { codes: [], accessHistory: [], robots: [], customTopics: [], isPremium: false },
   orders: [],
   conversation: [],
   soberania: { points: 0, history: [] },
-  _version: 8, // State version for migration
-  categories: [
-    {
-      name: "Lanches",
-      items: [
-        {
-          id: "x-proteic",
-          name: "X-Proteic",
-          desc: "Blend 180g, cheddar maturado, bacon crocante e pÃ£o brioche tostado na chapa.",
-          price: 39.9,
-          img: "ðŸ”",
-        },
-        {
-          id: "x-monte-castelo",
-          name: "X-Monte Castelo",
-          desc: "Duplo smash, queijo prato, cebola caramelizada e molho da casa.",
-          price: 44.9,
-          img: "ðŸ”",
-        },
-        {
-          id: "cobra-fumando",
-          name: "Cobra Fumando",
-          desc: "Costela desfiada defumada 12h, queijo coalho e geleia de pimenta.",
-          price: 49.9,
-          img: "ðŸ”¥",
-        },
-        {
-          id: "veg-brio",
-          name: "Veg Brio",
-          desc: "Burger de grÃ£o-de-bico, rÃºcula, tomate confit e maionese de ervas.",
-          price: 34.9,
-          img: "ðŸ¥¬",
-        },
-      ],
-    },
-    {
-      name: "Adicionais",
-      items: [
-        {
-          id: "add-bacon",
-          name: "Bacon Extra",
-          desc: "PorÃ§Ã£o generosa de bacon artesanal.",
-          price: 7.5,
-          img: "ðŸ¥“",
-        },
-        {
-          id: "add-cheddar",
-          name: "Cheddar Cremoso",
-          desc: "Concha extra de cheddar inglÃªs.",
-          price: 6.0,
-          img: "ðŸ§€",
-        },
-        {
-          id: "add-fritas",
-          name: "Fritas RÃºsticas",
-          desc: "Batata rÃºstica com alecrim e sal defumado.",
-          price: 18.9,
-          img: "ðŸŸ",
-        },
-      ],
-    },
-    {
-      name: "Bebidas",
-      items: [
-        {
-          id: "bev-cola",
-          name: "Refrigerante Lata",
-          desc: "350ml gelado.",
-          price: 7.0,
-          img: "ðŸ¥¤",
-        },
-        {
-          id: "bev-suco",
-          name: "Suco Natural",
-          desc: "Laranja, limÃ£o ou maracujÃ¡ â€” 500ml.",
-          price: 12.0,
-          img: "ðŸŠ",
-        },
-        {
-          id: "bev-agua",
-          name: "Ãgua Mineral",
-          desc: "500ml com ou sem gÃ¡s.",
-          price: 5.0,
-          img: "ðŸ’§",
-        },
-      ],
-    },
-  ],
+  _version: 9,
+  categories: [],
 };

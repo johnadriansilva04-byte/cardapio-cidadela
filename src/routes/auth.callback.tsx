@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { supabase } from "@/modules/supabase/client";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 export const Route = createFileRoute("/auth/callback")({
   component: AuthCallback,
@@ -8,51 +9,23 @@ export const Route = createFileRoute("/auth/callback")({
 
 function AuthCallback() {
   const navigate = useNavigate();
+  const { isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      try {
-        // Verificar se há parâmetros de callback do Supabase
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get("access_token");
-        const error = hashParams.get("error");
-        const errorDescription = hashParams.get("error_description");
+    if (loading) return;
 
-        if (error) {
-          console.error("Erro no callback OAuth:", error, errorDescription);
-          // Redirecionar para home com erro
-          navigate({ to: "/", search: { authError: error } });
-          return;
-        }
-
-        if (accessToken) {
-          // Supabase vai processar o session automaticamente
-          // Só precisamos esperar um pouco e redirecionar
-          const { data: { session } } = await supabase.auth.getSession();
-          
-          if (session?.user?.email) {
-            // Salvar que acabou de fazer login com Google
-            localStorage.setItem("google_auth_just_logged_in", "true");
-            localStorage.setItem("google_auth_email", session.user.email);
-          }
-        }
-
-        // Redirecionar para home após processar
-        navigate({ to: "/" });
-      } catch (error) {
-        console.error("Erro ao processar callback:", error);
-        navigate({ to: "/" });
-      }
-    };
-
-    handleAuthCallback();
-  }, [navigate]);
+    if (isAuthenticated) {
+      window.location.href = "/admin";
+    } else {
+      window.location.href = "/login";
+    }
+  }, [loading, isAuthenticated]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black">
+    <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f]">
       <div className="text-center">
-        <div className="mb-4 size-12 animate-spin rounded-full border-4 border-red-500 border-t-transparent" />
-        <p className="text-white">Processando login...</p>
+        <Loader2 className="mx-auto mb-4 size-8 animate-spin text-cyan-400" />
+        <p className="text-sm text-gray-400">Processando autenticação...</p>
       </div>
     </div>
   );

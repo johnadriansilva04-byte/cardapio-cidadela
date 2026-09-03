@@ -1,93 +1,98 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { AppState } from "@/lib/types";
+import type { Restaurant, Category, Product, CartItem } from "@/lib/types";
 
-interface StoreShape extends AppState {
-  update: (fn: (state: AppState) => void) => void;
+interface PlatformState {
+  // Current restaurant being managed
+  restaurant: Restaurant | null;
+  categories: Category[];
+  products: Product[];
+
+  // Cart (for public menu)
+  cart: CartItem[];
+
+  // UI state
+  isLoading: boolean;
+
+  // Actions
+  setRestaurant: (restaurant: Restaurant | null) => void;
+  setMenu: (categories: Category[], products: Product[]) => void;
+  setCart: (cart: CartItem[]) => void;
+  addToCart: (product: Product) => void;
+  removeFromCart: (productId: string) => void;
+  updateCartQuantity: (productId: string, quantity: number) => void;
+  clearCart: () => void;
+  setLoading: (loading: boolean) => void;
 }
 
-const initialCategories: AppState["categories"] = [
-  {
-    id: "cat-lanches",
-    name: "LANCHES",
-    items: [
-      {
-        id: "item-1",
-        name: "X-Trincheira",
-        desc: "Pão brioche, hambúrguer 180g, cheddar, bacon e molho da casa",
-        price: 32,
-        img: "",
-      },
-      {
-        id: "item-2",
-        name: "X-Pracinha",
-        desc: "Pão australiano, dois hambúrgueres, queijo prato e salada",
-        price: 38,
-        img: "",
-      },
-    ],
-  },
-  {
-    id: "cat-porcoes",
-    name: "PORÇÕES",
-    items: [
-      {
-        id: "item-3",
-        name: "Fritas Brio",
-        desc: "Batata rústica com páprica defumada e maionese verde",
-        price: 24,
-        img: "",
-      },
-    ],
-  },
-  {
-    id: "cat-bebidas",
-    name: "BEBIDAS",
-    items: [
-      { id: "item-4", name: "Refrigerante Lata", desc: "350ml gelado", price: 8, img: "" },
-      { id: "item-5", name: "Água Mineral", desc: "500ml com ou sem gás", price: 5, img: "" },
-    ],
-  },
-];
-
-export const useStore = create<StoreShape>()(
+export const usePlatformStore = create<PlatformState>()(
   persist(
-    (set) => ({
-      store: {
-        name: "Cantina do Pracinha",
-        slogan: "Sabor de trincheira, brio de veterano",
-        marquee: "ENTREGA EM ATÉ 35 MIN • PIX APROVADO NA HORA",
-      },
-      payment: { pixKey: "" },
-      admin: { accessKey: "", discountTiers: [] },
-      whatsapp: "",
-      categories: initialCategories,
-      orders: [],
-      soberania: { points: 0, history: [] },
-      cidadela: { codes: [] },
-      integrations: { n8nWebhookUrl: "" },
+    (set, get) => ({
+      restaurant: null,
+      categories: [],
+      products: [],
+      cart: [],
+      isLoading: false,
 
-      update: (fn) =>
-        set((state) => {
-          const draft = JSON.parse(JSON.stringify(state)) as AppState;
-          fn(draft);
-          return draft;
-        }),
+      setRestaurant: (restaurant) => set({ restaurant }),
+
+      setMenu: (categories, products) => set({ categories, products }),
+
+      setCart: (cart) => set({ cart }),
+
+      addToCart: (product) => {
+        const { cart } = get();
+        const existing = cart.find((item) => item.product.id === product.id);
+        if (existing) {
+          set({
+            cart: cart.map((item) =>
+              item.product.id === product.id
+                ? { ...item, quantity: item.quantity + 1 }
+                : item,
+            ),
+          });
+        } else {
+          set({ cart: [...cart, { product, quantity: 1, notes: "" }] });
+        }
+      },
+
+      removeFromCart: (productId) => {
+        const { cart } = get();
+        const existing = cart.find((item) => item.product.id === productId);
+        if (existing && existing.quantity > 1) {
+          set({
+            cart: cart.map((item) =>
+              item.product.id === productId
+                ? { ...item, quantity: item.quantity - 1 }
+                : item,
+            ),
+          });
+        } else {
+          set({ cart: cart.filter((item) => item.product.id !== productId) });
+        }
+      },
+
+      updateCartQuantity: (productId, quantity) => {
+        const { cart } = get();
+        if (quantity <= 0) {
+          set({ cart: cart.filter((item) => item.product.id !== productId) });
+        } else {
+          set({
+            cart: cart.map((item) =>
+              item.product.id === productId ? { ...item, quantity } : item,
+            ),
+          });
+        }
+      },
+
+      clearCart: () => set({ cart: [] }),
+
+      setLoading: (isLoading) => set({ isLoading }),
     }),
     {
-      name: "cardapio_state",
+      name: "platform_cart",
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({
-        store: s.store,
-        payment: s.payment,
-        admin: s.admin,
-        whatsapp: s.whatsapp,
-        categories: s.categories,
-        orders: s.orders,
-        soberania: s.soberania,
-        cidadela: s.cidadela,
-        integrations: s.integrations,
-      }),
+      partialize: (s) => ({ cart: s.cart }),
     },
   ),
 );

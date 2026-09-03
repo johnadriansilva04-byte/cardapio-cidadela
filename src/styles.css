@@ -5,9 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * CIDADELA & CARDÁPIO DIGITAL — design system
- * Frente de loja: apetitoso (brasa, âmbar, carvão).
- * Cidadela (admin): homenagem à FEB — verde oliva, areia, aço, ouro velho, preto fosco.
+ * MENU DIGITAL PLATFORM — Design System
+ * Premium dark theme with subtle cyan/neon accents.
+ * FEB/Cidadela era variables preserved for the temporal lobby.
  */
 
 @theme inline {
@@ -17,6 +17,7 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -38,16 +39,11 @@
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
 
-  /* FEB — Cidadela */
-  --color-olive: var(--olive);
-  --color-olive-deep: var(--olive-deep);
-  --color-sand: var(--sand);
-  --color-steel: var(--steel);
-  --color-brass: var(--brass);
-  --color-matte: var(--matte);
-  --color-ember: var(--ember);
+  /* Neon accents */
+  --color-neon: var(--neon);
+  --color-neon-2: var(--neon-2);
 
-  /* Mapa Temporal */
+  /* Cidadela FEB era colors (preserved for TemporalLobby) */
   --color-war: var(--war);
   --color-war-deep: var(--war-deep);
   --color-war-dust: var(--war-dust);
@@ -56,47 +52,42 @@
   --color-modern-glow: var(--modern-glow);
   --color-future: var(--future);
   --color-future-deep: var(--future-deep);
-  --color-neon: var(--neon);
-  --color-neon-2: var(--neon-2);
   --color-road: var(--road);
 
-  --font-display: "Oswald", "Arial Narrow", sans-serif;
-  --font-sans: "Inter Tight", system-ui, sans-serif;
-  --font-stencil: "Saira Stencil One", "Oswald", sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Inter", system-ui, sans-serif;
 }
 
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.985 0.008 85);
-  --foreground: oklch(0.19 0.02 60);
+
+  /* Light mode */
+  --background: oklch(0.985 0.005 250);
+  --foreground: oklch(0.15 0.01 250);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.19 0.02 60);
+  --card-foreground: oklch(0.15 0.01 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.19 0.02 60);
-  --primary: oklch(0.55 0.18 38);
-  --primary-foreground: oklch(0.98 0.01 80);
-  --secondary: oklch(0.94 0.02 80);
-  --secondary-foreground: oklch(0.25 0.03 60);
-  --muted: oklch(0.95 0.012 80);
-  --muted-foreground: oklch(0.5 0.02 70);
-  --accent: oklch(0.78 0.15 75);
-  --accent-foreground: oklch(0.22 0.03 60);
-  --destructive: oklch(0.55 0.21 27);
-  --destructive-foreground: oklch(0.98 0.01 80);
-  --border: oklch(0.9 0.015 80);
-  --input: oklch(0.9 0.015 80);
-  --ring: oklch(0.55 0.18 38);
+  --popover-foreground: oklch(0.15 0.01 250);
+  --primary: oklch(0.6 0.15 195);
+  --primary-foreground: oklch(0.98 0.01 250);
+  --secondary: oklch(0.94 0.01 250);
+  --secondary-foreground: oklch(0.2 0.02 250);
+  --muted: oklch(0.95 0.008 250);
+  --muted-foreground: oklch(0.5 0.015 250);
+  --accent: oklch(0.75 0.15 195);
+  --accent-foreground: oklch(0.15 0.01 250);
+  --destructive: oklch(0.58 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.9 0.01 250);
+  --input: oklch(0.9 0.01 250);
+  --ring: oklch(0.6 0.15 195);
 
-  --olive: oklch(0.42 0.055 118);
-  --olive-deep: oklch(0.27 0.04 120);
-  --sand: oklch(0.84 0.045 88);
-  --steel: oklch(0.62 0.012 250);
-  --brass: oklch(0.74 0.11 88);
-  --matte: oklch(0.17 0.008 120);
-  --ember: oklch(0.62 0.19 40);
+  /* Neon */
+  --neon: oklch(0.8 0.16 195);
+  --neon-2: oklch(0.7 0.2 330);
 
-  /* Mapa Temporal */
+  /* Era colors — Cidadela Temporal */
   --war: oklch(0.44 0.04 85);
   --war-deep: oklch(0.22 0.025 90);
   --war-dust: oklch(0.74 0.06 88);
@@ -105,165 +96,37 @@
   --modern-glow: oklch(0.78 0.14 75);
   --future: oklch(0.45 0.12 290);
   --future-deep: oklch(0.18 0.06 285);
-  --neon: oklch(0.82 0.17 195);
-  --neon-2: oklch(0.72 0.22 330);
   --road: oklch(0.32 0.015 90);
 
-  --gradient-era: linear-gradient(
-    100deg,
-    var(--war-deep) 0%,
-    var(--war) 22%,
-    var(--modern-deep) 45%,
-    var(--modern) 62%,
-    var(--future) 82%,
-    var(--future-deep) 100%
-  );
-  --gradient-road: linear-gradient(
-    100deg,
-    oklch(0.45 0.05 80),
-    var(--road) 45%,
-    oklch(0.3 0.05 280) 78%,
-    oklch(0.4 0.12 300)
-  );
   --shadow-neon:
-    0 0 12px color-mix(in oklab, var(--neon) 70%, transparent),
-    0 0 34px color-mix(in oklab, var(--neon) 35%, transparent);
-  --shadow-ember: 0 0 14px color-mix(in oklab, var(--modern-glow) 45%, transparent);
-  --shadow-dust: 0 14px 34px -12px oklch(0.15 0.03 80 / 0.8);
-
-  /* Pracinha */
-  --pracinha-shell-light: oklch(0.92 0.02 85);
-  --pracinha-shell-dark: oklch(0.72 0.04 85);
-  --pracinha-joint: oklch(0.65 0.03 85);
-  --pracinha-visor: oklch(0.25 0.02 240);
-  --pracinha-visor-deep: oklch(0.15 0.02 240);
-  --pracinha-eye: oklch(0.98 0.01 85);
-  --pracinha-accent: oklch(0.75 0.18 45);
-  --pracinha-shirt: oklch(0.85 0.12 45);
-  --pracinha-shirt-ink: oklch(0.25 0.02 85);
-  --pracinha-shadow: oklch(0.15 0.02 85 / 0.4);
-  --pracinha-clipboard: oklch(0.95 0.01 85);
-  --pracinha-clipboard-line: oklch(0.45 0.02 85);
-
-  /* Arcade Battle Arena */
-  --p1: oklch(0.65 0.22 25);
-  --p2: oklch(0.55 0.18 250);
-  --glow-p1: 0 0 20px color-mix(in oklab, var(--p1) 60%, transparent);
-  --glow-p2: 0 0 20px color-mix(in oklab, var(--p2) 60%, transparent);
-  --arena-floor: oklch(0.18 0.02 70);
-  --arcade-amber: oklch(0.78 0.18 75);
-
-  /* Trilha FEB */
-  --lantern: oklch(0.82 0.16 74);
-  --khaki: oklch(0.74 0.05 92);
-  --map: oklch(0.84 0.05 88);
-  --ink: oklch(0.26 0.03 60);
-  --blood: oklch(0.46 0.17 28);
-  --feb: oklch(0.58 0.1 138);
-  --feb-foreground: oklch(0.96 0.02 90);
-  --axis: oklch(0.44 0.05 40);
-  --axis-foreground: oklch(0.94 0.02 80);
-  --mill: oklch(0.82 0.17 76);
+    0 0 12px oklch(0.8 0.16 195 / 0.7),
+    0 0 34px oklch(0.8 0.16 195 / 0.35);
 }
 
 .dark {
-  --background: oklch(0.16 0.01 70);
-  --foreground: oklch(0.96 0.01 80);
-  --card: oklch(0.21 0.012 70);
-  --card-foreground: oklch(0.96 0.01 80);
-  --popover: oklch(0.21 0.012 70);
-  --popover-foreground: oklch(0.96 0.01 80);
-  --primary: oklch(0.66 0.18 40);
-  --primary-foreground: oklch(0.16 0.01 70);
-  --secondary: oklch(0.27 0.015 70);
-  --secondary-foreground: oklch(0.96 0.01 80);
-  --muted: oklch(0.27 0.015 70);
-  --muted-foreground: oklch(0.7 0.015 80);
-  --accent: oklch(0.74 0.11 88);
-  --accent-foreground: oklch(0.18 0.01 70);
+  --background: oklch(0.12 0.01 250);
+  --foreground: oklch(0.95 0.005 250);
+  --card: oklch(0.16 0.012 250);
+  --card-foreground: oklch(0.95 0.005 250);
+  --popover: oklch(0.16 0.012 250);
+  --popover-foreground: oklch(0.95 0.005 250);
+  --primary: oklch(0.7 0.15 195);
+  --primary-foreground: oklch(0.12 0.01 250);
+  --secondary: oklch(0.22 0.012 250);
+  --secondary-foreground: oklch(0.95 0.005 250);
+  --muted: oklch(0.22 0.012 250);
+  --muted-foreground: oklch(0.65 0.015 250);
+  --accent: oklch(0.75 0.15 195);
+  --accent-foreground: oklch(0.12 0.01 250);
   --destructive: oklch(0.65 0.19 25);
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.66 0.18 40);
-}
+  --ring: oklch(0.7 0.15 195);
 
-/* Escopo visual da CIDADELA: tudo dentro respira FEB. */
-@utility feb-scope {
-  --background: var(--matte);
-  --foreground: var(--sand);
-  --card: oklch(0.22 0.018 120);
-  --card-foreground: var(--sand);
-  --popover: oklch(0.22 0.018 120);
-  --popover-foreground: var(--sand);
-  --primary: var(--olive);
-  --primary-foreground: var(--sand);
-  --secondary: oklch(0.26 0.02 120);
-  --secondary-foreground: var(--sand);
-  --muted: oklch(0.26 0.02 120);
-  --muted-foreground: oklch(0.68 0.02 100);
-  --accent: var(--brass);
-  --accent-foreground: var(--matte);
-  --border: oklch(0.78 0.06 95 / 18%);
-  --input: oklch(0.78 0.06 95 / 22%);
-  --ring: var(--brass);
-  background-color: var(--background);
-  color: var(--foreground);
-}
-
-@utility text-stencil {
-  font-family: var(--font-stencil);
-  letter-spacing: 0.06em;
-}
-
-@utility text-tech {
-  font-family: var(--font-mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-@utility surface-brass {
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in oklab, var(--brass) 90%, white),
-    var(--brass) 45%,
-    color-mix(in oklab, var(--brass) 70%, black)
-  );
-}
-
-@utility ember-glow {
-  box-shadow:
-    0 10px 30px -12px color-mix(in oklab, var(--ember) 60%, transparent),
-    0 1px 0 0 color-mix(in oklab, white 40%, transparent) inset;
-}
-
-@utility marquee-track {
-  display: inline-flex;
-  white-space: nowrap;
-  animation: marquee-scroll 26s linear infinite;
-}
-
-@keyframes marquee-scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-@keyframes lock-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--brass) 55%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 10px color-mix(in oklab, var(--brass) 0%, transparent);
-  }
-}
-
-@utility lock-orb {
-  animation: lock-pulse 2.6s ease-out infinite;
+  /* Neon */
+  --neon: oklch(0.82 0.17 195);
+  --neon-2: oklch(0.72 0.22 330);
 }
 
 @layer base {
@@ -278,16 +141,64 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  h1,
-  h2,
-  h3 {
-    font-family: var(--font-display);
+  h1, h2, h3 {
+    font-weight: 700;
     letter-spacing: -0.01em;
   }
 }
 
 /* ============================================================
-   Mapa de RPG Temporal — design tokens e animações
+   Animations
+   ============================================================ */
+
+@keyframes lock-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(0.7 0.15 195 / 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 10px oklch(0.7 0.15 195 / 0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes drift {
+  from { transform: translate3d(-3%, 0, 0); opacity: 0.7; }
+  to { transform: translate3d(4%, -2%, 0); opacity: 1; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  47% { opacity: 1; }
+  48% { opacity: 0.45; }
+  52% { opacity: 1; }
+  74% { opacity: 0.7; }
+  76% { opacity: 1; }
+}
+
+@keyframes dashUp {
+  to { background-position-y: -96px; }
+}
+
+@utility animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ============================================================
+   Cidadela era utilities (preserved for TemporalLobby)
    ============================================================ */
 
 @utility era-panel {
@@ -303,7 +214,7 @@
     pointer-events: none;
     background: radial-gradient(
       60% 50% at 30% 70%,
-      color-mix(in oklab, var(--war-dust) 22%, transparent),
+      oklch(0.74 0.06 88 / 0.22),
       transparent 70%
     );
     animation: drift 16s ease-in-out infinite alternate;
@@ -318,7 +229,7 @@
     pointer-events: none;
     background: radial-gradient(
       55% 45% at 70% 30%,
-      color-mix(in oklab, var(--neon) 18%, transparent),
+      oklch(0.82 0.17 195 / 0.18),
       transparent 72%
     );
     animation: pulseGlow 6s ease-in-out infinite;
@@ -340,446 +251,12 @@
   }
 }
 
-@keyframes drift {
-  from {
-    transform: translate3d(-3%, 0, 0);
-    opacity: 0.7;
-  }
-  to {
-    transform: translate3d(4%, -2%, 0);
-    opacity: 1;
-  }
-}
-
-@keyframes pulseGlow {
-  0%,
-  100% {
-    opacity: 0.65;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes floatY {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
-@keyframes dashMove {
-  to {
-    background-position-x: -240px;
-  }
-}
-
-@keyframes flicker {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  47% {
-    opacity: 1;
-  }
-  48% {
-    opacity: 0.45;
-  }
-  52% {
-    opacity: 1;
-  }
-  74% {
-    opacity: 0.7;
-  }
-  76% {
-    opacity: 1;
-  }
-}
-
-@keyframes dashUp {
-  to {
-    background-position-y: -96px;
-  }
-}
-
-/* ============================================================
-   Estilos do Teste de QI — Matrizes Progressivas
-   ============================================================ */
-
-.chip {
-  @apply inline-block rounded-full border border-border bg-secondary px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground;
-}
-
-.btn-primary {
-  @apply rounded-lg bg-[color:var(--brass)] px-6 py-3 text-sm font-semibold text-[color:var(--matte)] transition-all hover:shadow-lg hover:shadow-[color:var(--brass)]/30;
-}
-
-.btn-ghost {
-  @apply rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition-all hover:border-[color:var(--brass)] hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.matrix {
-  @apply grid grid-cols-3 gap-2 rounded-lg border border-border bg-background p-3;
-}
-
-.matrix__cell {
-  @apply aspect-square rounded border border-border bg-secondary flex items-center justify-center;
-}
-
-.matrix__cell--missing {
-  @apply border-dashed border-muted-foreground/50 bg-muted/30;
-}
-
-.option {
-  @apply relative aspect-square rounded-lg border border-border bg-secondary p-2 transition-all hover:border-[color:var(--brass)] hover:shadow-md;
-}
-
-.option--active {
-  @apply border-[color:var(--brass)] ring-2 ring-[color:var(--brass)] ring-offset-2 ring-offset-background;
-}
-
-.option__tag {
-  @apply absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--brass)] text-[10px] font-bold text-[color:var(--matte)];
-}
-
-.dot {
-  @apply h-2 w-2 rounded-full border border-border bg-muted transition-all;
-}
-
-.dot--done {
-  @apply bg-[color:var(--brass)] border-[color:var(--brass)];
-}
-
-.dot--current {
-  @apply bg-[color:var(--olive)] border-[color:var(--olive)] ring-2 ring-[color:var(--olive)] ring-offset-1;
-}
-
-.progress {
-  @apply h-2 w-full overflow-hidden rounded-full bg-muted;
-}
-
-.progress__bar {
-  @apply h-full rounded-full bg-[color:var(--brass)] transition-all duration-300;
-}
-
-.stat {
-  @apply rounded-lg border border-border bg-secondary p-3;
-}
-
-.text-gradient {
-  @apply bg-gradient-to-r from-[color:var(--brass)] to-[color:var(--olive)] bg-clip-text text-transparent;
-}
-
-/* ============================================================
-   Arcade Battle Arena Styles
-   ============================================================ */
-
-.neon-panel {
-  border: 2px solid var(--border);
-  background: var(--card);
-  box-shadow:
-    0 0 20px color-mix(in oklab, var(--arcade-amber) 20%, transparent),
-    inset 0 0 60px color-mix(in oklab, var(--arcade-amber) 5%, transparent);
-}
-
-.arena-grid {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
-.screen-shake {
-  animation: screenShake 0.15s ease-out;
-}
-
-@keyframes screenShake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-4px);
-  }
-  75% {
-    transform: translateX(4px);
-  }
-}
-
-.hit-pop {
-  animation: hitPop 0.4s ease-out forwards;
-}
-
-@keyframes hitPop {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, 0) scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -20px) scale(1.3);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -40px) scale(1);
-  }
-}
-
-/* ============================================================
-   Trilha FEB — Estilos específicos
-   ============================================================ */
-
-@utility text-typewriter {
-  font-family: "Special Elite", "Courier New", monospace;
-}
-
-@utility panel-field {
-  background-image:
-    linear-gradient(oklch(0.26 0.026 76 / 0.94), oklch(0.21 0.022 70 / 0.96)),
-    repeating-linear-gradient(
-      90deg,
-      oklch(1 0 0 / 0.025) 0px,
-      oklch(1 0 0 / 0.025) 1px,
-      transparent 1px,
-      transparent 4px
-    );
-  border: 1px solid var(--border);
-  box-shadow: 0 22px 60px -18px oklch(0.08 0.02 60 / 0.85);
-}
-
-@utility surface-map {
-  background-image:
-    radial-gradient(ellipse at 30% 20%, oklch(0.88 0.05 88 / 0.95), transparent 62%),
-    radial-gradient(ellipse at 78% 82%, oklch(0.7 0.06 74 / 0.7), transparent 58%),
-    linear-gradient(oklch(0.82 0.05 86), oklch(0.7 0.055 78));
-}
-
-@utility grain-overlay {
-  background-image: radial-gradient(oklch(0 0 0 / 0.35) 1px, transparent 1px);
-  background-size: 3px 3px;
-  mix-blend-mode: multiply;
-  opacity: 0.25;
-}
-
-/* Cores específicas da Trilha */
-@utility text-lantern {
-  color: var(--lantern);
-}
-
-@utility text-khaki {
-  color: var(--khaki);
-}
-
-@utility text-map {
-  color: var(--map);
-}
-
-@utility text-ink {
-  color: var(--ink);
-}
-
-@utility text-blood {
-  color: var(--blood);
-}
-
-@utility text-feb {
-  color: var(--feb);
-}
-
-@utility text-feb-foreground {
-  color: var(--feb-foreground);
-}
-
-@utility text-axis {
-  color: var(--axis);
-}
-
-@utility text-axis-foreground {
-  color: var(--axis-foreground);
-}
-
-@utility text-mill {
-  color: var(--mill);
-}
-
-@utility bg-feb {
-  background-color: var(--feb);
-}
-
-@utility bg-axis {
-  background-color: var(--axis);
-}
-
-@utility border-feb {
-  border-color: var(--feb);
-}
-
-@utility border-axis {
-  border-color: var(--axis);
-}
-
-@utility border-ink {
-  border-color: var(--ink);
-}
-
-@keyframes drop-in {
-  0% {
-    transform: translateY(-26px) scale(0.6);
-    opacity: 0;
-  }
-  70% {
-    transform: translateY(2px) scale(1.06);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes mill-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-    stroke-width: 6;
-  }
-  50% {
-    opacity: 1;
-    stroke-width: 9;
-  }
-}
-
-/* ============================================================
-   Trilha FEB — Estilos específicos
-   ============================================================ */
-
-@utility text-typewriter {
-  font-family: "Special Elite", "Courier New", monospace;
-}
-
-@utility panel-field {
-  background-image:
-    linear-gradient(oklch(0.26 0.026 76 / 0.94), oklch(0.21 0.022 70 / 0.96)),
-    repeating-linear-gradient(
-      90deg,
-      oklch(1 0 0 / 0.025) 0px,
-      oklch(1 0 0 / 0.025) 1px,
-      transparent 1px,
-      transparent 4px
-    );
-  border: 1px solid var(--border);
-  box-shadow: 0 22px 60px -18px oklch(0.08 0.02 60 / 0.85);
-}
-
-@utility surface-map {
-  background-image:
-    radial-gradient(ellipse at 30% 20%, oklch(0.88 0.05 88 / 0.95), transparent 62%),
-    radial-gradient(ellipse at 78% 82%, oklch(0.7 0.06 74 / 0.7), transparent 58%),
-    linear-gradient(oklch(0.82 0.05 86), oklch(0.7 0.055 78));
-}
-
-@utility grain-overlay {
-  background-image: radial-gradient(oklch(0 0 0 / 0.35) 1px, transparent 1px);
-  background-size: 3px 3px;
-  mix-blend-mode: multiply;
-  opacity: 0.25;
-}
-
-/* Cores específicas da Trilha */
-@utility text-lantern {
-  color: var(--lantern);
-}
-
-@utility text-khaki {
-  color: var(--khaki);
-}
-
-@utility text-map {
-  color: var(--map);
-}
-
-@utility text-ink {
-  color: var(--ink);
-}
-
-@utility text-blood {
-  color: var(--blood);
-}
-
-@utility text-feb {
-  color: var(--feb);
-}
-
-@utility text-feb-foreground {
-  color: var(--feb-foreground);
-}
-
-@utility text-axis {
-  color: var(--axis);
-}
-
-@utility text-axis-foreground {
-  color: var(--axis-foreground);
-}
-
-@utility text-mill {
-  color: var(--mill);
-}
-
-@utility bg-feb {
-  background-color: var(--feb);
-}
-
-@utility bg-axis {
-  background-color: var(--axis);
-}
-
-@utility border-feb {
-  border-color: var(--feb);
-}
-
-@utility border-axis {
-  border-color: var(--axis);
-}
-
-@utility border-ink {
-  border-color: var(--ink);
-}
-
-@utility fill-feb {
-  fill: var(--feb);
-}
-
-@utility fill-axis {
-  fill: var(--axis);
-}
-
-@utility fill-ink {
-  fill: var(--ink);
-}
-
-@utility stroke-ink {
-  stroke: var(--ink);
-}
-
-@utility stroke-lantern {
-  stroke: var(--lantern);
-}
-
-@utility stroke-mill {
-  stroke: var(--mill);
-}
-
-@utility stroke-feb-foreground {
-  stroke: var(--feb-foreground);
-}
-
-@utility fill-feb-foreground {
-  fill: var(--feb-foreground);
-}
-
-@utility fill-axis-foreground {
-  fill: var(--axis-foreground);
-}
+/* Cidadela era text colors */
+@utility text-war-dust { color: var(--war-dust); }
+@utility text-modern-glow { color: var(--modern-glow); }
+@utility text-neon { color: var(--neon); }
+@utility text-neon-2 { color: var(--neon-2); }
+@utility text-war-deep { color: var(--war-deep); }
+@utility text-modern-deep { color: var(--modern-deep); }
+@utility text-future { color: var(--future); }
+@utility text-future-deep { color: var(--future-deep); }

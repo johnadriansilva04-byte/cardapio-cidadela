@@ -1,7 +1,8 @@
-import type { Order, PromoCode } from "@/lib/types";
+import type { PromoCode, LegacyOrder } from "@/lib/types";
 
 export function newComanda(): string {
-  // Usar contador sequencial simples
+  // Use sequential counter
+  if (typeof window === "undefined") return "#1";
   const counter = parseInt(localStorage.getItem("comanda_counter") || "0");
   const newCounter = counter + 1;
   localStorage.setItem("comanda_counter", newCounter.toString());
@@ -16,13 +17,13 @@ export function generatePromoCode(
   const codePrefix = accessType === "15_dias" ? "VIP" : "CID";
   const now = new Date();
   const expiration = new Date(now);
-  
+
   if (accessType === "15_dias") {
     expiration.setDate(expiration.getDate() + 15);
   } else {
     expiration.setMinutes(expiration.getMinutes() + 15);
   }
-  
+
   return {
     code: `${codePrefix}-${rand}`,
     label:
@@ -44,32 +45,34 @@ export function isCodeValid(code: PromoCode): boolean {
   const diffMs = now.getTime() - createdAt.getTime();
   const diffMinutes = diffMs / (1000 * 60);
 
-  // Códigos VIP (15 dias) expiram em 15 dias
   if (code.label.includes("15 dias")) {
-    return diffMinutes <= 15 * 24 * 60; // 15 dias em minutos
+    return diffMinutes <= 15 * 24 * 60;
   }
 
-  // Códigos temporários (15 min) expiram em 15 minutos
   if (code.label.includes("15 minutos")) {
     return diffMinutes <= 15;
   }
 
-  // Códigos antigos sem label específico não expiram
   return true;
 }
 
-export const STATUS_LABEL: Record<Order["status"], string> = {
+export const STATUS_LABEL: Record<string, string> = {
   pendente: "OPERACIONAL",
   andamento: "EM MISSÃO",
   entregue: "ENTREGUE",
+  received: "RECEBIDO",
+  preparing: "EM PREPARAÇÃO",
+  ready: "PRONTO",
+  delivered: "ENTREGUE",
+  cancelled: "CANCELADO",
 };
 
 export function brl(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** Comanda térmica 32 colunas. */
-export function buildThermalTicket(order: Order, storeName: string): string {
+/** Comanda térmica 32 colunas. Uses LegacyOrder type for backward compatibility. */
+export function buildThermalTicket(order: LegacyOrder, storeName: string): string {
   const W = 32;
   const line = "-".repeat(W);
   const center = (t: string) => t.padStart(Math.floor((W + t.length) / 2)).padEnd(W);
@@ -85,7 +88,7 @@ export function buildThermalTicket(order: Order, storeName: string): string {
     `FONE...: ${order.telefone}`,
     order.tipo_entrega === "entrega" ? `ENDER..: ${order.endereco}` : "RETIRADA NO BALCAO",
     line,
-    ...order.itens.map((i) => row(`${i.quantity}x ${i.name}`, brl(i.total))),
+    ...order.itens.map((i: { quantity: number; name: string; total: number }) => row(`${i.quantity}x ${i.name}`, brl(i.total))),
     line,
     row("TAXA", brl(order.taxa_entrega)),
     row("TOTAL", brl(order.total)),

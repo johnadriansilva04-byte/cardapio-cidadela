@@ -8,6 +8,8 @@ interface StoreContextValue {
   ready: boolean;
   online: boolean;
   update: (patch: (prev: AppState) => AppState) => void;
+  addSoberaniaPoints: (storeId: string, customerEmail: string, customerPhone: string, amount: number, reason?: string, source?: SoberaniaTransaction["source"]) => void;
+  removeSoberaniaPoints: (storeId: string, customerEmail: string, customerPhone: string, amount: number, reason?: string, source?: SoberaniaTransaction["source"]) => void;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -59,7 +61,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Funções para gerenciar pontos de soberania
-  const addSoberaniaPoints = useCallback((storeId: string, customerEmail: string, customerPhone: string, amount: number, reason: string, source: SoberaniaTransaction["source"]) => {
+  const addSoberaniaPoints = useCallback((storeId: string, customerEmail: string, customerPhone: string, amount: number, reason = "", source: SoberaniaTransaction["source"] = "order") => {
     update((prev) => ({
       ...prev,
       soberania: {
@@ -80,7 +82,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [update]);
 
-  const removeSoberaniaPoints = useCallback((storeId: string, customerEmail: string, customerPhone: string, amount: number, reason: string, source: SoberaniaTransaction["source"]) => {
+  const removeSoberaniaPoints = useCallback((storeId: string, customerEmail: string, customerPhone: string, amount: number, reason = "", source: SoberaniaTransaction["source"] = "order") => {
     update((prev) => ({
       ...prev,
       soberania: {
@@ -108,7 +110,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     update,
     addSoberaniaPoints,
     removeSoberaniaPoints,
-  }), [state, ready, online, update, addSoberaniaPoints, removeSoberaniaPoints]);
+  }) as StoreContextValue, [state, ready, online, update, addSoberaniaPoints, removeSoberaniaPoints]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

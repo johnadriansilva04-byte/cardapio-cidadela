@@ -1,23 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import Cardapio from "@/components/cardapio/Cardapio";
+import AdminDashboard from "@/components/admin/AdminDashboard";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Cantina do Pracinha — Cardápio Digital" },
+      { title: "Menu Digital — Plataforma de Cardápios" },
       {
         name: "description",
         content:
-          "Peça lanches, porções e bebidas pelo cardápio digital da Cantina do Pracinha. Pagamento por PIX e pontos de Soberania a cada pedido.",
+          "Crie, gerencie e publique cardápios digitais para restaurantes. Plataforma SaaS profissional.",
       },
-      { property: "og:title", content: "Cantina do Pracinha — Cardápio Digital" },
-      {
-        property: "og:description",
-        content: "Cardápio digital com pedido online, PIX e pontos de Soberania.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Cardapio,
+  component: HomePage,
 });
+
+function HomePage() {
+  return <AdminDashboard />;
+}

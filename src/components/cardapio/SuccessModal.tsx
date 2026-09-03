@@ -1,19 +1,30 @@
-import { CheckCircle2, MessageCircle } from "lucide-react";
-import type { Order } from "@/lib/types";
-import { brl } from "@/modules/core/utils";
+import { CheckCircle2, MessageCircle, ExternalLink } from "lucide-react";
+import { brl, buildWhatsAppMessage, sendToWhatsApp } from "@/lib/utils";
+
+interface SuccessOrder {
+  id: string;
+  comanda: string;
+  total: number;
+  customer_name: string;
+  customer_phone: string;
+  items: { product_name: string; quantity: number; total: number }[];
+  observations: string;
+  payment_method: string;
+  delivery_type: string;
+}
 
 export default function SuccessModal({
   order,
-  cidadelaCode,
-  points,
+  restaurantSlug,
+  restaurantName,
+  restaurantWhatsapp,
   onClose,
-  ownerWhatsApp,
 }: {
-  order: Order;
-  cidadelaCode?: { code: string; access_type: "15_min" | "15_dias" } | null;
-  points: number;
+  order: SuccessOrder;
+  restaurantSlug: string;
+  restaurantName: string;
+  restaurantWhatsapp: string;
   onClose: () => void;
-  ownerWhatsApp: string;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur">
@@ -24,38 +35,54 @@ export default function SuccessModal({
           Comanda {order.comanda} • {brl(order.total)}
         </p>
 
-        {points > 0 && (
-          <p className="mt-3 text-sm font-bold text-[color:var(--color-brass)]">
-            +{points} pontos de Soberania
+        {/* Cidadela unlock hint */}
+        <div className="mt-4 rounded-xl border border-cyan-400/50 bg-cyan-400/10 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">
+            Cidadela desbloqueada!
           </p>
-        )}
+          <p className="mt-1 text-xs text-cyan-200/70">
+            Sua compra desbloqueou o acesso à Cidadela
+          </p>
+        </div>
 
-        {cidadelaCode && (
-          <div className="mt-4 rounded-xl border border-cyan-400/50 bg-cyan-400/10 p-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">
-              Seu código da Cidadela
-            </p>
-            <p className="mt-1 text-2xl font-black text-cyan-300">{cidadelaCode.code}</p>
-            <p className="mt-1 text-[10px] text-cyan-200/70">
-              Acesso {cidadelaCode.access_type === "15_dias" ? "de 15 dias" : "de 15 minutos"}
-            </p>
-          </div>
-        )}
-
-        <div className="mt-5 flex gap-2">
-          <button
-            onClick={() => {
-              const message = `Olá! Acabei de fazer o pedido ${order.comanda} no valor de ${brl(order.total)}. Gostaria de acompanhar.`;
-              const whatsappUrl = `https://wa.me/${ownerWhatsApp}?text=${encodeURIComponent(message)}`;
-              window.open(whatsappUrl, '_blank');
-            }}
-            className="flex flex-1 items-center justify-center gap-2 rounded-full border border-green-500/50 py-3 text-sm font-semibold text-green-400"
+        <div className="mt-5 space-y-2">
+          {/* Order tracking button */}
+          <a
+            href={`/pedido/${order.id}`}
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-cyan-500/50 py-3 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/10"
           >
-            <MessageCircle className="size-4" /> WhatsApp
-          </button>
+            <ExternalLink className="size-4" /> Acompanhar pedido
+          </a>
+
+          {/* WhatsApp button */}
+          {restaurantWhatsapp && (
+            <button
+              onClick={() => {
+                const msg = buildWhatsAppMessage(
+                  {
+                    comanda: order.comanda,
+                    customer_name: order.customer_name,
+                    total: order.total,
+                    order_items: order.items,
+                    observations: order.observations,
+                    payment_method: order.payment_method,
+                    delivery_type: order.delivery_type,
+                    delivery_address: "",
+                  },
+                  restaurantName,
+                );
+                sendToWhatsApp(restaurantWhatsapp, msg);
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-green-500/50 py-3 text-sm font-semibold text-green-400 hover:bg-green-500/10"
+            >
+              <MessageCircle className="size-4" /> Enviar para WhatsApp
+            </button>
+          )}
+
+          {/* Close button */}
           <button
             onClick={onClose}
-            className="flex-1 rounded-full bg-red-600 py-3 text-sm font-bold text-white"
+            className="w-full rounded-full bg-gray-800 py-3 text-sm font-bold text-white hover:bg-gray-700"
           >
             Fechar
           </button>

@@ -69,7 +69,7 @@ function LandingPage() {
               Como funciona
             </a>
             <Link
-              to="/admin"
+              to="/login"
               className="rounded-lg bg-cyan-500 px-5 py-2 text-sm font-semibold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
             >
               Acessar Plataforma
@@ -99,7 +99,7 @@ function LandingPage() {
               Como funciona
             </a>
             <Link
-              to="/admin"
+              to="/login"
               className="block rounded-lg bg-cyan-500 px-5 py-2.5 text-center text-sm font-semibold text-black"
             >
               Acessar Plataforma
@@ -141,7 +141,7 @@ function LandingPage() {
 
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
-                to="/admin"
+                to="/login"
                 className="flex items-center gap-2 rounded-xl bg-cyan-500 px-8 py-3.5 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
               >
                 Criar meu cardápio grátis
@@ -318,9 +318,8 @@ function LandingPage() {
           <p className="mx-auto mt-4 max-w-xl text-gray-400">
             Crie seu cardápio digital em minutos. Sem cartão de crédito, sem compromisso.
           </p>
-          <div className="mt-10">
-            <Link
-              to="/admin"
+          <div className="mt-10">              <Link
+              to="/login"
               className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-10 py-4 text-base font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.4)]"
             >
               Criar meu cardápio agora

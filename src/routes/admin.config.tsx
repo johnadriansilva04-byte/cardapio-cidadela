@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import { Store } from "lucide-react";
 import {
   getRestaurantsByOwner,
-  getOrCreateOwnerId,
   updateRestaurant,
 } from "@/modules/supabase/restaurants";
+import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/config")({
@@ -26,10 +26,12 @@ function ConfigPage() {
   const [pixKey, setPixKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) return;
     async function load() {
-      const data = await getRestaurantsByOwner(getOrCreateOwnerId());
+      const data = await getRestaurantsByOwner(user!.id);
       setRestaurants(data);
       if (data.length > 0) {
         setSelectedId(data[0].id);
@@ -38,7 +40,7 @@ function ConfigPage() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [user]);
 
   function fillFields(r: Restaurant) {
     setWhatsapp(r.whatsapp);

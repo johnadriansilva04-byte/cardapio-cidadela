@@ -12,8 +12,8 @@ import {
   getRestaurantsByOwner,
   createRestaurant,
   generateUniqueSlug,
-  getOrCreateOwnerId,
 } from "@/modules/supabase/restaurants";
+import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/restaurantes")({
@@ -30,13 +30,13 @@ function RestaurantesPage() {
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
-
-  const ownerId = getOrCreateOwnerId();
+  const { user } = useAuth();
+  const ownerId = user?.id || "";
 
   useEffect(() => {
+    if (!user) return;
     loadRestaurants();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   async function loadRestaurants() {
     setLoading(true);

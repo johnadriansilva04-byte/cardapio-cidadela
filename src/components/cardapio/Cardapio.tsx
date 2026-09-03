@@ -5,7 +5,6 @@ import { CidadelaUnlockAnimation } from "@/components/cidadela/CidadelaUnlockAni
 import { usePlatformStore } from "@/modules/core/store";
 import {
   getRestaurantBySlug,
-  getOrCreateOwnerId,
 } from "@/modules/supabase/restaurants";
 import { getMenuWithProducts } from "@/modules/supabase/menu";
 import {

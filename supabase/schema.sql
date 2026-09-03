@@ -251,6 +251,32 @@ WHERE created_at >= CURRENT_DATE
 GROUP BY restaurant_id;
 
 -- ============================================================
+-- PROFILES (auth users + roles)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  phone TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  role TEXT NOT NULL DEFAULT 'owner' CHECK (role IN ('admin', 'owner', 'user')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own profile"
+  ON profiles FOR SELECT
+  USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile"
+  ON profiles FOR UPDATE
+  USING (auth.uid() = id);
+
+CREATE POLICY "Allow profile creation"
+  ON profiles FOR INSERT
+  WITH CHECK (auth.uid() = id);
+
+-- ============================================================
 -- ROW LEVEL SECURITY (optional — enable as needed)
 -- ============================================================
 -- Uncomment and customize these policies for production:

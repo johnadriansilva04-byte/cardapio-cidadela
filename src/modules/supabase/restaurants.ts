@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { getCurrentUser } from "./auth";
 import type { Restaurant } from "@/lib/types";
 
 /**
@@ -149,14 +150,20 @@ export async function generateUniqueSlug(
 }
 
 /**
- * Generate or recover owner_id from localStorage
+ * Get the current authenticated user's ID as the owner_id.
+ * Falls back to a random ID only during initial render before auth is ready.
  */
-export function getOrCreateOwnerId(): string {
-  if (typeof window === "undefined") return "";
-  let ownerId = localStorage.getItem("platform_owner_id");
-  if (!ownerId) {
-    ownerId = `owner_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    localStorage.setItem("platform_owner_id", ownerId);
-  }
-  return ownerId;
+export async function getOwnerId(): Promise<string> {
+  const user = await getCurrentUser();
+  if (user) return user.id;
+  // Fallback should never happen in authenticated routes
+  return `anonymous_${Date.now()}`;
+}
+
+/**
+ * Synchronous version — returns the user ID from an active session.
+ * Must be called after auth is initialized (e.g. inside a component with useAuth).
+ */
+export function getOwnerIdSync(userId: string | undefined): string {
+  return userId || `anonymous_${Date.now()}`;
 }

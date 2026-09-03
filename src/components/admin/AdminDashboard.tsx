@@ -13,8 +13,8 @@ import {
   getRestaurantsByOwner,
   createRestaurant,
   generateUniqueSlug,
-  getOrCreateOwnerId,
 } from "@/modules/supabase/restaurants";
+import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 import { RestaurantManager } from "./RestaurantManager";
 import { MenuManager } from "./MenuManager";
@@ -44,13 +44,13 @@ export default function AdminDashboard() {
   const [slugPreview, setSlugPreview] = useState("");
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState("");
-
-  const ownerId = getOrCreateOwnerId();
+  const { user } = useAuth();
+  const ownerId = user?.id || "";
 
   useEffect(() => {
+    if (!user) return;
     loadRestaurants();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   async function loadRestaurants() {
     setLoading(true);

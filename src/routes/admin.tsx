@@ -1,5 +1,5 @@
-import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import {
   UtensilsCrossed,
   LayoutDashboard,
@@ -11,7 +11,10 @@ import {
   ChevronLeft,
   Menu,
   X,
+  LogOut,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -32,6 +35,25 @@ const NAV_ITEMS = [
 function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const matchRoute = useMatchRoute();
+  const { isAuthenticated, loading, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      window.location.href = "/login?returnTo=%2Fadmin";
+    }
+  }, [loading, isAuthenticated]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#0a0a0f]">
+        <Loader2 className="size-8 animate-spin text-cyan-400" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="flex h-screen bg-[#0a0a0f]">
@@ -116,6 +138,7 @@ function AdminLayout() {
 
 function SidebarContent() {
   const matchRoute = useMatchRoute();
+  const { signOut } = useAuth();
 
   return (
     <>
@@ -150,7 +173,17 @@ function SidebarContent() {
         })}
       </nav>
 
-      <div className="border-t border-white/5 px-5 py-4">
+      <div className="border-t border-white/5 px-5 py-4 space-y-2">
+        <button
+          onClick={async () => {
+            await signOut();
+            window.location.href = "/login";
+          }}
+          className="flex w-full items-center gap-2 text-xs text-gray-500 hover:text-red-400 transition-colors"
+        >
+          <LogOut className="size-3" />
+          Sair da conta
+        </button>
         <Link
           to="/"
           className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"

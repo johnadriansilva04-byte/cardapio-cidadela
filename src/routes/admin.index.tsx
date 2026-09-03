@@ -9,8 +9,8 @@ import {
 import { useEffect, useState } from "react";
 import {
   getRestaurantsByOwner,
-  getOrCreateOwnerId,
 } from "@/modules/supabase/restaurants";
+import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/")({
@@ -21,16 +21,17 @@ export const Route = createFileRoute("/admin/")({
 function AdminDashboardOverview() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) return;
     async function load() {
-      const ownerId = getOrCreateOwnerId();
-      const data = await getRestaurantsByOwner(ownerId);
+      const data = await getRestaurantsByOwner(user!.id);
       setRestaurants(data);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [user]);
 
   const publishedCount = restaurants.filter((r) => r.status === "published").length;
   const draftCount = restaurants.filter((r) => r.status === "draft").length;

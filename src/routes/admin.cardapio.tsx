@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import { Store } from "lucide-react";
 import {
   getRestaurantsByOwner,
-  getOrCreateOwnerId,
 } from "@/modules/supabase/restaurants";
 import { MenuManager } from "@/components/admin/MenuManager";
+import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/cardapio")({
@@ -17,16 +17,18 @@ function CardapioPage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) return;
     async function load() {
-      const data = await getRestaurantsByOwner(getOrCreateOwnerId());
+      const data = await getRestaurantsByOwner(user!.id);
       setRestaurants(data);
       if (data.length > 0) setSelectedId(data[0].id);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [user]);
 
   const selected = restaurants.find((r) => r.id === selectedId);
 

@@ -291,15 +291,122 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- ============================================================
--- ROW LEVEL SECURITY (optional — enable as needed)
+-- ROW LEVEL SECURITY — Tabelas principais
 -- ============================================================
--- Uncomment and customize these policies for production:
--- ALTER TABLE restaurants ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE products ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE order_status_history ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE cidadela_unlocks ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE addon_groups ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE addons ENABLE ROW LEVEL SECURITY;
+
+-- RESTAURANTS
+ALTER TABLE restaurants ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can view own restaurants"
+    ON restaurants FOR SELECT
+    USING (owner_id = auth.uid()::text);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can create restaurants"
+    ON restaurants FOR INSERT
+    WITH CHECK (owner_id = auth.uid()::text);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can update own restaurants"
+    ON restaurants FOR UPDATE
+    USING (owner_id = auth.uid()::text);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can delete own restaurants"
+    ON restaurants FOR DELETE
+    USING (owner_id = auth.uid()::text);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- CATEGORIES
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can manage own categories"
+    ON categories FOR ALL
+    USING (restaurant_id IN (
+      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- PRODUCTS
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can manage own products"
+    ON products FOR ALL
+    USING (restaurant_id IN (
+      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ORDERS
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can manage own orders"
+    ON orders FOR ALL
+    USING (restaurant_id IN (
+      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ORDER ITEMS
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can manage own order items"
+    ON order_items FOR ALL
+    USING (order_id IN (
+      SELECT o.id FROM orders o
+      JOIN restaurants r ON r.id = o.restaurant_id
+      WHERE r.owner_id = auth.uid()::text
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ADDON GROUPS
+ALTER TABLE addon_groups ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can manage own addon groups"
+    ON addon_groups FOR ALL
+    USING (restaurant_id IN (
+      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ADDONS
+ALTER TABLE addons ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can manage own addons"
+    ON addons FOR ALL
+    USING (restaurant_id IN (
+      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- CIDADELA UNLOCKS
+ALTER TABLE cidadela_unlocks ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can manage own cidadela unlocks"
+    ON cidadela_unlocks FOR ALL
+    USING (restaurant_id IN (
+      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

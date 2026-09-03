@@ -1,11 +1,48 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+let _client: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+function getSupabaseUrl(): string {
+  try {
+    return import.meta.env?.VITE_SUPABASE_URL || "";
+  } catch {
+    return "";
+  }
+}
 
-// Legacy types for game matchmaking (preserved for Cidadela components)
+function getSupabaseAnonKey(): string {
+  try {
+    return import.meta.env?.VITE_SUPABASE_ANON_KEY || "";
+  } catch {
+    return "";
+  }
+}
+
+export function getSupabase(): SupabaseClient {
+  if (!_client) {
+    const url = getSupabaseUrl();
+    const key = getSupabaseAnonKey();
+    if (!url || !key) {
+      _client = createClient(
+        url || "https://placeholder.supabase.co",
+        key || "placeholder-key",
+      );
+    } else {
+      _client = createClient(url, key);
+    }
+  }
+  return _client;
+}
+
+// Named export for backward compatibility — lazy proxy
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_, prop) {
+    const client = getSupabase() as unknown as Record<string | symbol, unknown>;
+    return client[prop];
+  },
+});
+
+// Legacy types for game matchmaking
 export type GameType = "battle" | "trilha" | "iq_test";
 
 export interface GameSession {

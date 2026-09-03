@@ -294,119 +294,106 @@ END $$;
 -- ROW LEVEL SECURITY — Tabelas principais
 -- ============================================================
 
--- RESTAURANTS
+-- RESTAURANTS: limpa políticas antigas e cria novas
 ALTER TABLE restaurants ENABLE ROW LEVEL SECURITY;
 
-DO $$ BEGIN
-  CREATE POLICY "Users can view own restaurants"
-    ON restaurants FOR SELECT
-    USING (owner_id = auth.uid()::text);
-EXCEPTION WHEN duplicate_object THEN NULL;
+-- Dropa qualquer política antiga pra evitar conflito
+DO $$ DECLARE
+  pol RECORD;
+BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE tablename = 'restaurants' LOOP
+    EXECUTE 'DROP POLICY IF EXISTS ' || quote_ident(pol.policyname) || ' ON restaurants';
+  END LOOP;
 END $$;
 
-DO $$ BEGIN
-  CREATE POLICY "Users can create restaurants"
-    ON restaurants FOR INSERT
-    WITH CHECK (owner_id = auth.uid()::text);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+CREATE POLICY "owner_select"
+  ON restaurants FOR SELECT
+  USING (owner_id = auth.uid()::text);
 
-DO $$ BEGIN
-  CREATE POLICY "Users can update own restaurants"
-    ON restaurants FOR UPDATE
-    USING (owner_id = auth.uid()::text);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+CREATE POLICY "owner_insert"
+  ON restaurants FOR INSERT
+  WITH CHECK (owner_id = auth.uid()::text);
 
-DO $$ BEGIN
-  CREATE POLICY "Users can delete own restaurants"
-    ON restaurants FOR DELETE
-    USING (owner_id = auth.uid()::text);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+CREATE POLICY "owner_update"
+  ON restaurants FOR UPDATE
+  USING (owner_id = auth.uid()::text);
+
+CREATE POLICY "owner_delete"
+  ON restaurants FOR DELETE
+  USING (owner_id = auth.uid()::text);
+
+-- Política pública: qualquer pessoa vê restaurantes publicados
+CREATE POLICY "public_read_published"
+  ON restaurants FOR SELECT
+  USING (status = 'published');
+
+-- Funcao auxiliar: limpa policies antigas de uma tabela
+CREATE OR REPLACE FUNCTION drop_policies_if_exist(target_table TEXT)
+RETURNS VOID AS $$
+DECLARE
+  pol RECORD;
+BEGIN
+  FOR pol IN EXECUTE format(
+    'SELECT policyname FROM pg_policies WHERE tablename = %L',
+    target_table
+  ) LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %s', pol.policyname, target_table);
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Macro pra checar se dono do restaurante
+-- (restaurant_id → owner_id → auth.uid())
+CREATE OR REPLACE FUNCTION is_restaurant_owner(rid UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM restaurants
+    WHERE id = rid AND owner_id = auth.uid()::text
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- CATEGORIES
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Users can manage own categories"
-    ON categories FOR ALL
-    USING (restaurant_id IN (
-      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
-    ));
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+SELECT drop_policies_if_exist('categories');
+CREATE POLICY "owner_categories" ON categories FOR ALL
+  USING (is_restaurant_owner(restaurant_id));
 
 -- PRODUCTS
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Users can manage own products"
-    ON products FOR ALL
-    USING (restaurant_id IN (
-      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
-    ));
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+SELECT drop_policies_if_exist('products');
+CREATE POLICY "owner_products" ON products FOR ALL
+  USING (is_restaurant_owner(restaurant_id));
 
 -- ORDERS
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Users can manage own orders"
-    ON orders FOR ALL
-    USING (restaurant_id IN (
-      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
-    ));
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+SELECT drop_policies_if_exist('orders');
+CREATE POLICY "owner_orders" ON orders FOR ALL
+  USING (is_restaurant_owner(restaurant_id));
 
 -- ORDER ITEMS
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Users can manage own order items"
-    ON order_items FOR ALL
-    USING (order_id IN (
-      SELECT o.id FROM orders o
-      JOIN restaurants r ON r.id = o.restaurant_id
-      WHERE r.owner_id = auth.uid()::text
-    ));
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+SELECT drop_policies_if_exist('order_items');
+CREATE POLICY "owner_order_items" ON order_items FOR ALL
+  USING (order_id IN (
+    SELECT o.id FROM orders o WHERE is_restaurant_owner(o.restaurant_id)
+  ));
 
 -- ADDON GROUPS
 ALTER TABLE addon_groups ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Users can manage own addon groups"
-    ON addon_groups FOR ALL
-    USING (restaurant_id IN (
-      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
-    ));
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+SELECT drop_policies_if_exist('addon_groups');
+CREATE POLICY "owner_addon_groups" ON addon_groups FOR ALL
+  USING (is_restaurant_owner(restaurant_id));
 
 -- ADDONS
 ALTER TABLE addons ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Users can manage own addons"
-    ON addons FOR ALL
-    USING (restaurant_id IN (
-      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
-    ));
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+SELECT drop_policies_if_exist('addons');
+CREATE POLICY "owner_addons" ON addons FOR ALL
+  USING (is_restaurant_owner(restaurant_id));
 
 -- CIDADELA UNLOCKS
 ALTER TABLE cidadela_unlocks ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Users can manage own cidadela unlocks"
-    ON cidadela_unlocks FOR ALL
-    USING (restaurant_id IN (
-      SELECT id FROM restaurants WHERE owner_id = auth.uid()::text
-    ));
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+SELECT drop_policies_if_exist('cidadela_unlocks');
+CREATE POLICY "owner_cidadela" ON cidadela_unlocks FOR ALL
+  USING (is_restaurant_owner(restaurant_id));

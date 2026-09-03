@@ -7,6 +7,9 @@ export interface CheckoutForm {
   customer_phone: string;
   customer_email: string;
   delivery_address: string;
+  customer_complement: string;
+  customer_neighborhood: string;
+  customer_city: string;
   delivery_type: "entrega" | "retirada";
   observations: string;
   payment_method: "pix" | "dinheiro" | "cartao";
@@ -15,18 +18,25 @@ export interface CheckoutForm {
 
 export default function CheckoutModal({
   total,
+  prefillName,
+  prefillPhone,
   onClose,
   onConfirm,
 }: {
   total: number;
+  prefillName?: string;
+  prefillPhone?: string;
   onClose: () => void;
   onConfirm: (form: CheckoutForm) => void;
 }) {
   const [form, setForm] = useState<CheckoutForm>({
-    customer_name: "",
-    customer_phone: "",
+    customer_name: prefillName || "",
+    customer_phone: prefillPhone || "",
     customer_email: "",
     delivery_address: "",
+    customer_complement: "",
+    customer_neighborhood: "",
+    customer_city: "",
     delivery_type: "retirada",
     observations: "",
     payment_method: "pix",
@@ -103,14 +113,42 @@ export default function CheckoutModal({
           </div>
 
           {form.delivery_type === "entrega" && (
-            <input
-              className={field}
-              placeholder="Endereço de entrega *"
-              value={form.delivery_address}
-              onChange={(e) =>
-                setForm({ ...form, delivery_address: e.target.value })
-              }
-            />
+            <>
+              <input
+                className={field}
+                placeholder="Endereço (rua, número) *"
+                value={form.delivery_address}
+                onChange={(e) =>
+                  setForm({ ...form, delivery_address: e.target.value })
+                }
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  className={field}
+                  placeholder="Complemento"
+                  value={form.customer_complement}
+                  onChange={(e) =>
+                    setForm({ ...form, customer_complement: e.target.value })
+                  }
+                />
+                <input
+                  className={field}
+                  placeholder="Bairro"
+                  value={form.customer_neighborhood}
+                  onChange={(e) =>
+                    setForm({ ...form, customer_neighborhood: e.target.value })
+                  }
+                />
+              </div>
+              <input
+                className={field}
+                placeholder="Cidade"
+                value={form.customer_city}
+                onChange={(e) =>
+                  setForm({ ...form, customer_city: e.target.value })
+                }
+              />
+            </>
           )}
 
           <textarea

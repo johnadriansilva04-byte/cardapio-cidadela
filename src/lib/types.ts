@@ -12,6 +12,7 @@ export interface Restaurant {
   name: string;
   slug: string;
   description: string;
+  slogan: string;
   phone: string;
   whatsapp: string;
   address: string;
@@ -69,7 +70,7 @@ export interface Addon {
 }
 
 // --- Orders ---
-export type OrderStatus = 'received' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+export type OrderStatus = 'received' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
 export interface OrderItem {
   id: string;
@@ -84,11 +85,15 @@ export interface OrderItem {
 export interface Order {
   id: string;
   restaurant_id: string;
+  customer_id: string | null;
   comanda: string;
   customer_name: string;
   customer_phone: string;
   customer_email: string;
   delivery_address: string;
+  customer_complement: string;
+  customer_neighborhood: string;
+  customer_city: string;
   delivery_type: string;
   observations: string;
   subtotal: number;
@@ -144,6 +149,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   received: 'RECEBIDO',
   preparing: 'EM PREPARAÇÃO',
   ready: 'PRONTO',
+  out_for_delivery: 'A CAMINHO',
   delivered: 'ENTREGUE',
   cancelled: 'CANCELADO',
 };
@@ -152,6 +158,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   received: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
   preparing: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
   ready: 'bg-green-500/20 text-green-300 border-green-500/30',
+  out_for_delivery: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
   delivered: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
   cancelled: 'bg-red-500/20 text-red-300 border-red-500/30',
 };

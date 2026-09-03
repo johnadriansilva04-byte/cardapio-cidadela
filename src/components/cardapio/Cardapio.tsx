@@ -12,12 +12,14 @@ import {
   hasCidadelaAccess,
   unlockCidadela,
 } from "@/modules/supabase/orders";
+import { useAuth } from "@/components/AuthProvider";
 import { brl, newComanda, buildWhatsAppMessage, sendToWhatsApp } from "@/lib/utils";
 import type { Product, Category, Restaurant, CartItem, OrderStatus } from "@/lib/types";
 import CartSheet from "./CartSheet";
 import CheckoutModal from "./CheckoutModal";
 import type { CheckoutForm } from "./CheckoutModal";
 import SuccessModal from "./SuccessModal";
+import CustomerIdentifyModal, { type GuestInfo } from "./CustomerIdentifyModal";
 
 interface PublicMenuProps {
   slug: string;
@@ -32,13 +34,18 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     setCart,
   } = usePlatformStore();
 
+  const { user, isAuthenticated } = useAuth();
+
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCat, setActiveCat] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
+  const [identifyOpen, setIdentifyOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [guestInfo, setGuestInfo] = useState<GuestInfo | null>(null);
+  const [authenticatedInfo, setAuthenticatedInfo] = useState<{ name: string; phone: string; userId: string } | null>(null);
   const [successOrder, setSuccessOrder] = useState<Record<string, unknown> | null>(null);
   const [showCidadelaUnlock, setShowCidadelaUnlock] = useState(false);
   const [cidadelaUnlocked, setCidadelaUnlocked] = useState(false);
@@ -72,6 +79,28 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   useEffect(() => {
     setCart([]);
   }, [slug, setCart]);
+
+  // Check existing Cidadela access on load (from localStorage phone)
+  useEffect(() => {
+    if (!restaurant) return;
+    let alive = true;
+    async function checkAccess() {
+      try {
+        const storedPhone = localStorage.getItem(`cidadela_phone_${restaurant!.id}`);
+        if (storedPhone && alive) {
+          const hasAccess = await hasCidadelaAccess(restaurant!.id, storedPhone);
+          if (alive && hasAccess) {
+            setCidadelaUnlocked(true);
+            setCidadelaPhone(storedPhone);
+          }
+        }
+      } catch {
+        // ignore - will show locked state
+      }
+    }
+    checkAccess();
+    return () => { alive = false; };
+  }, [restaurant?.id]);
 
   const allItems = useMemo(
     () => products,
@@ -122,15 +151,21 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     }));
 
     const comanda = newComanda();
+    const customerPhone = form.customer_phone;
+    const customerName = form.customer_name;
 
     const order = await createOrder(
       restaurant.id,
       {
         comanda,
-        customer_name: form.customer_name,
-        customer_phone: form.customer_phone,
+        customer_id: authenticatedInfo?.userId ?? null,
+        customer_name: customerName,
+        customer_phone: customerPhone,
         customer_email: form.customer_email,
         delivery_address: form.delivery_address,
+        customer_complement: form.customer_complement,
+        customer_neighborhood: form.customer_neighborhood,
+        customer_city: form.customer_city,
         delivery_type: form.delivery_type,
         observations: form.observations,
         subtotal,
@@ -146,14 +181,20 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       return;
     }
 
-    // Auto-unlock Cidadela if phone provided
-    if (form.customer_phone) {
-      setCidadelaPhone(form.customer_phone);
+    // Only unlock Cidadela AFTER order is confirmed in the backend
+    if (customerPhone) {
+      setCidadelaPhone(customerPhone);
       const unlocked = await unlockCidadela(
         restaurant.id,
         order.id,
-        form.customer_phone,
+        customerPhone,
       );
+      // Persist phone for future access checks
+      try {
+        localStorage.setItem(`cidadela_phone_${restaurant.id}`, customerPhone);
+      } catch {
+        // ignore localStorage errors
+      }
       if (unlocked) {
         setTimeout(() => {
           setShowCidadelaUnlock(true);
@@ -164,6 +205,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
     clearCart();
     setCheckoutOpen(false);
+    setGuestInfo(null);
+    setAuthenticatedInfo(null);
     setSuccessOrder({
       ...order,
       order_items: orderItems.map((i, idx) => ({ id: `${idx}`, ...i })),
@@ -230,51 +273,58 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
-          {restaurant.description || restaurant.name}
-        </span>
-        <span className="w-5" />
-      </div>
-
-      {/* Banner */}
+      {/* Header with visual identity */}
       <div className="relative">
+        {/* Banner background */}
         <div
-          className="h-48 w-full bg-cover bg-center bg-no-repeat sm:h-64"
+          className="h-56 w-full bg-cover bg-center bg-no-repeat sm:h-72"
           style={{
             backgroundImage: restaurant.banner_url
               ? `url(${restaurant.banner_url})`
               : `linear-gradient(135deg, ${restaurant.primary_color}33 0%, #000 60%)`,
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/40 to-black" />
 
-        <div className="absolute left-0 right-0 top-4 px-4 text-center">
-          {restaurant.logo_url && (
+        {/* Restaurant identity — centered */}
+        <div className="absolute left-0 right-0 top-8 px-4 text-center sm:top-12">
+          {/* Logo / Cover image */}
+          {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
               alt={restaurant.name}
-              className="mx-auto mb-2 size-16 rounded-full border-2 border-white/20 object-cover"
+              className="mx-auto mb-3 size-20 rounded-2xl border-2 border-white/20 object-cover shadow-[0_0_30px_rgba(0,0,0,0.5)] sm:size-24"
             />
+          ) : (
+            <div className="mx-auto mb-3 flex size-20 items-center justify-center rounded-2xl border-2 border-cyan-500/30 bg-black/60 shadow-[0_0_30px_rgba(0,0,0,0.5)] sm:size-24">
+              <span className="text-3xl">🍽️</span>
+            </div>
           )}
-          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+
+          {/* Restaurant name */}
+          <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
             {restaurant.name}
           </h1>
-          <p className="mt-1 text-sm text-cyan-300">Qual será o seu pedido?</p>
-        </div>
 
-        {/* Cidadela Orb — top right */}
-        <div className="absolute right-3 top-3 z-50">
-          <CidadelaOrb
-            unlocked={cidadelaUnlocked}
-            onClick={() => {
-              if (cidadelaUnlocked) {
-                setShowCidadelaUnlock(true);
-              }
-            }}
-            size="md"
-          />
+          {/* Slogan */}
+          {restaurant.slogan && (
+            <p className="mt-1.5 text-sm italic text-cyan-300/80">
+              "{restaurant.slogan}"
+            </p>
+          )}
+
+          {/* Conheça a Cidadela indicator below identity */}
+          <div className="mt-3 inline-flex items-center gap-2">
+            <CidadelaOrb
+              unlocked={cidadelaUnlocked}
+              onClick={() => {
+                if (cidadelaUnlocked) {
+                  setShowCidadelaUnlock(true);
+                }
+              }}
+              size="sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -434,6 +484,30 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           onClose={() => setCartOpen(false)}
           onCheckout={() => {
             setCartOpen(false);
+            // If already identified (logged in or guest), go straight to checkout
+            if (guestInfo || authenticatedInfo) {
+              setCheckoutOpen(true);
+            } else {
+              setIdentifyOpen(true);
+            }
+          }}
+        />
+      )}
+
+      {/* Customer identification modal */}
+      {identifyOpen && (
+        <CustomerIdentifyModal
+          onClose={() => setIdentifyOpen(false)}
+          onGuestConfirm={(info) => {
+            setGuestInfo(info);
+            setAuthenticatedInfo(null);
+            setIdentifyOpen(false);
+            setCheckoutOpen(true);
+          }}
+          onAuthenticated={(name, phone) => {
+            setAuthenticatedInfo({ name, phone, userId: user?.id || "" });
+            setGuestInfo(null);
+            setIdentifyOpen(false);
             setCheckoutOpen(true);
           }}
         />
@@ -443,6 +517,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       {checkoutOpen && (
         <CheckoutModal
           total={subtotal}
+          prefillName={authenticatedInfo?.name || guestInfo?.name || ""}
+          prefillPhone={authenticatedInfo?.phone || guestInfo?.phone || ""}
           onClose={() => setCheckoutOpen(false)}
           onConfirm={handleCheckout}
         />

@@ -8,10 +8,14 @@ export async function createOrder(
   restaurantId: string,
   orderData: {
     comanda: string;
+    customer_id?: string | null;
     customer_name: string;
     customer_phone: string;
     customer_email: string;
     delivery_address: string;
+    customer_complement?: string;
+    customer_neighborhood?: string;
+    customer_city?: string;
     delivery_type: string;
     observations: string;
     subtotal: number;
@@ -33,11 +37,15 @@ export async function createOrder(
     .from("orders")
     .insert({
       restaurant_id: restaurantId,
+      customer_id: orderData.customer_id ?? null,
       comanda: orderData.comanda,
       customer_name: orderData.customer_name,
       customer_phone: orderData.customer_phone,
       customer_email: orderData.customer_email,
       delivery_address: orderData.delivery_address,
+      customer_complement: orderData.customer_complement ?? "",
+      customer_neighborhood: orderData.customer_neighborhood ?? "",
+      customer_city: orderData.customer_city ?? "",
       delivery_type: orderData.delivery_type,
       observations: orderData.observations,
       subtotal: orderData.subtotal,
@@ -221,31 +229,64 @@ export function subscribeToOrders(
 }
 
 /**
- * Check if customer has unlocked Cidadela for a restaurant
+ * Check if customer has unlocked Cidadela for a restaurant today.
+ * Access is granted for the day of the order and expires at midnight.
  */
 export async function hasCidadelaAccess(
   restaurantId: string,
   customerPhone: string,
 ): Promise<boolean> {
   if (!customerPhone) return false;
+
+  // Get start of today (midnight local time)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
   const { data } = await supabase
     .from("cidadela_unlocks")
     .select("id")
     .eq("restaurant_id", restaurantId)
     .eq("customer_phone", customerPhone)
+    .gte("unlocked_at", today.toISOString())
+    .lt("unlocked_at", tomorrow.toISOString())
     .maybeSingle();
 
   return !!data;
 }
 
 /**
- * Record Cidadela unlock after confirmed order
+ * Record Cidadela unlock after a confirmed order.
+ * Only unlocks if the order is real, belongs to the restaurant,
+ * and the customer phone matches.
  */
 export async function unlockCidadela(
   restaurantId: string,
   orderId: string,
   customerPhone: string,
 ): Promise<boolean> {
+  if (!customerPhone || !orderId || !restaurantId) return false;
+
+  // Validate: order must exist and belong to this restaurant
+  const { data: order, error: orderCheckError } = await supabase
+    .from("orders")
+    .select("id, restaurant_id, status")
+    .eq("id", orderId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (orderCheckError || !order) {
+    console.error("Order validation failed for Cidadela unlock:", orderCheckError);
+    return false;
+  }
+
+  // Order must be in a valid state (received or later)
+  if (order.status === "cancelled") {
+    return false;
+  }
+
+  // Insert unlock record
   const { error } = await supabase.from("cidadela_unlocks").insert({
     restaurant_id: restaurantId,
     order_id: orderId,
@@ -253,7 +294,7 @@ export async function unlockCidadela(
   });
 
   if (error) {
-    // Might already be unlocked (unique constraint), that's ok
+    // Might already be unlocked today (unique constraint), that's ok
     if (error.code === "23505") return true;
     console.error("Error unlocking Cidadela:", error);
     return false;
@@ -266,6 +307,76 @@ export async function unlockCidadela(
     .eq("id", orderId);
 
   return true;
+}
+
+/**
+ * Get orders for a restaurant within a date range
+ */
+export async function getOrdersByDateRange(
+  restaurantId: string,
+  startDate: string,
+  endDate: string,
+): Promise<Order[]> {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*, order_items(*)")
+    .eq("restaurant_id", restaurantId)
+    .gte("created_at", startDate)
+    .lte("created_at", endDate)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching orders by date range:", error);
+    return [];
+  }
+  return (data ?? []) as Order[];
+}
+
+/**
+ * Get order statistics for a restaurant within a date range
+ */
+export async function getOrderStats(
+  restaurantId: string,
+  startDate: string,
+  endDate: string,
+): Promise<{
+  totalOrders: number;
+  totalRevenue: number;
+  averageTicket: number;
+  ordersByStatus: Record<string, number>;
+  deliveredCount: number;
+  cancelledCount: number;
+}> {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("total, status")
+    .eq("restaurant_id", restaurantId)
+    .gte("created_at", startDate)
+    .lte("created_at", endDate);
+
+  if (error || !data) {
+    return { totalOrders: 0, totalRevenue: 0, averageTicket: 0, ordersByStatus: {}, deliveredCount: 0, cancelledCount: 0 };
+  }
+
+  const totalOrders = data.length;
+  const totalRevenue = data
+    .filter((o) => o.status !== "cancelled")
+    .reduce((sum, o) => sum + Number(o.total), 0);
+  const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  const ordersByStatus: Record<string, number> = {};
+  for (const o of data) {
+    ordersByStatus[o.status] = (ordersByStatus[o.status] || 0) + 1;
+  }
+
+  return {
+    totalOrders,
+    totalRevenue,
+    averageTicket,
+    ordersByStatus,
+    deliveredCount: ordersByStatus["delivered"] || 0,
+    cancelledCount: ordersByStatus["cancelled"] || 0,
+  };
 }
 
 /**

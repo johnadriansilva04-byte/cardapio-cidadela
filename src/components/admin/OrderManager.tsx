@@ -18,7 +18,6 @@ import {
   brl,
   buildThermalTicket,
   printTicket,
-  buildCustomerWhatsAppMessage,
   sendToWhatsApp,
   formatDate,
 } from "@/lib/utils";
@@ -123,10 +122,17 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
       alert("Telefone do cliente não disponível");
       return;
     }
-    const msg = buildCustomerWhatsAppMessage(
-      order.customer_name,
-      order.comanda,
-      order.status,
+    const msg = buildWhatsAppMessage(
+      {
+        comanda: order.comanda,
+        customer_name: order.customer_name,
+        total: order.total,
+        order_items: order.order_items,
+        observations: order.observations || "",
+        payment_method: order.payment_method,
+        delivery_type: order.delivery_type,
+        delivery_address: order.delivery_address || "",
+      },
       restaurant.name,
     );
     sendToWhatsApp(phone, msg);

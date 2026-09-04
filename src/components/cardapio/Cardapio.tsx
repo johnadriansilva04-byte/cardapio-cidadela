@@ -19,7 +19,6 @@ import CartSheet from "./CartSheet";
 import CheckoutModal from "./CheckoutModal";
 import type { CheckoutForm } from "./CheckoutModal";
 import SuccessModal from "./SuccessModal";
-import CustomerIdentifyModal, { type GuestInfo } from "./CustomerIdentifyModal";
 
 interface PublicMenuProps {
   slug: string;
@@ -42,10 +41,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const [loading, setLoading] = useState(true);
   const [activeCat, setActiveCat] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
-  const [identifyOpen, setIdentifyOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [guestInfo, setGuestInfo] = useState<GuestInfo | null>(null);
-  const [authenticatedInfo, setAuthenticatedInfo] = useState<{ name: string; phone: string; userId: string } | null>(null);
   const [successOrder, setSuccessOrder] = useState<Record<string, unknown> | null>(null);
   const [showCidadelaUnlock, setShowCidadelaUnlock] = useState(false);
   const [cidadelaUnlocked, setCidadelaUnlocked] = useState(false);
@@ -158,7 +154,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       restaurant.id,
       {
         comanda,
-        customer_id: authenticatedInfo?.userId ?? null,
+        customer_id: user?.id ?? null,
         customer_name: customerName,
         customer_phone: customerPhone,
         customer_email: form.customer_email,
@@ -205,8 +201,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
     clearCart();
     setCheckoutOpen(false);
-    setGuestInfo(null);
-    setAuthenticatedInfo(null);
     setSuccessOrder({
       ...order,
       order_items: orderItems.map((i, idx) => ({ id: `${idx}`, ...i })),
@@ -484,30 +478,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           onClose={() => setCartOpen(false)}
           onCheckout={() => {
             setCartOpen(false);
-            // If already identified (logged in or guest), go straight to checkout
-            if (guestInfo || authenticatedInfo) {
-              setCheckoutOpen(true);
-            } else {
-              setIdentifyOpen(true);
-            }
-          }}
-        />
-      )}
-
-      {/* Customer identification modal */}
-      {identifyOpen && (
-        <CustomerIdentifyModal
-          onClose={() => setIdentifyOpen(false)}
-          onGuestConfirm={(info) => {
-            setGuestInfo(info);
-            setAuthenticatedInfo(null);
-            setIdentifyOpen(false);
-            setCheckoutOpen(true);
-          }}
-          onAuthenticated={(name, phone) => {
-            setAuthenticatedInfo({ name, phone, userId: user?.id || "" });
-            setGuestInfo(null);
-            setIdentifyOpen(false);
             setCheckoutOpen(true);
           }}
         />
@@ -517,8 +487,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       {checkoutOpen && (
         <CheckoutModal
           total={subtotal}
-          prefillName={authenticatedInfo?.name || guestInfo?.name || ""}
-          prefillPhone={authenticatedInfo?.phone || guestInfo?.phone || ""}
+          prefillName={user?.user_metadata?.name || ""}
+          prefillPhone={user?.user_metadata?.phone || ""}
           onClose={() => setCheckoutOpen(false)}
           onConfirm={handleCheckout}
         />

@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as CidadelaRouteImport } from './routes/cidadela'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -23,8 +22,8 @@ import { Route as AdminConfigRouteImport } from './routes/admin.config'
 import { Route as AdminPedidosRouteImport } from './routes/admin.pedidos'
 import { Route as AdminRestaurantesRouteImport } from './routes/admin.restaurantes'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
 import { Route as CardapioSlugRouteImport } from './routes/cardapio.$slug'
+import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -39,11 +38,6 @@ const AdminRoute = AdminRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CidadelaRoute = CidadelaRouteImport.update({
-  id: '/cidadela',
-  path: '/cidadela',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -96,14 +90,14 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PedidoOrderIdRoute = PedidoOrderIdRouteImport.update({
-  id: '/pedido/$orderId',
-  path: '/pedido/$orderId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CardapioSlugRoute = CardapioSlugRouteImport.update({
   id: '/cardapio/$slug',
   path: '/cardapio/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PedidoOrderIdRoute = PedidoOrderIdRouteImport.update({
+  id: '/pedido/$orderId',
+  path: '/pedido/$orderId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -111,7 +105,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
-  '/cidadela': typeof CidadelaRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -121,14 +114,13 @@ export interface FileRoutesByFullPath {
   '/admin/pedidos': typeof AdminPedidosRoute
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/cardapio/$slug': typeof CardapioSlugRoute
+  '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/cidadela': typeof CidadelaRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -138,15 +130,15 @@ export interface FileRoutesByTo {
   '/admin/pedidos': typeof AdminPedidosRoute
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/cardapio/$slug': typeof CardapioSlugRoute
+  '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/cidadela': typeof CidadelaRoute
+  '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -156,8 +148,8 @@ export interface FileRoutesById {
   '/admin/pedidos': typeof AdminPedidosRoute
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
-  '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/cardapio/$slug': typeof CardapioSlugRoute
+  '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -166,7 +158,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/login'
-    | '/cidadela'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
@@ -176,14 +167,13 @@ export interface FileRouteTypes {
     | '/admin/pedidos'
     | '/admin/restaurantes'
     | '/auth/callback'
-    | '/pedido/$orderId'
     | '/cardapio/$slug'
+    | '/pedido/$orderId'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/cidadela'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
@@ -193,15 +183,14 @@ export interface FileRouteTypes {
     | '/admin/pedidos'
     | '/admin/restaurantes'
     | '/auth/callback'
-    | '/pedido/$orderId'
     | '/cardapio/$slug'
+    | '/pedido/$orderId'
     | '/admin'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/login'
-    | '/cidadela'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
@@ -211,8 +200,8 @@ export interface FileRouteTypes {
     | '/admin/pedidos'
     | '/admin/restaurantes'
     | '/auth/callback'
-    | '/pedido/$orderId'
     | '/cardapio/$slug'
+    | '/pedido/$orderId'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -220,13 +209,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   LoginRoute: typeof LoginRoute
-  CidadelaRoute: typeof CidadelaRoute
   PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
-  PedidoOrderIdRoute: typeof PedidoOrderIdRoute
   CardapioSlugRoute: typeof CardapioSlugRoute
+  PedidoOrderIdRoute: typeof PedidoOrderIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -250,13 +238,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cidadela': {
-      id: '/cidadela'
-      path: '/cidadela'
-      fullPath: '/cidadela'
-      preLoaderRoute: typeof CidadelaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -329,6 +310,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cardapio/$slug': {
+      id: '/cardapio/$slug'
+      path: '/cardapio/$slug'
+      fullPath: '/cardapio/$slug'
+      preLoaderRoute: typeof CardapioSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pedido/$orderId': {
       id: '/pedido/$orderId'
       path: '/pedido/$orderId'
@@ -336,13 +324,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PedidoOrderIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-  '/cardapio/$slug': {
-    id: '/cardapio/$slug'
-    path: '/cardapio/$slug'
-    fullPath: '/cardapio/$slug'
-    preLoaderRoute: typeof CardapioSlugRouteImport
-    parentRoute: typeof rootRouteImport
-  }
   }
 }
 
@@ -370,13 +351,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   LoginRoute: LoginRoute,
-  CidadelaRoute: CidadelaRoute,
   PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   AuthCallbackRoute: AuthCallbackRoute,
-  PedidoOrderIdRoute: PedidoOrderIdRoute,
   CardapioSlugRoute: CardapioSlugRoute,
+  PedidoOrderIdRoute: PedidoOrderIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

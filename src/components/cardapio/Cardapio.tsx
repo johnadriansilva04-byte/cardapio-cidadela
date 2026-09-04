@@ -274,16 +274,16 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               <defs>
                 <path
                   id="textPath"
-                  d="M 15,50 A 35,35 0 0,1 85,50"
+                  d="M 10,55 A 40,40 0 0,1 90,55"
                   fill="none"
                 />
               </defs>
               <text
                 fill="#67e8f9"
-                fontSize="10"
-                fontWeight="bold"
-                letterSpacing="1"
-                className="font-sans"
+                fontSize="8"
+                fontWeight="900"
+                letterSpacing="0.5"
+                className="font-sans animate-pulse"
               >
                 <textPath href="#textPath" startOffset="50%" textAnchor="middle">
                   CONHEÇA A CIDADELA
@@ -296,7 +296,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
-              className="mt-8 size-8 text-yellow-400"
+              className="mt-8 size-8 text-yellow-400 animate-pulse"
             >
               <rect x="5" y="11" width="14" height="10" rx="2" />
               <path d="M8 11V7a4 4 0 0 1 8 0v4" />

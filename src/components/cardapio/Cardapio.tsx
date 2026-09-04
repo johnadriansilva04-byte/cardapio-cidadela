@@ -262,21 +262,41 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           href="http://localhost:3001"
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute right-4 top-16 z-50 size-20 transition-transform hover:scale-105 active:scale-95"
+          className="absolute right-4 top-16 z-50 size-24 transition-transform hover:scale-105 active:scale-95"
           aria-label="Conheça a Cidadela"
         >
           <span className="absolute inset-0 animate-pulse rounded-full bg-cyan-400/60" />
-          <span className="relative flex size-20 flex-col items-center justify-center rounded-full border-2 border-cyan-400 bg-black/70 shadow-[0_0_30px_rgba(34,211,238,0.7)]">
-            <span className="px-1 text-[10px] font-bold leading-tight tracking-tight text-cyan-300">
-              CONHEÇA A CIDADELA
-            </span>
+          <span className="relative flex size-24 flex-col items-center justify-center rounded-full border-2 border-cyan-400 bg-black/70 shadow-[0_0_30px_rgba(34,211,238,0.7)]">
+            <svg
+              viewBox="0 0 100 100"
+              className="absolute inset-0 size-full"
+            >
+              <defs>
+                <path
+                  id="textPath"
+                  d="M 15,50 A 35,35 0 0,1 85,50"
+                  fill="none"
+                />
+              </defs>
+              <text
+                fill="#67e8f9"
+                fontSize="10"
+                fontWeight="bold"
+                letterSpacing="1"
+                className="font-sans"
+              >
+                <textPath href="#textPath" startOffset="50%" textAnchor="middle">
+                  CONHEÇA A CIDADELA
+                </textPath>
+              </text>
+            </svg>
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
-              className="mt-1 size-7 text-yellow-400"
+              className="mt-8 size-8 text-yellow-400"
             >
               <rect x="5" y="11" width="14" height="10" rx="2" />
               <path d="M8 11V7a4 4 0 0 1 8 0v4" />

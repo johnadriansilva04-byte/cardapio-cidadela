@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { ShoppingBag, Plus, Minus, ArrowLeft } from "lucide-react";
-import { CidadelaOrb } from "@/components/cidadela/CidadelaOrb";
-import { CidadelaUnlockAnimation } from "@/components/cidadela/CidadelaUnlockAnimation";
 import { usePlatformStore } from "@/modules/core/store";
 import {
   getRestaurantBySlug,
@@ -9,11 +7,9 @@ import {
 import { getMenuWithProducts } from "@/modules/supabase/menu";
 import {
   createOrder,
-  hasCidadelaAccess,
-  unlockCidadela,
 } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
-import { brl, newComanda, buildWhatsAppMessage, sendToWhatsApp } from "@/lib/utils";
+import { brl, newComanda } from "@/lib/utils";
 import type { Product, Category, Restaurant, CartItem, OrderStatus } from "@/lib/types";
 import CartSheet from "./CartSheet";
 import CheckoutModal from "./CheckoutModal";
@@ -43,9 +39,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [successOrder, setSuccessOrder] = useState<Record<string, unknown> | null>(null);
-  const [showCidadelaUnlock, setShowCidadelaUnlock] = useState(false);
-  const [cidadelaUnlocked, setCidadelaUnlocked] = useState(false);
-  const [cidadelaPhone, setCidadelaPhone] = useState("");
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({});
 
   // Load restaurant and menu
@@ -75,28 +68,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   useEffect(() => {
     setCart([]);
   }, [slug, setCart]);
-
-  // Check existing Cidadela access on load (from localStorage phone)
-  useEffect(() => {
-    if (!restaurant) return;
-    let alive = true;
-    async function checkAccess() {
-      try {
-        const storedPhone = localStorage.getItem(`cidadela_phone_${restaurant!.id}`);
-        if (storedPhone && alive) {
-          const hasAccess = await hasCidadelaAccess(restaurant!.id, storedPhone);
-          if (alive && hasAccess) {
-            setCidadelaUnlocked(true);
-            setCidadelaPhone(storedPhone);
-          }
-        }
-      } catch {
-        // ignore - will show locked state
-      }
-    }
-    checkAccess();
-    return () => { alive = false; };
-  }, [restaurant?.id]);
 
   const allItems = useMemo(
     () => products,
@@ -175,28 +146,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     if (!order) {
       alert("Erro ao criar pedido. Tente novamente.");
       return;
-    }
-
-    // Only unlock Cidadela AFTER order is confirmed in the backend
-    if (customerPhone) {
-      setCidadelaPhone(customerPhone);
-      const unlocked = await unlockCidadela(
-        restaurant.id,
-        order.id,
-        customerPhone,
-      );
-      // Persist phone for future access checks
-      try {
-        localStorage.setItem(`cidadela_phone_${restaurant.id}`, customerPhone);
-      } catch {
-        // ignore localStorage errors
-      }
-      if (unlocked) {
-        setTimeout(() => {
-          setShowCidadelaUnlock(true);
-          setCidadelaUnlocked(true);
-        }, 500);
-      }
     }
 
     clearCart();
@@ -306,20 +255,34 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               "{restaurant.slogan}"
             </p>
           )}
-
-          {/* Conheça a Cidadela indicator below identity */}
-          <div className="mt-3 inline-flex items-center gap-2">
-            <CidadelaOrb
-              unlocked={cidadelaUnlocked}
-              onClick={() => {
-                if (cidadelaUnlocked) {
-                  setShowCidadelaUnlock(true);
-                }
-              }}
-              size="sm"
-            />
-          </div>
         </div>
+
+        {/* Botão da Cidadela */}
+        <a
+          href="http://localhost:3001"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute right-4 top-16 z-50 size-20 transition-transform hover:scale-105 active:scale-95"
+          aria-label="Conheça a Cidadela"
+        >
+          <span className="absolute inset-0 animate-pulse rounded-full bg-cyan-400/60" />
+          <span className="relative flex size-20 flex-col items-center justify-center rounded-full border-2 border-cyan-400 bg-black/70 shadow-[0_0_30px_rgba(34,211,238,0.7)]">
+            <span className="px-1 text-[10px] font-bold leading-tight tracking-tight text-cyan-300">
+              CONHEÇA A CIDADELA
+            </span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              className="mt-1 size-7 text-yellow-400"
+            >
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+          </span>
+        </a>
       </div>
 
       {/* Categories sticky bar */}
@@ -514,12 +477,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           onClose={() => setSuccessOrder(null)}
         />
       )}
-
-      {/* Cidadela unlock animation */}
-      <CidadelaUnlockAnimation
-        show={showCidadelaUnlock}
-        onClose={() => setShowCidadelaUnlock(false)}
-      />
     </div>
   );
 }

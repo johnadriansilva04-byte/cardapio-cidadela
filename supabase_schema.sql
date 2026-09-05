@@ -1,4 +1,10 @@
 -- ============================================
+-- ⚠️ LEGADO — NÃO RODAR.
+-- Este arquivo é um patch de um schema antigo. O schema canônico completo
+-- é o 'supabase/schema.sql' (rode apenas ele). Muitas colunas aqui (ex:
+-- store_id, customer_city) NÃO existem na versão atual e quebrariam o app.
+-- Mantido apenas como referência histórica.
+-- ============================================
 -- ATUALIZAÇÃO DE TABELAS EXISTENTES PARA MULTI-TENANCY
 -- ============================================
 

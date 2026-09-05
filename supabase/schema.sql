@@ -162,6 +162,30 @@ CREATE TABLE IF NOT EXISTS order_status_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON order_status_history(order_id);
+-- View pública de tracking do pedido (SEM dados pessoais — só status/valores/itens)
+-- Qualquer um que saiba o order id pode acompanha-lo; nada de nome/telefone/endereço vaza.
+
+CREATE OR REPLACE VIEW order_tracking AS
+SELECT
+  o.id,
+  o.comanda,
+  o.status,
+  o.total,
+  o.observations,
+  o.created_at,
+  COALESCE(
+    (SELECT json_agg(
+      json_build_object(
+        'id',, oi.id::text,
+        'product_name',, oi.product_name,
+        'quantity',, oi.quantity,
+        'total',,, oi.total,
+        'notes',,, oi.notes
+      )
+    ) FROM order_items oi WHERE oi.order_id = o.id),
+    '[]'::json
+  ) AS items
+FROM orders o;
 
 -- ============================================================
 -- CIDADELA UNLOCKS (auto-unlock after order confirmation)
@@ -473,7 +497,7 @@ SELECT drop_policies_if_exist('order_status_history');
 CREATE POLICY "owner_order_status_history" ON order_status_history FOR ALL
   USING (order_id IN (
     SELECT o.id FROM orders o WHERE is_restaurant_owner(o.restaurant_id)
-  )));
+  ));
 CREATE POLICY "public_insert_order_status_history" ON order_status_history FOR INSERT TO anon,authenticated
   WITH CHECK (true);
 
@@ -513,6 +537,10 @@ CREATE POLICY "public_all_game_moves" ON game_moves FOR ALL TO anon,authenticate
 -- CARDÁPIO PRÉ-PROGRAMADO
 -- Roda uma vez só. Se já existir, não duplica.
 -- ============================================================
+CREATE POLICY "public_read_order_status_history" ON order_status_history FOR SELECT TO anon,authenticated
+  USING (true);
+GRANT SELECT ON order_tracking TO anon,authenticated;
+
 DO $$
 DECLARE
   rest_id UUID;

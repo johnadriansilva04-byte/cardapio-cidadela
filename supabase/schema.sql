@@ -148,6 +148,7 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS pix_key TEXT DEFAULT '';
 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS secondary_color TEXT DEFAULT '#8b5cf6';
 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE order_status_history ADD COLUMN IF NOT EXISTS note TEXT DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_orders_restaurant ON orders(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);

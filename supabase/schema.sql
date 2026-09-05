@@ -164,27 +164,19 @@ CREATE TABLE IF NOT EXISTS order_status_history (
 CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON order_status_history(order_id);
 -- View pública de tracking do pedido (SEM dados pessoais — só status/valores/itens)
 -- Qualquer um que saiba o order id pode acompanha-lo; nada de nome/telefone/endereço vaza.
-
 CREATE OR REPLACE VIEW order_tracking AS
 SELECT
   o.id,
+  o.restaurant_id,
   o.comanda,
   o.status,
   o.total,
   o.observations,
   o.created_at,
   COALESCE(
-    (SELECT json_agg(
-      json_build_object(
-        'id',, oi.id::text,
-        'product_name',, oi.product_name,
-        'quantity',, oi.quantity,
-        'total',,, oi.total,
-        'notes',,, oi.notes
-      )
-    ) FROM order_items oi WHERE oi.order_id = o.id),
+    (SELECT json_agg(row_to_json(oi)) FROM order_items oi WHERE oi.order_id = o.id),
     '[]'::json
-  ) AS items
+  ) AS order_items
 FROM orders o;
 
 -- ============================================================

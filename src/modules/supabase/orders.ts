@@ -151,6 +151,22 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
 }
 
 /**
+ * Public order tracking (no PII — reads the order_tracking viewwhich is
+ * readable by anon/authenticated via GRANT). Only fields comanda,status,total,
+ * observations, created_at,e items(BEM sem nome/telefone/endereço).
+ */
+export async function getOrderTrackingPublic(orderId: string): Promise<Order | null> {
+  const { data, error } = await supabase
+    .from("order_tracking")
+    .select("*")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as Order;
+}
+
+/**
  * Get orders for a restaurant
  */
 export async function getOrdersByRestaurant(

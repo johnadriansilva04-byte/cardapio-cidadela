@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { getOrderById, getOrderHistory, subscribeToOrders } from "@/modules/supabase/orders";
+import { getOrderTrackingPublic, getOrderHistory, subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import { brl, formatDate } from "@/lib/utils";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/lib/types";
@@ -24,7 +24,7 @@ function OrderTrackingPage() {
     let alive = true;
     async function load() {
       setLoading(true);
-      const o = await getOrderById(orderId);
+      const o = await getOrderTrackingPublic(orderId);
       if (!alive) return;
       if (!o) {
         setNotFound(true);

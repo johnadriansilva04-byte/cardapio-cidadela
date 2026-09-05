@@ -159,7 +159,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       setCheckoutOpen(false);
       setSuccessOrder({
         ...order,
-        order_items: orderItems.map((i, idx) => ({ id: `${idx}`, ...i })),
+        items: orderItems.map((i, idx) => ({ id: `${idx}`, ...i })),
       } as Record<string, unknown>);
     } finally {
       submittingRef.current = false;

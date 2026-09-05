@@ -17,6 +17,7 @@ import type { Restaurant, Order, OrderStatus } from "@/lib/types";
 import {
   brl,
   buildThermalTicket,
+  buildWhatsAppMessage,
   printTicket,
   sendToWhatsApp,
   formatDate,

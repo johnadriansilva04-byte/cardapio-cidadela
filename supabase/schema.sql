@@ -537,25 +537,40 @@ CREATE POLICY "owner_cidadela" ON cidadela_unlocks FOR ALL
   USING (is_restaurant_owner(restaurant_id));
 CREATE POLICY "public_insert_cidadela_unlocks" ON cidadela_unlocks FOR INSERT TO anon,authenticated
   WITH CHECK (true);
-CREATE POLICY "public_all_admin_trials" ON admin_trials FOR ALL TO anon,authenticated
-  USING (true)
-  WITH CHECK (true);
-CREATE POLICY "public_all_chat_messages" ON chat_messages FOR ALL TO anon,authenticated
-  USING (true)
-  WITH CHECK (true);
-CREATE POLICY "public_all_game_sessions" ON game_sessions FOR ALL TO anon,authenticated
-  USING (true)
-  WITH CHECK (true);
-CREATE POLICY "public_all_game_moves" ON game_moves FOR ALL TO anon,authenticated
-  USING (true)
-  WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "public_all_admin_trials" ON admin_trials FOR ALL TO anon,authenticated
+    USING (true)
+    WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE POLICY "public_all_chat_messages" ON chat_messages FOR ALL TO anon,authenticated
+    USING (true)
+    WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE POLICY "public_all_game_sessions" ON game_sessions FOR ALL TO anon,authenticated
+    USING (true)
+    WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE POLICY "public_all_game_moves" ON game_moves FOR ALL TO anon,authenticated
+    USING (true)
+    WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================================
 -- CARDÁPIO PRÉ-PROGRAMADO
 -- Roda uma vez só. Se já existir, não duplica.
 -- ============================================================
-CREATE POLICY "public_read_order_status_history" ON order_status_history FOR SELECT TO anon,authenticated
-  USING (true);
+DO $$ BEGIN
+  CREATE POLICY "public_read_order_status_history" ON order_status_history FOR SELECT TO anon,authenticated
+    USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 GRANT SELECT ON order_tracking TO anon,authenticated;
 
 DO $$

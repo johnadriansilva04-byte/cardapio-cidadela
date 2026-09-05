@@ -44,7 +44,7 @@ function OrderTrackingPage() {
   // Subscribe to status updates
   useEffect(() => {
     if (!order) return;
-    const sub = subscribeToOrders(order.restaurant_id, (updated) => {
+    const sub = subscribeToOrders(order.restaurant_id, (_eventType, updated) => {
       if (updated.id === orderId) {
         setOrder((prev) => (prev ? { ...prev, status: updated.status } : prev));
       }

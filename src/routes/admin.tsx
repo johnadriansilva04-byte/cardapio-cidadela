@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   UtensilsCrossed,
   LayoutDashboard,
@@ -15,6 +16,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { getRestaurantsByOwner } from "@/modules/supabase/restaurants";
+import { subscribeToOrders } from "@/modules/supabase/orders";
+import { supabase } from "@/modules/supabase/client";
+import { playNewOrderAlert } from "@/lib/orderAlertSound";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -35,7 +40,7 @@ const NAV_ITEMS = [
 function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const matchRoute = useMatchRoute();
-  const { isAuthenticated, loading, signOut } = useAuth();
+  const { isAuthenticated, loading, signOut, user } = useAuth();
   const navigate = useNavigate();
 
   // Redirect to login if not authenticated
@@ -44,6 +49,29 @@ function AdminLayout() {
       window.location.href = "/login?returnTo=%2Fadmin";
     }
   }, [loading, isAuthenticated]);
+
+  // Alerta sonoro global: toca quando qualquer restaurante do dono recebe pedido novo
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    const channels: RealtimeChannel[] = [];
+    let cancelled = false;
+
+    (async () => {
+      const rests = await getRestaurantsByOwner(user.id);
+      if (cancelled) return;
+      for (const r of rests) {
+        const ch = subscribeToOrders(r.id, (eventType) => {
+          if (eventType === "INSERT") playNewOrderAlert();
+        });
+        if (ch) channels.push(ch);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      for (const ch of channels) supabase.removeChannel(ch);
+    };
+  }, [isAuthenticated, user]);
 
   if (loading) {
     return (

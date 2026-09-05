@@ -691,3 +691,45 @@ BEGIN
   RETURN 'Cardápio padrão criado com sucesso!';
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- TRIGGER: popula o cardápio padrão automaticamente ao criar restaurante
+-- (corrige restaurante novo nascendo sem produtos — página pública vazia)
+-- ============================================================
+DROP FUNCTION IF EXISTS trg_setup_default_menu_fn();
+CREATE FUNCTION trg_setup_default_menu_fn() RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM setup_default_menu(NEW.id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_setup_default_menu ON restaurants;
+CREATE TRIGGER trg_setup_default_menu
+AFTER INSERT ON restaurants
+FOR EACH ROW
+EXECUTE FUNCTION trg_setup_default_menu_fn();
+
+-- ============================================================
+-- REALTIME — Habilita mudanças em tempo real de orders
+-- (necessário p/ o painel tocar o alarme de novo pedido automaticamente)
+-- Idempotente: pode rodar quantas vezes quiser
+-- ============================================================
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_publication_tables
+      WHERE pubname = 'supabase_realtime'
+        AND schemaname = 'public'
+        AND tablename = 'orders'
+    ) THEN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+      RAISE NOTICE 'Realtime habilitado para orders';
+    ELSE
+      RAISE NOTICE 'orders ja esta no realtime';
+    END IF;
+  ELSE
+    RAISE NOTICE 'publication supabase_realtime nao existe — nada a fazer';
+  END IF;
+END $$;

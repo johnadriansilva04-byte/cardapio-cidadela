@@ -68,7 +68,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
 
   // Real-time subscription
   useEffect(() => {
-    const sub = subscribeToOrders(restaurant.id, (newOrder) => {
+    const sub = subscribeToOrders(restaurant.id, (eventType, newOrder) => {
       setOrders((prev) => {
         const idx = prev.findIndex((o) => o.id === newOrder.id);
         if (idx >= 0) {

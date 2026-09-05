@@ -269,7 +269,7 @@ export async function getOrderHistory(
  */
 export function subscribeToOrders(
   restaurantId: string,
-  callback: (order: Order) => void,
+  callback: (eventType: "INSERT" | "UPDATE" | "DELETE", order: Order) => void,
 ) {
   return supabase
     .channel(`orders_${restaurantId}`)
@@ -282,7 +282,7 @@ export function subscribeToOrders(
         filter: `restaurant_id=eq.${restaurantId}`,
       },
       (payload) => {
-        callback(payload.new as Order);
+        callback(payload.eventType as "INSERT" | "UPDATE" | "DELETE", payload.new as Order);
       },
     )
     .subscribe();

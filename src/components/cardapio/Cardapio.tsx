@@ -396,7 +396,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
         {/* Botão da Cidadela */}
         <a
-          href="http://localhost:3001"
+          href="https://pracinha.online"
           target="_blank"
           rel="noopener noreferrer"
           className="absolute right-4 top-16 z-50 size-24 transition-transform hover:scale-105 active:scale-95"

@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
   comanda TEXT NOT NULL,
+  idempotency_key TEXT,
   customer_name TEXT NOT NULL,
   customer_phone TEXT DEFAULT '',
   customer_email TEXT DEFAULT '',
@@ -123,6 +124,9 @@ CREATE INDEX IF NOT EXISTS idx_orders_restaurant ON orders(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_comanda ON orders(comanda);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key
+  ON orders (idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
 
 -- ============================================================
 -- ORDER ITEMS
@@ -377,6 +381,8 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 SELECT drop_policies_if_exist('orders');
 CREATE POLICY "owner_orders" ON orders FOR ALL
   USING (is_restaurant_owner(restaurant_id));
+CREATE POLICY "public_insert_orders" ON orders FOR INSERT TO anon,authenticated
+  WITH CHECK (true);
 
 -- ORDER ITEMS
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
@@ -385,6 +391,17 @@ CREATE POLICY "owner_order_items" ON order_items FOR ALL
   USING (order_id IN (
     SELECT o.id FROM orders o WHERE is_restaurant_owner(o.restaurant_id)
   ));
+CREATE POLICY "public_insert_order_items" ON order_items FOR INSERT TO anon,authenticated
+  WITH CHECK (true);
+-- ORDER STATUS HISTORY
+ALTER TABLE order_status_history ENABLE ROW LEVEL SECURITY;
+SELECT drop_policies_if_exist('order_status_history');
+CREATE POLICY "owner_order_status_history" ON order_status_history FOR ALL
+  USING (order_id IN (
+    SELECT o.id FROM orders o WHERE is_restaurant_owner(o.restaurant_id)
+  )));
+CREATE POLICY "public_insert_order_status_history" ON order_status_history FOR INSERT TO anon,authenticated
+  WITH CHECK (true);
 
 -- ADDON GROUPS
 ALTER TABLE addon_groups ENABLE ROW LEVEL SECURITY;
@@ -403,6 +420,8 @@ ALTER TABLE cidadela_unlocks ENABLE ROW LEVEL SECURITY;
 SELECT drop_policies_if_exist('cidadela_unlocks');
 CREATE POLICY "owner_cidadela" ON cidadela_unlocks FOR ALL
   USING (is_restaurant_owner(restaurant_id));
+CREATE POLICY "public_insert_cidadela_unlocks" ON cidadela_unlocks FOR INSERT TO anon,authenticated
+  WITH CHECK (true);
 
 -- ============================================================
 -- CARDÁPIO PRÉ-PROGRAMADO

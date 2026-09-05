@@ -25,10 +25,11 @@ DELETE FROM restaurants
 WHERE slug LIKE 'e2e-%'
    OR slug ILIKE '%e2e%teste%'
    OR slug ILIKE '%teste-auditoria%'
+   OR slug IN ('restaurante-teste-novo-user', 'restaurante-cardapio-completo')
    OR name ILIKE '%e2e%'
    OR name ILIKE '%auditoria%'
 RETURNING id, slug, name;
 
 -- 3) Verificação final — deve retornar 0 linhas em ambos:
-SELECT (SELECT COUNT(*) FROM restaurants WHERE slug LIKE 'e2e-%' OR slug ILIKE '%e2e%teste%' OR slug ILIKE '%teste-auditoria%' OR name ILIKE '%e2e%' OR name ILIKE '%auditoria%') AS restaurantes_e2e_restantes,
+SELECT (SELECT COUNT(*) FROM restaurants WHERE slug LIKE 'e2e-%' OR slug ILIKE '%e2e%teste%' OR slug ILIKE '%teste-auditoria%' OR slug IN ('restaurante-teste-novo-user', 'restaurante-cardapio-completo') OR name ILIKE '%e2e%' OR name ILIKE '%auditoria%') AS restaurantes_e2e_restantes,
        (SELECT COUNT(*) FROM orders WHERE customer_name LIKE '%e2e%' OR comanda LIKE 'E2E-%' OR customer_phone IN ('11977776666', '11999999999', '11988887777')) AS pedidos_e2e_restantes;

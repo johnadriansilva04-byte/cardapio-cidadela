@@ -64,7 +64,7 @@ export async function createRestaurant(
 
   // Seed default categories for the new restaurant
   if (data) {
-    await seedDefaultCategories(data.id);
+    await seedDefaultMenu(data.id);
   }
 
   return data as Restaurant;
@@ -73,16 +73,59 @@ export async function createRestaurant(
 /**
  * Seed default categories for a new restaurant
  */
-async function seedDefaultCategories(restaurantId: string): Promise<void> {
-  const defaultNames = ["Lanches", "Combos", "Bebidas"];
-  const rows = defaultNames.map((name, index) => ({
-    restaurant_id: restaurantId,
-    name,
-    sort_order: index,
-  }));
-  const { error } = await supabase.from("categories").insert(rows);
-  if (error) {
-    console.error("Error seeding default categories:", error);
+async function seedDefaultMenu(restaurantId: string): Promise<void> {
+  // Idempotente: já possui categorias → não duplica
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("restaurant_id", restaurantId)
+    .limit(1);
+  if (existing && existing.length > 0) return;
+
+  const catData = [
+    { name: "Lanches", sort_order: 0, items: [
+      { name: "X-Burger", description: "Pão, hambúrguer, queijo, alface e tomate", price: 18.9 },
+      { name: "X-Bacon", description: "Pão, hambúrguer, queijo, bacon crocante", price: 21.9 },
+      { name: "X-Tudo", description: "Hambúrguer duplo, queijo, bacon, ovo, presunto", price: 28.9 },
+      { name: "Frango Grelhado", description: "Peito de frango grelhado com salada", price: 22.9 },
+      { name: "Hot Dog Especial", description: "Salsicha, purê, milho, batata palha", price: 16.9 },
+    ] },
+    { name: "Bebidas", sort_order: 1, items: [
+      { name: "Coca-Cola Lata", description: "350ml gelada", price: 5.9 },
+      { name: "Guaraná Lata", description: "350ml gelada", price:  5.9 },
+      { name: "Água Mineral", description: "500ml sem gás", price:  3.9 },
+      { name: "Suco Natural", description: "Laranja ou limão 400ml", price: 7.9 },
+      { name: "Cerveja Lata", description: "Brahma ou Skol 350ml", price:  7.9 },
+    ] },
+    { name: "Combos", sort_order: 2, items: [
+      { name: "Combo Burger + Refri", description: "X-Burger + Coca-Cola Lata por apenas", price:  22.9 },
+      { name: "Combo Família", description: "2 X-Tudo + 2 Refris + Batata", price:  69.9 },
+      { name: "Combo Fome Zero", description: "X-Bacon + Batata + Refri", price:  32.9 },
+    ] },
+  ];
+
+  for (const cat of catData) {
+    const { data: catRow, error: catError } = await supabase
+      .from("categories")
+      .insert({ restaurant_id: restaurantId, name: cat.name, sort_order: cat.sort_order })
+      .select("id")
+      .single();
+    if (catError || !catRow) {
+      console.error("Error seeding category:", cat.name, catError);
+      continue;
+    }
+    const productRows = cat.items.map((item, i) => ({
+      restaurant_id: restaurantId,
+      category_id: catRow.id,
+      name: item.name,
+      description: item.description,
+      price: item.price,
+      sort_order: i,
+    }));
+    const { error: prodError } = await supabase.from("products").insert(productRows);
+    if (prodError) {
+      console.error("Error seeding products:", cat.name, prodError);
+    }
   }
 }
 

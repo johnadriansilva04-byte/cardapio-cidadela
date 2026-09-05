@@ -9,6 +9,7 @@ import {
 import { useEffect, useState } from "react";
 import {
   getRestaurantsByOwner,
+  ensureRestaurantsForUser,
 } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
@@ -26,6 +27,7 @@ function AdminDashboardOverview() {
   useEffect(() => {
     if (!user) return;
     async function load() {
+      await ensureRestaurantsForUser(user!);
       const data = await getRestaurantsByOwner(user!.id);
       setRestaurants(data);
       setLoading(false);

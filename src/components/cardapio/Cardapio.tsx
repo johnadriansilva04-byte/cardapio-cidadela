@@ -5,6 +5,7 @@ import {
   getRestaurantBySlug,
 } from "@/modules/supabase/restaurants";
 import { getMenuWithProducts } from "@/modules/supabase/menu";
+import { supabase } from "@/modules/supabase/client";
 import {
   createOrder,
 } from "@/modules/supabase/orders";
@@ -18,6 +19,44 @@ import SuccessModal from "./SuccessModal";
 
 interface PublicMenuProps {
   slug: string;
+}
+
+async function ensureRestaurantFromLegacyTrial(slug: string): Promise<Restaurant | null> {
+  if (!slug) return null;
+
+  // Trials antigos usavam store_id como slug público. Materializa restaurante real sob demanda (idempotente).
+
+  const { data: trial } = await supabase
+    .from("admin_trials")
+    .select("store_id, store_name, store_slogan, pix_key, whatsapp")
+    .eq("store_id", slug)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!trial) return null;
+
+  // Race guard: outra request pode ter criado entrementempo.
+
+  const existing = await getRestaurantBySlug(slug);
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from("restaurants")
+    .insert({
+      owner_id: trial.store_id,
+      name: trial.store_name ?? "Meu Restaurante",
+      slug: trial.store_id,
+      description: trial.store_slogan ?? "",
+      slogan: trial.store_slogan ?? "",
+      whatsapp: trial.whatsapp ?? "",
+      pix_key: trial.pix_key ?? "",
+      status: "published",
+    })
+    .select()
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as Restaurant;
 }
 
 export default function PublicMenu({ slug }: PublicMenuProps) {
@@ -48,7 +87,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     let alive = true;
     async function load() {
       setLoading(true);
-      const r = await getRestaurantBySlug(slug);
+      let r = await getRestaurantBySlug(slug);
+      if (!r) r = await ensureRestaurantFromLegacyTrial(slug);
       if (!alive) return;
       if (!r) {
         setLoading(false);
@@ -70,6 +110,92 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   useEffect(() => {
     setCart([]);
   }, [slug, setCart]);
+
+  // Em tempo real: o cardapio recarrega automaticamente quando o admin salva no Supabase.
+  useEffect(() => {
+    if (!restaurant) return;
+
+    const restaurantId = restaurant.id;
+
+    async function refreshMenu() {
+      const { categories: cats, products: prods } = await getMenuWithProducts(
+        restaurantId,
+      );
+      setCategories(cats);
+      setProducts(prods);
+    }
+
+    const channel = supabase
+      .channel(`public-menu-${restaurantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "categories",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        refreshMenu,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "products",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        refreshMenu,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "restaurants",
+          filter: `id=eq.${restaurantId}`,
+        },
+        async () => {
+          const r = await getRestaurantBySlug(slug);
+          if (r) setRestaurant(r);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [restaurant?.id]);
+  // Polling leve de garantia (10s): mantém o cardápio atualizado mesmo sem Realtime no banco.
+  // E faz o cardápio reaparecer sozinho quando o dono publicar/pausar um restaurante.
+
+  useEffect(() => {
+    let alive = true;
+
+    async function refreshAll() {
+      const r = await getRestaurantBySlug(slug);
+      if (!alive) return;
+      if (!r) {
+        setRestaurant(null);
+        return;
+      }
+      const { categories: cats, products: prods } = await getMenuWithProducts(
+        r.id,
+      );
+      if (!alive) return;
+      setRestaurant(r);
+      setCategories(cats);
+      setProducts(prods);
+    }
+
+    const interval = setInterval(refreshAll, 10_000);
+    refreshAll();
+
+    return () => {
+      alive = false;
+      clearInterval(interval);
+    };
+  }, [slug]);
 
   const allItems = useMemo(
     () => products,

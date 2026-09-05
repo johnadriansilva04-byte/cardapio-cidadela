@@ -16,7 +16,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { getRestaurantsByOwner } from "@/modules/supabase/restaurants";
+import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import { playNewOrderAlert } from "@/lib/orderAlertSound";
@@ -57,6 +57,7 @@ function AdminLayout() {
     let cancelled = false;
 
     (async () => {
+      await ensureRestaurantsForUser(user);
       const rests = await getRestaurantsByOwner(user.id);
       if (cancelled) return;
       for (const r of rests) {

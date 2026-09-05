@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, ArrowLeft, Copy } from "lucide-react";
 import MenuPrincipal, { type AdminScreen } from "./admin/MenuPrincipal";
 import GerenciarCategorias from "./admin/GerenciarCategorias";
@@ -9,6 +9,7 @@ import PremiumPaymentModal from "./PremiumPaymentModal";
 import { useAdminTrial } from "@/modules/supabase/admin";
 import { useStore } from "@/modules/core/store";
 import { supabase } from "@/modules/supabase/client";
+import { createRestaurant, generateUniqueSlug } from "@/modules/supabase/restaurants";
 
 const field =
   "w-full rounded-lg border border-red-500/30 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-red-500 focus:outline-none";
@@ -36,6 +37,8 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState("");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [restaurantSlug, setRestaurantSlug] = useState("");
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [recoveredCode, setRecoveredCode] = useState<string | null>(null);
 
@@ -51,6 +54,34 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
 
   const unlocked = Boolean(trial) && (!isExpired || Boolean(trial?.is_premium));
   const status = trial?.is_premium ? "PREMIUM ATIVO" : formattedTime;
+
+  async function loadRestaurantSlug(ownerId: string) {
+    if (!ownerId) return;
+    const { data: rest } = await supabase
+      .from("restaurants")
+      .select("id, slug")
+      .eq("owner_id", ownerId)
+      .maybeSingle();
+    if (rest?.slug) {
+      setRestaurantSlug(rest.slug);
+      setRestaurantId(rest.id);
+      return;
+    }
+    // Trial antigo sem restaurante real: cria um publicado automaticamente para o link funcionar.
+
+    const name = trial?.store_name ?? "Meu Restaurante";
+    const restaurant = await createRestaurant(ownerId, name, await generateUniqueSlug(name));
+    if (restaurant) {
+      setRestaurantSlug(restaurant.slug);
+      setRestaurantId(restaurant.id);
+    }
+  }
+
+  // Carrega o slug do restaurante real vinculado ao trial salvo (owner_id = store_id)
+  useEffect(() => {
+    if (trial?.store_id) loadRestaurantSlug(trial.store_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trial?.store_id]);
 
   async function handleCreate() {
     if (!email.trim() || !phone.trim()) {
@@ -91,6 +122,7 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
       s.admin.email = email;
       s.admin.phone = phone;
     });
+    await loadRestaurantSlug(created.store_id);
     setMessage(`Seu código de administrador: ${created.store_id}`);
   }
 
@@ -105,6 +137,7 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
       s.admin.email = t.admin_email ?? email;
       s.whatsapp = t.whatsapp ?? "";
     });
+    if (t.store_id) await loadRestaurantSlug(t.store_id);
     setMessage(valid ? "Acesso liberado" : "Trial expirado");
   }
 
@@ -161,6 +194,21 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
         pix_key: cfg.pix_key,
         whatsapp: cfg.whatsapp,
       });
+    }
+    // Sincroniza dados visíveis do cardápio público na tabela restaurants.
+
+
+    if (restaurantId) {
+      const { error } = await supabase
+        .from("restaurants")
+        .update({
+          name: cfg.store_name,
+          slogan: cfg.store_slogan,
+          whatsapp: cfg.whatsapp,
+          pix_key: cfg.pix_key,
+        })
+        .eq("id", restaurantId);
+      if (error) console.error("Erro ao sincronizar restaurante:", error);
     }
     setMessage("Configurações salvas");
   }
@@ -260,11 +308,23 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
                   <p className="mb-2 text-xs text-gray-400">Seu link personalizado:</p>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 text-xs text-cyan-300 break-all">
-                      {typeof window !== 'undefined' ? `${window.location.origin}/?store_id=${trial.store_id}` : `/?store_id=${trial.store_id}`}
+                      {typeof window !== "undefined"
+                        ? restaurantSlug
+                          ? `${window.location.origin}/cardapio/${restaurantSlug}`
+                          : `${window.location.origin}/?store_id=${trial.store_id}`
+                        : restaurantSlug
+                          ? `/cardapio/${restaurantSlug}`
+                          : `/?store_id=${trial.store_id}`}
                     </code>
                     <button
                       onClick={() => {
-                        const url = typeof window !== 'undefined' ? `${window.location.origin}/?store_id=${trial.store_id}` : `/?store_id=${trial.store_id}`;
+                        const url = typeof window !== "undefined"
+                          ? restaurantSlug
+                            ? `${window.location.origin}/cardapio/${restaurantSlug}`
+                            : `${window.location.origin}/?store_id=${trial.store_id}`
+                          : restaurantSlug
+                            ? `/cardapio/${restaurantSlug}`
+                            : `/?store_id=${trial.store_id}`;
                         navigator.clipboard.writeText(url);
                         setMessage("Link copiado!");
                       }}

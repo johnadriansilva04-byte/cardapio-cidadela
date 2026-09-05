@@ -53,6 +53,9 @@ export async function createRestaurant(
       name,
       slug,
       description: description ?? "",
+      // Nasce publicado para que o link público funcione imediatamente.
+
+      status: "published",
     })
     .select()
     .single();
@@ -73,7 +76,7 @@ export async function createRestaurant(
 /**
  * Seed default categories for a new restaurant
  */
-async function seedDefaultMenu(restaurantId: string): Promise<void> {
+export async function seedDefaultMenu(restaurantId: string): Promise<void> {
   // Idempotente: já possui categorias → não duplica
   const { data: existing } = await supabase
     .from("categories")
@@ -231,4 +234,57 @@ export async function getOwnerId(): Promise<string> {
  */
 export function getOwnerIdSync(userId: string | undefined): string {
   return userId || `anonymous_${Date.now()}`;
+}
+
+/**
+ * Reconciles legacy trial accounts with real restaurants for the authenticated user.
+ * For each active legacy trial whose email/phone matches the user, it creates the
+ * restaurant (with owner_id = user.id) or claims an existing one created on-demand
+ * by the public fallback (owner_id = trial.store_id).
+ */
+export async function ensureRestaurantsForUser(user: {
+  id: string;
+  email?: string | null;
+  phone?: string | null;
+}): Promise<void> {
+  if (!user?.id) return;
+
+  const lookups = [user.email, user.phone].filter(
+    (v): v is string => Boolean(v),
+  ) as string[];
+  if (lookups.length === 0) return;
+
+  const { data: trials } = await supabase
+    .from("admin_trials")
+    .select("store_id, store_name, store_slogan, pix_key, whatsapp")
+    .or(lookups.flatMap((v) => [`admin_email=eq.${v}`, `admin_phone=eq.${v}`]).join(","))
+    .eq("is_active", true)
+    .limit(10);
+
+  if (!trials) return;
+
+  for (const trial of trials) {
+    const { data: existing } = await supabase
+      .from("restaurants")
+      .select("id, owner_id")
+      .eq("slug", trial.store_id)
+      .maybeSingle();
+
+    if (existing) {
+      if (existing.owner_id !== user.id) {
+        await supabase.from("restaurants").update({ owner_id: user.id }).eq("id", existing.id);
+      }
+    } else {
+      await supabase.from("restaurants").insert({
+        owner_id: user.id,
+        name: trial.store_name ?? "Meu Restaurante",
+        slug: trial.store_id,
+        description: trial.store_slogan ?? "",
+        slogan: trial.store_slogan ?? "",
+        whatsapp: trial.whatsapp ?? "",
+        pix_key: trial.pix_key ?? "",
+        status: "published",
+      });
+    }
+  }
 }

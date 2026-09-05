@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Store } from "lucide-react";
 import {
   getRestaurantsByOwner,
+  ensureRestaurantsForUser,
 } from "@/modules/supabase/restaurants";
 import { SharePanel } from "@/components/admin/SharePanel";
 import { useAuth } from "@/components/AuthProvider";
@@ -22,6 +23,7 @@ function CompartilharPage() {
   useEffect(() => {
     if (!user) return;
     async function load() {
+      await ensureRestaurantsForUser(user!);
       const data = await getRestaurantsByOwner(user!.id);
       setRestaurants(data);
       if (data.length > 0) setSelectedId(data[0].id);

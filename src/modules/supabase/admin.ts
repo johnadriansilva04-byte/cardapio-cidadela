@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./client";
+import { generateUniqueSlug, seedDefaultMenu } from "./restaurants";
 
 /**
  * Legacy compatibility — now wraps the restaurants table.
@@ -53,7 +54,9 @@ export function useAdminTrial() {
   }, []);
 
   async function createTrial(storeName: string, _adminPhone: string, adminEmail: string) {
-    // Create restaurant instead
+    // Cria o registro legacy do trial + um restaurante real (publicado) para o
+    // link público /cardapio/:slug funcionar imediatamente.
+
     const { data, error } = await supabase
       .from("admin_trials")
       .insert({
@@ -73,13 +76,46 @@ export function useAdminTrial() {
       console.error("Error creating trial:", error);
       return null;
     }
+
+    // Restaurante real vinculado ao trial (owner_id = store_id)
+    const slug = await generateUniqueSlug(storeName);
+    const { data: restaurant, error: restError } = await supabase
+      .from("restaurants")
+      .insert({
+        owner_id: data.store_id,
+        name: storeName,
+        slug,
+        status: "published",
+      })
+      .select()
+      .single();
+
+    if (restError) {
+      console.error("Error creating restaurant for trial:", restError);
+    } else if (restaurant) {
+      await seedDefaultMenu(restaurant.id);
+    }
+
     localStorage.setItem("admin_trial", JSON.stringify(data));
     setTrial(data as AdminTrial);
     return data as AdminTrial;
   }
 
-  async function validateAccessCode(_email: string) {
-    return { valid: true, trial };
+  async function validateAccessCode(email: string) {
+    if (!email?.trim()) return { valid: false, trial: null };
+
+    const { data: t, error } = await supabase
+      .from("admin_trials")
+      .select("*")
+      .eq("admin_email", email.trim())
+      .maybeSingle();
+
+    if (error || !t) {
+      return { valid: false, trial: null };
+    }
+    localStorage.setItem("admin_trial", JSON.stringify(t));
+    setTrial(t as AdminTrial);
+    return { valid: true, trial: t as AdminTrial };
   }
 
   async function activateLiberationCode(_code: string) {
@@ -110,9 +146,17 @@ export function useAdminTrial() {
   }
 
   async function updateAdminConfig(
-    _storeId: string,
-    _config: Record<string, unknown>,
+    storeId: string,
+    config: Record<string, unknown>,
   ) {
+    const { error } = await supabase
+      .from("admin_trials")
+      .update({ ...config, config_updated_at: new Date().toISOString() })
+      .eq("id", storeId);
+    if (error) {
+      console.error("Error updating admin config:", error);
+      return false;
+    }
     return true;
   }
 

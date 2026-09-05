@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Store } from "lucide-react";
 import {
   getRestaurantsByOwner,
+  ensureRestaurantsForUser,
   updateRestaurant,
 } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
@@ -31,6 +32,7 @@ function ConfigPage() {
   useEffect(() => {
     if (!user) return;
     async function load() {
+      await ensureRestaurantsForUser(user!);
       const data = await getRestaurantsByOwner(user!.id);
       setRestaurants(data);
       if (data.length > 0) {

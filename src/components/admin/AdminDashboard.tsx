@@ -294,8 +294,8 @@ export default function AdminDashboard() {
               <p className="text-[10px] text-gray-500">URL do cardápio:</p>
               <p className="text-xs text-cyan-300">
                 {typeof window !== "undefined"
-                  ? `${window.location.origin}/r/${slugPreview}`
-                  : `/r/${slugPreview}`}
+                  ? `${window.location.origin}/cardapio/${slugPreview}`
+                  : `/cardapio/${slugPreview}`}
               </p>
             </div>
           )}

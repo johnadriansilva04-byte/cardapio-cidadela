@@ -39,6 +39,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [successOrder, setSuccessOrder] = useState<Record<string, unknown> | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({});
 
   // Load restaurant and menu
@@ -107,53 +109,62 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   async function handleCheckout(form: CheckoutForm) {
     if (!restaurant) return;
+    // Hard guard: ignore any further submits while one is already being processed.
+    // (Covers double/triple-clicksz including clicks during the in-flight request.)
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      const orderItems = lines.map((l) => ({
+        product_id: l.item.id,
+        product_name: l.item.name,
+        quantity: l.qty,
+        unit_price: l.item.price,
+        total: l.item.price * l.qty,
+        notes: "",
+      }));
 
-    const orderItems = lines.map((l) => ({
-      product_id: l.item.id,
-      product_name: l.item.name,
-      quantity: l.qty,
-      unit_price: l.item.price,
-      total: l.item.price * l.qty,
-      notes: "",
-    }));
+      const comanda = newComanda();
+      const customerPhone = form.customer_phone;
+      const customerName = form.customer_name;
 
-    const comanda = newComanda();
-    const customerPhone = form.customer_phone;
-    const customerName = form.customer_name;
+      const order = await createOrder(
+        restaurant.id,
+        {
+          comanda,
+          customer_id: user?.id ?? null,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          customer_email: form.customer_email,
+          delivery_address: form.delivery_address,
+          customer_complement: form.customer_complement,
+          customer_neighborhood: form.customer_neighborhood,
+          customer_city: form.customer_city,
+          delivery_type: form.delivery_type,
+          observations: form.observations,
+          subtotal,
+          delivery_fee: 0,
+          total: subtotal,
+          payment_method: form.payment_method,
+        },
+        orderItems,
+      );
 
-    const order = await createOrder(
-      restaurant.id,
-      {
-        comanda,
-        customer_id: user?.id ?? null,
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        customer_email: form.customer_email,
-        delivery_address: form.delivery_address,
-        customer_complement: form.customer_complement,
-        customer_neighborhood: form.customer_neighborhood,
-        customer_city: form.customer_city,
-        delivery_type: form.delivery_type,
-        observations: form.observations,
-        subtotal,
-        delivery_fee: 0,
-        total: subtotal,
-        payment_method: form.payment_method,
-      },
-      orderItems,
-    );
+      if (!order) {
+        alert("Erro ao criar pedido. Tente novamente.");
+        return;
+      }
 
-    if (!order) {
-      alert("Erro ao criar pedido. Tente novamente.");
-      return;
+      clearCart();
+      setCheckoutOpen(false);
+      setSuccessOrder({
+        ...order,
+        order_items: orderItems.map((i, idx) => ({ id: `${idx}`, ...i })),
+      } as Record<string, unknown>);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
-
-    clearCart();
-    setCheckoutOpen(false);
-    setSuccessOrder({
-      ...order,
-      order_items: orderItems.map((i, idx) => ({ id: `${idx}`, ...i })),
-    } as Record<string, unknown>);
   }
 
   // Loading state
@@ -472,6 +483,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           total={subtotal}
           prefillName={user?.user_metadata?.name || ""}
           prefillPhone={user?.user_metadata?.phone || ""}
+          submitting={submitting}
           onClose={() => setCheckoutOpen(false)}
           onConfirm={handleCheckout}
         />

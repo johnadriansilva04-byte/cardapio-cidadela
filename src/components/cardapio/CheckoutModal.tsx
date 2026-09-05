@@ -20,12 +20,14 @@ export default function CheckoutModal({
   total,
   prefillName,
   prefillPhone,
+  submitting = false,
   onClose,
   onConfirm,
 }: {
   total: number;
   prefillName?: string;
   prefillPhone?: string;
+  submitting?: boolean;
   onClose: () => void;
   onConfirm: (form: CheckoutForm) => void;
 }) {
@@ -48,6 +50,7 @@ export default function CheckoutModal({
     "w-full rounded-lg border border-cyan-500/30 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500 focus:outline-none";
 
   function submit() {
+    if (submitting) return;
     if (!form.customer_name.trim() || !form.customer_phone.trim()) {
       setError("Preencha nome e telefone");
       return;
@@ -194,9 +197,10 @@ export default function CheckoutModal({
 
           <button
             onClick={submit}
-            className="w-full rounded-full bg-cyan-600 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:bg-cyan-500"
+            disabled={submitting}
+            className="w-full rounded-full bg-cyan-600 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Confirmar pedido • {brl(total)}
+            {submitting ? "Enviando pedido..." : `Confirmar pedido • ${brl(total)}`}
           </button>
         </div>
       </div>

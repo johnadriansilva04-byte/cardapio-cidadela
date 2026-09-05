@@ -86,6 +86,7 @@ export interface Order {
   id: string;
   restaurant_id: string;
   customer_id: string | null;
+  idempotency_key: string | null;
   comanda: string;
   customer_name: string;
   customer_phone: string;

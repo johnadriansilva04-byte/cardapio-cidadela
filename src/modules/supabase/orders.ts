@@ -1,6 +1,27 @@
 import { supabase } from "./client";
 import type { Order, OrderStatus, OrderItem } from "@/lib/types";
 
+function idempotencyKey(
+  restaurantId: string,
+  customerPhone: string,
+  items: { product_id: string; quantity: number; unit_price: number }[],
+): string {
+  // Stable hash of order identity so the same cart+customer can never be inserted twice.
+  const raw = [
+    restaurantId,
+    customerPhone,
+    ...items
+      .map((i) => `${i.product_id}:${i.quantity}:${i.unit_price}`)
+      .sort(),
+  ].join("|");
+  // djb2-style deterministic hash (not crypto; used only for dedupe key)
+  let h = 5381;
+  for (let i = 0; i < raw.length; i++) {
+    h = ((h << 5) + h) ^ raw.charCodeAt(i);
+  }
+  return "idem-" + (h >>> 0).toString(16);
+}
+
 /**
  * Create a new order with items
  */
@@ -32,20 +53,31 @@ export async function createOrder(
     notes?: string;
   }[],
 ): Promise<Order | null> {
+  const key = idempotencyKey(restaurantId, orderData.customer_phone, items);
+
+  // If an identical order was already created (e.g. double-click on submit), return it instead of inserting again.
+
+  const { data: existing } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("idempotency_key", key)
+    .maybeSingle();
+
+  if (existing) {
+    return { ...(existing as Order), order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })) };
+  }
+
   // Create order
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
       restaurant_id: restaurantId,
-      customer_id: orderData.customer_id ?? null,
+      idempotency_key: key,
       comanda: orderData.comanda,
       customer_name: orderData.customer_name,
       customer_phone: orderData.customer_phone,
       customer_email: orderData.customer_email,
       delivery_address: orderData.delivery_address,
-      customer_complement: orderData.customer_complement ?? "",
-      customer_neighborhood: orderData.customer_neighborhood ?? "",
-      customer_city: orderData.customer_city ?? "",
       delivery_type: orderData.delivery_type,
       observations: orderData.observations,
       subtotal: orderData.subtotal,
@@ -56,9 +88,21 @@ export async function createOrder(
       status: "received",
     })
     .select()
-    .single();
+    .maybeSingle();
 
-  if (orderError || !order) {
+  if (orderError) {
+    // 23505 = unique violation on idempotency_key from a concurrent double-submit.
+
+    if (orderError.code === "23505") {
+      const { data: dup } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("idempotency_key", key)
+        .maybeSingle();
+      if (dup) {
+        return { ...(dup as Order), order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })) };
+      }
+    }
     console.error("Error creating order:", orderError);
     return null;
   }

@@ -275,12 +275,13 @@ export async function ensureRestaurantsForUser(user: {
         await supabase.from("restaurants").update({ owner_id: user.id }).eq("id", existing.id);
       }
     } else {
+      // NOTA: a coluna `slogan` não existe no schema atual do Supabase.
+      // O slogan do trial (store_slogan) é preservado em `description`.
       await supabase.from("restaurants").insert({
         owner_id: user.id,
         name: trial.store_name ?? "Meu Restaurante",
         slug: trial.store_id,
         description: trial.store_slogan ?? "",
-        slogan: trial.store_slogan ?? "",
         whatsapp: trial.whatsapp ?? "",
         pix_key: trial.pix_key ?? "",
         status: "published",

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
-import { brl } from "@/lib/utils";
+import { brl, hexToRgba } from "@/lib/utils";
 
 export interface CheckoutForm {
   customer_name: string;
@@ -18,16 +18,20 @@ export interface CheckoutForm {
 
 export default function CheckoutModal({
   total,
+  accent = "#06b6d4",
   prefillName,
   prefillPhone,
   submitting = false,
+  serverError = "",
   onClose,
   onConfirm,
 }: {
   total: number;
+  accent?: string;
   prefillName?: string;
   prefillPhone?: string;
   submitting?: boolean;
+  serverError?: string;
   onClose: () => void;
   onConfirm: (form: CheckoutForm) => void;
 }) {
@@ -47,7 +51,7 @@ export default function CheckoutModal({
   const [error, setError] = useState("");
 
   const field =
-    "w-full rounded-lg border border-cyan-500/30 bg-black/60 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500 focus:outline-none";
+    "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none";
 
   function submit() {
     if (submitting) return;
@@ -65,7 +69,7 @@ export default function CheckoutModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur sm:items-center">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-cyan-500/30 bg-black p-5 sm:rounded-2xl">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-white/10 bg-[#0b0b12] p-5 sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">Dados do pedido</h2>
           <button onClick={onClose} aria-label="Fechar checkout">
@@ -104,11 +108,20 @@ export default function CheckoutModal({
               <button
                 key={t}
                 onClick={() => setForm({ ...form, delivery_type: t })}
-                className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold uppercase ${
+                className="flex-1 rounded-lg border px-3 py-2 text-xs font-semibold uppercase transition-all"
+                style={
                   form.delivery_type === t
-                    ? "border-cyan-500 bg-cyan-600 text-white"
-                    : "border-cyan-500/30 bg-black/50 text-gray-400"
-                }`}
+                    ? {
+                        borderColor: accent,
+                        backgroundColor: accent,
+                        color: "#fff",
+                      }
+                    : {
+                        borderColor: "rgba(255,255,255,0.15)",
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        color: "#9ca3af",
+                      }
+                }
               >
                 {t === "entrega" ? "Entrega" : "Retirada"}
               </button>
@@ -169,11 +182,20 @@ export default function CheckoutModal({
               <button
                 key={p}
                 onClick={() => setForm({ ...form, payment_method: p })}
-                className={`flex-1 rounded-lg border px-2 py-2 text-xs font-semibold uppercase ${
+                className="flex-1 rounded-lg border px-2 py-2 text-xs font-semibold uppercase transition-all"
+                style={
                   form.payment_method === p
-                    ? "border-cyan-500 bg-cyan-500/20 text-cyan-300"
-                    : "border-cyan-500/30 bg-black/50 text-gray-400"
-                }`}
+                    ? {
+                        borderColor: hexToRgba(accent, 0.7),
+                        backgroundColor: hexToRgba(accent, 0.18),
+                        color: accent,
+                      }
+                    : {
+                        borderColor: "rgba(255,255,255,0.15)",
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        color: "#9ca3af",
+                      }
+                }
               >
                 {p === "pix" ? "PIX" : p === "dinheiro" ? "Dinheiro" : "Cartão"}
               </button>
@@ -194,11 +216,20 @@ export default function CheckoutModal({
           {error && (
             <p className="text-xs font-semibold text-red-400">{error}</p>
           )}
+          {serverError && (
+            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold leading-relaxed text-red-300">
+              {serverError}
+            </p>
+          )}
 
           <button
             onClick={submit}
             disabled={submitting}
-            className="w-full rounded-full bg-cyan-600 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-full py-3 text-sm font-bold text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            style={{
+              backgroundColor: accent,
+              boxShadow: `0 0 20px ${hexToRgba(accent, 0.4)}`,
+            }}
           >
             {submitting ? "Enviando pedido..." : `Confirmar pedido • ${brl(total)}`}
           </button>

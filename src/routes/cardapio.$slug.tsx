@@ -4,7 +4,7 @@ import PublicMenu from "@/components/cardapio/Cardapio";
 export const Route = createFileRoute("/cardapio/$slug")({
   head: () => ({
     meta: [
-      { title: "Cardápio Digital" },
+      { title: "Cardápio Digital — Cardápio Cidadela" },
       {
         name: "description",
         content: "Confira o cardápio e faça seu pedido online.",

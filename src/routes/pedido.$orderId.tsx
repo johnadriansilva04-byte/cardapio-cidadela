@@ -94,6 +94,11 @@ function OrderTrackingPage() {
           <p className="mt-1 text-sm text-gray-400">
             Comanda {order.comanda}
           </p>
+          {Math.floor(order.total / 30) > 0 && (
+            <div className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-xs font-bold text-cyan-400">
+              ⭐ +{Math.floor(order.total / 30)} pontos de soberania
+            </div>
+          )}
         </div>
 
         {/* Status badge */}

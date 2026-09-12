@@ -1,5 +1,10 @@
-import { CheckCircle2, MessageCircle, ExternalLink } from "lucide-react";
+import { CheckCircle2, MessageCircle, ExternalLink, Crown, Star } from "lucide-react";
 import { brl, buildWhatsAppMessage, sendToWhatsApp } from "@/lib/utils";
+
+function soberaniaPoints(total: number): number {
+  // 1 ponto de soberania a cada R$ 30 em compras.
+  return Math.floor(total / 30);
+}
 
 interface SuccessOrder {
   id: string;
@@ -15,43 +20,47 @@ interface SuccessOrder {
 
 export default function SuccessModal({
   order,
-  restaurantSlug,
   restaurantName,
   restaurantWhatsapp,
+  restaurantAccent = "#06b6d4",
   onClose,
 }: {
   order: SuccessOrder;
-  restaurantSlug: string;
+  restaurantAccent?: string;
   restaurantName: string;
   restaurantWhatsapp: string;
   onClose: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur">
-      <div className="w-full max-w-md rounded-2xl border border-green-500/40 bg-black p-6 text-center">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0b0b12] p-6 text-center shadow-2xl">
         <CheckCircle2 className="mx-auto size-14 text-green-400" />
         <h2 className="mt-3 text-xl font-black text-white">Pedido confirmado!</h2>
         <p className="mt-1 text-sm text-gray-400">
           Comanda {order.comanda} • {brl(order.total)}
         </p>
 
-        {/* Cidadela unlock hint */}
-        <div className="mt-4 rounded-xl border border-cyan-400/50 bg-cyan-400/10 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">
-            Cidadela desbloqueada!
-          </p>
-          <p className="mt-1 text-xs text-cyan-200/70">
-            Sua compra desbloqueou o acesso à Cidadela
-          </p>
-        </div>
+        {soberaniaPoints(order.total) > 0 && (
+          <div
+            className="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold"
+            style={{
+              borderColor: `${restaurantAccent}66`,
+              backgroundColor: `${restaurantAccent}12`,
+              color: restaurantAccent,
+            }}
+          >
+            <Star className="size-3.5 fill-current" />
+            +{soberaniaPoints(order.total)} pontos de soberania
+          </div>
+        )}
 
         <div className="mt-5 space-y-2">
           {/* Order tracking button */}
           <a
             href={`/pedido/${order.id}`}
-            className="flex w-full items-center justify-center gap-2 rounded-full border border-cyan-500/50 py-3 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/10"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] py-3 text-sm font-semibold text-white transition-colors hover:bg-white/[0.08]"
           >
-            <ExternalLink className="size-4" /> Acompanhar pedido
+            <ExternalLink className="size-4" /> Acompanhar pedido em tempo real
           </a>
 
           {/* WhatsApp button */}
@@ -73,16 +82,31 @@ export default function SuccessModal({
                 );
                 sendToWhatsApp(restaurantWhatsapp, msg);
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-green-500/50 py-3 text-sm font-semibold text-green-400 hover:bg-green-500/10"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-500/40 bg-green-500/5 py-3 text-sm font-semibold text-green-400 transition-colors hover:bg-green-500/10"
             >
-              <MessageCircle className="size-4" /> Enviar para WhatsApp
+              <MessageCircle className="size-4" /> Enviar pedido no WhatsApp
             </button>
           )}
+
+          {/* Cidadela CTA */}
+          <a
+            href="https://pracinha.online"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold transition-colors hover:brightness-125"
+            style={{
+              borderColor: `${restaurantAccent}88`,
+              backgroundColor: `${restaurantAccent}14`,
+              color: restaurantAccent,
+            }}
+          >
+            <Crown className="size-4" /> Conheça a Cidadela
+          </a>
 
           {/* Close button */}
           <button
             onClick={onClose}
-            className="w-full rounded-full bg-gray-800 py-3 text-sm font-bold text-white hover:bg-gray-700"
+            className="w-full rounded-xl bg-gray-800 py-3 text-sm font-bold text-white transition-colors hover:bg-gray-700"
           >
             Fechar
           </button>

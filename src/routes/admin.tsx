@@ -23,7 +23,7 @@ import { playNewOrderAlert } from "@/lib/orderAlertSound";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
-    meta: [{ title: "Painel — MenuFácil" }],
+    meta: [{ title: "Painel — Cardápio Cidadela" }],
   }),
   component: AdminLayout,
 });
@@ -103,7 +103,7 @@ function AdminLayout() {
               <Link to="/" className="flex items-center gap-2">
                 <UtensilsCrossed className="size-5 text-cyan-400" />
                 <span className="text-sm font-bold">
-                  Menu<span className="text-cyan-400">Fácil</span>
+                  Cardápio <span className="text-cyan-400">Cidadela</span>
                 </span>
               </Link>
               <button onClick={() => setSidebarOpen(false)} className="text-gray-400">
@@ -174,7 +174,7 @@ function SidebarContent() {
       <div className="flex items-center gap-2 px-5 py-5">
         <UtensilsCrossed className="size-5 text-cyan-400" />
         <span className="text-sm font-bold">
-          Menu<span className="text-cyan-400">Fácil</span>
+          Cardápio <span className="text-cyan-400">Cidadela</span>
         </span>
       </div>
 

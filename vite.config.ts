@@ -12,4 +12,19 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    server: {
+      // Allow the sandbox/preview hosts (and any localhost variant) to reach
+      // the dev server. Without this Vite blocks requests that arrive with a
+      // Host header other than localhost.
+      allowedHosts: [
+        "work-1-qucdqcijhbbztwvr.prod-runtime.all-hands.dev",
+        "work-2-qucdqcijhbbztwvr.prod-runtime.all-hands.dev",
+        ".all-hands.dev",
+        ".prod-runtime.all-hands.dev",
+        "localhost",
+        "127.0.0.1",
+      ],
+    },
+  },
 });

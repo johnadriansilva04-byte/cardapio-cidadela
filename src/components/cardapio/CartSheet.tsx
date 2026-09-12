@@ -1,6 +1,6 @@
 import { X, Minus, Plus, ShoppingBag } from "lucide-react";
 import type { Product } from "@/lib/types";
-import { brl } from "@/lib/utils";
+import { brl, hexToRgba } from "@/lib/utils";
 
 interface CartLine {
   item: Product;
@@ -10,6 +10,7 @@ interface CartLine {
 export default function CartSheet({
   lines,
   subtotal,
+  accent = "#06b6d4",
   onInc,
   onDec,
   onClose,
@@ -17,6 +18,7 @@ export default function CartSheet({
 }: {
   lines: CartLine[];
   subtotal: number;
+  accent?: string;
   onInc: (id: string) => void;
   onDec: (id: string) => void;
   onClose: () => void;
@@ -24,10 +26,10 @@ export default function CartSheet({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur sm:items-center">
-      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-cyan-500/30 bg-black p-5 sm:rounded-2xl">
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-white/10 bg-[#0b0b12] p-5 sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-            <ShoppingBag className="size-5 text-cyan-500" /> Seu pedido
+            <ShoppingBag className="size-5" style={{ color: accent }} /> Seu pedido
           </h2>
           <button onClick={onClose} aria-label="Fechar carrinho">
             <X className="size-5 text-gray-400" />
@@ -43,7 +45,7 @@ export default function CartSheet({
             {lines.map(({ item, qty }) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between rounded-xl border border-cyan-500/20 bg-black/40 p-3"
+                className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] p-3"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-white">
@@ -51,7 +53,13 @@ export default function CartSheet({
                   </p>
                   <p className="text-xs text-gray-400">{brl(item.price)}</p>
                 </div>
-                <div className="flex items-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/20 p-1">
+                <div
+                  className="flex items-center gap-2 rounded-lg border p-1"
+                  style={{
+                    borderColor: hexToRgba(accent, 0.4),
+                    backgroundColor: hexToRgba(accent, 0.14),
+                  }}
+                >
                   <button
                     onClick={() => onDec(item.id)}
                     className="grid size-6 place-items-center rounded-full bg-black/50 hover:bg-black/70"
@@ -64,7 +72,8 @@ export default function CartSheet({
                   </span>
                   <button
                     onClick={() => onInc(item.id)}
-                    className="grid size-6 place-items-center rounded-full bg-cyan-600 hover:bg-cyan-500"
+                    className="grid size-6 place-items-center rounded-full transition-colors hover:brightness-110"
+                    style={{ backgroundColor: accent }}
                     aria-label="Aumentar"
                   >
                     <Plus className="size-3 text-white" />
@@ -76,7 +85,10 @@ export default function CartSheet({
               </div>
             ))}
 
-            <div className="border-t border-cyan-500/20 pt-3 text-sm">
+            <div
+              className="border-t pt-3 text-sm"
+              style={{ borderColor: hexToRgba(accent, 0.2) }}
+            >
               <div className="flex justify-between text-base font-bold text-white">
                 <span>Total</span>
                 <span>{brl(subtotal)}</span>
@@ -85,7 +97,11 @@ export default function CartSheet({
 
             <button
               onClick={onCheckout}
-              className="mt-2 w-full rounded-full bg-cyan-600 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:bg-cyan-500"
+              className="mt-2 w-full rounded-full py-3 text-sm font-bold text-white transition-all hover:brightness-110"
+              style={{
+                backgroundColor: accent,
+                boxShadow: `0 0 20px ${hexToRgba(accent, 0.45)}`,
+              }}
             >
               Finalizar pedido
             </button>

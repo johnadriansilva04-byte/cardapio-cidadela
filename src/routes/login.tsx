@@ -20,7 +20,7 @@ import { useAuth } from "@/components/AuthProvider";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
-    meta: [{ title: "Entrar — MenuFácil" }],
+    meta: [{ title: "Entrar — Cardápio Cidadela" }],
   }),
   component: LoginPage,
 });

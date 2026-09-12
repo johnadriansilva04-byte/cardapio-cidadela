@@ -10,7 +10,7 @@ import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/config")({
-  head: () => ({ meta: [{ title: "Configurações — MenuFácil" }] }),
+  head: () => ({ meta: [{ title: "Configurações — Cardápio Cidadela" }] }),
   component: ConfigPage,
 });
 

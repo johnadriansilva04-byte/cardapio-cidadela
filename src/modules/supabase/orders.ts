@@ -156,6 +156,14 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
  * observations, created_at,e items(BEM sem nome/telefone/endereço).
  */
 export async function getOrderTrackingPublic(orderId: string): Promise<Order | null> {
+  // 1) RPC público (security definer) — funciona para clientes anônimos
+  //    depois da migration supabase/fix_public_order_insert.sql ser aplicada.
+  const { data: viaRpc } = await supabase.rpc("get_order_tracking", { p_oid: orderId });
+  if (Array.isArray(viaRpc) && viaRpc.length === 1) {
+    return viaRpc[0] as Order;
+  }
+
+  // 2) Fallback: view order_tracking (funciona para dono/autenticado hoje)
   const { data, error } = await supabase
     .from("order_tracking")
     .select("*")

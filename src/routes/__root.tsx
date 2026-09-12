@@ -79,13 +79,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "viewport",
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
-      { title: "Menu Digital — Plataforma de Cardápios" },
+      { title: "Cardápio Cidadela — Cardápios Digitais" },
       {
         name: "description",
         content:
           "Crie, gerencie e publique cardápios digitais para restaurantes. Plataforma SaaS profissional.",
       },
-      { property: "og:title", content: "Menu Digital — Plataforma de Cardápios" },
+      { property: "og:title", content: "Cardápio Cidadela — Cardápios Digitais" },
       {
         property: "og:description",
         content:

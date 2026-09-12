@@ -14,6 +14,21 @@ export function brl(value: number): string {
 }
 
 /**
+ * Convert a hex color (#rgb | #rrggbb) to an rgba() string.
+ * Falls back to cyan when the color is missing/invalid.
+ */
+export function hexToRgba(hex: string | undefined | null, alpha: number): string {
+  const h = (hex ?? "#06b6d4").replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return `rgba(6, 182, 212, ${alpha})`;
+  const n = parseInt(full, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
  * Generate a URL-friendly slug from restaurant name
  */
 export function generateSlug(name: string): string {
@@ -106,6 +121,58 @@ export function buildThermalTicket(
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/**
+ * CRC16/CCITT-FALSE (hex) required by the PIX EMV payload.
+ */
+function crc16(payload: string): string {
+  let crc = 0xffff;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, "0");
+}
+
+/**
+ * Build a PIX "Copia e Cola" EMV payload. This is what banking apps actually
+ * scan/accept — encoding the bare key is NOT valid, so we assemble the full
+ * EMV string and append the CRC16.
+ */
+export function buildPixPayload(opts: {
+  pixKey: string;
+  merchantName: string;
+  merchantCity: string;
+  amount: number;
+  txid: string;
+}): string {
+  const { pixKey, merchantName, merchantCity, amount, txid } = opts;
+  if (!pixKey) return "";
+
+  const id = (n: string) => String(n).padStart(2, "0");
+  const field = (idNumber: number, value: string) =>
+    id(String(idNumber)) + id(String(value.length)) + value;
+
+  // Merchant Account Information (GUI obrigatório + chave PIX)
+  const mai = field(26, field(0, "br.gov.bcb.pix") + field(1, pixKey));
+
+  const amountStr = amount.toFixed(2);
+  const txidClean = txid.replace(/[^\w]/g, "").slice(0, 25) || "***";
+  const body =
+    field(0, "01") + // Payload Format Indicator
+    mai +
+    field(52, "0000") + // MCC
+    field(53, "986") + // Moeda BRL
+    field(54, amountStr) + // Valor
+    field(58, "BR") + // País
+    field(59, merchantName.replace(/[^A-Z0-9 ]/gi, "").slice(0, 25).toUpperCase()) +
+    field(60, merchantCity.replace(/[^A-Z0-9 ]/gi, "").slice(0, 15).toUpperCase()) +
+    field(62, field(5, txidClean)); // TXID
+
+  return body + "6304" + crc16(body + "6304");
 }
 
 /**

@@ -12,7 +12,7 @@ export interface Restaurant {
   name: string;
   slug: string;
   description: string;
-  slogan: string;
+  slogan?: string;
   phone: string;
   whatsapp: string;
   address: string;

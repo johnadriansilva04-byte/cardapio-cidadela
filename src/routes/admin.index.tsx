@@ -15,7 +15,7 @@ import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/")({
-  head: () => ({ meta: [{ title: "Dashboard — MenuFácil" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — Cardápio Cidadela" }] }),
   component: AdminDashboardOverview,
 });
 

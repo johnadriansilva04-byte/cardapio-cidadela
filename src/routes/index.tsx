@@ -17,16 +17,16 @@ import { useState } from "react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "MenuFácil — Cardápios Digitais para Restaurantes" },
+      { title: "Cardápio Cidadela — Cardápios Digitais para Restaurantes" },
       {
         name: "description",
         content:
           "Crie, gerencie e publique cardápios digitais profissionais para seu restaurante. URLs bonitas, pedidos em tempo real e design premium.",
       },
-      { property: "og:title", content: "MenuFácil — Cardápios Digitais" },
+      { property: "og:title", content: "Cardápio Cidadela — Cardápios Digitais" },
       {
         property: "og:description",
-        content: "Plataforma SaaS para criação e gerenciamento de cardápios digitais.",
+        content: "Plataforma para criação e gerenciamento de cardápios digitais.",
       },
     ],
   }),
@@ -44,7 +44,7 @@ function LandingPage() {
           <Link to="/" className="flex items-center gap-2">
             <UtensilsCrossed className="size-6 text-cyan-400" />
             <span className="text-lg font-bold tracking-tight">
-              Menu<span className="text-cyan-400">Fácil</span>
+              Cardápio <span className="text-cyan-400">Cidadela</span>
             </span>
           </Link>
 
@@ -148,6 +148,12 @@ function LandingPage() {
                 <ChevronRight className="size-4" />
               </Link>
               <a
+                href="/cardapio/cidadela"
+                className="flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/5 px-8 py-3.5 text-sm font-semibold text-cyan-300 transition-all hover:border-cyan-400/60 hover:bg-cyan-500/10 hover:text-cyan-200"
+              >
+                Ver cardápio de exemplo
+              </a>
+              <a
                 href="#how"
                 className="flex items-center gap-2 rounded-xl border border-white/15 px-8 py-3.5 text-sm font-medium text-gray-300 transition-all hover:border-white/30 hover:text-white"
               >
@@ -206,7 +212,7 @@ function LandingPage() {
               {
                 icon: QrCode,
                 title: "URL personalizada",
-                desc: "Seu restaurante ganha um link único como restaurante.menufacil.com. Fácil de compartilhar no WhatsApp.",
+                desc: "Seu restaurante ganha um link único e bonito — /cardapio/seu-restaurante. Fácil de compartilhar no WhatsApp.",
               },
               {
                 icon: BarChart3,
@@ -294,9 +300,9 @@ function LandingPage() {
       {/* About */}
       <section id="about" className="border-t border-white/5 py-24">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">Sobre o MenuFácil</h2>
+          <h2 className="text-3xl font-bold sm:text-4xl">Sobre o Cardápio Cidadela</h2>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-400">
-            O MenuFácil nasceu da necessidade de oferecer uma plataforma simples e
+            O Cardápio Cidadela nasceu da necessidade de oferecer uma plataforma simples e
             profissional para restaurantes que querem digitalizar seu cardápio. Acreditamos
             que todo restaurante merece uma presença digital elegante, sem precisar investir
             em desenvolvimento caro.
@@ -336,7 +342,7 @@ function LandingPage() {
             <div className="flex items-center gap-2">
               <UtensilsCrossed className="size-5 text-cyan-400" />
               <span className="text-sm font-semibold text-gray-400">
-                Menu<span className="text-cyan-400">Fácil</span>
+                Cardápio <span className="text-cyan-400">Cidadela</span>
               </span>
             </div>
 
@@ -344,20 +350,17 @@ function LandingPage() {
               <a href="#about" className="hover:text-gray-300 transition-colors">
                 Sobre
               </a>
-              <a href="#" className="hover:text-gray-300 transition-colors">
+              <Link to="/terms" className="hover:text-gray-300 transition-colors">
                 Termos de Uso
-              </a>
-              <a href="#" className="hover:text-gray-300 transition-colors">
+              </Link>
+              <Link to="/privacy" className="hover:text-gray-300 transition-colors">
                 Política de Privacidade
-              </a>
-              <a href="#" className="hover:text-gray-300 transition-colors">
-                Contato
-              </a>
+              </Link>
             </div>
           </div>
 
           <p className="mt-6 text-center text-[11px] text-gray-600">
-            © {new Date().getFullYear()} MenuFácil. Todos os direitos reservados.
+            © {new Date().getFullYear()} Cardápio Cidadela. Todos os direitos reservados.
           </p>
         </div>
       </footer>

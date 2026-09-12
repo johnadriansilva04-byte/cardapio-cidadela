@@ -10,7 +10,7 @@ import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/compartilhar")({
-  head: () => ({ meta: [{ title: "Compartilhar — MenuFácil" }] }),
+  head: () => ({ meta: [{ title: "Compartilhar — Cardápio Cidadela" }] }),
   component: CompartilharPage,
 });
 

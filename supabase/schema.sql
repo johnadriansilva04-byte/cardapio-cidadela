@@ -14,11 +14,6 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
-DO $$ BEGIN
-  ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'out_for_delivery';
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
-
 -- ============================================================
 -- RESTAURANTS
 -- ============================================================
@@ -138,17 +133,6 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS total NUMERIC(10,2) NOT NULL DEFAULT
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'pix';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cidadela_unlocked BOOLEAN DEFAULT false;
-ALTER TABLE order_items ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
-ALTER TABLE categories ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
-ALTER TABLE products ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) NOT NULL DEFAULT 0;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT '';
-ALTER TABLE products ADD COLUMN IF NOT EXISTS available BOOLEAN DEFAULT true;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
-ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS pix_key TEXT DEFAULT '';
-ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS secondary_color TEXT DEFAULT '#8b5cf6';
-ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
-ALTER TABLE order_status_history ADD COLUMN IF NOT EXISTS note TEXT DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_orders_restaurant ON orders(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
@@ -203,6 +187,41 @@ SELECT
     '[]'::json
   ) AS order_items
 FROM orders o;
+
+-- A view acima lê de orders, que tem RLS ativa. Sem esta função
+-- SECURITY DEFINER, cliente anônimo recebe 0 linhas e a página
+-- /pedido/<id> diz "Pedido não encontrado" mesmo com pedido criado.
+CREATE OR REPLACE FUNCTION public.get_order_tracking(p_oid UUID)
+RETURNS TABLE (
+  id UUID,
+  restaurant_id UUID,
+  comanda TEXT,
+  status TEXT,
+  total NUMERIC,
+  observations TEXT,
+  created_at TIMESTAMPTZ,
+  order_items JSON
+) LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    o.id,
+    o.restaurant_id,
+    o.comanda,
+    o.status::text,
+    o.total,
+    o.observations,
+    o.created_at,
+    COALESCE(
+      (SELECT json_agg(row_to_json(oi)) FROM order_items oi WHERE oi.order_id = o.id),
+      '[]'::json
+    ) AS order_items
+  FROM orders o
+  WHERE o.id = p_oid;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_order_tracking(UUID) TO anon, authenticated;
 
 -- ============================================================
 -- CIDADELA UNLOCKS (auto-unlock after order confirmation)
@@ -596,20 +615,13 @@ BEGIN
     '#06b6d4', '#8b5cf6'
   ) RETURNING id INTO rest_id;
 
-  -- Criar categorias
-  INSERT INTO categories (restaurant_id, name, sort_order) VALUES
-    (rest_id, 'Lanches', 0),
-    (rest_id, 'Bebidas', 1),
-    (rest_id, 'Combos', 2)
-  RETURNING id INTO cat_lanches, cat_bebidas, cat_combos;
-
-  -- se só retornou 1 linha, ajusta
-  IF cat_bebidas IS NULL THEN
-    SELECT id INTO cat_bebidas FROM categories
-      WHERE restaurant_id = rest_id AND name = 'Bebidas';
-    SELECT id INTO cat_combos FROM categories
-      WHERE restaurant_id = rest_id AND name = 'Combos';
-  END IF;
+  -- Criar categorias (uma por instrução para o RETURNING INTO receber 1 linha)
+  INSERT INTO categories (restaurant_id, name, sort_order) VALUES (rest_id, 'Lanches', 0)
+    RETURNING id INTO cat_lanches;
+  INSERT INTO categories (restaurant_id, name, sort_order) VALUES (rest_id, 'Bebidas', 1)
+    RETURNING id INTO cat_bebidas;
+  INSERT INTO categories (restaurant_id, name, sort_order) VALUES (rest_id, 'Combos', 2)
+    RETURNING id INTO cat_combos;
 
   -- LANCHES
   INSERT INTO products (restaurant_id, category_id, name, description, price, sort_order) VALUES
@@ -733,3 +745,24 @@ BEGIN
     RAISE NOTICE 'publication supabase_realtime nao existe — nada a fazer';
   END IF;
 END $$;
+
+-- ============================================================
+-- GRANTS — permissões explícitas para os roles do PostgREST.
+-- O Supabase concede por padrão; estes GRANTs garantem que o
+-- schema também funcione 100% num banco recém-criado sem depender
+-- de defaults, habilitando o checkout anônimo e leitura pública.
+-- ============================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+
+GRANT SELECT ON TABLE restaurants, categories, products, addon_groups, addons TO anon, authenticated;
+GRANT INSERT, SELECT ON TABLE orders TO anon, authenticated;
+GRANT INSERT, SELECT ON TABLE order_items TO anon, authenticated;
+GRANT INSERT, SELECT ON TABLE order_status_history TO anon, authenticated;
+GRANT INSERT, SELECT ON TABLE cidadela_unlocks TO anon, authenticated;
+GRANT SELECT ON TABLE profiles TO anon, authenticated;
+GRANT SELECT ON order_tracking TO anon, authenticated;
+
+-- Admin/dono: acesso total às tabelas de domínio via policies de owner
+GRANT ALL ON TABLE restaurants, categories, products, addon_groups, addons,
+  orders, order_items, order_status_history, cidadela_unlocks TO authenticated;
+GRANT ALL ON TABLE admin_trials, chat_messages, game_sessions, game_moves, profiles TO anon, authenticated, service_role;

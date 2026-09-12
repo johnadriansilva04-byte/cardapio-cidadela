@@ -67,32 +67,43 @@ export async function createOrder(
     return { ...(existing as Order), order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })) };
   }
 
-  // Create order
-  const { data: order, error: orderError } = await supabase
-    .from("orders")
-    .insert({
-      restaurant_id: restaurantId,
-      idempotency_key: key,
-      comanda: orderData.comanda,
-      customer_name: orderData.customer_name,
-      customer_phone: orderData.customer_phone,
-      customer_email: orderData.customer_email,
-      delivery_address: orderData.delivery_address,
-      delivery_type: orderData.delivery_type,
-      observations: orderData.observations,
-      subtotal: orderData.subtotal,
-      delivery_fee: orderData.delivery_fee,
-      total: orderData.total,
-      payment_method: orderData.payment_method,
-      payment_status: orderData.payment_method === "pix" ? "awaiting_confirmation" : "pending",
-      status: "received",
-    })
-    .select()
-    .maybeSingle();
+  // Create order.
+  // O pedido é gerado no cliente (crypto.randomUUID) para que o id seja
+  // conhecido antes do insert. Não usamos .select() aqui: em RLS, o
+  // RETURNING de um INSERT dispara a policy de SELECT, que bloqueia o
+  // cliente anônimo (default deny). Insert puro passa pela policy de INSERT.
+  const orderId = crypto.randomUUID();
+  // Colunas opcionais só são enviadas se tiverem valor — assim o insert
+  // funciona tanto no schema atual do Supabase quanto após aplicar
+  // supabase/schema.sql (que adiciona complemento/bairro/cidade).
+  const optionalFields: Record<string, unknown> = {};
+  if (orderData.customer_id) optionalFields.customer_id = orderData.customer_id;
+  if (orderData.customer_complement) optionalFields.customer_complement = orderData.customer_complement;
+  if (orderData.customer_neighborhood) optionalFields.customer_neighborhood = orderData.customer_neighborhood;
+  if (orderData.customer_city) optionalFields.customer_city = orderData.customer_city;
+
+  const { error: orderError } = await supabase.from("orders").insert({
+    id: orderId,
+    restaurant_id: restaurantId,
+    idempotency_key: key,
+    comanda: orderData.comanda,
+    customer_name: orderData.customer_name,
+    customer_phone: orderData.customer_phone,
+    customer_email: orderData.customer_email,
+    delivery_address: orderData.delivery_address,
+    delivery_type: orderData.delivery_type,
+    observations: orderData.observations,
+    subtotal: orderData.subtotal,
+    delivery_fee: orderData.delivery_fee,
+    total: orderData.total,
+    payment_method: orderData.payment_method,
+    payment_status: orderData.payment_method === "pix" ? "awaiting_confirmation" : "pending",
+    status: "received",
+    ...optionalFields,
+  });
 
   if (orderError) {
     // 23505 = unique violation on idempotency_key from a concurrent double-submit.
-
     if (orderError.code === "23505") {
       const { data: dup } = await supabase
         .from("orders")
@@ -111,7 +122,7 @@ export async function createOrder(
   if (items.length > 0) {
     const { error: itemsError } = await supabase.from("order_items").insert(
       items.map((item) => ({
-        order_id: order.id,
+        order_id: orderId,
         product_id: item.product_id,
         product_name: item.product_name,
         quantity: item.quantity,
@@ -128,12 +139,37 @@ export async function createOrder(
 
   // Add initial status history
   await supabase.from("order_status_history").insert({
-    order_id: order.id,
+    order_id: orderId,
     status: "received",
     note: "Pedido criado",
   });
 
-  return { ...(order as Order), order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })) };
+  return {
+    id: orderId,
+    restaurant_id: restaurantId,
+    comanda: orderData.comanda,
+    customer_id: orderData.customer_id ?? null,
+    customer_name: orderData.customer_name,
+    customer_phone: orderData.customer_phone,
+    customer_email: orderData.customer_email,
+    delivery_address: orderData.delivery_address,
+    customer_complement: orderData.customer_complement ?? "",
+    customer_neighborhood: orderData.customer_neighborhood ?? "",
+    customer_city: orderData.customer_city ?? "",
+    delivery_type: orderData.delivery_type,
+    observations: orderData.observations,
+    subtotal: orderData.subtotal,
+    delivery_fee: orderData.delivery_fee,
+    total: orderData.total,
+    payment_method: orderData.payment_method,
+    payment_status: orderData.payment_method === "pix" ? "awaiting_confirmation" : "pending",
+    status: "received" as OrderStatus,
+    idempotency_key: key,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    cidadela_unlocked: false,
+    order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })),
+  };
 }
 
 /**

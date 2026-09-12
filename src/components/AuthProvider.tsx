@@ -42,7 +42,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load initial session
   useEffect(() => {
     let alive = true;
 
@@ -50,14 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const currentSession = await getCurrentSession();
         if (!alive) return;
-
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-
-        // Fetch profile if user exists
         if (currentSession?.user) {
-          const userProfile = await getUserProfile(currentSession.user.id);
-          if (alive) setProfile(userProfile);
+          try {
+            const userProfile = await getUserProfile(currentSession.user.id);
+            if (alive) setProfile(userProfile);
+          } catch {
+            /* profile fetch is best-effort */
+          }
         }
       } catch (err) {
         console.error("Auth init error:", err);
@@ -68,30 +68,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     init();
 
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // Listen to auth state changes
-  useEffect(() => {
-    const unsubscribe = onAuthStateChange(async (event, newSession) => {
+    const unsubscribe = onAuthStateChange(async (_event, newSession) => {
+      if (!alive) return;
       setSession(newSession);
       setUser(newSession?.user ?? null);
-
       if (newSession?.user) {
-        const userProfile = await getUserProfile(newSession.user.id);
-        setProfile(userProfile);
+        try {
+          const userProfile = await getUserProfile(newSession.user.id);
+          if (alive) setProfile(userProfile);
+        } catch {
+          /* ignore */
+        }
       } else {
         setProfile(null);
       }
-
-      // On initial SIGNED_IN or token refresh, ensure loading is false
-      if (loading) setLoading(false);
+      setLoading(false);
     });
 
-    return unsubscribe;
-  }, [loading]);
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+  }, []);
 
   const handleSignOut = useCallback(async () => {
     await authSignOut();

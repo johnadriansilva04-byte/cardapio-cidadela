@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Store } from "lucide-react";
+import { Store, AlertCircle, RefreshCw } from "lucide-react";
 import {
   getRestaurantsByOwner,
   ensureRestaurantsForUser,
@@ -18,50 +18,80 @@ const field =
   "w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30";
 
 function ConfigPage() {
+  const { user, loading: authLoading } = useAuth();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [whatsapp, setWhatsapp] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [pixKey, setPixKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const { user } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
-    async function load() {
-      await ensureRestaurantsForUser(user!);
-      const data = await getRestaurantsByOwner(user!.id);
-      setRestaurants(data);
-      if (data.length > 0) {
-        setSelectedId(data[0].id);
-        fillFields(data[0]);
-      }
+    if (authLoading) return;
+    if (!user) {
       setLoading(false);
+      setRestaurants([]);
+      return;
+    }
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        await ensureRestaurantsForUser(user!);
+        if (cancelled) return;
+        const data = await getRestaurantsByOwner(user!.id);
+        if (cancelled) return;
+        setRestaurants(data);
+        if (data.length > 0) {
+          const pick = data[0];
+          setSelectedId((prev) => prev || pick.id);
+          fillFields(pick);
+        }
+      } catch (e) {
+        console.error("[config] load", e);
+        if (!cancelled) setError("Falha ao carregar restaurantes.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
     load();
-  }, [user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user, authLoading]);
 
   function fillFields(r: Restaurant) {
-    setWhatsapp(r.whatsapp);
-    setPhone(r.phone);
-    setAddress(r.address);
-    setPixKey(r.pix_key);
+    setWhatsapp(r.whatsapp ?? "");
+    setPhone(r.phone ?? "");
+    setAddress(r.address ?? "");
+    setPixKey(r.pix_key ?? "");
   }
 
-  const selected = restaurants.find((r) => r.id === selectedId);
+  const selected = restaurants.find((r) => r.id === selectedId) ?? restaurants[0] ?? null;
 
   async function handleSelect(id: string) {
     setSelectedId(id);
     const r = restaurants.find((r) => r.id === id);
     if (r) fillFields(r);
+    setMessage("");
   }
+
+  useEffect(() => {
+    if (!selectedId && restaurants.length > 0) {
+      setSelectedId(restaurants[0].id);
+      fillFields(restaurants[0]);
+    }
+  }, [restaurants, selectedId]);
 
   async function save() {
     if (!selected) return;
     setSaving(true);
+    setMessage("");
     const ok = await updateRestaurant(selected.id, {
       whatsapp,
       phone,
@@ -75,17 +105,32 @@ function ConfigPage() {
           r.id === selected.id ? { ...r, whatsapp, phone, address, pix_key: pixKey } : r,
         ),
       );
-      setMessage("Configurações salvas!");
+      setMessage("Configurações salvas com sucesso!");
       setTimeout(() => setMessage(""), 3000);
     } else {
-      setMessage("Erro ao salvar");
+      setMessage("Erro ao salvar. Tente novamente.");
     }
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex justify-center py-20">
         <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
+        <AlertCircle className="mx-auto size-8 text-red-400" />
+        <p className="mt-3 text-sm text-red-300">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
+        >
+          <RefreshCw className="size-4" /> Tentar novamente
+        </button>
       </div>
     );
   }
@@ -106,11 +151,11 @@ function ConfigPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Configurações</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Dados do restaurante e pagamento
+          WhatsApp, telefone, endereço e chave PIX para recebimento
         </p>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {restaurants.map((r) => (
           <button
             key={r.id}
@@ -138,6 +183,7 @@ function ConfigPage() {
               value={whatsapp}
               onChange={(e) => setWhatsapp(e.target.value)}
             />
+            <p className="mt-1 text-[10px] text-gray-600">Usado para receber pedidos e compartilhar o link.</p>
           </div>
 
           <div>
@@ -166,21 +212,20 @@ function ConfigPage() {
 
           <div>
             <label className="mb-1.5 block text-xs font-medium text-gray-400">
-              Chave PIX
+              Chave PIX do restaurante
             </label>
             <input
               className={field}
-              placeholder="email@cnpj/chave"
+              placeholder="CPF, telefone, e-mail ou chave aleatória"
               value={pixKey}
               onChange={(e) => setPixKey(e.target.value)}
             />
+            <p className="mt-1 text-[10px] text-gray-600">Exibida no QR Code ao finalizar pagamento via PIX.</p>
           </div>
 
           {message && (
             <p
-              className={`text-xs ${
-                message.includes("Erro") ? "text-red-400" : "text-cyan-400"
-              }`}
+              className={`text-xs ${message.includes("Erro") ? "text-red-400" : "text-cyan-300"}`}
             >
               {message}
             </p>

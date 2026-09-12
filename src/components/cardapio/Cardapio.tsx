@@ -29,9 +29,6 @@ interface PublicMenuProps {
 
 async function ensureRestaurantFromLegacyTrial(slug: string): Promise<Restaurant | null> {
   if (!slug) return null;
-
-  // Trials antigos usavam store_id como slug público. Materializa restaurante real sob demanda (idempotente).
-
   const { data: trial } = await supabase
     .from("admin_trials")
     .select("store_id, store_name, store_slogan, pix_key, whatsapp")
@@ -40,8 +37,6 @@ async function ensureRestaurantFromLegacyTrial(slug: string): Promise<Restaurant
     .maybeSingle();
 
   if (!trial) return null;
-
-  // Race guard: outra request pode ter criado entrementempo.
 
   const existing = await getRestaurantBySlug(slug);
   if (existing) return existing;
@@ -73,12 +68,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     setCart,
   } = usePlatformStore();
 
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeCat, setActiveCat] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -89,47 +85,77 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const submittingRef = useRef(false);
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({});
 
-  // Load restaurant and menu
+  // Load restaurant and menu — single source, no duplicate polling on mount
   useEffect(() => {
     let alive = true;
     async function load() {
-      setLoading(true);
-      let r = await getRestaurantBySlug(slug);
-      if (!r) r = await ensureRestaurantFromLegacyTrial(slug);
-      if (!alive) return;
-      if (!r) {
-        setLoading(false);
-        return;
+      try {
+        setLoading(true);
+        setLoadError(null);
+        let r = await getRestaurantBySlug(slug);
+        if (!r) r = await ensureRestaurantFromLegacyTrial(slug);
+        if (!alive) return;
+        if (!r) {
+          setRestaurant(null);
+          setCategories([]);
+          setProducts([]);
+          setLoading(false);
+          return;
+        }
+        setRestaurant(r);
+        const { categories: cats, products: prods } = await getMenuWithProducts(r.id);
+        if (!alive) return;
+        setCategories(cats);
+        setProducts(prods);
+        if (cats.length > 0) setActiveCat((prev) => prev || cats[0].id);
+      } catch (e) {
+        console.error("[public menu] load", e);
+        if (alive) setLoadError("Falha ao carregar cardápio. Verifique sua conexão.");
+      } finally {
+        if (alive) setLoading(false);
       }
-      setRestaurant(r);
-      const { categories: cats, products: prods } = await getMenuWithProducts(r.id);
-      if (!alive) return;
-      setCategories(cats);
-      setProducts(prods);
-      if (cats.length > 0) setActiveCat(cats[0].id);
-      setLoading(false);
     }
     load();
     return () => { alive = false; };
   }, [slug]);
 
-  // Clear cart when restaurant changes
+  // Clear cart when restaurant slug changes — but only once per slug
+  const lastSlugRef = useRef(slug);
   useEffect(() => {
-    setCart([]);
+    if (lastSlugRef.current !== slug) {
+      lastSlugRef.current = slug;
+      setCart([]);
+    }
   }, [slug, setCart]);
 
-  // Em tempo real: o cardapio recarrega automaticamente quando o admin salva no Supabase.
+  // Realtime: reload when admin edits menu; polling as lightweight fallback every 30s
   useEffect(() => {
     if (!restaurant) return;
-
     const restaurantId = restaurant.id;
 
+    let alive = true;
+
     async function refreshMenu() {
-      const { categories: cats, products: prods } = await getMenuWithProducts(
-        restaurantId,
-      );
-      setCategories(cats);
-      setProducts(prods);
+      if (!alive) return;
+      try {
+        const { categories: cats, products: prods } = await getMenuWithProducts(restaurantId);
+        if (!alive) return;
+        setCategories(cats);
+        setProducts(prods);
+      } catch {
+        /* ignore transient */
+      }
+    }
+
+    async function refreshRestaurant() {
+      if (!alive) return;
+      try {
+        const r = await getRestaurantBySlug(slug);
+        if (!alive || !r) return;
+        setRestaurant(r);
+      } catch {
+        /* ignore */
+      }
     }
 
     const channel = supabase
@@ -162,52 +188,22 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           table: "restaurants",
           filter: `id=eq.${restaurantId}`,
         },
-        async () => {
-          const r = await getRestaurantBySlug(slug);
-          if (r) setRestaurant(r);
-        },
+        refreshRestaurant,
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [restaurant?.id]);
-  // Polling leve de garantia (10s): mantém o cardápio atualizado mesmo sem Realtime no banco.
-  // E faz o cardápio reaparecer sozinho quando o dono publicar/pausar um restaurante.
-
-  useEffect(() => {
-    let alive = true;
-
-    async function refreshAll() {
-      const r = await getRestaurantBySlug(slug);
-      if (!alive) return;
-      if (!r) {
-        setRestaurant(null);
-        return;
-      }
-      const { categories: cats, products: prods } = await getMenuWithProducts(
-        r.id,
-      );
-      if (!alive) return;
-      setRestaurant(r);
-      setCategories(cats);
-      setProducts(prods);
-    }
-
-    const interval = setInterval(refreshAll, 10_000);
-    refreshAll();
+    // Fallback polling every 30s (covers cases where Realtime is disabled in DB)
+    const interval = setInterval(() => {
+      refreshMenu();
+      refreshRestaurant();
+    }, 30_000);
 
     return () => {
       alive = false;
       clearInterval(interval);
+      supabase.removeChannel(channel);
     };
-  }, [slug]);
-
-  const allItems = useMemo(
-    () => products,
-    [products],
-  );
+  }, [restaurant?.id, slug]);
 
   const lines = useMemo(
     () =>
@@ -242,8 +238,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   async function handleCheckout(form: CheckoutForm) {
     if (!restaurant) return;
-    // Hard guard: ignore any further submits while one is already being processed.
-    // (Covers double/triple-clicksz including clicks during the in-flight request.)
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
@@ -299,10 +293,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         payment_method: form.payment_method,
       };
       if (form.payment_method === "pix") {
-        // PIX: shows the QR code + copy-key screen first.
         setPendingOrder(normalized);
       } else {
-        // Dinheiro/Cartão: go straight to the confirmation modal.
         setSuccessOrder(normalized);
       }
     } finally {
@@ -311,10 +303,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     }
   }
 
-  // Keep the browser tab title in sync with the restaurant being viewed.
   useEffect(() => {
     if (restaurant) {
       document.title = `${restaurant.name} — Cardápio Digital`;
+    } else {
+      document.title = "Cardápio Digital — Cardápio Cidadela";
     }
   }, [restaurant]);
 
@@ -322,7 +315,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const accentSoft = hexToRgba(accent, 0.14);
   const accentBorder = hexToRgba(accent, 0.4);
 
-  // Loading state
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#07070b]">
@@ -337,7 +329,26 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     );
   }
 
-  // Restaurant not found
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#07070b] px-6">
+        <div className="max-w-sm text-center">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <h1 className="text-xl font-bold text-white">Falha ao carregar</h1>
+          <p className="mt-2 text-sm leading-relaxed text-gray-400">{loadError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cyan-500"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!restaurant) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#07070b] px-6">
@@ -350,7 +361,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-gray-400">
             O cardápio que você procura não existe ou o link está incorreto.
+            Confira o endereço ou fale com o estabelecimento.
           </p>
+          <div className="mt-2 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2">
+            <p className="font-mono text-xs text-gray-500">/{slug}</p>
+          </div>
           <Link
             to="/"
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cyan-500"
@@ -362,7 +377,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     );
   }
 
-  // Draft status — owner hasn't published yet
   if (restaurant.status === "draft") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#07070b] px-6">
@@ -377,12 +391,17 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           <p className="mt-1 text-xs text-gray-500">
             Volte em instantes ou contate o estabelecimento.
           </p>
+          <Link
+            to="/"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-gray-300 hover:bg-white/5"
+          >
+            <Home className="size-4" /> Página inicial
+          </Link>
         </div>
       </div>
     );
   }
 
-  // Paused status
   if (restaurant.status === "paused") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#07070b] px-6">
@@ -397,6 +416,12 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           <p className="mt-1 text-xs text-gray-500">
             Tente novamente mais tarde.
           </p>
+          <a
+            href={`/cardapio/${restaurant.slug}`}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500"
+          >
+            Tentar novamente
+          </a>
         </div>
       </div>
     );
@@ -421,9 +446,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   return (
     <div className="min-h-screen bg-[#07070b]">
-      {/* Header with visual identity */}
       <div className="relative overflow-hidden">
-        {/* Banner background */}
         <div
           className="h-60 w-full bg-cover bg-center bg-no-repeat sm:h-72"
           style={{
@@ -434,9 +457,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-[#07070b]" />
 
-        {/* Restaurant identity — centered */}
         <div className="absolute left-0 right-0 top-10 px-4 text-center sm:top-14">
-          {/* Logo / Cover image */}
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
@@ -452,7 +473,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             </div>
           )}
 
-          {/* Restaurant name + description */}
           <h1 className="text-2xl font-black tracking-tight text-white drop-shadow-lg sm:text-3xl">
             {restaurant.name}
           </h1>
@@ -463,13 +483,12 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           ) : (
             restaurant.slogan && (
               <p className="mt-1.5 text-sm italic text-gray-300/80">
-                "{restaurant.slogan}"
+                &quot;{restaurant.slogan}&quot;
               </p>
             )
           )}
         </div>
 
-        {/* Botão da Cidadela */}
         <a
           href="https://pracinha.online"
           target="_blank"
@@ -523,7 +542,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </a>
       </div>
 
-      {/* Categories sticky bar */}
       <div
         className="sticky top-0 z-20 border-b bg-[#07070b]/90 backdrop-blur"
         style={{ borderColor: hexToRgba(accent, 0.18) }}
@@ -561,7 +579,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </div>
       </div>
 
-      {/* Products */}
       <main className="px-4 pb-44">
         <div className="mx-auto max-w-2xl">
           {!hasAnyProducts ? (
@@ -620,7 +637,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                               : "opacity-50"
                           }`}
                         >
-                          {/* Product image or indicator */}
                           {item.image_url ? (
                             <img
                               src={item.image_url}
@@ -659,7 +675,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                             </p>
                           </div>
 
-                          {item.available && (
+                          {item.available ? (
                             <>
                               {inCart ? (
                                 <div
@@ -702,9 +718,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                 </button>
                               )}
                             </>
-                          )}
-
-                          {!item.available && (
+                          ) : (
                             <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
                               Indisponível
                             </span>
@@ -720,7 +734,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </div>
       </main>
 
-      {/* Floating cart button */}
       {count > 0 && !cartOpen && !checkoutOpen && (
         <button
           onClick={() => setCartOpen(true)}
@@ -743,7 +756,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </button>
       )}
 
-      {/* Cart sheet */}
       {cartOpen && (
         <CartSheet
           lines={lines}
@@ -763,7 +775,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         />
       )}
 
-      {/* Checkout modal */}
       {checkoutOpen && (
         <CheckoutModal
           total={subtotal}
@@ -777,7 +788,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         />
       )}
 
-      {/* Payment screen (PIX QR code) */}
       {pendingOrder && (
         <PaymentScreen
           order={pendingOrder as unknown as Order}
@@ -795,7 +805,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         />
       )}
 
-      {/* Success modal */}
       {currentOrder && (
         <SuccessModal
           order={{

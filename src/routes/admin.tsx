@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
@@ -41,36 +41,49 @@ function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const matchRoute = useMatchRoute();
   const { isAuthenticated, loading, signOut, user } = useAuth();
-  const navigate = useNavigate();
 
-  // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       window.location.href = "/login?returnTo=%2Fadmin";
     }
   }, [loading, isAuthenticated]);
 
-  // Alerta sonoro global: toca quando qualquer restaurante do dono recebe pedido novo
+  // Heartbeat sonoro: toca quando QUALQUER restaurante do dono recebe pedido novo
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     const channels: RealtimeChannel[] = [];
     let cancelled = false;
 
     (async () => {
-      await ensureRestaurantsForUser(user);
-      const rests = await getRestaurantsByOwner(user.id);
-      if (cancelled) return;
-      for (const r of rests) {
-        const ch = subscribeToOrders(r.id, (eventType) => {
-          if (eventType === "INSERT") playNewOrderAlert();
-        });
-        if (ch) channels.push(ch);
+      try {
+        await ensureRestaurantsForUser(user);
+        if (cancelled) return;
+        const rests = await getRestaurantsByOwner(user.id);
+        if (cancelled) return;
+        for (const r of rests) {
+          try {
+            const ch = subscribeToOrders(r.id, (eventType) => {
+              if (eventType === "INSERT") playNewOrderAlert();
+            });
+            if (ch) channels.push(ch);
+          } catch {
+            /* ignore per-restaurant realtime failure */
+          }
+        }
+      } catch {
+        /* ignore global realtime failure */
       }
     })();
 
     return () => {
       cancelled = true;
-      for (const ch of channels) supabase.removeChannel(ch);
+      for (const ch of channels) {
+        try {
+          supabase.removeChannel(ch);
+        } catch {
+          /* ignore */
+        }
+      }
     };
   }, [isAuthenticated, user]);
 
@@ -86,12 +99,10 @@ function AdminLayout() {
 
   return (
     <div className="flex h-screen bg-[#0a0a0f]">
-      {/* Sidebar — desktop */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-white/5 bg-[#0c0c14] lg:flex">
         <SidebarContent />
       </aside>
 
-      {/* Sidebar — mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
@@ -106,7 +117,7 @@ function AdminLayout() {
                   Cardápio <span className="text-cyan-400">Cidadela</span>
                 </span>
               </Link>
-              <button onClick={() => setSidebarOpen(false)} className="text-gray-400">
+              <button onClick={() => setSidebarOpen(false)} className="text-gray-400" aria-label="Fechar menu">
                 <X className="size-5" />
               </button>
             </div>
@@ -138,9 +149,7 @@ function AdminLayout() {
         </div>
       )}
 
-      {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top bar */}
         <header className="flex items-center gap-3 border-b border-white/5 bg-[#0a0a0f] px-4 py-3 lg:px-6">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -156,7 +165,6 @@ function AdminLayout() {
           </Link>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 overflow-auto p-4 lg:p-6">
           <Outlet />
         </main>

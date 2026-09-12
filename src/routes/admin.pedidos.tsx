@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Store } from "lucide-react";
+import { Store, AlertCircle, RefreshCw } from "lucide-react";
 import {
   getRestaurantsByOwner,
   ensureRestaurantsForUser,
@@ -15,29 +15,74 @@ export const Route = createFileRoute("/admin/pedidos")({
 });
 
 function PedidosPage() {
+  const { user, loading: authLoading } = useAuth();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    async function load() {
-      await ensureRestaurantsForUser(user!);
-      const data = await getRestaurantsByOwner(user!.id);
-      setRestaurants(data);
-      if (data.length > 0) setSelectedId(data[0].id);
+    if (authLoading) return;
+    if (!user) {
       setLoading(false);
+      setRestaurants([]);
+      return;
+    }
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        await ensureRestaurantsForUser(user!);
+        if (cancelled) return;
+        const data = await getRestaurantsByOwner(user!.id);
+        if (cancelled) return;
+        setRestaurants(data);
+        if (data.length > 0) {
+          setSelectedId((prev) => prev || data[0].id);
+        }
+      } catch (e) {
+        console.error("[pedidos] load error", e);
+        if (!cancelled) setError("Falha ao carregar restaurantes. Tente novamente.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
     load();
-  }, [user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user, authLoading]);
 
-  const selected = restaurants.find((r) => r.id === selectedId);
+  const selected = restaurants.find((r) => r.id === selectedId) ?? restaurants[0] ?? null;
 
-  if (loading) {
+  // keep selectedId in sync if restaurants refetched and previous selection vanished
+  useEffect(() => {
+    if (!selectedId && restaurants.length > 0) setSelectedId(restaurants[0].id);
+    if (selectedId && !restaurants.some((r) => r.id === selectedId) && restaurants.length > 0) {
+      setSelectedId(restaurants[0].id);
+    }
+  }, [restaurants, selectedId]);
+
+  if (authLoading || loading) {
     return (
       <div className="flex justify-center py-20">
         <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
+        <AlertCircle className="mx-auto size-8 text-red-400" />
+        <p className="mt-3 text-sm text-red-300">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
+        >
+          <RefreshCw className="size-4" /> Tentar novamente
+        </button>
       </div>
     );
   }
@@ -58,11 +103,11 @@ function PedidosPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Pedidos</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Gerencie os pedidos recebidos
+          Gerencie os pedidos recebidos em tempo real
         </p>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {restaurants.map((r) => (
           <button
             key={r.id}
@@ -78,7 +123,7 @@ function PedidosPage() {
         ))}
       </div>
 
-      {selected && <OrderManager restaurant={selected} />}
+      {selected && <OrderManager key={selected.id} restaurant={selected} />}
     </div>
   );
 }

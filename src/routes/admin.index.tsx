@@ -5,6 +5,8 @@ import {
   TrendingUp,
   Plus,
   ArrowRight,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -20,28 +22,63 @@ export const Route = createFileRoute("/admin/")({
 });
 
 function AdminDashboardOverview() {
+  const { user, loading: authLoading } = useAuth();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    async function load() {
-      await ensureRestaurantsForUser(user!);
-      const data = await getRestaurantsByOwner(user!.id);
-      setRestaurants(data);
+    if (authLoading) return;
+    if (!user) {
       setLoading(false);
+      setRestaurants([]);
+      return;
+    }
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        await ensureRestaurantsForUser(user!);
+        if (cancelled) return;
+        const data = await getRestaurantsByOwner(user!.id);
+        if (cancelled) return;
+        setRestaurants(data);
+      } catch (e) {
+        console.error("[dashboard] load", e);
+        if (!cancelled) setError("Falha ao carregar o dashboard.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
     load();
-  }, [user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user, authLoading]);
 
   const publishedCount = restaurants.filter((r) => r.status === "published").length;
   const draftCount = restaurants.filter((r) => r.status === "draft").length;
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
+        <AlertCircle className="mx-auto size-8 text-red-400" />
+        <p className="mt-3 text-sm text-red-300">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
+        >
+          <RefreshCw className="size-4" /> Tentar novamente
+        </button>
       </div>
     );
   }
@@ -55,7 +92,6 @@ function AdminDashboardOverview() {
         </p>
       </div>
 
-      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-white/5 bg-white/[0.02] p-5">
           <div className="flex items-center gap-3">
@@ -94,7 +130,6 @@ function AdminDashboardOverview() {
         </div>
       </div>
 
-      {/* Quick create */}
       <Link
         to="/admin/restaurantes"
         className="group flex items-center gap-4 rounded-xl border border-dashed border-cyan-500/20 bg-cyan-500/[0.03] p-6 transition-all hover:border-cyan-500/40 hover:bg-cyan-500/[0.06]"
@@ -113,7 +148,6 @@ function AdminDashboardOverview() {
         <ArrowRight className="size-5 text-gray-600 group-hover:text-cyan-400 transition-colors" />
       </Link>
 
-      {/* Recent restaurants */}
       {restaurants.length > 0 && (
         <div>
           <h2 className="mb-4 text-sm font-semibold text-gray-300">
@@ -144,7 +178,7 @@ function AdminDashboardOverview() {
                   <p className="truncate text-sm font-medium text-white">
                     {r.name}
                   </p>
-                  <p className="text-[11px] text-gray-500">/{r.slug}</p>
+                  <p className="text-[11px] text-gray-500">/cardapio/{r.slug}</p>
                 </div>
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${

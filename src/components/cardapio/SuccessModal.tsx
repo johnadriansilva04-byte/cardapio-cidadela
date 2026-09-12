@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { CheckCircle2, MessageCircle, ExternalLink, Crown, Star } from "lucide-react";
 import { brl, buildWhatsAppMessage, sendToWhatsApp } from "@/lib/utils";
 
@@ -31,6 +32,18 @@ export default function SuccessModal({
   restaurantWhatsapp: string;
   onClose: () => void;
 }) {
+  // Persiste o último pedido localmente. Assim, mesmo que o banco ainda não
+  // tenha a RPC get_order_tracking, a página /pedido/<id> consegue exibir a
+  // confirmação com itens. Depois que supabase/schema.sql for aplicado, a RPC
+  // tem prioridade e o rastreio em tempo real passa a valer.
+  useEffect(() => {
+    try {
+      localStorage.setItem("last_order", JSON.stringify(order));
+    } catch {
+      /* storage indisponível */
+    }
+  }, [order]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0b0b12] p-6 text-center shadow-2xl">

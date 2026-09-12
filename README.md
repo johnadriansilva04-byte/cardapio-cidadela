@@ -1,6 +1,23 @@
-# Welcome to your Lovable project
+# Cardápio Cidadela
 
-This project was built with [Lovable](https://lovable.dev).
+Cardápio digital profissional para restaurantes. Pedidos em tempo real, pagamento via PIX, impressão de comanda térmica, pontos de soberania e painel administrativo completo.
+
+## Setup do Supabase
+
+1. Crie um projeto em [supabase.com](https://supabase.com).
+2. Defina as variáveis de ambiente no seu `.env.local`:
+
+   ```
+   VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+   VITE_SUPABASE_ANON_KEY=sua-chave-anon
+   ```
+
+3. **Aplique o schema** abrindo o banco do projeto → **SQL Editor** → cole o conteúdo de [`supabase/schema.sql`](./supabase/schema.sql) → **Run**. Esse arquivo único substitui qualquer schema anterior, cria as tabelas, políticas RLS (insert anônimo de pedidos + leitura pública do cardápio), funções de rastreamento (`get_order_tracking`) e o seed de exemplo.
+
+> ⚠️ O arquivo `supabase/schema.sql` é a **única** fonte da verdade do banco.
+> Execute-o por inteiro no SQL Editor sempre que atualizar o schema.
+
+Esse projeto usa o [Lovable](https://lovable.dev) — commits pushados aparecem no editor.
 
 ## Build with Lovable
 

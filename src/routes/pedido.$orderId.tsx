@@ -27,6 +27,53 @@ function OrderTrackingPage() {
       const o = await getOrderTrackingPublic(orderId);
       if (!alive) return;
       if (!o) {
+        // Fallback local: pedido criado neste dispositivo nesta sessão.
+        // (Antes de aplicar supabase/schema.sql, a RPC get_order_tracking
+        // não existe no banco e o tracking remoto não pode ler dados.)
+        try {
+          const raw = localStorage.getItem("last_order");
+          const local = raw ? JSON.parse(raw) : null;
+          if (local && local.id === orderId) {
+            setOrder({
+              id: local.id,
+              restaurant_id: "",
+              customer_id: null,
+              idempotency_key: null,
+              comanda: local.comanda,
+              customer_name: local.customer_name ?? "Cliente",
+              customer_phone: local.customer_phone ?? "",
+              customer_email: "",
+              delivery_address: "",
+              customer_complement: "",
+              customer_neighborhood: "",
+              customer_city: "",
+              delivery_type: local.delivery_type ?? "retirada",
+              observations: local.observations ?? "",
+              subtotal: local.total,
+              delivery_fee: 0,
+              total: local.total,
+              payment_method: local.payment_method ?? "pix",
+              payment_status: "awaiting_confirmation",
+              status: "received",
+              cidadela_unlocked: false,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              order_items: (local.items ?? []).map((it: { product_name: string; quantity: number; total: number }, i: number) => ({
+                id: `local-${i}`,
+                product_id: "",
+                product_name: it.product_name,
+                quantity: it.quantity,
+                unit_price: it.quantity > 0 ? it.total / it.quantity : 0,
+                total: it.total,
+                notes: "",
+              })),
+            });
+            setLoading(false);
+            return;
+          }
+        } catch {
+          /* storage indisponível */
+        }
         setNotFound(true);
         setLoading(false);
         return;

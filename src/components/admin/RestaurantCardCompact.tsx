@@ -5,7 +5,6 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  ImageIcon,
   ClipboardList,
   Settings2,
   LayoutGrid,
@@ -18,7 +17,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
@@ -46,14 +44,11 @@ export function RestaurantCardCompact({
   toggling = false,
 }: {
   restaurant: Restaurant;
-  /** Número de produtos do cardápio (mostrado no card quando fornecido) */
   menuItemCount?: number | null;
-  /** Clique principal no card — abre a gestão do restaurante */
   onOpen?: () => void;
   onEdit: () => void;
   onTogglePublish: () => void;
   onDelete: () => void;
-  /** Mantido por compatibilidade de API — o clique no card já abre a gestão (tab Cardápio). */
   onManageMenu?: () => void;
   onManageOrders: () => void;
   onSettings: () => void;
@@ -76,8 +71,8 @@ export function RestaurantCardCompact({
       }}
       className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-all hover:border-cyan-500/30 hover:bg-white/[0.05] hover:shadow-[0_8px_30px_rgba(6,182,212,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40"
     >
-      {/* cover */}
-      <div className="relative h-24 w-full overflow-hidden bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-transparent">
+      {/* ─── COVER ─── */}
+      <div className="relative h-36 w-full overflow-hidden bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-transparent">
         {hasImage ? (
           <img
             src={cover}
@@ -89,20 +84,20 @@ export function RestaurantCardCompact({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
-              {restaurant.logo_url ? (
-                <ImageIcon className="size-5" />
-              ) : (
-                <Store className="size-5" />
-              )}
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-white/10 text-white/80">
+              <Store className="size-6" />
             </div>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <div className="absolute left-2 top-2">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+
+        {/* Status badge */}
+        <div className="absolute left-2.5 top-2.5">
           <RestaurantStatusBadge status={restaurant.status} />
         </div>
-        <div className="absolute right-2 top-2 flex gap-1">
+
+        {/* External link */}
+        <div className="absolute right-2.5 top-2.5">
           <a
             href={`/cardapio/${restaurant.slug}`}
             target="_blank"
@@ -114,50 +109,48 @@ export function RestaurantCardCompact({
             <ExternalLink className="size-3.5" />
           </a>
         </div>
-        {/* avatar overlapping */}
-        <div className="absolute -bottom-5 left-3 flex size-10 items-center justify-center rounded-xl border border-white/10 bg-[#12121a] text-xs font-black text-white shadow-lg">
+
+        {/* Logo — big, overlapping cover */}
+        <div className="absolute -bottom-7 left-4 flex size-14 items-center justify-center rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
               alt={restaurant.name}
-              className="size-10 rounded-xl object-cover"
+              className="size-14 rounded-2xl object-cover"
               loading="lazy"
             />
           ) : (
-            <span>{initials(restaurant.name) || "•"}</span>
+            <span className="text-sm font-black text-white/70">{initials(restaurant.name) || "•"}</span>
           )}
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2.5 px-3 pb-3 pt-6">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-bold leading-tight text-white group-hover:text-cyan-300 transition-colors">
-              {restaurant.name}
-            </h3>
-            <p className="truncate font-mono text-[10px] text-gray-500">
-              /cardapio/{restaurant.slug}
-            </p>
-          </div>
-          <ChevronRight className="mt-0.5 size-4 shrink-0 text-gray-600 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-400" />
+      {/* ─── CONTENT ─── */}
+      <div className="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-8">
+        {/* Name + chevron */}
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="min-w-0 truncate text-sm font-bold leading-snug text-white group-hover:text-cyan-300 transition-colors">
+            {restaurant.name}
+          </h3>
+          <ChevronRight className="size-4 shrink-0 text-gray-600 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-400" />
         </div>
+
+        {/* Description */}
         {restaurant.description ? (
-          <p className="line-clamp-1 text-xs leading-relaxed text-gray-400">
+          <p className="line-clamp-1 text-[11px] leading-relaxed text-gray-400">
             {restaurant.description}
           </p>
-        ) : (
-          <p className="text-xs italic text-gray-600">Sem descrição</p>
-        )}
+        ) : null}
 
+        {/* Item count */}
         {menuItemCount !== null && (
           <p className="inline-flex items-center gap-1 text-[11px] text-gray-500">
-            <LayoutGrid className="size-3" /> {menuItemCount} item{menuItemCount === 1 ? "" : "s"}{" "}
-            no cardápio
+            <LayoutGrid className="size-3" /> {menuItemCount} item{menuItemCount === 1 ? "" : "s"} no cardápio
           </p>
         )}
 
-        <div className="grid grid-cols-3 gap-1.5" onClick={(e) => e.stopPropagation()}>
-          {/* Atalhos diretos: cardápio, pedidos e configurações abrem direto no restaurante */}
+        {/* Action shortcuts */}
+        <div className="mt-0.5 grid grid-cols-3 gap-1.5" onClick={(e) => e.stopPropagation()}>
           {onManageMenu && (
             <Button
               size="sm"
@@ -189,17 +182,21 @@ export function RestaurantCardCompact({
           </Button>
         </div>
 
+        {/* Publish toggle + more actions */}
         <div
-          className="mt-2.5 flex items-center gap-1.5 border-t border-white/5 pt-2.5"
+          className="mt-1 flex items-center gap-1.5 border-t border-white/5 pt-2"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Ações de controle (publicar, editar, excluir) */}
           <Button
             size="sm"
             variant="outline"
             onClick={onTogglePublish}
             disabled={toggling}
-            className={`h-7 flex-1 gap-1 rounded-full border text-xs ${isPublished ? "border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"}`}
+            className={`h-7 flex-1 gap-1 rounded-full border text-xs ${
+              isPublished
+                ? "border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15"
+                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
+            }`}
             title={isPublished ? "Despublicar restaurante" : "Publicar restaurante"}
           >
             {isPublished ? (
@@ -225,19 +222,13 @@ export function RestaurantCardCompact({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="border-white/10 bg-[#1a1a22] text-gray-200">
-              <DropdownMenuItem
-                onClick={onEdit}
-                className="gap-2 focus:bg-white/10 focus:text-white"
-              >
+              <DropdownMenuItem onClick={onEdit} className="gap-2 focus:bg-white/10 focus:text-white">
                 <Pencil className="size-3.5" /> Editar dados
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="gap-2 focus:bg-white/10 focus:text-white">
                 <Link to="/admin/compartilhar">Compartilhar</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={onDelete}
-                className="gap-2 text-red-300 focus:bg-red-500/15 focus:text-red-200"
-              >
+              <DropdownMenuItem onClick={onDelete} className="gap-2 text-red-300 focus:bg-red-500/15 focus:text-red-200">
                 <Trash2 className="size-3.5" /> Excluir
               </DropdownMenuItem>
             </DropdownMenuContent>

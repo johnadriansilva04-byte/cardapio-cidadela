@@ -1,5 +1,18 @@
 import { useEffect, useState } from "react";
-import { Trash2, Plus, Pencil, Check, X, ArrowUp, ArrowDown, GripVertical, AlertCircle } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  Pencil,
+  Check,
+  X,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,11 +35,16 @@ import {
   reorderCategories,
   reorderProducts,
 } from "@/modules/supabase/menu";
+import { updateRestaurant } from "@/modules/supabase/restaurants";
+import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
 import { toast } from "sonner";
 
-const field = "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20";
+const field =
+  "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20";
 
 export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
+  const [pubStatus, setPubStatus] = useState<Restaurant["status"]>(restaurant.status);
+  const [publishing, setPublishing] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +55,9 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   const [catToDelete, setCatToDelete] = useState<Category | null>(null);
 
   const [openAddFor, setOpenAddFor] = useState<string | null>(null);
-  const [prodForms, setProdForms] = useState<Record<string, { name: string; desc: string; price: string; imageUrl: string }>>({});
+  const [prodForms, setProdForms] = useState<
+    Record<string, { name: string; desc: string; price: string; imageUrl: string }>
+  >({});
 
   const [editingProdId, setEditingProdId] = useState<string | null>(null);
   const [editProd, setEditProd] = useState({ name: "", description: "", price: "", image_url: "" });
@@ -50,10 +70,30 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
 
   async function loadMenu() {
     setLoading(true);
-    const [cats, prods] = await Promise.all([getCategories(restaurant.id), getProducts(restaurant.id)]);
+    const [cats, prods] = await Promise.all([
+      getCategories(restaurant.id),
+      getProducts(restaurant.id),
+    ]);
     setCategories(cats);
     setProducts(prods);
     setLoading(false);
+  }
+
+  async function togglePublish() {
+    const next = pubStatus === "published" ? "paused" : "published";
+    setPublishing(true);
+    const ok = await updateRestaurant(restaurant.id, { status: next });
+    setPublishing(false);
+    if (!ok) {
+      toast.error("Falha ao alterar publicação do cardápio.");
+      return;
+    }
+    setPubStatus(next);
+    toast.success(
+      next === "published"
+        ? "Cardápio publicado! Já aparece no link público."
+        : "Cardápio despublicado (status: pausado).",
+    );
   }
 
   async function addCategory() {
@@ -100,7 +140,9 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
       const otherCat = categories.find((c) => c.id !== id);
       if (otherCat) {
         await moveProductsToCategory(id, otherCat.id);
-        setProducts((prev) => prev.map((p) => (p.category_id === id ? { ...p, category_id: otherCat.id } : p)));
+        setProducts((prev) =>
+          prev.map((p) => (p.category_id === id ? { ...p, category_id: otherCat.id } : p)),
+        );
       } else {
         for (const p of catProducts) await deleteProduct(p.id);
         setProducts((prev) => prev.filter((p) => p.category_id !== id));
@@ -170,9 +212,26 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
       toast.error("Preço inválido.");
       return;
     }
-    const ok = await updateProduct(id, { name: editProd.name.trim(), description: editProd.description.trim(), price, image_url: editProd.image_url.trim() });
+    const ok = await updateProduct(id, {
+      name: editProd.name.trim(),
+      description: editProd.description.trim(),
+      price,
+      image_url: editProd.image_url.trim(),
+    });
     if (ok) {
-      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, name: editProd.name.trim(), description: editProd.description.trim(), price, image_url: editProd.image_url.trim() } : p)));
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                name: editProd.name.trim(),
+                description: editProd.description.trim(),
+                price,
+                image_url: editProd.image_url.trim(),
+              }
+            : p,
+        ),
+      );
       setEditingProdId(null);
       toast.success("Produto atualizado!");
     } else toast.error("Erro ao salvar.");
@@ -187,7 +246,9 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   async function moveProduct(id: string, direction: "up" | "down") {
     const catId = products.find((p) => p.id === id)?.category_id;
     if (!catId) return;
-    const sorted = products.filter((p) => p.category_id === catId).sort((a, b) => a.sort_order - b.sort_order);
+    const sorted = products
+      .filter((p) => p.category_id === catId)
+      .sort((a, b) => a.sort_order - b.sort_order);
     const idx = sorted.findIndex((p) => p.id === id);
     if (idx === -1) return;
     if (direction === "up" && idx === 0) return;
@@ -196,10 +257,12 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
     const tmp = sorted[idx].sort_order;
     sorted[idx] = { ...sorted[idx], sort_order: sorted[swap].sort_order };
     sorted[swap] = { ...sorted[swap], sort_order: tmp };
-    setProducts((prev) => prev.map((p) => {
-      const upd = sorted.find((s) => s.id === p.id);
-      return upd ? { ...p, sort_order: upd.sort_order } : p;
-    }));
+    setProducts((prev) =>
+      prev.map((p) => {
+        const upd = sorted.find((s) => s.id === p.id);
+        return upd ? { ...p, sort_order: upd.sort_order } : p;
+      }),
+    );
     await reorderProducts(sorted.map((p) => p.id));
   }
 
@@ -226,52 +289,161 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
 
   return (
     <div className="space-y-4">
+      {/* Status de publicação do cardápio */}
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-bold text-white">Cardápio</p>
+            <RestaurantStatusBadge status={pubStatus} />
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500">
+            {pubStatus === "published"
+              ? "Publicado — aparece na URL pública /cardapio/" + restaurant.slug
+              : "Não publicado — os clientes não veem este cardápio."}{" "}
+            A disponibilidade do cardápio segue o status do restaurante.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/cardapio/${restaurant.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+          >
+            <Eye className="size-3.5" /> Ver público
+          </a>
+          <Button
+            onClick={togglePublish}
+            disabled={publishing}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-xs font-bold ${
+              pubStatus === "published"
+                ? "bg-amber-500 text-black hover:bg-amber-400"
+                : "bg-emerald-500 text-white hover:bg-emerald-400"
+            }`}
+          >
+            {publishing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : pubStatus === "published" ? (
+              <EyeOff className="size-3.5" />
+            ) : (
+              <Eye className="size-3.5" />
+            )}
+            {pubStatus === "published" ? "Despublicar" : "Publicar"}
+          </Button>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">Categorias do cardápio</p>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+          Categorias do cardápio
+        </p>
         <div className="flex gap-2">
-          <Input className={field + " flex-1"} placeholder="Nova categoria (ex: Lanches, Bebidas)" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCategory()} />
-          <Button onClick={addCategory} disabled={!newCatName.trim()} className="shrink-0 bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-40">
+          <Input
+            className={field + " flex-1"}
+            placeholder="Nova categoria (ex: Lanches, Bebidas)"
+            value={newCatName}
+            onChange={(e) => setNewCatName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addCategory()}
+          />
+          <Button
+            onClick={addCategory}
+            disabled={!newCatName.trim()}
+            className="shrink-0 bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-40"
+          >
             <Plus className="size-4" /> Adicionar
           </Button>
         </div>
       </div>
 
       {sorted.map((cat, catIndex) => {
-        const catProducts = products.filter((p) => p.category_id === cat.id).sort((a, b) => a.sort_order - b.sort_order);
+        const catProducts = products
+          .filter((p) => p.category_id === cat.id)
+          .sort((a, b) => a.sort_order - b.sort_order);
         const isAdding = openAddFor === cat.id;
         const isEditing = editingCatId === cat.id;
         const form = prodForms[cat.id];
 
         return (
-          <div key={cat.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+          <div
+            key={cat.id}
+            className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+          >
             <div className="flex items-center gap-2 border-b border-white/5 bg-white/[0.03] px-3 py-3">
               <GripVertical className="size-3.5 shrink-0 text-gray-700" />
               {isEditing ? (
                 <div className="flex flex-1 items-center gap-2">
-                  <Input className={field + " flex-1"} value={editCatName} onChange={(e) => setEditCatName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveCategory(cat.id)} autoFocus />
-                  <Button size="icon" variant="ghost" onClick={() => saveCategory(cat.id)} className="size-8 text-emerald-400 hover:bg-emerald-500/15">
+                  <Input
+                    className={field + " flex-1"}
+                    value={editCatName}
+                    onChange={(e) => setEditCatName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && saveCategory(cat.id)}
+                    autoFocus
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => saveCategory(cat.id)}
+                    className="size-8 text-emerald-400 hover:bg-emerald-500/15"
+                  >
                     <Check className="size-4" />
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => setEditingCatId(null)} className="size-8 text-gray-400 hover:bg-white/10">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setEditingCatId(null)}
+                    className="size-8 text-gray-400 hover:bg-white/10"
+                  >
                     <X className="size-4" />
                   </Button>
                 </div>
               ) : (
                 <>
-                  <h3 className="flex-1 truncate text-sm font-bold uppercase tracking-wide text-white">{cat.name}</h3>
+                  <h3 className="flex-1 truncate text-sm font-bold uppercase tracking-wide text-white">
+                    {cat.name}
+                  </h3>
                   <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-300">
                     {catProducts.length} {catProducts.length === 1 ? "item" : "itens"}
                   </span>
-                  <Button size="icon" variant="ghost" onClick={() => moveCategory(cat.id, "up")} disabled={catIndex === 0} className="size-7 text-gray-500 hover:text-white disabled:opacity-30">
+                  {catProducts.filter((p) => p.available).length < catProducts.length && (
+                    <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                      {catProducts.filter((p) => p.available).length} ativos
+                    </span>
+                  )}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => moveCategory(cat.id, "up")}
+                    disabled={catIndex === 0}
+                    className="size-7 text-gray-500 hover:text-white disabled:opacity-30"
+                  >
                     <ArrowUp className="size-3" />
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => moveCategory(cat.id, "down")} disabled={catIndex === sorted.length - 1} className="size-7 text-gray-500 hover:text-white disabled:opacity-30">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => moveCategory(cat.id, "down")}
+                    disabled={catIndex === sorted.length - 1}
+                    className="size-7 text-gray-500 hover:text-white disabled:opacity-30"
+                  >
                     <ArrowDown className="size-3" />
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => { setEditingCatId(cat.id); setEditCatName(cat.name); }} className="size-7 text-gray-500 hover:text-white">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditingCatId(cat.id);
+                      setEditCatName(cat.name);
+                    }}
+                    className="size-7 text-gray-500 hover:text-white"
+                  >
                     <Pencil className="size-3" />
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => setCatToDelete(cat)} className="size-7 text-gray-500 hover:bg-red-500/15 hover:text-red-400">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setCatToDelete(cat)}
+                    className="size-7 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
+                  >
                     <Trash2 className="size-3" />
                   </Button>
                 </>
@@ -281,54 +453,127 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
             <div className="px-3 pt-3">
               {isAdding ? (
                 <div className="space-y-3 rounded-xl border border-dashed border-cyan-500/30 bg-cyan-500/[0.03] p-3">
-                  <Input className={field} placeholder="Nome do produto *" value={form?.name ?? ""} onChange={(e) => updateProdForm(cat.id, "name", e.target.value)} autoFocus />
-                  <Textarea className={field + " min-h-[60px]"} placeholder="Descrição (opcional)" value={form?.desc ?? ""} onChange={(e) => updateProdForm(cat.id, "desc", e.target.value)} rows={2} />
+                  <Input
+                    className={field}
+                    placeholder="Nome do produto *"
+                    value={form?.name ?? ""}
+                    onChange={(e) => updateProdForm(cat.id, "name", e.target.value)}
+                    autoFocus
+                  />
+                  <Textarea
+                    className={field + " min-h-[60px]"}
+                    placeholder="Descrição (opcional)"
+                    value={form?.desc ?? ""}
+                    onChange={(e) => updateProdForm(cat.id, "desc", e.target.value)}
+                    rows={2}
+                  />
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label className="text-xs text-gray-400">Preço (R$) *</Label>
-                      <Input className={field} placeholder="19,90" inputMode="decimal" value={form?.price ?? ""} onChange={(e) => updateProdForm(cat.id, "price", e.target.value)} />
+                      <Input
+                        className={field}
+                        placeholder="19,90"
+                        inputMode="decimal"
+                        value={form?.price ?? ""}
+                        onChange={(e) => updateProdForm(cat.id, "price", e.target.value)}
+                      />
                     </div>
                     <div className="sm:col-span-1">
-                      <ImageField label="Foto do produto" value={form?.imageUrl ?? ""} onChange={(v) => updateProdForm(cat.id, "imageUrl", v)} restaurantId={restaurant.id} kind="product" placeholder="https://.../produto.jpg" />
+                      <ImageField
+                        label="Foto do produto"
+                        value={form?.imageUrl ?? ""}
+                        onChange={(v) => updateProdForm(cat.id, "imageUrl", v)}
+                        restaurantId={restaurant.id}
+                        kind="product"
+                        placeholder="https://.../produto.jpg"
+                      />
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={() => addProduct(cat.id)} disabled={!form?.name.trim() || !form?.price} className="flex-1 bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-40">
+                    <Button
+                      onClick={() => addProduct(cat.id)}
+                      disabled={!form?.name.trim() || !form?.price}
+                      className="flex-1 bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-40"
+                    >
                       <Plus className="size-3.5" /> Adicionar produto
                     </Button>
-                    <Button variant="outline" onClick={() => setOpenAddFor(null)} className="border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]">
+                    <Button
+                      variant="outline"
+                      onClick={() => setOpenAddFor(null)}
+                      className="border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]"
+                    >
                       Cancelar
                     </Button>
                   </div>
                 </div>
               ) : (
-                <Button onClick={() => openAddForm(cat.id)} variant="outline" className="mb-3 w-full justify-center gap-2 border-dashed border-cyan-500/30 bg-transparent py-5 text-xs font-semibold text-cyan-300 hover:border-cyan-500/50 hover:bg-cyan-500/5 hover:text-cyan-200">
+                <Button
+                  onClick={() => openAddForm(cat.id)}
+                  variant="outline"
+                  className="mb-3 w-full justify-center gap-2 border-dashed border-cyan-500/30 bg-transparent py-5 text-xs font-semibold text-cyan-300 hover:border-cyan-500/50 hover:bg-cyan-500/5 hover:text-cyan-200"
+                >
                   <Plus className="size-3.5" /> Adicionar produto em {cat.name}
                 </Button>
               )}
             </div>
 
             <div className="space-y-2 px-3 pb-3">
-              {catProducts.length === 0 && !isAdding && <p className="py-6 text-center text-xs text-gray-600">Nenhum produto nesta categoria.</p>}
+              {catProducts.length === 0 && !isAdding && (
+                <p className="py-6 text-center text-xs text-gray-600">
+                  Nenhum produto nesta categoria.
+                </p>
+              )}
               {catProducts.map((p, prodIndex) => {
                 const isProdEditing = editingProdId === p.id;
                 if (isProdEditing) {
                   return (
-                    <div key={p.id} className="space-y-3 rounded-xl border border-white/10 bg-black/30 p-3">
-                      <Input className={field} value={editProd.name} onChange={(e) => setEditProd({ ...editProd, name: e.target.value })} placeholder="Nome" />
-                      <Textarea className={field + " min-h-[60px]"} value={editProd.description} onChange={(e) => setEditProd({ ...editProd, description: e.target.value })} placeholder="Descrição" rows={2} />
+                    <div
+                      key={p.id}
+                      className="space-y-3 rounded-xl border border-white/10 bg-black/30 p-3"
+                    >
+                      <Input
+                        className={field}
+                        value={editProd.name}
+                        onChange={(e) => setEditProd({ ...editProd, name: e.target.value })}
+                        placeholder="Nome"
+                      />
+                      <Textarea
+                        className={field + " min-h-[60px]"}
+                        value={editProd.description}
+                        onChange={(e) => setEditProd({ ...editProd, description: e.target.value })}
+                        placeholder="Descrição"
+                        rows={2}
+                      />
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
                           <Label className="text-xs text-gray-400">Preço (R$) *</Label>
-                          <Input className={field} value={editProd.price} onChange={(e) => setEditProd({ ...editProd, price: e.target.value })} placeholder="19,90" />
+                          <Input
+                            className={field}
+                            value={editProd.price}
+                            onChange={(e) => setEditProd({ ...editProd, price: e.target.value })}
+                            placeholder="19,90"
+                          />
                         </div>
-                        <ImageField label="Foto" value={editProd.image_url} onChange={(v) => setEditProd({ ...editProd, image_url: v })} restaurantId={restaurant.id} kind="product" />
+                        <ImageField
+                          label="Foto"
+                          value={editProd.image_url}
+                          onChange={(v) => setEditProd({ ...editProd, image_url: v })}
+                          restaurantId={restaurant.id}
+                          kind="product"
+                        />
                       </div>
                       <div className="flex gap-2">
-                        <Button onClick={() => saveProduct(p.id)} className="flex-1 bg-emerald-500 text-white hover:bg-emerald-400">
+                        <Button
+                          onClick={() => saveProduct(p.id)}
+                          className="flex-1 bg-emerald-500 text-white hover:bg-emerald-400"
+                        >
                           Salvar
                         </Button>
-                        <Button variant="outline" onClick={() => setEditingProdId(null)} className="flex-1 border-white/10 bg-white/[0.04] text-gray-300">
+                        <Button
+                          variant="outline"
+                          onClick={() => setEditingProdId(null)}
+                          className="flex-1 border-white/10 bg-white/[0.04] text-gray-300"
+                        >
                           Cancelar
                         </Button>
                       </div>
@@ -336,22 +581,53 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                   );
                 }
                 return (
-                  <div key={p.id} className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${p.available ? "border-white/10 bg-black/20" : "border-amber-500/20 bg-amber-500/[0.03] opacity-75"}`}>
-                    {p.image_url ? <img src={p.image_url} alt={p.name} className="size-11 shrink-0 rounded-xl object-cover" onError={(e) => ((e.currentTarget.style.display = "none"))} /> : <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/5 text-gray-600"><AlertCircle className="size-4" /></div>}
+                  <div
+                    key={p.id}
+                    className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${p.available ? "border-white/10 bg-black/20" : "border-amber-500/20 bg-amber-500/[0.03] opacity-75"}`}
+                  >
+                    {p.image_url ? (
+                      <img
+                        src={p.image_url}
+                        alt={p.name}
+                        className="size-11 shrink-0 rounded-xl object-cover"
+                        onError={(e) => (e.currentTarget.style.display = "none")}
+                      />
+                    ) : (
+                      <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/5 text-gray-600">
+                        <AlertCircle className="size-4" />
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-white">{p.name}</p>
-                      {p.description && <p className="truncate text-xs text-gray-500">{p.description}</p>}
+                      {p.description && (
+                        <p className="truncate text-xs text-gray-500">{p.description}</p>
+                      )}
                       <p className="mt-0.5 text-xs font-bold text-cyan-300">{brl(p.price)}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <button onClick={() => toggleAvailability(p.id, !p.available)} className={`rounded-full px-2 py-1 text-[10px] font-bold ${p.available ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>
+                      <button
+                        onClick={() => toggleAvailability(p.id, !p.available)}
+                        className={`rounded-full px-2 py-1 text-[10px] font-bold ${p.available ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}
+                      >
                         {p.available ? "ATIVO" : "PAUSADO"}
                       </button>
                       <div className="flex items-center gap-0.5">
-                        <Button size="icon" variant="ghost" onClick={() => moveProduct(p.id, "up")} disabled={prodIndex === 0} className="size-6 text-gray-600 hover:text-white disabled:opacity-30">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => moveProduct(p.id, "up")}
+                          disabled={prodIndex === 0}
+                          className="size-6 text-gray-600 hover:text-white disabled:opacity-30"
+                        >
                           <ArrowUp className="size-3" />
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => moveProduct(p.id, "down")} disabled={prodIndex === catProducts.length - 1} className="size-6 text-gray-600 hover:text-white disabled:opacity-30">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => moveProduct(p.id, "down")}
+                          disabled={prodIndex === catProducts.length - 1}
+                          className="size-6 text-gray-600 hover:text-white disabled:opacity-30"
+                        >
                           <ArrowDown className="size-3" />
                         </Button>
                       </div>
@@ -359,13 +635,21 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                         <button
                           onClick={() => {
                             setEditingProdId(p.id);
-                            setEditProd({ name: p.name, description: p.description, price: String(p.price), image_url: p.image_url });
+                            setEditProd({
+                              name: p.name,
+                              description: p.description,
+                              price: String(p.price),
+                              image_url: p.image_url,
+                            });
                           }}
                           className="font-semibold text-gray-400 hover:text-white"
                         >
                           Editar
                         </button>
-                        <button onClick={() => setProdToDelete(p)} className="font-semibold text-red-400 hover:text-red-300">
+                        <button
+                          onClick={() => setProdToDelete(p)}
+                          className="font-semibold text-red-400 hover:text-red-300"
+                        >
                           Excluir
                         </button>
                       </div>
@@ -378,10 +662,32 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
         );
       })}
 
-      {sorted.length === 0 && <p className="py-10 text-center text-sm text-gray-500">Nenhuma categoria. Crie uma acima para começar.</p>}
+      {sorted.length === 0 && (
+        <p className="py-10 text-center text-sm text-gray-500">
+          Nenhuma categoria. Crie uma acima para começar.
+        </p>
+      )}
 
-      <ConfirmDialog open={Boolean(catToDelete)} onOpenChange={(o) => !o && setCatToDelete(null)} title="Excluir categoria?" description={catToDelete ? `"${catToDelete.name}" será excluída. Produtos serão movidos para outra categoria quando houver, ou apagados se for a última.` : ""} confirmLabel="Excluir" onConfirm={confirmDeleteCategory} />
-      <ConfirmDialog open={Boolean(prodToDelete)} onOpenChange={(o) => !o && setProdToDelete(null)} title="Excluir produto?" description={prodToDelete ? `"${prodToDelete.name}" será removido do cardápio.` : ""} confirmLabel="Excluir" onConfirm={confirmDeleteProduct} />
+      <ConfirmDialog
+        open={Boolean(catToDelete)}
+        onOpenChange={(o) => !o && setCatToDelete(null)}
+        title="Excluir categoria?"
+        description={
+          catToDelete
+            ? `"${catToDelete.name}" será excluída. Produtos serão movidos para outra categoria quando houver, ou apagados se for a última.`
+            : ""
+        }
+        confirmLabel="Excluir"
+        onConfirm={confirmDeleteCategory}
+      />
+      <ConfirmDialog
+        open={Boolean(prodToDelete)}
+        onOpenChange={(o) => !o && setProdToDelete(null)}
+        title="Excluir produto?"
+        description={prodToDelete ? `"${prodToDelete.name}" será removido do cardápio.` : ""}
+        confirmLabel="Excluir"
+        onConfirm={confirmDeleteProduct}
+      />
     </div>
   );
 }

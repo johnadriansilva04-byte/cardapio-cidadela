@@ -1,8 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Store, AlertCircle, RefreshCw, Eye, EyeOff, ExternalLink } from "lucide-react";
+import {
+  Store,
+  AlertCircle,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  UtensilsCrossed,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getRestaurantsByOwner, ensureRestaurantsForUser, updateRestaurant } from "@/modules/supabase/restaurants";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  getRestaurantsByOwner,
+  ensureRestaurantsForUser,
+  updateRestaurant,
+} from "@/modules/supabase/restaurants";
 import { MenuManager } from "@/components/admin/MenuManager";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
@@ -11,12 +30,16 @@ import type { Restaurant } from "@/lib/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/cardapio")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    restaurantId: typeof search.restaurantId === "string" ? search.restaurantId : undefined,
+  }),
   head: () => ({ meta: [{ title: "Cardápio — Cardápio Cidadela" }] }),
   component: CardapioPage,
 });
 
 function CardapioPage() {
   const { user, loading: authLoading } = useAuth();
+  const search = Route.useSearch();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -44,7 +67,11 @@ function CardapioPage() {
         setRestaurants(data);
         if (data.length > 0) {
           retryRef.current = 0;
-          setSelectedId((prev) => prev || data[0].id);
+          const want =
+            search.restaurantId && data.some((r) => r.id === search.restaurantId)
+              ? search.restaurantId
+              : null;
+          setSelectedId((prev) => prev || want || data[0].id);
         } else if (retryRef.current < 3) {
           retryRef.current++;
           await new Promise((r) => setTimeout(r, retryRef.current * 400));
@@ -66,11 +93,12 @@ function CardapioPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading]);
+  }, [user, authLoading, search.restaurantId]);
 
   useEffect(() => {
     if (!selectedId && restaurants.length > 0) setSelectedId(restaurants[0].id);
-    if (selectedId && !restaurants.some((r) => r.id === selectedId) && restaurants.length > 0) setSelectedId(restaurants[0].id);
+    if (selectedId && !restaurants.some((r) => r.id === selectedId) && restaurants.length > 0)
+      setSelectedId(restaurants[0].id);
   }, [restaurants, selectedId]);
 
   const selected = restaurants.find((r) => r.id === selectedId) ?? restaurants[0] ?? null;
@@ -85,7 +113,9 @@ function CardapioPage() {
       toast.error("Falha ao alterar status.");
       return;
     }
-    setRestaurants((prev) => prev.map((r) => (r.id === publishConfirm.id ? { ...r, status: next } : r)));
+    setRestaurants((prev) =>
+      prev.map((r) => (r.id === publishConfirm.id ? { ...r, status: next } : r)),
+    );
     toast.success(next === "published" ? "Cardápio publicado!" : "Cardápio despublicado.");
     setPublishConfirm(null);
   }
@@ -103,7 +133,10 @@ function CardapioPage() {
       <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
         <AlertCircle className="mx-auto size-8 text-red-400" />
         <p className="mt-3 text-sm text-red-300">{error}</p>
-        <button onClick={() => window.location.reload()} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400">
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
+        >
           <RefreshCw className="size-4" /> Tentar novamente
         </button>
       </div>
@@ -114,7 +147,9 @@ function CardapioPage() {
     return (
       <div className="rounded-2xl border border-white/5 bg-white/[0.02] py-16 text-center">
         <Store className="mx-auto size-12 text-gray-700" />
-        <p className="mt-4 text-sm text-gray-400">Crie um restaurante primeiro para gerenciar cardápio</p>
+        <p className="mt-4 text-sm text-gray-400">
+          Crie um restaurante primeiro para gerenciar cardápio
+        </p>
       </div>
     );
   }
@@ -126,32 +161,51 @@ function CardapioPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-white">Cardápio</h1>
-          <p className="mt-1 text-sm text-gray-500">Categorias, produtos, fotos e preços — tudo ao vivo no link público.</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Categorias, produtos, fotos e preços — tudo ao vivo no link público.
+          </p>
         </div>
         {selected && (
-          <a href={`/cardapio/${selected.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-white/[0.08] hover:text-white">
+          <a
+            href={`/cardapio/${selected.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-white/[0.08] hover:text-white"
+          >
             <ExternalLink className="size-3.5" /> Ver cardápio público
           </a>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {restaurants.map((r) => (
-          <button
-            key={r.id}
-            onClick={() => setSelectedId(r.id)}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${selectedId === r.id ? "bg-cyan-500 text-black" : "border border-white/10 bg-white/[0.03] text-gray-400 hover:border-white/20 hover:text-white"}`}
-          >
-            {r.name}
-          </button>
-        ))}
-      </div>
+      {/* Seletor de restaurante */}
+      {restaurants.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-xl bg-white/[0.03] px-2.5 py-1.5">
+            <Store className="size-3.5 text-gray-500" />
+            <span className="text-[11px] font-semibold text-gray-400">Restaurante</span>
+          </div>
+          <Select value={selectedId} onValueChange={(v) => setSelectedId(v)}>
+            <SelectTrigger className="h-9 w-full min-w-[240px] border-white/10 bg-white/[0.04] text-sm text-white sm:w-auto">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="border-white/10 bg-[#1a1a22] text-white">
+              {restaurants.map((r) => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {selected && (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
-          <span className="text-xs font-semibold text-gray-400">Status do cardápio</span>
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-gray-400">
+            <UtensilsCrossed className="size-3.5" /> Status do cardápio
+          </span>
           <RestaurantStatusBadge status={selected.status} />
-          <span className="text-xs text-gray-500">/cardapio/{selected.slug}</span>
+          <span className="font-mono text-[11px] text-gray-500">/cardapio/{selected.slug}</span>
           <Button
             size="sm"
             onClick={() => setPublishConfirm(selected)}
@@ -175,11 +229,14 @@ function CardapioPage() {
       <ConfirmDialog
         open={Boolean(publishConfirm)}
         onOpenChange={(o) => !o && setPublishConfirm(null)}
-        title={publishConfirm?.status === "published" ? "Despublicar cardápio?" : "Publicar cardápio?"}
+        title={
+          publishConfirm?.status === "published" ? "Despublicar cardápio?" : "Publicar cardápio?"
+        }
         description={
           publishConfirm?.status === "published"
             ? "Clientes verão “indisponível” ao abrir o link. Você pode republicar a qualquer momento."
-            : "O cardápio ficará acessível publicamente em /cardapio/" + (publishConfirm?.slug ?? "")
+            : "O cardápio ficará acessível publicamente em /cardapio/" +
+              (publishConfirm?.slug ?? "")
         }
         confirmLabel={publishConfirm?.status === "published" ? "Despublicar" : "Publicar"}
         variant={publishConfirm?.status === "published" ? "destructive" : "default"}

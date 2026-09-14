@@ -25,6 +25,7 @@ import { Route as AdminRestaurantesRouteImport } from './routes/admin.restaurant
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as CardapioSlugRouteImport } from './routes/cardapio.$slug'
 import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
+import { Route as AdminRestauranteIdRouteImport } from './routes/admin.restaurante.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -106,6 +107,11 @@ const PedidoOrderIdRoute = PedidoOrderIdRouteImport.update({
   path: '/pedido/$orderId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRestauranteIdRoute = AdminRestauranteIdRouteImport.update({
+  id: '/restaurante/$id',
+  path: '/restaurante/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/cardapio/$slug': typeof CardapioSlugRoute
   '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByTo {
   '/cardapio/$slug': typeof CardapioSlugRoute
   '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/cardapio/$slug': typeof CardapioSlugRoute
   '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/cardapio/$slug'
     | '/pedido/$orderId'
     | '/admin/'
+    | '/admin/restaurante/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/cardapio/$slug'
     | '/pedido/$orderId'
     | '/admin'
+    | '/admin/restaurante/$id'
   id:
     | '__root__'
     | '/'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/cardapio/$slug'
     | '/pedido/$orderId'
     | '/admin/'
+    | '/admin/restaurante/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -343,6 +355,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PedidoOrderIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/restaurante/$id': {
+      id: '/admin/restaurante/$id'
+      path: '/restaurante/$id'
+      fullPath: '/admin/restaurante/$id'
+      preLoaderRoute: typeof AdminRestauranteIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
@@ -354,6 +373,7 @@ interface AdminRouteChildren {
   AdminPedidosRoute: typeof AdminPedidosRoute
   AdminRestaurantesRoute: typeof AdminRestaurantesRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminRestauranteIdRoute: typeof AdminRestauranteIdRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -364,6 +384,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPedidosRoute: AdminPedidosRoute,
   AdminRestaurantesRoute: AdminRestaurantesRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminRestauranteIdRoute: AdminRestauranteIdRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

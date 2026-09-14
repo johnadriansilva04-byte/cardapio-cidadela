@@ -1,17 +1,45 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Store, ClipboardList, TrendingUp, Plus, ArrowRight, AlertCircle, RefreshCw, Wallet, Award, Ban, UtensilsCrossed, ExternalLink } from "lucide-react";
+import {
+  Store,
+  ClipboardList,
+  TrendingUp,
+  Plus,
+  ArrowRight,
+  AlertCircle,
+  RefreshCw,
+  Wallet,
+  UtensilsCrossed,
+  Timer,
+  CheckCircle2,
+  Calendar,
+  Ban,
+  LayoutGrid,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RestaurantCardCompact } from "@/components/admin/RestaurantCardCompact";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
 import { OrdersDonut } from "@/components/admin/OrdersDonut";
-import { FinanceSummary } from "@/components/admin/FinanceSummary";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
-import { getRestaurantsByOwner, ensureRestaurantsForUser, createRestaurant, updateRestaurant, deleteRestaurant } from "@/modules/supabase/restaurants";
+import {
+  getRestaurantsByOwner,
+  ensureRestaurantsForUser,
+  createRestaurant,
+  updateRestaurant,
+  deleteRestaurant,
+} from "@/modules/supabase/restaurants";
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import type { OrderStatus, Restaurant } from "@/lib/types";
+import { brl } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/")({
@@ -29,7 +57,9 @@ function AdminDashboardOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ordersLoading, setOrdersLoading] = useState(true);
-  const [orders, setOrders] = useState<{ id: string; status: OrderStatus; total: number; created_at: string; restaurant_id: string }[]>([]);
+  const [orders, setOrders] = useState<
+    { id: string; status: OrderStatus; total: number; created_at: string; restaurant_id: string }[]
+  >([]);
   const [range, setRange] = useState<RangeKey>("30d");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Restaurant | null>(null);
@@ -81,6 +111,31 @@ function AdminDashboardOverview() {
     };
   }, [user, authLoading]);
 
+  // Contagem de produtos por restaurante (dados reais) para enriquecer os cards
+  const [productCounts, setProductCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (restaurants.length === 0) {
+      setProductCounts({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const ids = restaurants.map((r) => r.id);
+      const { data, error } = await supabase
+        .from("products")
+        .select("restaurant_id")
+        .in("restaurant_id", ids);
+      if (cancelled) return;
+      if (error) return;
+      const counts: Record<string, number> = {};
+      for (const p of data ?? []) counts[p.restaurant_id] = (counts[p.restaurant_id] ?? 0) + 1;
+      setProductCounts(counts);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurants]);
+
   // fetch orders for selected restaurant + range (real data)
   useEffect(() => {
     if (!activeId) {
@@ -92,7 +147,12 @@ function AdminDashboardOverview() {
     async function fetchOrders() {
       setOrdersLoading(true);
       try {
-        let q = supabase.from("orders").select("id,status,total,created_at,restaurant_id").eq("restaurant_id", activeId).order("created_at", { ascending: false }).limit(800);
+        let q = supabase
+          .from("orders")
+          .select("id,status,total,created_at,restaurant_id")
+          .eq("restaurant_id", activeId)
+          .order("created_at", { ascending: false })
+          .limit(800);
         // range filter
         if (range !== "all") {
           const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
@@ -119,7 +179,14 @@ function AdminDashboardOverview() {
   }, [activeId, range]);
 
   const counts = useMemo(() => {
-    const init: Record<OrderStatus, number> = { received: 0, preparing: 0, ready: 0, out_for_delivery: 0, delivered: 0, cancelled: 0 };
+    const init: Record<OrderStatus, number> = {
+      received: 0,
+      preparing: 0,
+      ready: 0,
+      out_for_delivery: 0,
+      delivered: 0,
+      cancelled: 0,
+    };
     for (const o of orders) init[o.status] = (init[o.status] ?? 0) + 1;
     return init;
   }, [orders]);
@@ -146,6 +213,7 @@ function AdminDashboardOverview() {
 
   const publishedCount = restaurants.filter((r) => r.status === "published").length;
   const draftCount = restaurants.filter((r) => r.status === "draft").length;
+  const activeRestaurant = restaurants.find((r) => r.id === activeId) ?? null;
 
   async function handleCreate(values: RestaurantFormValues) {
     if (!user) return;
@@ -158,7 +226,13 @@ function AdminDashboardOverview() {
       }
       // patch extra fields if provided
       const needsPatch =
-        values.logo_url || values.banner_url || values.phone || values.whatsapp || values.address || values.pix_key || values.primary_color !== "#06b6d4";
+        values.logo_url ||
+        values.banner_url ||
+        values.phone ||
+        values.whatsapp ||
+        values.address ||
+        values.pix_key ||
+        values.primary_color !== "#06b6d4";
       if (needsPatch) {
         await updateRestaurant(r.id, {
           logo_url: values.logo_url,
@@ -235,7 +309,8 @@ function AdminDashboardOverview() {
       return;
     }
     setRestaurants((prev) => prev.filter((r) => r.id !== deleting.id));
-    if (activeId === deleting.id) setActiveId((prev) => (restaurants.find((r) => r.id !== prev)?.id ?? restaurants[0]?.id ?? ""));
+    if (activeId === deleting.id)
+      setActiveId((prev) => restaurants.find((r) => r.id !== prev)?.id ?? restaurants[0]?.id ?? "");
     setDeleting(null);
     toast.success("Restaurante excluído.");
   }
@@ -253,7 +328,10 @@ function AdminDashboardOverview() {
       <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
         <AlertCircle className="mx-auto size-8 text-red-400" />
         <p className="mt-3 text-sm text-red-300">{error}</p>
-        <button onClick={() => window.location.reload()} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400">
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
+        >
           <RefreshCw className="size-4" /> Tentar novamente
         </button>
       </div>
@@ -263,70 +341,34 @@ function AdminDashboardOverview() {
   return (
     <div className="space-y-6">
       {/* header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-white">Dashboard</h1>
-          <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-gray-500">Visão geral do seu negócio — restaurantes, pedidos e faturamento calculados a partir dos pedidos registrados.</p>
+          <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-gray-500">
+            Visão geral do seu negócio — restaurantes, pedidos e faturamento calculados a partir dos
+            pedidos registrados.
+          </p>
         </div>
-        <Button onClick={() => { setEditing(null); setDialogOpen(true); }} className="shrink-0 rounded-full bg-cyan-500 px-5 text-sm font-bold text-black hover:bg-cyan-400">
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setDialogOpen(true);
+          }}
+          className="shrink-0 rounded-full bg-cyan-500 px-5 text-sm font-bold text-black shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:bg-cyan-400"
+        >
           <Plus className="size-4" /> Criar restaurante
         </Button>
       </div>
 
-      {/* KPI */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
-              <Store className="size-4" />
-            </div>
-            <div>
-              <p className="text-xl font-black text-white">{restaurants.length}</p>
-              <p className="text-xs text-gray-500">Restaurantes</p>
-            </div>
+      {/* Seletor de restaurante + período — só com restaurantes */}
+      {restaurants.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5">
+          <div className="flex items-center gap-1.5 rounded-xl bg-white/[0.03] px-2.5 py-1.5">
+            <Store className="size-3.5 text-gray-500" />
+            <span className="text-[11px] font-semibold text-gray-400">Restaurante</span>
           </div>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300">
-              <TrendingUp className="size-4" />
-            </div>
-            <div>
-              <p className="text-xl font-black text-white">{publishedCount}</p>
-              <p className="text-xs text-gray-500">Publicados</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-xl bg-amber-500/15 text-amber-300">
-              <ClipboardList className="size-4" />
-            </div>
-            <div>
-              <p className="text-xl font-black text-white">{orders.length}</p>
-              <p className="text-xs text-gray-500">Pedidos no período</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-xl bg-violet-500/15 text-violet-300">
-              <Wallet className="size-4" />
-            </div>
-            <div>
-              <p className="text-xl font-black text-white">{financeMetrics.deliveredCount}</p>
-              <p className="text-xs text-gray-500">Entregues</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* selector + range when multiple */}
-      {restaurants.length > 1 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
-          <span className="text-xs font-semibold text-gray-400">Restaurante</span>
-          <Select value={activeId} onValueChange={setActiveId}>
-            <SelectTrigger className="w-[220px] border-white/10 bg-white/[0.04] text-white">
+          <Select value={activeId} onValueChange={(v) => setActiveId(v)}>
+            <SelectTrigger className="h-9 w-auto min-w-[200px] border-white/10 bg-white/[0.04] text-sm text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="border-white/10 bg-[#1a1a22] text-white">
@@ -337,34 +379,86 @@ function AdminDashboardOverview() {
               ))}
             </SelectContent>
           </Select>
-          <span className="text-xs font-semibold text-gray-400">Período</span>
+          <span className="mx-1 hidden h-5 w-px bg-white/10 sm:block" />
+          <div className="flex items-center gap-1.5 rounded-xl bg-white/[0.03] px-2.5 py-1.5">
+            <Calendar className="size-3.5 text-gray-500" />
+            <span className="text-[11px] font-semibold text-gray-400">Período</span>
+          </div>
           <Select value={range} onValueChange={(v) => setRange(v as RangeKey)}>
-            <SelectTrigger className="w-[150px] border-white/10 bg-white/[0.04] text-white">
+            <SelectTrigger className="h-9 w-[150px] border-white/10 bg-white/[0.04] text-sm text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="border-white/10 bg-[#1a1a22] text-white">
               <SelectItem value="7d">Últimos 7 dias</SelectItem>
               <SelectItem value="30d">Últimos 30 dias</SelectItem>
               <SelectItem value="90d">Últimos 90 dias</SelectItem>
-              <SelectItem value="all">Tudo</SelectItem>
+              <SelectItem value="all">Todo o período</SelectItem>
             </SelectContent>
           </Select>
-          {restaurants.length === 1 && activeId && (
-            <Link to="/admin/restaurantes" className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200">
-              Gerenciar <ArrowRight className="size-3" />
+          {activeId && (
+            <Link
+              to="/admin/restaurante/$id"
+              params={{ id: activeId }}
+              search={{ tab: undefined }}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-bold text-cyan-300 transition-colors hover:border-cyan-500/60 hover:bg-cyan-500/20 hover:text-cyan-200"
+            >
+              <LayoutGrid className="size-3" /> Abrir gestão <ArrowRight className="size-3" />
             </Link>
           )}
         </div>
       )}
 
+      {/* KPI compactos */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiCard
+          icon={Store}
+          tone="cyan"
+          label="Restaurantes"
+          value={String(restaurants.length)}
+          hint={`${publishedCount} publicado${publishedCount === 1 ? "" : "s"} • ${draftCount} rascunho${draftCount === 1 ? "" : "s"}`}
+        />
+        <KpiCard
+          icon={ClipboardList}
+          tone="amber"
+          label="Pedidos no período"
+          value={String(financeMetrics.totalOrders)}
+          hint={
+            ordersLoading
+              ? "Carregando…"
+              : range === "all"
+                ? "Todo o histórico"
+                : `Filtro de ${range}`
+          }
+        />
+        <KpiCard
+          icon={Wallet}
+          tone="emerald"
+          label="Faturamento"
+          value={brl(financeMetrics.totalRevenue)}
+          hint="Cancelados não entram"
+        />
+        <KpiCard
+          icon={TrendingUp}
+          tone="violet"
+          label="Ticket médio"
+          value={brl(financeMetrics.averageTicket)}
+          hint="Por pedido não cancelado"
+        />
+      </div>
+
       {restaurants.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
-          <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-white/5 text-gray-600">
-            <UtensilsCrossed className="size-6" />
+        <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-10 text-center">
+          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-white/5 text-gray-600">
+            <UtensilsCrossed className="size-7" />
           </div>
           <h3 className="mt-4 text-sm font-bold text-white">Nenhum restaurante ainda</h3>
-          <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-gray-500">Crie seu primeiro restaurante para liberar cardápio, pedidos e financeiro.</p>
-          <Button onClick={() => setDialogOpen(true)} className="mt-4 rounded-full bg-cyan-500 text-black hover:bg-cyan-400">
+          <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-gray-500">
+            Crie seu primeiro restaurante para liberar cardápio, pedidos e financeiro.
+          </p>
+          <Button
+            onClick={() => setDialogOpen(true)}
+            className="mt-4 rounded-full bg-cyan-500 text-black hover:bg-cyan-400"
+          >
             <Plus className="size-4" /> Criar restaurante
           </Button>
         </div>
@@ -373,8 +467,16 @@ function AdminDashboardOverview() {
           {/* Seus restaurantes - grid compacto */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold tracking-tight text-white">Seus restaurantes</h2>
-              <Link to="/admin/restaurantes" className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200">
+              <div>
+                <h2 className="text-sm font-bold tracking-tight text-white">Seus restaurantes</h2>
+                <p className="text-[11px] text-gray-500">
+                  Clique em um card para abrir a gestão completa
+                </p>
+              </div>
+              <Link
+                to="/admin/restaurantes"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+              >
                 Ver todos <ArrowRight className="size-3" />
               </Link>
             </div>
@@ -383,27 +485,64 @@ function AdminDashboardOverview() {
                 <RestaurantCardCompact
                   key={r.id}
                   restaurant={r}
+                  menuItemCount={productCounts[r.id] ?? null}
+                  onOpen={() =>
+                    navigate({
+                      to: "/admin/restaurante/$id",
+                      params: { id: r.id },
+                      search: { tab: undefined },
+                    })
+                  }
                   onEdit={() => {
                     setEditing(r);
                     setDialogOpen(true);
                   }}
                   onTogglePublish={() => handleTogglePublish(r)}
                   onDelete={() => setDeleting(r)}
-                  onManageMenu={() => navigate({ to: "/admin/cardapio" })}
-                  onManageOrders={() => navigate({ to: "/admin/pedidos" })}
-                  onSettings={() => navigate({ to: "/admin/config" })}
+                  onManageMenu={() =>
+                    navigate({
+                      to: "/admin/restaurante/$id",
+                      params: { id: r.id },
+                      search: { tab: "cardapio" },
+                    })
+                  }
+                  onManageOrders={() =>
+                    navigate({
+                      to: "/admin/restaurante/$id",
+                      params: { id: r.id },
+                      search: { tab: "pedidos" },
+                    })
+                  }
+                  onSettings={() =>
+                    navigate({
+                      to: "/admin/restaurante/$id",
+                      params: { id: r.id },
+                      search: { tab: "config" },
+                    })
+                  }
                   toggling={togglingId === r.id}
                 />
               ))}
             </div>
           </section>
 
-          {/* Pedidos + Financeiro */}
+          {/* Pedidos + Faturamento */}
           <section className="grid gap-4 lg:grid-cols-5">
             <div className="space-y-3 lg:col-span-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold tracking-tight text-white">Pedidos por status</h2>
-                <Link to="/admin/pedidos" className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200">
+                <div>
+                  <h2 className="text-sm font-bold tracking-tight text-white">
+                    Pedidos por status
+                  </h2>
+                  <p className="text-[11px] text-gray-500">
+                    {activeRestaurant?.name ?? "Todos os restaurantes"} •{" "}
+                    {range === "all" ? "todo o período" : `últimos ${range.replace("d", "")} dias`}
+                  </p>
+                </div>
+                <Link
+                  to="/admin/pedidos"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                >
                   Ver pedidos <ArrowRight className="size-3" />
                 </Link>
               </div>
@@ -412,22 +551,59 @@ function AdminDashboardOverview() {
                   <div className="size-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
                 </div>
               ) : (
-                <OrdersDonut counts={counts} totalRevenue={financeMetrics.totalRevenue} totalOrders={financeMetrics.totalOrders} />
+                <OrdersDonut
+                  counts={counts}
+                  totalRevenue={financeMetrics.totalRevenue}
+                  totalOrders={financeMetrics.totalOrders}
+                  cancelledRevenue={financeMetrics.cancelledRevenue}
+                />
               )}
             </div>
 
             <div className="space-y-3 lg:col-span-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold tracking-tight text-white">Financeiro</h2>
-                <Link to="/admin/financeiro" className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200">
+                <div>
+                  <h2 className="text-sm font-bold tracking-tight text-white">Faturamento</h2>
+                  <p className="text-[11px] text-gray-500">
+                    Calculado pelos pedidos registrados — não é saldo bancário
+                  </p>
+                </div>
+                <Link
+                  to="/admin/financeiro"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                >
                   Ver financeiro <ArrowRight className="size-3" />
                 </Link>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-                <FinanceSummary
-                  metrics={financeMetrics}
-                  subtitle="Faturamento calculado pelos pedidos registrados (não é saldo bancário). Cancelados não entram no faturamento."
+
+              {/* Mini resumo financeiro compacto */}
+              <div className="grid grid-cols-2 gap-3">
+                <MetricCard
+                  icon={Wallet}
+                  label="Faturamento (não cancelados)"
+                  value={brl(financeMetrics.totalRevenue)}
                 />
+                <MetricCard
+                  icon={CheckCircle2}
+                  label="Pedidos entregues"
+                  value={String(financeMetrics.deliveredCount)}
+                />
+                <MetricCard
+                  icon={Timer}
+                  label="Aguardando preparo"
+                  value={String(financeMetrics.preparingCount + financeMetrics.receivedCount)}
+                />
+                <MetricCard
+                  icon={Ban}
+                  label="Cancelados"
+                  value={String(financeMetrics.cancelledCount)}
+                />
+              </div>
+
+              <div className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[11px] leading-relaxed text-amber-200/80">
+                Pedidos cancelados ({financeMetrics.cancelledCount}) não entram no faturamento. Este
+                painel usa os dados reais de pedidos — {brl(financeMetrics.cancelledRevenue)} em
+                pedidos cancelados neste filtro.
               </div>
             </div>
           </section>
@@ -452,10 +628,87 @@ function AdminDashboardOverview() {
         open={Boolean(deleting)}
         onOpenChange={(o) => !o && setDeleting(null)}
         title="Excluir restaurante?"
-        description={deleting ? `Isso apaga "${deleting.name}", suas categorias, produtos e histórico de pedidos associados. Não há desfazer.` : ""}
+        description={
+          deleting
+            ? `Isso apaga "${deleting.name}", suas categorias, produtos e histórico de pedidos associados. Não há desfazer.`
+            : ""
+        }
         confirmLabel="Excluir"
         onConfirm={handleDelete}
       />
+    </div>
+  );
+}
+
+const KPI_TONES: Record<string, string> = {
+  cyan: "bg-cyan-500/15 text-cyan-300",
+  amber: "bg-amber-500/15 text-amber-300",
+  emerald: "bg-emerald-500/15 text-emerald-300",
+  violet: "bg-violet-500/15 text-violet-300",
+};
+
+function KpiCard({
+  icon: Icon,
+  tone,
+  label,
+  value,
+  hint,
+}: {
+  icon: LucideIcon;
+  tone: keyof typeof KPI_TONES;
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+      <div className="flex items-center gap-3">
+        <div className={`grid size-10 shrink-0 place-items-center rounded-xl ${KPI_TONES[tone]}`}>
+          <Icon className="size-[18px]" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+            {label}
+          </p>
+          <p className="mt-0.5 truncate text-lg font-black text-white">{value}</p>
+        </div>
+      </div>
+      {hint && <p className="mt-2.5 truncate text-[11px] text-gray-500">{hint}</p>}
+    </div>
+  );
+}
+
+const METRIC_TONES: Record<string, string> = {
+  cyan: "bg-cyan-500/15 text-cyan-300",
+  emerald: "bg-emerald-500/15 text-emerald-300",
+  amber: "bg-amber-500/15 text-amber-300",
+  violet: "bg-violet-500/15 text-violet-300",
+  red: "bg-red-500/15 text-red-300",
+  zinc: "bg-zinc-500/15 text-zinc-300",
+};
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  tone = "zinc",
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  tone?: keyof typeof METRIC_TONES;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+      <div className="flex items-center gap-2.5">
+        <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${METRIC_TONES[tone]}`}>
+          <Icon className="size-3.5" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-lg font-black text-white">{value}</p>
+          <p className="truncate text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
+        </div>
+      </div>
     </div>
   );
 }

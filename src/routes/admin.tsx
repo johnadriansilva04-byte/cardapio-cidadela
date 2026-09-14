@@ -15,12 +15,14 @@ import {
   X,
   LogOut,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -112,7 +114,11 @@ function AdminLayout() {
                   setPendingCount((c) => c + 1);
                 }
                 playNewOrderAlert();
-                if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+                if (
+                  typeof window !== "undefined" &&
+                  "Notification" in window &&
+                  Notification.permission === "granted"
+                ) {
                   try {
                     new Notification("🔔 Novo pedido!", {
                       body: `${order.customer_name} — ${order.comanda} • R$ ${Number(order.total).toFixed(2)}`,
@@ -168,74 +174,57 @@ function AdminLayout() {
 
   return (
     <div className="flex h-screen bg-[#0a0a0f]">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-white/5 bg-[#0c0c14] lg:flex">
-        <SidebarContent pendingCount={pendingCount} />
+      {/* Sidebar desktop */}
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-white/[0.06] bg-[#0c0c14] lg:flex">
+        <SidebarContent pendingCount={pendingCount} onNavigate={() => setSidebarOpen(false)} />
       </aside>
 
+      {/* Sidebar mobile */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
-          <aside className="relative flex h-full w-64 flex-col border-r border-white/5 bg-[#0c0c14]">
-            <div className="flex items-center justify-between px-5 py-4">
+          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col border-r border-white/[0.06] bg-[#0c0c14] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
               <Link to="/" className="flex items-center gap-2">
-                <UtensilsCrossed className="size-5 text-cyan-400" />
+                <span className="grid size-8 place-items-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-violet-500/10">
+                  <UtensilsCrossed className="size-4 text-cyan-400" />
+                </span>
                 <span className="text-sm font-bold">
                   Cardápio <span className="text-cyan-400">Cidadela</span>
                 </span>
               </Link>
-              <button onClick={() => setSidebarOpen(false)} className="text-gray-400" aria-label="Fechar menu">
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
+                aria-label="Fechar menu"
+              >
                 <X className="size-5" />
               </button>
             </div>
-            <nav className="flex-1 space-y-1 px-3">
-              {NAV_ITEMS.map((item) => {
-                const active =
-                  item.to === "/admin"
-                    ? matchRoute({ to: "/admin", fuzzy: false })
-                    : matchRoute({ to: item.to });
-                const isPedidos = item.to === "/admin/pedidos";
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${
-                      active
-                        ? "bg-cyan-500/10 text-cyan-400 font-medium"
-                        : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
-                    }`}
-                  >
-                    <item.icon className="size-4" />
-                    <span className="flex-1">{item.label}</span>
-                    {isPedidos && pendingCount > 0 && (
-                      <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse">
-                        {pendingCount > 99 ? "99+" : pendingCount}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
+            <SidebarContent pendingCount={pendingCount} onNavigate={() => setSidebarOpen(false)} />
           </aside>
         </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-white/5 bg-[#0a0a0f] px-4 py-3 lg:px-6">
+        <header className="flex items-center gap-3 border-b border-white/[0.06] bg-[#0a0a0f]/80 px-4 py-3 backdrop-blur lg:px-6">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-gray-400 lg:hidden"
+            className="grid size-9 place-items-center rounded-lg text-gray-400 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
             aria-label="Abrir menu"
           >
             <Menu className="size-5" />
           </button>
 
-          <Link to="/" className="flex items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors">
-            <ChevronLeft className="size-4" />
-            <span className="text-xs">Voltar ao site</span>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 transition-colors hover:text-gray-300"
+          >
+            <ChevronLeft className="size-3.5" />
+            Voltar ao site
           </Link>
         </header>
 
@@ -247,40 +236,70 @@ function AdminLayout() {
   );
 }
 
-function SidebarContent({ pendingCount = 0 }: { pendingCount?: number }) {
+function SidebarContent({
+  pendingCount = 0,
+  onNavigate,
+}: {
+  pendingCount?: number;
+  onNavigate?: () => void;
+}) {
   const matchRoute = useMatchRoute();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+
+  const displayName = (user?.user_metadata?.name as string) || user?.email || user?.phone || "";
+
+  function isActive(itemTo: string): boolean {
+    if (itemTo === "/admin") return Boolean(matchRoute({ to: "/admin", fuzzy: false }));
+    if (itemTo === "/admin/restaurantes" && matchRoute({ to: "/admin/restaurante/$id" }))
+      return true;
+    return Boolean(matchRoute({ to: itemTo as never }));
+  }
 
   return (
     <>
-      <div className="flex items-center gap-2 px-5 py-5">
-        <UtensilsCrossed className="size-5 text-cyan-400" />
-        <span className="text-sm font-bold">
-          Cardápio <span className="text-cyan-400">Cidadela</span>
+      <div className="flex items-center gap-3 px-5 pb-4 pt-5">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan-500/25 to-violet-500/10 ring-1 ring-white/10">
+          <UtensilsCrossed className="size-4 text-cyan-400" />
         </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold tracking-tight">
+            Cardápio <span className="text-cyan-400">Cidadela</span>
+          </p>
+          <p className="truncate text-[10px] text-gray-600">Painel de gestão</p>
+        </div>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+        <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-600">
+          Menu
+        </p>
         {NAV_ITEMS.map((item) => {
-          const active =
-            item.to === "/admin"
-              ? matchRoute({ to: "/admin", fuzzy: false })
-              : matchRoute({ to: item.to });
+          const active = isActive(item.to);
           const isPedidos = item.to === "/admin/pedidos";
           return (
             <Link
               key={item.to}
               to={item.to}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${
+              onClick={onNavigate}
+              className={cn(
+                "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
                 active
-                  ? "bg-cyan-500/10 text-cyan-400 font-medium"
-                  : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
-              }`}
+                  ? "bg-cyan-500/10 font-medium text-cyan-400"
+                  : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
+              )}
             >
-              <item.icon className="size-4" />
-              <span className="flex-1">{item.label}</span>
+              {active && (
+                <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-cyan-400 to-cyan-600" />
+              )}
+              <item.icon
+                className={cn(
+                  "size-4 shrink-0 transition-colors",
+                  active ? "text-cyan-400" : "text-gray-500 group-hover:text-gray-300",
+                )}
+              />
+              <span className="flex-1 truncate">{item.label}</span>
               {isPedidos && pendingCount > 0 && (
-                <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse">
+                <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white shadow-[0_0_10px_rgba(239,68,68,0.6)]">
                   {pendingCount > 99 ? "99+" : pendingCount}
                 </span>
               )}
@@ -289,23 +308,39 @@ function SidebarContent({ pendingCount = 0 }: { pendingCount?: number }) {
         })}
       </nav>
 
-      <div className="border-t border-white/5 px-5 py-4 space-y-2">
+      <div className="border-t border-white/[0.06] px-3 py-3">
+        <div className="mb-2 flex items-center gap-2.5 rounded-xl bg-white/[0.03] px-3 py-2.5">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-500/30 to-violet-500/20 text-xs font-bold text-cyan-200 ring-1 ring-white/10">
+            {displayName
+              ? displayName
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .map((w) => w[0]?.toUpperCase() ?? "")
+                  .join("")
+              : "AD"}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-gray-200">{displayName || "Conta"}</p>
+            <p className="truncate text-[10px] text-gray-600">Administrador</p>
+          </div>
+        </div>
         <button
           onClick={async () => {
             await signOut();
             window.location.href = "/login";
           }}
-          className="flex w-full items-center gap-2 text-xs text-gray-500 hover:text-red-400 transition-colors"
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
         >
-          <LogOut className="size-3" />
+          <LogOut className="size-3.5" />
           Sair da conta
         </button>
         <Link
           to="/"
-          className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          onClick={onNavigate}
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-gray-500 transition-colors hover:bg-white/[0.04] hover:text-gray-300"
         >
-          <ChevronLeft className="size-3" />
-          Voltar ao site
+          <ChevronRight className="size-3.5" />
+          Ver site público
         </Link>
       </div>
     </>

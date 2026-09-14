@@ -1,12 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Store, Plus, AlertCircle, RefreshCw, Search } from "lucide-react";
+import { Store, Plus, AlertCircle, RefreshCw, Search, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RestaurantCardCompact } from "@/components/admin/RestaurantCardCompact";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
-import { getRestaurantsByOwner, ensureRestaurantsForUser, createRestaurant, updateRestaurant, deleteRestaurant } from "@/modules/supabase/restaurants";
+import {
+  getRestaurantsByOwner,
+  ensureRestaurantsForUser,
+  createRestaurant,
+  updateRestaurant,
+  deleteRestaurant,
+} from "@/modules/supabase/restaurants";
+import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 import { toast } from "sonner";
@@ -28,6 +35,7 @@ function RestaurantesPage() {
   const [deleting, setDeleting] = useState<Restaurant | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [productCounts, setProductCounts] = useState<Record<string, number>>({});
   const retryRef = useRef(0);
 
   useEffect(() => {
@@ -68,6 +76,30 @@ function RestaurantesPage() {
     };
   }, [user, authLoading]);
 
+  // Contagem de produtos por restaurante (dados reais)
+  useEffect(() => {
+    if (restaurants.length === 0) {
+      setProductCounts({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const ids = restaurants.map((r) => r.id);
+      const { data } = await supabase
+        .from("products")
+        .select("restaurant_id")
+        .in("restaurant_id", ids);
+      if (!cancelled && data) {
+        const counts: Record<string, number> = {};
+        for (const p of data) counts[p.restaurant_id] = (counts[p.restaurant_id] ?? 0) + 1;
+        setProductCounts(counts);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurants]);
+
   const filtered = restaurants.filter((r) => {
     if (!q.trim()) return true;
     const s = q.toLowerCase();
@@ -84,7 +116,14 @@ function RestaurantesPage() {
         return;
       }
       const patch: Partial<Restaurant> = {};
-      if (values.logo_url || values.banner_url || values.phone || values.whatsapp || values.address || values.pix_key) {
+      if (
+        values.logo_url ||
+        values.banner_url ||
+        values.phone ||
+        values.whatsapp ||
+        values.address ||
+        values.pix_key
+      ) {
         const ok = await updateRestaurant(created.id, {
           logo_url: values.logo_url,
           banner_url: values.banner_url,
@@ -96,7 +135,12 @@ function RestaurantesPage() {
           secondary_color: values.secondary_color,
           status: values.status,
         });
-        if (ok) Object.assign(created, { logo_url: values.logo_url, banner_url: values.banner_url, status: values.status });
+        if (ok)
+          Object.assign(created, {
+            logo_url: values.logo_url,
+            banner_url: values.banner_url,
+            status: values.status,
+          });
       }
       setRestaurants((prev) => [created, ...prev]);
       setDialogOpen(false);
@@ -128,7 +172,9 @@ function RestaurantesPage() {
         toast.error("Erro ao salvar.");
         return;
       }
-      setRestaurants((prev) => prev.map((r) => (r.id === editing.id ? ({ ...r, ...values } as Restaurant) : r)));
+      setRestaurants((prev) =>
+        prev.map((r) => (r.id === editing.id ? ({ ...r, ...values } as Restaurant) : r)),
+      );
       setEditing(null);
       toast.success("Restaurante atualizado!");
     } finally {
@@ -166,7 +212,9 @@ function RestaurantesPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-white">Restaurantes</h1>
-          <p className="mt-1 text-sm leading-relaxed text-gray-500">Cada restaurante tem seu link público em /cardapio/seu-slug. Gerencie tudo por aqui.</p>
+          <p className="mt-1 text-sm leading-relaxed text-gray-500">
+            Cada restaurante tem seu link público em /cardapio/seu-slug. Gerencie tudo por aqui.
+          </p>
         </div>
         <Button
           onClick={() => {
@@ -182,7 +230,12 @@ function RestaurantesPage() {
       <div className="flex items-center gap-2">
         <div className="relative flex-1 sm:max-w-sm">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-gray-600" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome ou slug…" className="border-white/10 bg-white/[0.04] pl-9 text-white placeholder:text-gray-600" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar por nome ou slug…"
+            className="border-white/10 bg-white/[0.04] pl-9 text-white placeholder:text-gray-600"
+          />
         </div>
         <span className="hidden text-xs text-gray-500 sm:inline">
           {filtered.length} de {restaurants.length}
@@ -193,38 +246,74 @@ function RestaurantesPage() {
         <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
           <AlertCircle className="mx-auto size-8 text-red-400" />
           <p className="mt-3 text-sm text-red-300">{error}</p>
-          <button onClick={() => window.location.reload()} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400">
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
+          >
             <RefreshCw className="size-4" /> Tentar novamente
           </button>
         </div>
       )}
 
-      {!error && (authLoading || loading ? <div className="flex justify-center py-12"><div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" /></div> : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-white/5 bg-white/[0.02] py-12 text-center">
-          <Store className="mx-auto size-10 text-gray-700" />
-          <p className="mt-3 text-sm font-semibold text-white">{restaurants.length === 0 ? "Nenhum restaurante ainda" : "Nenhum resultado"}</p>
-          <p className="mt-1 text-xs text-gray-500">{restaurants.length === 0 ? "Clique em \"Novo restaurante\" para começar." : "Tente outro termo de busca."}</p>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((r) => (
-            <RestaurantCardCompact
-              key={r.id}
-              restaurant={r}
-              onEdit={() => {
-                setEditing(r);
-                setDialogOpen(true);
-              }}
-              onTogglePublish={() => handleTogglePublish(r)}
-              onDelete={() => setDeleting(r)}
-              onManageMenu={() => navigate({ to: "/admin/cardapio" })}
-              onManageOrders={() => navigate({ to: "/admin/pedidos" })}
-              onSettings={() => navigate({ to: "/admin/config" })}
-              toggling={togglingId === r.id}
-            />
-          ))}
-        </div>
-      ))}
+      {!error &&
+        (authLoading || loading ? (
+          <div className="flex justify-center py-12">
+            <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] py-12 text-center">
+            <Store className="mx-auto size-10 text-gray-700" />
+            <p className="mt-3 text-sm font-semibold text-white">
+              {restaurants.length === 0 ? "Nenhum restaurante ainda" : "Nenhum resultado"}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              {restaurants.length === 0
+                ? 'Clique em "Novo restaurante" para começar.'
+                : "Tente outro termo de busca."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filtered.map((r) => (
+              <RestaurantCardCompact
+                key={r.id}
+                restaurant={r}
+                menuItemCount={productCounts[r.id] ?? null}
+                onOpen={() =>
+                  navigate({
+                    to: "/admin/restaurante/$id",
+                    params: { id: r.id },
+                    search: { tab: undefined },
+                  })
+                }
+                onEdit={() => {
+                  setEditing(r);
+                  setDialogOpen(true);
+                }}
+                onTogglePublish={() => handleTogglePublish(r)}
+                onDelete={() => setDeleting(r)}
+                onManageMenu={() =>
+                  navigate({
+                    to: "/admin/restaurante/$id",
+                    params: { id: r.id },
+                    search: { tab: "cardapio" },
+                  })
+                }
+                onManageOrders={() =>
+                  navigate({
+                    to: "/admin/restaurante/$id",
+                    params: { id: r.id },
+                    search: { tab: "pedidos" },
+                  })
+                }
+                onSettings={() =>
+                  navigate({ to: "/admin/cardapio", search: { restaurantId: r.id } })
+                }
+                toggling={togglingId === r.id}
+              />
+            ))}
+          </div>
+        ))}
 
       <RestaurantDialog
         open={dialogOpen}
@@ -241,7 +330,11 @@ function RestaurantesPage() {
         open={Boolean(deleting)}
         onOpenChange={(o) => !o && setDeleting(null)}
         title="Excluir restaurante?"
-        description={deleting ? `Isso apaga "${deleting.name}" e todo o cardápio e histórico vinculados. Não há desfazer.` : ""}
+        description={
+          deleting
+            ? `Isso apaga "${deleting.name}" e todo o cardápio e histórico vinculados. Não há desfazer.`
+            : ""
+        }
         confirmLabel="Excluir"
         onConfirm={handleDelete}
       />

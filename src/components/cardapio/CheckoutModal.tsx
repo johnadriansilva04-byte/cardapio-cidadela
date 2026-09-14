@@ -26,7 +26,6 @@ export default function CheckoutModal({
   submitting = false,
   serverError = "",
   deliveryFee = 0,
-  deliveryRadiusKm = 0,
   neighborhoods = [],
   onClose,
   onConfirm,
@@ -38,7 +37,6 @@ export default function CheckoutModal({
   submitting?: boolean;
   serverError?: string;
   deliveryFee?: number;
-  deliveryRadiusKm?: number;
   neighborhoods?: DeliveryNeighborhood[];
   onClose: () => void;
   onConfirm: (form: CheckoutForm) => void;

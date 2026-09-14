@@ -230,8 +230,7 @@ function AdminDashboardOverview() {
         values.address ||
         values.pix_key ||
         values.primary_color !== "#06b6d4" ||
-        values.delivery_fee ||
-        values.delivery_radius_km;
+        values.delivery_fee;
       if (needsPatch) {
         await updateRestaurant(r.id, {
           logo_url: values.logo_url,
@@ -244,13 +243,11 @@ function AdminDashboardOverview() {
           secondary_color: values.secondary_color,
           status: values.status,
           delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-          delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
         });
         r.logo_url = values.logo_url;
         r.banner_url = values.banner_url;
         r.status = values.status;
         r.delivery_fee = parseFloat(values.delivery_fee.replace(",", ".")) || 0;
-        r.delivery_radius_km = parseFloat(values.delivery_radius_km.replace(",", ".")) || 0;
       }
       setRestaurants((prev) => [r, ...prev]);
       setActiveId(r.id);
@@ -279,7 +276,6 @@ function AdminDashboardOverview() {
         status: values.status,
         pix_key: values.pix_key,
         delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-        delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
       });
       if (!ok) {
         toast.error("Erro ao salvar.");
@@ -292,7 +288,6 @@ function AdminDashboardOverview() {
                 ...r,
                 ...values,
                 delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-                delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
               }
             : r,
         ),

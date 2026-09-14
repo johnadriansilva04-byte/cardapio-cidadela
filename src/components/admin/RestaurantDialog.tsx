@@ -37,7 +37,6 @@ export type RestaurantFormValues = {
   status: RestaurantStatus;
   pix_key: string;
   delivery_fee: string;
-  delivery_radius_km: string;
 };
 
 function slugify(name: string): string {
@@ -79,7 +78,6 @@ export function RestaurantDialog({
     status: (restaurant?.status as RestaurantStatus) ?? "published",
     pix_key: restaurant?.pix_key ?? "",
     delivery_fee: restaurant?.delivery_fee ? String(restaurant.delivery_fee) : "",
-    delivery_radius_km: restaurant?.delivery_radius_km ? String(restaurant.delivery_radius_km) : "",
   }));
   const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,9 +100,6 @@ export function RestaurantDialog({
       status: (restaurant?.status as RestaurantStatus) ?? "published",
       pix_key: restaurant?.pix_key ?? "",
       delivery_fee: restaurant?.delivery_fee ? String(restaurant.delivery_fee) : "",
-      delivery_radius_km: restaurant?.delivery_radius_km
-        ? String(restaurant.delivery_radius_km)
-        : "",
     });
   }, [open, restaurant]);
 
@@ -284,25 +279,6 @@ export function RestaurantDialog({
               />
               <p className="text-[11px] text-gray-600">
                 Taxa padrão. Você pode definir taxas por bairro em Configurações do restaurante.
-              </p>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="rest-radius" className="text-gray-300">
-                Raio de entrega (km)
-              </Label>
-              <Input
-                id="rest-radius"
-                type="number"
-                min="0"
-                step="0.1"
-                inputMode="decimal"
-                value={form.delivery_radius_km}
-                onChange={(e) => setForm((s) => ({ ...s, delivery_radius_km: e.target.value }))}
-                placeholder="Ex: 4"
-                className="border-white/10 bg-white/[0.04] text-white"
-              />
-              <p className="text-[11px] text-gray-600">
-                Distância máxima atendida (referência para o cliente).
               </p>
             </div>
           </div>

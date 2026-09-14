@@ -123,8 +123,7 @@ function RestaurantesPage() {
         values.whatsapp ||
         values.address ||
         values.pix_key ||
-        values.delivery_fee ||
-        values.delivery_radius_km
+        values.delivery_fee
       ) {
         const ok = await updateRestaurant(created.id, {
           logo_url: values.logo_url,
@@ -137,7 +136,6 @@ function RestaurantesPage() {
           secondary_color: values.secondary_color,
           status: values.status,
           delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-          delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
         });
         if (ok)
           Object.assign(created, {
@@ -145,7 +143,6 @@ function RestaurantesPage() {
             banner_url: values.banner_url,
             status: values.status,
             delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-            delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
           });
       }
       setRestaurants((prev) => [created, ...prev]);
@@ -174,7 +171,6 @@ function RestaurantesPage() {
         status: values.status,
         pix_key: values.pix_key,
         delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-        delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
       });
       if (!ok) {
         toast.error("Erro ao salvar.");
@@ -187,7 +183,6 @@ function RestaurantesPage() {
                 ...r,
                 ...values,
                 delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-                delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
               } as Restaurant)
             : r,
         ),

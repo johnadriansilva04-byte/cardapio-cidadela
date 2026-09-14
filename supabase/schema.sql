@@ -33,13 +33,13 @@ CREATE TABLE IF NOT EXISTS restaurants (
   status restaurant_status DEFAULT 'draft',
   pix_key TEXT DEFAULT '',
   delivery_fee NUMERIC(10,2) DEFAULT 0,
-  delivery_radius_km NUMERIC(10,2) DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 -- Migração segura: garante colunas de entrega em bancos criados por versões antigas do schema
 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS delivery_fee NUMERIC(10,2) DEFAULT 0;
-ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS delivery_radius_km NUMERIC(10,2) DEFAULT 0;
+-- Taxa por bairro substitui o raio de entrega. Remove a coluna legada se existir.
+ALTER TABLE restaurants DROP COLUMN IF EXISTS delivery_radius_km;
 
 CREATE INDEX IF NOT EXISTS idx_restaurants_slug ON restaurants(slug);
 CREATE INDEX IF NOT EXISTS idx_restaurants_owner ON restaurants(owner_id);

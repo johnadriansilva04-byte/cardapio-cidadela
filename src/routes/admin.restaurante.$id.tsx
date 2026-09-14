@@ -198,7 +198,6 @@ function RestaurantDetailPage() {
         status: values.status,
         pix_key: values.pix_key,
         delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-        delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
       });
       if (!ok) {
         toast.error("Erro ao salvar.");
@@ -210,7 +209,6 @@ function RestaurantDetailPage() {
               ...prev,
               ...values,
               delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-              delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
             }
           : prev,
       );
@@ -221,7 +219,6 @@ function RestaurantDetailPage() {
                 ...r,
                 ...values,
                 delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-                delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
               }
             : r,
         ),
@@ -582,10 +579,6 @@ function RestaurantCardSummary({
         </div>
         <div className="truncate">PIX: {restaurant.pix_key || "—"}</div>
         <div className="truncate">Taxa de entrega: {brl(restaurant.delivery_fee ?? 0)}</div>
-        <div className="truncate">
-          Raio de entrega:{" "}
-          {restaurant.delivery_radius_km ? `${restaurant.delivery_radius_km} km` : "—"}
-        </div>
       </div>
     </div>
   );

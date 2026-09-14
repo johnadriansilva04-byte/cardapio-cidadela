@@ -23,7 +23,6 @@ export interface Restaurant {
   status: RestaurantStatus;
   pix_key: string;
   delivery_fee?: number;
-  delivery_radius_km?: number;
   created_at: string;
   updated_at: string;
 }

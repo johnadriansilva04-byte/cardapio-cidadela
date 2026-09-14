@@ -18,6 +18,9 @@ interface SuccessOrder {
   payment_method: string;
   delivery_type: string;
   delivery_address?: string;
+  customer_complement?: string;
+  customer_neighborhood?: string;
+  customer_city?: string;
   delivery_fee?: number;
   subtotal?: number;
 }
@@ -93,6 +96,9 @@ export default function SuccessModal({
                     payment_method: order.payment_method,
                     delivery_type: order.delivery_type,
                     delivery_address: order.delivery_address ?? "",
+                    customer_complement: order.customer_complement ?? "",
+                    customer_neighborhood: order.customer_neighborhood ?? "",
+                    customer_city: order.customer_city ?? "",
                     delivery_fee: order.delivery_fee ?? 0,
                   },
                   restaurantName,

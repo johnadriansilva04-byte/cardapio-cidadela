@@ -437,6 +437,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     payment_method: string;
     delivery_type: string;
     delivery_address: string;
+    customer_complement?: string;
+    customer_neighborhood?: string;
+    customer_city?: string;
+    delivery_fee?: number;
   } | null;
 
   const hasAnyProducts = categories.some((cat) =>
@@ -809,7 +813,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           submitting={submitting}
           serverError={checkoutError}
           deliveryFee={Number(restaurant.delivery_fee ?? 0) || 0}
-          deliveryRadiusKm={Number(restaurant.delivery_radius_km ?? 0) || 0}
           neighborhoods={neighborhoods}
           onClose={() => setCheckoutOpen(false)}
           onConfirm={handleCheckout}
@@ -847,6 +850,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             observations: currentOrder.observations,
             payment_method: currentOrder.payment_method,
             delivery_type: currentOrder.delivery_type,
+            delivery_address: currentOrder.delivery_address ?? "",
+            customer_complement: currentOrder.customer_complement ?? "",
+            customer_neighborhood: currentOrder.customer_neighborhood ?? "",
+            customer_city: currentOrder.customer_city ?? "",
+            delivery_fee: currentOrder.delivery_fee ?? 0,
           }}
           restaurantAccent={accent}
           restaurantName={restaurant.name}

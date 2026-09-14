@@ -215,6 +215,37 @@ export function printTicket(ticket: string) {
   win.print();
 }
 
+/** Monta as linhas de endereço de entrega (rua, complemento, bairro, cidade). */
+export function formatDeliveryAddress(order: {
+  delivery_address: string;
+  customer_complement?: string;
+  customer_neighborhood?: string;
+  customer_city?: string;
+}): string[] {
+  const street = order.delivery_address.trim();
+  const complement = (order.customer_complement ?? "").trim();
+  const neighborhood = (order.customer_neighborhood ?? "").trim();
+  const city = (order.customer_city ?? "").trim();
+
+  const parts = [street, complement && `Complemento: ${complement}`, neighborhood, city].filter(
+    (p): p is string => Boolean(p),
+  );
+  if (parts.length === 0) return ["Endereço não informado"];
+
+  const lines: string[] = [];
+  let current = "";
+  for (const part of parts) {
+    if (current && current.length + part.length + 2 > 40) {
+      lines.push(current);
+      current = part;
+    } else {
+      current = current ? `${current}, ${part}` : part;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
 /**
  * Generate a WhatsApp message for an order
  */
@@ -228,6 +259,9 @@ export function buildWhatsAppMessage(
     payment_method: string;
     delivery_type: string;
     delivery_address: string;
+    customer_complement?: string;
+    customer_neighborhood?: string;
+    customer_city?: string;
     delivery_fee?: number;
   },
   restaurantName: string,
@@ -236,14 +270,15 @@ export function buildWhatsAppMessage(
   const fee = isDelivery ? (order.delivery_fee ?? 0) : 0;
   const subtotal = order.total - fee;
 
+  const deliveryLines = isDelivery ? formatDeliveryAddress(order) : [];
+
   const lines = [
     `🍽️ *NOVO PEDIDO ${order.comanda}*`,
     `━━━━━━━━━━━━━━`,
     "",
-    `👤 ${order.customer_name}`,
-    isDelivery
-      ? `📍 *Entrega:* ${order.delivery_address || "Endereço não informado"}`
-      : "🏪 Retirada no balcão",
+    `👤 *Cliente:* ${order.customer_name}`,
+    isDelivery ? "🛵 *Entrega a domicílio*" : "🏪 *Retirada no balcão*",
+    ...deliveryLines,
     `💳 ${order.payment_method.toUpperCase()}`,
     "",
     `📋 *Itens:*`,

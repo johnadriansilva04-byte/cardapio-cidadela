@@ -191,7 +191,6 @@ export async function updateRestaurant(
       | "pix_key"
       | "slug"
       | "delivery_fee"
-      | "delivery_radius_km"
     >
   >,
 ): Promise<boolean> {

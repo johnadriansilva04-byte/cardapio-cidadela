@@ -5,6 +5,7 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  ImageIcon,
   ClipboardList,
   Settings2,
   LayoutGrid,
@@ -71,8 +72,8 @@ export function RestaurantCardCompact({
       }}
       className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-all hover:border-cyan-500/30 hover:bg-white/[0.05] hover:shadow-[0_8px_30px_rgba(6,182,212,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40"
     >
-      {/* ─── COVER ─── */}
-      <div className="relative h-36 w-full overflow-hidden bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-transparent">
+      {/* cover */}
+      <div className="relative h-24 w-full overflow-hidden bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-transparent">
         {hasImage ? (
           <img
             src={cover}
@@ -84,20 +85,20 @@ export function RestaurantCardCompact({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-white/10 text-white/80">
-              <Store className="size-6" />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
+              {restaurant.logo_url ? (
+                <ImageIcon className="size-5" />
+              ) : (
+                <Store className="size-5" />
+              )}
             </div>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-
-        {/* Status badge */}
-        <div className="absolute left-2.5 top-2.5">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        <div className="absolute left-2 top-2">
           <RestaurantStatusBadge status={restaurant.status} />
         </div>
-
-        {/* External link */}
-        <div className="absolute right-2.5 top-2.5">
+        <div className="absolute right-2 top-2 flex gap-1">
           <a
             href={`/cardapio/${restaurant.slug}`}
             target="_blank"
@@ -109,9 +110,8 @@ export function RestaurantCardCompact({
             <ExternalLink className="size-3.5" />
           </a>
         </div>
-
-        {/* Logo — big, overlapping cover */}
-        <div className="absolute -bottom-7 left-4 flex size-14 items-center justify-center rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
+        {/* avatar overlapping */}
+        <div className="absolute -bottom-6 left-3 flex size-14 items-center justify-center rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}

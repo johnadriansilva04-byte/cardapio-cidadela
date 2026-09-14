@@ -513,13 +513,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       <div className="relative overflow-hidden">
         {/* banner */}
         <div
-          className="relative h-[120px] w-full sm:h-[140px]"
+          className="relative h-[200px] w-full sm:h-[250px]"
           style={{
             backgroundImage: restaurant.banner_url
               ? `url(${restaurant.banner_url})`
               : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
             backgroundSize: restaurant.banner_url ? "cover" : undefined,
-            backgroundPosition: restaurant.banner_url ? "center" : undefined,
+            backgroundPosition: restaurant.banner_url ? "center top" : undefined,
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/80 to-black/30" />

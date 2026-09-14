@@ -19,6 +19,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCardapioRouteImport } from './routes/admin.cardapio'
 import { Route as AdminCompartilharRouteImport } from './routes/admin.compartilhar'
 import { Route as AdminConfigRouteImport } from './routes/admin.config'
+import { Route as AdminFinanceiroRouteImport } from './routes/admin.financeiro'
 import { Route as AdminPedidosRouteImport } from './routes/admin.pedidos'
 import { Route as AdminRestaurantesRouteImport } from './routes/admin.restaurantes'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -75,6 +76,11 @@ const AdminConfigRoute = AdminConfigRouteImport.update({
   path: '/config',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminFinanceiroRoute = AdminFinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminPedidosRoute = AdminPedidosRouteImport.update({
   id: '/pedidos',
   path: '/pedidos',
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/admin/cardapio': typeof AdminCardapioRoute
   '/admin/compartilhar': typeof AdminCompartilharRoute
   '/admin/config': typeof AdminConfigRoute
+  '/admin/financeiro': typeof AdminFinanceiroRoute
   '/admin/pedidos': typeof AdminPedidosRoute
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/admin/cardapio': typeof AdminCardapioRoute
   '/admin/compartilhar': typeof AdminCompartilharRoute
   '/admin/config': typeof AdminConfigRoute
+  '/admin/financeiro': typeof AdminFinanceiroRoute
   '/admin/pedidos': typeof AdminPedidosRoute
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   '/admin/cardapio': typeof AdminCardapioRoute
   '/admin/compartilhar': typeof AdminCompartilharRoute
   '/admin/config': typeof AdminConfigRoute
+  '/admin/financeiro': typeof AdminFinanceiroRoute
   '/admin/pedidos': typeof AdminPedidosRoute
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -164,6 +173,7 @@ export interface FileRouteTypes {
     | '/admin/cardapio'
     | '/admin/compartilhar'
     | '/admin/config'
+    | '/admin/financeiro'
     | '/admin/pedidos'
     | '/admin/restaurantes'
     | '/auth/callback'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/admin/cardapio'
     | '/admin/compartilhar'
     | '/admin/config'
+    | '/admin/financeiro'
     | '/admin/pedidos'
     | '/admin/restaurantes'
     | '/auth/callback'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/admin/cardapio'
     | '/admin/compartilhar'
     | '/admin/config'
+    | '/admin/financeiro'
     | '/admin/pedidos'
     | '/admin/restaurantes'
     | '/auth/callback'
@@ -289,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConfigRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/financeiro': {
+      id: '/admin/financeiro'
+      path: '/financeiro'
+      fullPath: '/admin/financeiro'
+      preLoaderRoute: typeof AdminFinanceiroRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/pedidos': {
       id: '/admin/pedidos'
       path: '/pedidos'
@@ -331,6 +350,7 @@ interface AdminRouteChildren {
   AdminCardapioRoute: typeof AdminCardapioRoute
   AdminCompartilharRoute: typeof AdminCompartilharRoute
   AdminConfigRoute: typeof AdminConfigRoute
+  AdminFinanceiroRoute: typeof AdminFinanceiroRoute
   AdminPedidosRoute: typeof AdminPedidosRoute
   AdminRestaurantesRoute: typeof AdminRestaurantesRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -340,6 +360,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCardapioRoute: AdminCardapioRoute,
   AdminCompartilharRoute: AdminCompartilharRoute,
   AdminConfigRoute: AdminConfigRoute,
+  AdminFinanceiroRoute: AdminFinanceiroRoute,
   AdminPedidosRoute: AdminPedidosRoute,
   AdminRestaurantesRoute: AdminRestaurantesRoute,
   AdminIndexRoute: AdminIndexRoute,

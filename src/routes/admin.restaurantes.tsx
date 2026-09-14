@@ -1,45 +1,33 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, useRef } from "react";
-import {
-  Store,
-  Plus,
-  ArrowRight,
-  Copy,
-  Check,
-  ExternalLink,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
-import {
-  getRestaurantsByOwner,
-  createRestaurant,
-  generateUniqueSlug,
-  ensureRestaurantsForUser,
-} from "@/modules/supabase/restaurants";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { Store, Plus, AlertCircle, RefreshCw, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { RestaurantCardCompact } from "@/components/admin/RestaurantCardCompact";
+import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { getRestaurantsByOwner, ensureRestaurantsForUser, createRestaurant, updateRestaurant, deleteRestaurant } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/restaurantes")({
   head: () => ({ meta: [{ title: "Restaurantes — Cardápio Cidadela" }] }),
   component: RestaurantesPage,
 });
 
-function menuUrl(slug: string): string {
-  if (typeof window === "undefined") return `/cardapio/${slug}`;
-  return `${window.location.origin}/cardapio/${slug}`;
-}
-
 function RestaurantesPage() {
   const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [slugPreview, setSlugPreview] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [message, setMessage] = useState("");
-  const [copied, setCopied] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Restaurant | null>(null);
+  const [deleting, setDeleting] = useState<Restaurant | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const retryRef = useRef(0);
 
   useEffect(() => {
@@ -59,9 +47,8 @@ function RestaurantesPage() {
         const data = await getRestaurantsByOwner(user!.id);
         if (cancelled) return;
         setRestaurants(data);
-        if (data.length > 0) {
-          retryRef.current = 0;
-        } else if (retryRef.current < 3) {
+        if (data.length > 0) retryRef.current = 0;
+        else if (retryRef.current < 3) {
           retryRef.current++;
           await new Promise((r) => setTimeout(r, retryRef.current * 400));
           if (cancelled) return;
@@ -81,243 +68,183 @@ function RestaurantesPage() {
     };
   }, [user, authLoading]);
 
-  async function handleCreate() {
-    if (!newName.trim() || !user) return;
-    setCreating(true);
-    setMessage("");
-    const slug = await generateUniqueSlug(newName);
-    const r = await createRestaurant(user.id, newName, slug);
-    setCreating(false);
+  const filtered = restaurants.filter((r) => {
+    if (!q.trim()) return true;
+    const s = q.toLowerCase();
+    return r.name.toLowerCase().includes(s) || r.slug.toLowerCase().includes(s);
+  });
 
-    if (!r) {
-      setMessage("Erro ao criar restaurante. Tente novamente.");
-      return;
+  async function handleCreate(values: RestaurantFormValues) {
+    if (!user) return;
+    setSubmitting(true);
+    try {
+      const created = await createRestaurant(user.id, values.name, values.slug, values.description);
+      if (!created) {
+        toast.error("Erro ao criar restaurante.");
+        return;
+      }
+      const patch: Partial<Restaurant> = {};
+      if (values.logo_url || values.banner_url || values.phone || values.whatsapp || values.address || values.pix_key) {
+        const ok = await updateRestaurant(created.id, {
+          logo_url: values.logo_url,
+          banner_url: values.banner_url,
+          phone: values.phone,
+          whatsapp: values.whatsapp,
+          address: values.address,
+          pix_key: values.pix_key,
+          primary_color: values.primary_color,
+          secondary_color: values.secondary_color,
+          status: values.status,
+        });
+        if (ok) Object.assign(created, { logo_url: values.logo_url, banner_url: values.banner_url, status: values.status });
+      }
+      setRestaurants((prev) => [created, ...prev]);
+      setDialogOpen(false);
+      toast.success("Restaurante criado!");
+    } finally {
+      setSubmitting(false);
     }
-
-    setMessage("Restaurante criado! Link: " + menuUrl(r.slug));
-    setNewName("");
-    setSlugPreview("");
-    setShowCreate(false);
-    const data = await getRestaurantsByOwner(user.id);
-    setRestaurants(data);
   }
 
-  async function copyLink(slug: string) {
-    const url = menuUrl(slug);
+  async function handleUpdate(values: RestaurantFormValues) {
+    if (!editing) return;
+    setSubmitting(true);
     try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      // fallback for older browsers / http contexts
-      const el = document.createElement("textarea");
-      el.value = url;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      el.remove();
+      const ok = await updateRestaurant(editing.id, {
+        name: values.name,
+        slug: values.slug,
+        description: values.description,
+        phone: values.phone,
+        whatsapp: values.whatsapp,
+        address: values.address,
+        logo_url: values.logo_url,
+        banner_url: values.banner_url,
+        primary_color: values.primary_color,
+        secondary_color: values.secondary_color,
+        status: values.status,
+        pix_key: values.pix_key,
+      });
+      if (!ok) {
+        toast.error("Erro ao salvar.");
+        return;
+      }
+      setRestaurants((prev) => prev.map((r) => (r.id === editing.id ? ({ ...r, ...values } as Restaurant) : r)));
+      setEditing(null);
+      toast.success("Restaurante atualizado!");
+    } finally {
+      setSubmitting(false);
     }
-    setCopied(slug);
-    setTimeout(() => setCopied(null), 2000);
+  }
+
+  async function handleTogglePublish(r: Restaurant) {
+    setTogglingId(r.id);
+    const next = r.status === "published" ? "paused" : "published";
+    const ok = await updateRestaurant(r.id, { status: next });
+    setTogglingId(null);
+    if (!ok) {
+      toast.error("Falha ao alterar status.");
+      return;
+    }
+    setRestaurants((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
+    toast.success(next === "published" ? "Publicado!" : "Despublicado (pausado).");
+  }
+
+  async function handleDelete() {
+    if (!deleting) return;
+    const ok = await deleteRestaurant(deleting.id);
+    if (!ok) {
+      toast.error("Erro ao excluir.");
+      return;
+    }
+    setRestaurants((prev) => prev.filter((r) => r.id !== deleting.id));
+    setDeleting(null);
+    toast.success("Restaurante excluído.");
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Restaurantes</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Cada restaurante tem um link público próprio em /cardapio/seu-slug
-          </p>
+          <h1 className="text-2xl font-black tracking-tight text-white">Restaurantes</h1>
+          <p className="mt-1 text-sm leading-relaxed text-gray-500">Cada restaurante tem seu link público em /cardapio/seu-slug. Gerencie tudo por aqui.</p>
         </div>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center justify-center gap-2 rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setDialogOpen(true);
+          }}
+          className="shrink-0 rounded-full bg-cyan-500 px-5 text-sm font-bold text-black hover:bg-cyan-400"
         >
           <Plus className="size-4" /> Novo restaurante
-        </button>
+        </Button>
       </div>
 
-      {message && (
-        <div className="break-all rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-300">
-          {message}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-gray-600" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome ou slug…" className="border-white/10 bg-white/[0.04] pl-9 text-white placeholder:text-gray-600" />
         </div>
-      )}
-
-      {showCreate && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h3 className="mb-4 text-base font-semibold text-white">
-            Criar novo restaurante
-          </h3>
-
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-400">
-                Nome do restaurante
-              </label>
-              <input
-                value={newName}
-                onChange={(e) => {
-                  setNewName(e.target.value);
-                  const slug = e.target.value
-                    .normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, "")
-                    .toLowerCase()
-                    .replace(/[^a-z0-9\s-]/g, "")
-                    .replace(/\s+/g, "-")
-                    .replace(/-+/g, "-")
-                    .replace(/^-|-$/g, "");
-                  setSlugPreview(slug);
-                }}
-                placeholder="Ex: Pizzaria do Mario"
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
-              />
-              <p className="mt-1.5 text-[11px] text-gray-600">
-                Somente letras, números e hífens. O link é gerado automaticamente.
-              </p>
-            </div>
-
-            {slugPreview && (
-              <div className="rounded-lg border border-white/5 bg-white/[0.03] px-4 py-3">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
-                  URL do cardápio (pré-visualização)
-                </p>
-                <p className="mt-1 break-all font-mono text-sm text-cyan-400">
-                  /cardapio/{slugPreview}
-                </p>
-                <p className="mt-1 text-[11px] text-gray-600">
-                  O link final fica publicado imediatamente e já pode ser compartilhado.
-                </p>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleCreate}
-                disabled={creating || !newName.trim()}
-                className="rounded-lg bg-cyan-500 px-6 py-2.5 text-sm font-semibold text-black transition-all hover:bg-cyan-400 disabled:opacity-40"
-              >
-                {creating ? "Criando..." : "Criar restaurante"}
-              </button>
-              <button
-                onClick={() => {
-                  setShowCreate(false);
-                  setNewName("");
-                  setSlugPreview("");
-                }}
-                className="rounded-lg border border-white/10 px-6 py-2.5 text-sm text-gray-400 hover:text-white hover:border-white/20 transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        <span className="hidden text-xs text-gray-500 sm:inline">
+          {filtered.length} de {restaurants.length}
+        </span>
+      </div>
 
       {error && (
         <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
           <AlertCircle className="mx-auto size-8 text-red-400" />
           <p className="mt-3 text-sm text-red-300">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
-          >
+          <button onClick={() => window.location.reload()} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400">
             <RefreshCw className="size-4" /> Tentar novamente
           </button>
         </div>
       )}
 
-      {!error && (
-        <>
-          {authLoading || loading ? (
-            <div className="flex justify-center py-12">
-              <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-            </div>
-          ) : restaurants.length === 0 ? (
-            <div className="rounded-2xl border border-white/5 bg-white/[0.02] py-16 text-center">
-              <Store className="mx-auto size-12 text-gray-700" />
-              <p className="mt-4 text-sm text-gray-400">
-                Nenhum restaurante criado ainda
-              </p>
-              <p className="mt-1 text-xs text-gray-600">
-                Clique em "Novo restaurante" para começar
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {restaurants.map((r) => (
-                <div
-                  key={r.id}
-                  className="group rounded-xl border border-white/5 bg-white/[0.02] p-5 transition-all hover:border-white/10"
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-4">
-                    <div
-                      className="flex size-12 shrink-0 items-center justify-center rounded-xl"
-                      style={{ backgroundColor: r.primary_color + "18" }}
-                    >
-                      {r.logo_url ? (
-                        <img
-                          src={r.logo_url}
-                          alt={r.name}
-                          className="size-12 rounded-xl object-cover"
-                        />
-                      ) : (
-                        <Store className="size-5 text-cyan-400" />
-                      )}
-                    </div>
+      {!error && (authLoading || loading ? <div className="flex justify-center py-12"><div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" /></div> : filtered.length === 0 ? (
+        <div className="rounded-2xl border border-white/5 bg-white/[0.02] py-12 text-center">
+          <Store className="mx-auto size-10 text-gray-700" />
+          <p className="mt-3 text-sm font-semibold text-white">{restaurants.length === 0 ? "Nenhum restaurante ainda" : "Nenhum resultado"}</p>
+          <p className="mt-1 text-xs text-gray-500">{restaurants.length === 0 ? "Clique em \"Novo restaurante\" para começar." : "Tente outro termo de busca."}</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((r) => (
+            <RestaurantCardCompact
+              key={r.id}
+              restaurant={r}
+              onEdit={() => {
+                setEditing(r);
+                setDialogOpen(true);
+              }}
+              onTogglePublish={() => handleTogglePublish(r)}
+              onDelete={() => setDeleting(r)}
+              onManageMenu={() => navigate({ to: "/admin/cardapio" })}
+              onManageOrders={() => navigate({ to: "/admin/pedidos" })}
+              onSettings={() => navigate({ to: "/admin/config" })}
+              toggling={togglingId === r.id}
+            />
+          ))}
+        </div>
+      ))}
 
-                    <div className="min-w-0 flex-1">
-                      <p className="text-base font-semibold text-white">{r.name}</p>
-                      <p className="mt-0.5 break-all font-mono text-xs text-gray-500">
-                        /cardapio/{r.slug}
-                      </p>
-                    </div>
+      <RestaurantDialog
+        open={dialogOpen}
+        onOpenChange={(o) => {
+          setDialogOpen(o);
+          if (!o) setEditing(null);
+        }}
+        restaurant={editing}
+        submitting={submitting}
+        onSubmit={async (values, isEdit) => (isEdit ? handleUpdate(values) : handleCreate(values))}
+      />
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                          r.status === "published"
-                            ? "bg-green-500/15 text-green-400"
-                            : r.status === "paused"
-                              ? "bg-yellow-500/15 text-yellow-400"
-                              : "bg-gray-500/15 text-gray-400"
-                        }`}
-                      >
-                        {r.status === "published"
-                          ? "PUBLICADO"
-                          : r.status === "paused"
-                            ? "PAUSADO"
-                            : "RASCUNHO"}
-                      </span>
-
-                      <button
-                        onClick={() => copyLink(r.slug)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-gray-400 transition-colors hover:border-cyan-500/30 hover:text-cyan-400"
-                        title="Copiar link"
-                      >
-                        {copied === r.slug ? (
-                          <Check className="size-4" />
-                        ) : (
-                          <Copy className="size-4" />
-                        )}
-                        {copied === r.slug ? "Copiado" : "Copiar"}
-                      </button>
-
-                      <a
-                        href={menuUrl(r.slug)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/20"
-                        title="Abrir cardápio"
-                      >
-                        <ExternalLink className="size-4" /> Abrir
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title="Excluir restaurante?"
+        description={deleting ? `Isso apaga "${deleting.name}" e todo o cardápio e histórico vinculados. Não há desfazer.` : ""}
+        confirmLabel="Excluir"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

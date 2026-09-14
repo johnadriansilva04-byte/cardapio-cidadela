@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   RefreshCw,
   Printer,
@@ -12,7 +12,11 @@ import {
   CreditCard,
   ShoppingBag,
   AlertCircle,
+  Search,
+  Calendar,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Restaurant, Order, OrderStatus } from "@/lib/types";
 import {
   brl,
@@ -27,6 +31,8 @@ import {
   getOrdersByRestaurant,
   updateOrderStatus,
 } from "@/modules/supabase/orders";
+import { supabase } from "@/modules/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 const OPERATIONAL_STATUSES: OrderStatus[] = [
   "received",
@@ -34,6 +40,7 @@ const OPERATIONAL_STATUSES: OrderStatus[] = [
   "ready",
   "out_for_delivery",
   "delivered",
+  "cancelled",
 ];
 
 const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
@@ -45,11 +52,28 @@ const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
   cancelled: null,
 };
 
+type PeriodKey = "today" | "7d" | "30d" | "all";
+
+function periodStart(period: PeriodKey): Date | null {
+  if (period === "all") return null;
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  if (period === "today") return d;
+  if (period === "7d") {
+    d.setDate(d.getDate() - 7);
+    return d;
+  }
+  d.setDate(d.getDate() - 30);
+  return d;
+}
+
 export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
+  const [q, setQ] = useState("");
+  const [period, setPeriod] = useState<PeriodKey>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
@@ -86,10 +110,54 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
     };
   }, [restaurant.id]);
 
-  // Realtime subscription is handled by the parent admin layout
-  // (admin.tsx) which subscribes once per restaurant for order alerts.
-  // Avoid subscribing here to prevent "cannot add postgres_changes
-  // callbacks after subscribe" errors from duplicate channel names.
+  // Realtime distinto para não colidir com o badge do layout (admin.tsx usa orders_${id})
+  useEffect(() => {
+    let channel: RealtimeChannel | null = null;
+    let poll: ReturnType<typeof setInterval> | null = null;
+    channel = supabase
+      .channel(`orders_pedidos_${restaurant.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${restaurant.id}` },
+        (payload) => {
+          const eventType = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
+          const row = (payload.new ?? payload.old) as Order | undefined;
+          if (!row) return;
+          if (eventType === "INSERT") {
+            setOrders((prev) => {
+              if (prev.some((o) => o.id === row.id)) return prev;
+              return [payload.new as Order, ...prev];
+            });
+          } else if (eventType === "UPDATE") {
+            setOrders((prev) => prev.map((o) => (o.id === (payload.new as Order).id ? ({ ...o, ...(payload.new as Order) } as Order) : o)));
+          } else if (eventType === "DELETE") {
+            const oldId = (payload.old as { id: string }).id;
+            setOrders((prev) => prev.filter((o) => o.id !== oldId));
+          }
+        },
+      )
+      .subscribe();
+
+    poll = setInterval(() => {
+      // fallback polling silencioso quando realtime falhar
+      getOrdersByRestaurant(restaurant.id).then((data) => {
+        // só atualiza se tamanho/status mudou para evitar piscar
+        setOrders((prev) => {
+          if (prev.length !== data.length) return data;
+          const prevMap = new Map(prev.map((o) => [o.id, o.status]));
+          const changed = data.some((d) => prevMap.get(d.id) !== d.status);
+          return changed ? data : prev;
+        });
+      }).catch(() => {});
+    }, 15000);
+
+    return () => {
+      if (poll) clearInterval(poll);
+      if (channel) {
+        try { supabase.removeChannel(channel); } catch { /* ignore */ }
+      }
+    };
+  }, [restaurant.id]);
 
   async function changeStatus(orderId: string, status: OrderStatus) {
     const ok = await updateOrderStatus(orderId, status);
@@ -145,9 +213,34 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
     sendToWhatsApp(phone, msg);
   }
 
-  function filteredOrders() {
-    if (filter === "all") {
-      return [...orders].sort((a, b) => {
+  const statusCounts = useMemo(() => orders.reduce(
+    (acc, o) => {
+      acc[o.status] = (acc[o.status] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  ), [orders]);
+
+  const displayedOrders = useMemo(() => {
+    let list = [...orders];
+    const start = periodStart(period);
+    if (start) {
+      const ts = start.getTime();
+      list = list.filter((o) => new Date(o.created_at).getTime() >= ts);
+    }
+    if (q.trim()) {
+      const needle = q.trim().toLowerCase();
+      list = list.filter((o) =>
+        o.comanda.toLowerCase().includes(needle) ||
+        o.customer_name.toLowerCase().includes(needle) ||
+        o.customer_phone.toLowerCase().includes(needle) ||
+        o.id.toLowerCase().includes(needle),
+      );
+    }
+    if (filter !== "all") {
+      list = list.filter((o) => o.status === filter);
+    } else {
+      list.sort((a, b) => {
         const priority: Record<string, number> = {
           received: 0,
           preparing: 1,
@@ -159,18 +252,8 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         return (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
       });
     }
-    return orders.filter((o) => o.status === filter);
-  }
-
-  const statusCounts = orders.reduce(
-    (acc, o) => {
-      acc[o.status] = (acc[o.status] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
-
-  const displayedOrders = filteredOrders();
+    return list;
+  }, [orders, period, q, filter]);
 
   if (loading && orders.length === 0) {
     return (
@@ -197,25 +280,55 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      {/* compact status stats */}
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
         {OPERATIONAL_STATUSES.map((s) => (
           <button
             key={s}
             onClick={() => setFilter(filter === s ? "all" : s)}
-            className={`rounded-xl border p-3 text-center transition-all ${
+            className={`rounded-xl border p-2.5 text-center transition-all sm:p-3 ${
               filter === s
                 ? "border-cyan-500 bg-cyan-500/15 shadow-[0_0_15px_rgba(6,182,212,0.15)]"
                 : "border-white/5 bg-white/[0.02] hover:border-white/10"
             }`}
           >
-            <p className="text-2xl font-black text-white">
+            <p className="text-xl font-black text-white sm:text-2xl">
               {statusCounts[s] ?? 0}
             </p>
-            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">
+            <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wide text-gray-400 sm:text-[9px]">
               {ORDER_STATUS_LABELS[s]}
             </p>
           </button>
         ))}
+      </div>
+
+      {/* filters: busca + período */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-gray-600" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar por comanda, nome ou telefone…"
+            className="border-white/10 bg-white/[0.03] pl-9 text-white placeholder:text-gray-600"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Calendar className="size-3.5" /> Período
+          </div>
+          <Select value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
+            <SelectTrigger className="h-9 w-[160px] border-white/10 bg-white/[0.04] text-xs text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="border-white/10 bg-[#1a1a22] text-white">
+              <SelectItem value="today">Hoje</SelectItem>
+              <SelectItem value="7d">Últimos 7 dias</SelectItem>
+              <SelectItem value="30d">Últimos 30 dias</SelectItem>
+              <SelectItem value="all">Tudo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="flex items-center justify-between">
@@ -229,7 +342,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         </button>
         <span className="text-[11px] text-gray-500">
           {displayedOrders.length} pedido{displayedOrders.length !== 1 ? "s" : ""} • {" "}
-          {filter === "all" ? "Todos" : ORDER_STATUS_LABELS[filter]}
+          {filter === "all" ? "Todos" : ORDER_STATUS_LABELS[filter]}{period !== "all" ? ` • ${period === "today" ? "hoje" : period}` : ""}{q ? ` • busca: "${q}"` : ""}
         </span>
       </div>
 
@@ -240,7 +353,11 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
             Nenhum pedido
             {filter !== "all"
               ? ` com status "${ORDER_STATUS_LABELS[filter]}"`
-              : " — os novos pedidos aparecem aqui ao vivo"}
+              : q
+                ? ` para "${q}"`
+                : period !== "all"
+                  ? " neste período"
+                  : " — os novos pedidos aparecem aqui ao vivo"}
           </p>
         </div>
       ) : (

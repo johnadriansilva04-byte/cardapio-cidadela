@@ -7,6 +7,7 @@ import {
   Store,
   Sandwich,
   ClipboardList,
+  Wallet,
   Share2,
   Settings,
   ChevronLeft,
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { to: "/admin/restaurantes", label: "Restaurantes", icon: Store },
   { to: "/admin/cardapio", label: "Cardápio", icon: Sandwich },
   { to: "/admin/pedidos", label: "Pedidos", icon: ClipboardList },
+  { to: "/admin/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/admin/compartilhar", label: "Compartilhar", icon: Share2 },
   { to: "/admin/config", label: "Configurações", icon: Settings },
 ] as const;

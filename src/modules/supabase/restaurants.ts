@@ -2,6 +2,9 @@ import { supabase } from "./client";
 import { getCurrentUser } from "./auth";
 import type { Restaurant } from "@/lib/types";
 
+// Cache admin_trials availability per session to avoid repeated 400 errors
+let _adminTrialsAvailable: boolean | null = null;
+
 /**
  * Resolve a slug to a restaurant
  */
@@ -249,25 +252,28 @@ export async function ensureRestaurantsForUser(user: {
 }): Promise<void> {
   if (!user?.id) return;
 
+  // Skip if admin_trials was already confirmed missing
+  if (_adminTrialsAvailable === false) return;
+
   const lookups = [user.email, user.phone].filter(
     (v): v is string => Boolean(v),
   ) as string[];
   if (lookups.length === 0) return;
 
-  let trials: { store_id: string; store_name: string | null; store_slogan: string | null; pix_key: string | null; whatsapp: string | null }[] | null = null;
-  try {
-    const result = await supabase
-      .from("admin_trials")
-      .select("store_id, store_name, store_slogan, pix_key, whatsapp")
-      .or(lookups.flatMap((v) => [`admin_email=eq.${v}`, `admin_phone=eq.${v}`]).join(","))
-      .eq("is_active", true)
-      .limit(10);
-    trials = result.data;
-  } catch {
-    // admin_trials table may not exist — safe to ignore
+  const { data: trials, error } = await supabase
+    .from("admin_trials")
+    .select("store_id, store_name, store_slogan, pix_key, whatsapp")
+    .or(lookups.flatMap((v) => [`admin_email=eq.${v}`, `admin_phone=eq.${v}`]).join(","))
+    .eq("is_active", true)
+    .limit(10);
+
+  if (error) {
+    // Table doesn't exist or has wrong schema — don't retry this session
+    _adminTrialsAvailable = false;
     return;
   }
 
+  _adminTrialsAvailable = true;
   if (!trials || trials.length === 0) return;
 
   for (const trial of trials) {

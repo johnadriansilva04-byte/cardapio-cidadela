@@ -3,7 +3,6 @@ import {
   RefreshCw,
   Printer,
   ExternalLink,
-  Phone,
   MapPin,
   MessageCircle,
   User,
@@ -16,6 +15,8 @@ import {
   XCircle,
   Clock,
   Bike,
+  History,
+  ChevronDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Restaurant, Order, OrderStatus } from "@/lib/types";
 import {
   brl,
@@ -48,16 +50,7 @@ import { supabase } from "@/modules/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
 
-const OPERATIONAL_STATUSES: OrderStatus[] = [
-  "received",
-  "preparing",
-  "ready",
-  "out_for_delivery",
-  "delivered",
-  "cancelled",
-];
-
-// Colunas do Kanban — ativos em ordem de fluxo, entregues e cancelados ao fim
+// Colunas do Kanban — ativos em ordem de fluxo; entregues e cancelados ficam no histórico
 const KANBAN_COLUMNS: { status: OrderStatus; label: string; icon: typeof Clock }[] = [
   { status: "received", label: "Recebidos", icon: ShoppingBag },
   { status: "preparing", label: "Em preparo", icon: Clock },
@@ -115,6 +108,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
   const [q, setQ] = useState("");
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [detail, setDetail] = useState<Order | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -225,6 +219,11 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         ),
       );
     }
+  }
+
+  function requestCancel(order: Order) {
+    if (!window.confirm(`Cancelar o pedido ${order.comanda}?`)) return;
+    changeStatus(order.id, "cancelled");
   }
 
   function printOrder(order: Order) {
@@ -344,21 +343,23 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
 
   return (
     <div className="space-y-4">
-      {/* compact status stats */}
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-        {OPERATIONAL_STATUSES.map((s) => (
+      {/* Atalhos de filtro — apenas fluxo operacional (entregues/cancelados seguem no histórico) */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {KANBAN_COLUMNS.map((s) => (
           <button
-            key={s}
-            onClick={() => setFilter(filter === s ? "all" : s)}
+            key={s.status}
+            onClick={() => setFilter(filter === s.status ? "all" : s.status)}
             className={`rounded-xl border p-2.5 text-center transition-all sm:p-3 ${
-              filter === s
+              filter === s.status
                 ? "border-cyan-500 bg-cyan-500/15 shadow-[0_0_15px_rgba(6,182,212,0.15)]"
                 : "border-white/5 bg-white/[0.02] hover:border-white/10"
             }`}
           >
-            <p className="text-xl font-black text-white sm:text-2xl">{statusCounts[s] ?? 0}</p>
+            <p className="text-xl font-black text-white sm:text-2xl">
+              {statusCounts[s.status] ?? 0}
+            </p>
             <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wide text-gray-400 sm:text-[9px]">
-              {ORDER_STATUS_LABELS[s]}
+              {s.label}
             </p>
           </button>
         ))}
@@ -465,6 +466,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
                           order={order}
                           onOpen={() => setDetail(order)}
                           onAdvance={() => changeStatus(order.id, NEXT_STATUS[order.status]!)}
+                          onCancel={() => requestCancel(order)}
                         />
                       ))
                     )}
@@ -474,56 +476,96 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
             })}
           </div>
 
-          {/* Entregues + cancelados */}
-          <div className="grid gap-3 lg:grid-cols-2">
-            {(["delivered", "cancelled"] as OrderStatus[]).map((s) => {
-              const colOrders = displayedOrders.filter((o) => o.status === s);
-              return (
-                <div
-                  key={s}
+          {/* Histórico: entregues + cancelados recolhidos */}
+          <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+            <div className="overflow-hidden rounded-2xl border border-white/5 bg-black/20">
+              <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-white/[0.03]">
+                <span className="grid size-6 place-items-center rounded-lg bg-white/10 text-gray-300">
+                  <History className="size-3.5" />
+                </span>
+                <span className="flex-1 truncate text-xs font-bold uppercase tracking-widest text-gray-300">
+                  Histórico
+                </span>
+                {(function () {
+                  const delivered = displayedOrders.filter((o) => o.status === "delivered");
+                  const cancelled = displayedOrders.filter((o) => o.status === "cancelled");
+                  return (
+                    <span className="flex items-center gap-1.5 text-[10px] font-semibold">
+                      {delivered.length > 0 && (
+                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-300">
+                          {delivered.length} entregue{delivered.length === 1 ? "" : "s"}
+                        </span>
+                      )}
+                      {cancelled.length > 0 && (
+                        <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-red-300">
+                          {cancelled.length} cancelado{cancelled.length === 1 ? "" : "s"}
+                        </span>
+                      )}
+                      {delivered.length + cancelled.length === 0 && (
+                        <span className="text-gray-600">sem itens no período</span>
+                      )}
+                    </span>
+                  );
+                })()}
+                <ChevronDown
                   className={cn(
-                    "flex flex-col rounded-2xl border bg-black/20 opacity-90",
-                    COLUMN_ACCENT[s],
+                    "size-4 shrink-0 text-gray-500 transition-transform",
+                    historyOpen && "rotate-180",
                   )}
-                >
-                  <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2.5">
-                    <span
-                      className={cn(
-                        "grid size-6 place-items-center rounded-lg",
-                        COLUMN_HEAD_ICON[s],
-                      )}
-                    >
-                      {s === "cancelled" ? (
-                        <XCircle className="size-3.5" />
-                      ) : (
-                        <CheckCircle2 className="size-3.5" />
-                      )}
-                    </span>
-                    <p className="flex-1 truncate text-xs font-bold uppercase tracking-widest text-gray-300">
-                      {ORDER_STATUS_LABELS[s]}
-                    </p>
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white">
-                      {colOrders.length}
-                    </span>
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {displayedOrders.some(
+                  (o) => o.status === "delivered" || o.status === "cancelled",
+                ) ? (
+                  <div className="grid gap-3 border-t border-white/5 p-2 lg:grid-cols-2">
+                    {(["delivered", "cancelled"] as OrderStatus[]).map((s) => {
+                      const colOrders = displayedOrders.filter((o) => o.status === s);
+                      if (colOrders.length === 0) return null;
+                      return (
+                        <div key={s} className="rounded-xl bg-black/20">
+                          <div className="flex items-center gap-2 px-3 py-2">
+                            <span
+                              className={cn(
+                                "grid size-6 place-items-center rounded-lg",
+                                COLUMN_HEAD_ICON[s],
+                              )}
+                            >
+                              {s === "cancelled" ? (
+                                <XCircle className="size-3.5" />
+                              ) : (
+                                <CheckCircle2 className="size-3.5" />
+                              )}
+                            </span>
+                            <p className="flex-1 truncate text-xs font-bold uppercase tracking-widest text-gray-300">
+                              {ORDER_STATUS_LABELS[s]}
+                            </p>
+                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white">
+                              {colOrders.length}
+                            </span>
+                          </div>
+                          <div className="space-y-2 px-2 pb-2">
+                            {colOrders.map((order) => (
+                              <OrderCard
+                                key={order.id}
+                                order={order}
+                                compact
+                                onOpen={() => setDetail(order)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="space-y-2 p-2">
-                    {colOrders.length === 0 ? (
-                      <p className="py-4 text-center text-xs text-gray-600">Nenhum no período</p>
-                    ) : (
-                      colOrders.map((order) => (
-                        <OrderCard
-                          key={order.id}
-                          order={order}
-                          compact
-                          onOpen={() => setDetail(order)}
-                        />
-                      ))
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                ) : (
+                  <p className="border-t border-white/5 px-3 py-4 text-center text-xs text-gray-600">
+                    Nenhum pedido entregue ou cancelado no período.
+                  </p>
+                )}
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
         </div>
       )}
 
@@ -543,11 +585,13 @@ function OrderCard({
   order,
   onOpen,
   onAdvance,
+  onCancel,
   compact = false,
 }: {
   order: Order;
   onOpen: () => void;
   onAdvance?: () => void;
+  onCancel?: () => void;
   compact?: boolean;
 }) {
   const next = NEXT_STATUS[order.status];
@@ -588,7 +632,25 @@ function OrderCard({
           </span>
         </div>
       </button>
-      {onAdvance && next && !compact && (
+      {onCancel && order.status !== "cancelled" && order.status !== "delivered" && !compact && (
+        <div className="mt-2 flex items-center gap-1.5">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-[10px] font-bold text-red-300 transition-colors hover:bg-red-500/20"
+          >
+            Cancelar
+          </button>
+          {onAdvance && next && (
+            <button
+              onClick={onAdvance}
+              className="flex-1 rounded-lg bg-cyan-500/15 px-2 py-1.5 text-[10px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-black"
+            >
+              → {nextLabel}
+            </button>
+          )}
+        </div>
+      )}
+      {!onCancel && onAdvance && next && !compact && (
         <button
           onClick={onAdvance}
           className="mt-2 w-full rounded-lg bg-cyan-500/15 px-2 py-1.5 text-[10px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-black"

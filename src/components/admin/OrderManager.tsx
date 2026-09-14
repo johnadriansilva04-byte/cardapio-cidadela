@@ -242,6 +242,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
           product_name: i.product_name,
           quantity: i.quantity,
           total: i.total,
+          notes: (i as unknown as { notes?: string }).notes ?? "",
         })),
         created_at: order.created_at,
       },
@@ -746,16 +747,28 @@ function OrderDetailDialog({
               <ShoppingBag className="size-3" /> Pedido
             </p>
             {order.order_items && order.order_items.length > 0 && (
-              <div className="space-y-1.5">
-                {order.order_items.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="min-w-0 flex-1 truncate text-gray-300">
-                      <span className="font-bold text-white">{item.quantity}x</span>{" "}
-                      {item.product_name}
-                    </span>
-                    <span className="shrink-0 font-semibold text-white">{brl(item.total)}</span>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {order.order_items.map((item) => {
+                  const notes = (item as unknown as { notes?: string }).notes ?? "";
+                  const hasAddons = notes.toLowerCase().includes("adicionais:");
+                  return (
+                    <div key={item.id} className="rounded-lg border border-white/[0.04] bg-black/20 px-2.5 py-2">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="min-w-0 flex-1 truncate text-gray-200">
+                          <span className="font-bold text-white">{item.quantity}x</span> {item.product_name}
+                        </span>
+                        <span className="shrink-0 font-bold text-white">{brl(item.total)}</span>
+                      </div>
+                      {notes && (
+                        <p
+                          className={`mt-1 rounded-md px-2 py-1 text-[11px] leading-relaxed ${hasAddons ? "border border-violet-500/20 bg-violet-500/10 text-violet-200" : "bg-white/[0.04] text-gray-400"}`}
+                        >
+                          {notes}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
             {order.observations && (

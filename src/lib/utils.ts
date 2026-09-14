@@ -94,7 +94,7 @@ export function buildThermalTicket(
     delivery_fee?: number;
     payment_method: string;
     change_for?: string;
-    order_items?: { product_name: string; quantity: number; total: number }[];
+    order_items?: { product_name: string; quantity: number; total: number; notes?: string }[];
     created_at: string;
   },
   restaurantName: string,
@@ -108,6 +108,18 @@ export function buildThermalTicket(
   const isDelivery = order.delivery_type === "entrega";
   const fee = isDelivery ? (order.delivery_fee ?? 0) : 0;
 
+  const itemRows: string[] = [];
+  for (const i of items) {
+    itemRows.push(row(`${i.quantity}x ${i.product_name}`, brl(i.total)));
+    if (i.notes) {
+      // quebra notas em linhas de até W-2 chars com prefixo "  > "
+      const note = i.notes.slice(0, 200);
+      const chunks: string[] = [];
+      for (let c = 0; c < note.length; c += W - 4) chunks.push(note.slice(c, c + (W - 4)));
+      for (const ch of chunks) itemRows.push(`  > ${ch}`);
+    }
+  }
+
   const rows = [
     center(restaurantName.toUpperCase()),
     center("PEDIDO"),
@@ -118,7 +130,7 @@ export function buildThermalTicket(
     `FONE...: ${order.customer_phone}`,
     isDelivery ? `ENDER..: ${order.delivery_address}` : "RETIRADA NO BALCAO",
     line,
-    ...items.map((i) => row(`${i.quantity}x ${i.product_name}`, brl(i.total))),
+    ...itemRows,
     line,
   ];
 
@@ -254,7 +266,7 @@ export function buildWhatsAppMessage(
     comanda: string;
     customer_name: string;
     total: number;
-    order_items?: { product_name: string; quantity: number; total: number }[];
+    order_items?: { product_name: string; quantity: number; total: number; notes?: string }[];
     observations: string;
     payment_method: string;
     delivery_type: string;
@@ -286,6 +298,7 @@ export function buildWhatsAppMessage(
 
   order.order_items?.forEach((i) => {
     lines.push(`  ${i.quantity}x ${i.product_name} — ${brl(i.total)}`);
+    if (i.notes) lines.push(`     _${i.notes}_`);
   });
 
   lines.push("");

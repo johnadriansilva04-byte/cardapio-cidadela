@@ -14,6 +14,9 @@ import {
   Loader2,
   UtensilsCrossed,
   ImageOff,
+  Sparkles,
+  Layers3,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +24,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageField } from "@/components/admin/ImageField";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
-import type { Restaurant, Category, Product } from "@/lib/types";
+import type { Restaurant, Category, Product, ProductAddon } from "@/lib/types";
 import { brl } from "@/lib/utils";
-import { validateImageUrl } from "@/lib/imageValidation";
 import {
   getCategories,
   createCategory,
@@ -36,6 +38,10 @@ import {
   moveProductsToCategory,
   reorderCategories,
   reorderProducts,
+  getAddonsByRestaurant,
+  createProductAddon,
+  updateProductAddon,
+  deleteProductAddon,
 } from "@/modules/supabase/menu";
 import { updateRestaurant } from "@/modules/supabase/restaurants";
 import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
@@ -49,6 +55,7 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   const [publishing, setPublishing] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [addons, setAddons] = useState<ProductAddon[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [newCatName, setNewCatName] = useState("");
@@ -65,6 +72,13 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   const [editProd, setEditProd] = useState({ name: "", description: "", price: "", image_url: "" });
   const [prodToDelete, setProdToDelete] = useState<Product | null>(null);
 
+  // adicionais
+  const [openAddonsFor, setOpenAddonsFor] = useState<string | null>(null);
+  const [newAddon, setNewAddon] = useState<Record<string, { name: string; price: string }>>({});
+  const [editingAddonId, setEditingAddonId] = useState<string | null>(null);
+  const [editAddon, setEditAddon] = useState<{ name: string; price: string }>({ name: "", price: "" });
+  const [addonToDelete, setAddonToDelete] = useState<ProductAddon | null>(null);
+
   useEffect(() => {
     loadMenu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,12 +86,14 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
 
   async function loadMenu() {
     setLoading(true);
-    const [cats, prods] = await Promise.all([
+    const [cats, prods, ads] = await Promise.all([
       getCategories(restaurant.id),
       getProducts(restaurant.id),
+      getAddonsByRestaurant(restaurant.id),
     ]);
     setCategories(cats);
     setProducts(prods);
+    setAddons(ads);
     setLoading(false);
   }
 
@@ -170,11 +186,6 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   async function addProduct(catId: string) {
     const form = prodForms[catId];
     if (!form?.name.trim() || !form.price) return;
-    const vErr = validateImageUrl(form.imageUrl);
-    if (vErr && form.imageUrl.includes("facebook.com")) {
-      toast.error(vErr);
-      return;
-    }
     const price = Number(form.price.replace(",", "."));
     if (isNaN(price) || price <= 0) {
       toast.error("Preço inválido.");
@@ -204,11 +215,6 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   }
 
   async function saveProduct(id: string) {
-    const vErr = validateImageUrl(editProd.image_url);
-    if (vErr && editProd.image_url.includes("facebook.com")) {
-      toast.error(vErr);
-      return;
-    }
     const price = Number(editProd.price.replace(",", "."));
     if (isNaN(price) || price <= 0) {
       toast.error("Preço inválido.");
@@ -273,9 +279,68 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
     const ok = await deleteProduct(prodToDelete.id);
     if (ok) {
       setProducts((prev) => prev.filter((p) => p.id !== prodToDelete.id));
+      setAddons((prev) => prev.filter((a) => a.product_id !== prodToDelete.id));
       toast.success("Produto excluído.");
     } else toast.error("Erro ao excluir.");
     setProdToDelete(null);
+  }
+
+  // ====== ADDONS ======
+  async function handleCreateAddon(productId: string) {
+    const f = newAddon[productId];
+    if (!f?.name.trim() || !f.price) {
+      toast.error("Preencha nome e preço do adicional");
+      return;
+    }
+    const price = Number(f.price.replace(",", "."));
+    if (isNaN(price) || price < 0) {
+      toast.error("Preço inválido");
+      return;
+    }
+    const created = await createProductAddon({
+      restaurant_id: restaurant.id,
+      product_id: productId,
+      name: f.name.trim(),
+      price,
+    });
+    if (!created) {
+      toast.error("Erro ao criar adicional — verifique se o supabase/schema.sql foi executado no Supabase.");
+      return;
+    }
+    setAddons((prev) => [...prev, created]);
+    setNewAddon((prev) => ({ ...prev, [productId]: { name: "", price: "" } }));
+    toast.success(`Adicional "${created.name}" adicionado!`);
+  }
+
+  async function handleUpdateAddon(id: string) {
+    const price = Number(editAddon.price.replace(",", "."));
+    if (!editAddon.name.trim() || isNaN(price) || price < 0) {
+      toast.error("Nome e preço válidos obrigatórios");
+      return;
+    }
+    const ok = await updateProductAddon(id, { name: editAddon.name.trim(), price });
+    if (!ok) {
+      toast.error("Falha ao salvar adicional");
+      return;
+    }
+    setAddons((prev) => prev.map((a) => (a.id === id ? { ...a, name: editAddon.name.trim(), price } : a)));
+    setEditingAddonId(null);
+    toast.success("Adicional atualizado!");
+  }
+
+  async function handleToggleAddon(id: string, available: boolean) {
+    const ok = await updateProductAddon(id, { available });
+    if (ok) setAddons((prev) => prev.map((a) => (a.id === id ? { ...a, available } : a)));
+  }
+
+  async function handleDeleteAddon() {
+    if (!addonToDelete) return;
+    const ok = await deleteProductAddon(addonToDelete.id);
+    if (ok) {
+      setAddons((prev) => prev.filter((a) => a.id !== addonToDelete.id));
+      toast.success("Adicional removido");
+    } else toast.error("Erro ao excluir adicional");
+    setAddonToDelete(null);
   }
 
   if (loading) {
@@ -393,9 +458,9 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
             accent={products.filter((p) => p.available).length > 0}
           />
           <StatCard
-            label="Pausados"
-            value={String(products.length - products.filter((p) => p.available).length)}
-            accent={false}
+            label="Adicionais"
+            value={String(addons.length)}
+            accent={addons.length > 0}
           />
         </div>
       )}
@@ -526,6 +591,10 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
 
                   {catProducts.map((p, prodIndex) => {
                     const isProdEditing = editingProdId === p.id;
+                    const prodAddons = addons
+                      .filter((a) => a.product_id === p.id)
+                      .sort((a, b) => a.sort_order - b.sort_order);
+                    const addonsOpen = openAddonsFor === p.id;
                     if (isProdEditing) {
                       return (
                         <div
@@ -571,13 +640,13 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                                 inputMode="decimal"
                               />
                             </div>
-                            <ImageField
-                              label="Foto"
-                              value={editProd.image_url}
-                              onChange={(v) => setEditProd({ ...editProd, image_url: v })}
-                              restaurantId={restaurant.id}
-                              kind="product"
-                            />
+                        <ImageField
+                          label="Foto do produto"
+                          value={editProd.image_url}
+                          onChange={(v) => setEditProd({ ...editProd, image_url: v })}
+                          restaurantId={restaurant.id}
+                          kind="product"
+                        />
                           </div>
                           <div className="flex gap-2">
                             <Button
@@ -600,106 +669,317 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                     return (
                       <div
                         key={p.id}
-                        className={`group flex items-center gap-3 rounded-xl border p-2.5 transition-all ${
+                        className={`group rounded-xl border transition-all ${
                           p.available
                             ? "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.14] hover:bg-white/[0.04]"
                             : "border-amber-500/15 bg-amber-500/[0.03] opacity-80 hover:opacity-100"
                         }`}
                       >
-                        {p.image_url ? (
-                          <img
-                            src={p.image_url}
-                            alt={p.name}
-                            className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl object-cover ring-1 ring-white/10"
-                            onError={(e) => {
-                              e.currentTarget.style.opacity = "0.15";
-                            }}
-                          />
-                        ) : (
-                          <div className="grid size-14 shrink-0 place-items-center rounded-xl bg-white/[0.03] text-gray-700 ring-1 ring-white/10">
-                            <ImageOff className="size-5 text-gray-600" />
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-white">{p.name}</p>
-                          {p.description && (
-                            <p className="truncate text-xs text-gray-500">{p.description}</p>
+                        <div className="flex items-center gap-3 p-2.5">
+                          {p.image_url ? (
+                            <img
+                              src={p.image_url}
+                              alt={p.name}
+                              className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl object-cover ring-1 ring-white/10"
+                              onError={(e) => {
+                                e.currentTarget.style.opacity = "0.15";
+                              }}
+                            />
+                          ) : (
+                            <div className="grid size-14 shrink-0 place-items-center rounded-xl bg-white/[0.03] text-gray-700 ring-1 ring-white/10">
+                              <ImageOff className="size-5 text-gray-600" />
+                            </div>
                           )}
-                          <div className="mt-1 flex items-center gap-2">
-                            <p className="text-sm font-black text-cyan-300">{brl(p.price)}</p>
-                            {!p.available && (
-                              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
-                                Pausado
-                              </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-white">{p.name}</p>
+                            {p.description && (
+                              <p className="truncate text-xs text-gray-500">{p.description}</p>
                             )}
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-black text-cyan-300">{brl(p.price)}</p>
+                              {!p.available && (
+                                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
+                                  Pausado
+                                </span>
+                              )}
+                              {prodAddons.length > 0 && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold text-violet-300">
+                                  <Sparkles className="size-3" /> {prodAddons.length} adicional
+                                  {prodAddons.length !== 1 ? "es" : ""}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex shrink-0 flex-col items-end gap-1.5">
+                            <button
+                              onClick={() => toggleAvailability(p.id, !p.available)}
+                              title={p.available ? "Pausar produto" : "Ativar produto"}
+                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide transition-colors ${
+                                p.available
+                                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                                  : "border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                              }`}
+                            >
+                              {p.available ? (
+                                <Eye className="size-2.5" />
+                              ) : (
+                                <EyeOff className="size-2.5" />
+                              )}
+                              {p.available ? "Ativo" : "Pausado"}
+                            </button>
+                            <div className="flex items-center gap-0.5">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => moveProduct(p.id, "up")}
+                                disabled={prodIndex === 0}
+                                title="Mover para cima"
+                                className="size-7 text-gray-600 hover:text-white disabled:opacity-30"
+                              >
+                                <ArrowUp className="size-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => moveProduct(p.id, "down")}
+                                disabled={prodIndex === catProducts.length - 1}
+                                title="Mover para baixo"
+                                className="size-7 text-gray-600 hover:text-white disabled:opacity-30"
+                              >
+                                <ArrowDown className="size-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingProdId(p.id);
+                                  setEditProd({
+                                    name: p.name,
+                                    description: p.description,
+                                    price: String(p.price),
+                                    image_url: p.image_url,
+                                  });
+                                }}
+                                title="Editar produto"
+                                className="size-7 text-gray-600 hover:bg-cyan-500/15 hover:text-cyan-300"
+                              >
+                                <Pencil className="size-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setProdToDelete(p)}
+                                title="Excluir produto"
+                                className="size-7 text-gray-600 hover:bg-red-500/15 hover:text-red-400"
+                              >
+                                <Trash2 className="size-3" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        {/* Adicionais toggle */}
+                        <div className="border-t border-white/[0.06]">
                           <button
-                            onClick={() => toggleAvailability(p.id, !p.available)}
-                            title={p.available ? "Pausar produto" : "Ativar produto"}
-                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide transition-colors ${
-                              p.available
-                                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
-                                : "border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
-                            }`}
+                            onClick={() => setOpenAddonsFor(addonsOpen ? null : p.id)}
+                            className="flex w-full items-center justify-between px-3 py-2.5 text-left transition-colors hover:bg-white/[0.03]"
                           >
-                            {p.available ? (
-                              <Eye className="size-2.5" />
-                            ) : (
-                              <EyeOff className="size-2.5" />
-                            )}
-                            {p.available ? "Ativo" : "Pausado"}
+                            <span className="flex items-center gap-2 text-xs font-semibold text-gray-400">
+                              <span className="grid size-6 place-items-center rounded-lg bg-violet-500/15 text-violet-300">
+                                <Layers3 className="size-3.5" />
+                              </span>
+                              Adicionais
+                              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-300">
+                                {prodAddons.length}
+                              </span>
+                              {prodAddons.filter((a) => a.available).length !== prodAddons.length && (
+                                <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                                  {prodAddons.filter((a) => a.available).length} ativos
+                                </span>
+                              )}
+                            </span>
+                            <span
+                              className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+                                addonsOpen
+                                  ? "border-violet-500/40 bg-violet-500 text-white"
+                                  : "border-white/10 bg-white/[0.06] text-gray-400 hover:text-white"
+                              }`}
+                            >
+                              {addonsOpen ? "Fechar" : prodAddons.length ? "Gerenciar" : "Adicionar"}
+                            </span>
                           </button>
-                          <div className="flex items-center gap-0.5">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => moveProduct(p.id, "up")}
-                              disabled={prodIndex === 0}
-                              title="Mover para cima"
-                              className="size-7 text-gray-600 hover:text-white disabled:opacity-30"
-                            >
-                              <ArrowUp className="size-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => moveProduct(p.id, "down")}
-                              disabled={prodIndex === catProducts.length - 1}
-                              title="Mover para baixo"
-                              className="size-7 text-gray-600 hover:text-white disabled:opacity-30"
-                            >
-                              <ArrowDown className="size-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => {
-                                setEditingProdId(p.id);
-                                setEditProd({
-                                  name: p.name,
-                                  description: p.description,
-                                  price: String(p.price),
-                                  image_url: p.image_url,
-                                });
-                              }}
-                              title="Editar produto"
-                              className="size-7 text-gray-600 hover:bg-cyan-500/15 hover:text-cyan-300"
-                            >
-                              <Pencil className="size-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setProdToDelete(p)}
-                              title="Excluir produto"
-                              className="size-7 text-gray-600 hover:bg-red-500/15 hover:text-red-400"
-                            >
-                              <Trash2 className="size-3" />
-                            </Button>
-                          </div>
+
+                          {addonsOpen && (
+                            <div className="border-t border-white/[0.06] bg-[#0a0a12] p-3">
+                              {/* info */}
+                              <div className="mb-3 flex gap-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] px-3 py-2.5">
+                                <Sparkles className="mt-0.5 size-3.5 shrink-0 text-violet-400" />
+                                <p className="text-[11px] leading-relaxed text-violet-200/80">
+                                  Cada adicional fica <strong className="text-violet-200">vinculado a este lanche</strong> e
+                                  não vira categoria. O cliente clica no item e vê uma janelinha premium com ovo, queijo
+                                  etc. + preço — cada um soma no total.
+                                </p>
+                              </div>
+
+                              {/* lista */}
+                              {prodAddons.length === 0 ? (
+                                <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-6 text-center">
+                                  <Layers3 className="mx-auto size-5 text-gray-600" />
+                                  <p className="mt-2 text-xs font-semibold text-gray-500">
+                                    Nenhum adicional ainda
+                                  </p>
+                                  <p className="mt-1 text-[11px] text-gray-600">
+                                    Ex: Ovo, Queijo, Presunto, Hambúrguer extra…
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {prodAddons.map((a) => {
+                                    const isEditingAddon = editingAddonId === a.id;
+                                    if (isEditingAddon) {
+                                      return (
+                                        <div
+                                          key={a.id}
+                                          className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.04] p-2.5"
+                                        >
+                                          <div className="flex gap-2">
+                                            <Input
+                                              className={field + " flex-1"}
+                                              value={editAddon.name}
+                                              onChange={(e) => setEditAddon({ ...editAddon, name: e.target.value })}
+                                              placeholder="Nome (ex: Ovo)"
+                                              autoFocus
+                                            />
+                                            <div className="flex w-28 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2">
+                                              <DollarSign className="size-3.5 shrink-0 text-gray-500" />
+                                              <input
+                                                className="w-full bg-transparent py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none"
+                                                value={editAddon.price}
+                                                onChange={(e) => setEditAddon({ ...editAddon, price: e.target.value })}
+                                                placeholder="3,00"
+                                                inputMode="decimal"
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="mt-2 flex gap-2">
+                                            <Button
+                                              size="sm"
+                                              onClick={() => handleUpdateAddon(a.id)}
+                                              className="flex-1 bg-emerald-500 text-white hover:bg-emerald-400"
+                                            >
+                                              <Check className="size-3.5" /> Salvar
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => setEditingAddonId(null)}
+                                              className="flex-1 border-white/10 bg-white/[0.04] text-gray-300"
+                                            >
+                                              Cancelar
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <div
+                                        key={a.id}
+                                        className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${
+                                          a.available
+                                            ? "border-white/[0.06] bg-white/[0.03]"
+                                            : "border-amber-500/15 bg-amber-500/[0.04] opacity-70"
+                                        }`}
+                                      >
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-sm font-semibold text-white">{a.name}</p>
+                                          <p className="text-xs font-bold text-violet-300">+ {brl(Number(a.price))}</p>
+                                        </div>
+                                        <button
+                                          onClick={() => handleToggleAddon(a.id, !a.available)}
+                                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold uppercase ${
+                                            a.available
+                                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                                              : "border-amber-500/20 bg-amber-500/10 text-amber-300"
+                                          }`}
+                                        >
+                                          {a.available ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
+                                          {a.available ? "Ativo" : "Pausado"}
+                                        </button>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => {
+                                            setEditingAddonId(a.id);
+                                            setEditAddon({ name: a.name, price: String(a.price) });
+                                          }}
+                                          className="size-7 shrink-0 text-gray-500 hover:text-white"
+                                        >
+                                          <Pencil className="size-3" />
+                                        </Button>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => setAddonToDelete(a)}
+                                          className="size-7 shrink-0 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
+                                        >
+                                          <Trash2 className="size-3" />
+                                        </Button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* novo */}
+                              <div className="mt-3 rounded-xl border border-dashed border-violet-500/25 bg-violet-500/[0.04] p-3">
+                                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-violet-300">
+                                  Novo adicional para {p.name}
+                                </p>
+                                <div className="flex gap-2">
+                                  <Input
+                                    className={field + " flex-1"}
+                                    placeholder="Ex: Ovo"
+                                    value={newAddon[p.id]?.name ?? ""}
+                                    onChange={(e) =>
+                                      setNewAddon((prev) => ({
+                                        ...prev,
+                                        [p.id]: { name: e.target.value, price: prev[p.id]?.price ?? "" },
+                                      }))
+                                    }
+                                    onKeyDown={(e) => e.key === "Enter" && handleCreateAddon(p.id)}
+                                  />
+                                  <div className="flex w-28 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2">
+                                    <DollarSign className="size-3.5 shrink-0 text-gray-500" />
+                                    <input
+                                      className="w-full bg-transparent py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none"
+                                      placeholder="3,00"
+                                      inputMode="decimal"
+                                      value={newAddon[p.id]?.price ?? ""}
+                                      onChange={(e) =>
+                                        setNewAddon((prev) => ({
+                                          ...prev,
+                                          [p.id]: { name: prev[p.id]?.name ?? "", price: e.target.value },
+                                        }))
+                                      }
+                                      onKeyDown={(e) => e.key === "Enter" && handleCreateAddon(p.id)}
+                                    />
+                                  </div>
+                                  <Button
+                                    onClick={() => handleCreateAddon(p.id)}
+                                    disabled={!newAddon[p.id]?.name.trim() || !newAddon[p.id]?.price}
+                                    className="shrink-0 bg-violet-500 text-white hover:bg-violet-400 disabled:opacity-40"
+                                  >
+                                    <Plus className="size-4" /> Add
+                                  </Button>
+                                </div>
+                                <p className="mt-2 text-[11px] text-gray-500">
+                                  Dica: use <span className="font-mono text-gray-400">3,00</span> ou{" "}
+                                  <span className="font-mono text-gray-400">3.00</span> — o valor some ao preço do lanche.
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -741,7 +1021,6 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                           onChange={(v) => updateProdForm(cat.id, "imageUrl", v)}
                           restaurantId={restaurant.id}
                           kind="product"
-                          placeholder="https://.../produto.jpg"
                         />
                       </div>
                       <div className="flex gap-2">
@@ -795,6 +1074,14 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
         description={prodToDelete ? `"${prodToDelete.name}" será removido do cardápio.` : ""}
         confirmLabel="Excluir"
         onConfirm={confirmDeleteProduct}
+      />
+      <ConfirmDialog
+        open={Boolean(addonToDelete)}
+        onOpenChange={(o) => !o && setAddonToDelete(null)}
+        title="Excluir adicional?"
+        description={addonToDelete ? `"${addonToDelete.name}" será removido deste produto.` : ""}
+        confirmLabel="Excluir"
+        onConfirm={handleDeleteAddon}
       />
     </div>
   );

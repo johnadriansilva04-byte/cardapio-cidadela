@@ -19,7 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImageField } from "@/components/admin/ImageField";
-import { validateImageUrl } from "@/lib/imageValidation";
 import type { Restaurant, RestaurantStatus } from "@/lib/types";
 import { generateUniqueSlug } from "@/modules/supabase/restaurants";
 
@@ -118,15 +117,6 @@ export function RestaurantDialog({
     if (!slug) {
       setError("Slug inválido. Use letras, números e hífens.");
       return;
-    }
-    // validate image urls
-    const imgErr = validateImageUrl(form.logo_url) ?? validateImageUrl(form.banner_url);
-    if (imgErr && (form.logo_url || form.banner_url)) {
-      // don't block — ImageField already shows warning, but block facebook page urls
-      if (form.logo_url.includes("facebook.com") || form.banner_url.includes("facebook.com")) {
-        setError(imgErr);
-        return;
-      }
     }
     const uniqueSlug = await generateUniqueSlug(slug, restaurant?.id);
     await onSubmit({ ...form, name, slug: uniqueSlug }, isEdit);
@@ -336,22 +326,28 @@ export function RestaurantDialog({
             </div>
           </div>
 
-          <ImageField
-            label="Logo do restaurante"
-            value={form.logo_url}
-            onChange={(v) => setForm((s) => ({ ...s, logo_url: v }))}
-            restaurantId={rid}
-            kind="logo"
-            placeholder="https://.../logo.jpg"
-          />
-          <ImageField
-            label="Banner / capa"
-            value={form.banner_url}
-            onChange={(v) => setForm((s) => ({ ...s, banner_url: v }))}
-            restaurantId={rid}
-            kind="banner"
-            placeholder="https://.../banner.jpg"
-          />
+          {isEdit ? (
+            <>
+              <ImageField
+                label="Logo do restaurante"
+                value={form.logo_url}
+                onChange={(v) => setForm((s) => ({ ...s, logo_url: v }))}
+                restaurantId={rid}
+                kind="logo"
+              />
+              <ImageField
+                label="Banner / capa"
+                value={form.banner_url}
+                onChange={(v) => setForm((s) => ({ ...s, banner_url: v }))}
+                restaurantId={rid}
+                kind="banner"
+              />
+            </>
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-xs leading-relaxed text-gray-500">
+              Logo e banner podem ser enviados após criar o restaurante — clique em <strong className="text-gray-300">Editar</strong> para fazer o upload (JPG, PNG ou WebP até 5 MB).
+            </div>
+          )}
 
           {error && (
             <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">

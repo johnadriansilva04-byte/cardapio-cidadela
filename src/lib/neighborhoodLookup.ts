@@ -24,6 +24,8 @@ export interface CityLookupResult {
   cityName: string;
   /** UF encontrada (ex.: "SC"). */
   stateCode: string;
+  /** OSM relation id do município (para Overpass area 3600000000+id). */
+  osmId: number;
   /** Latitude do centre do município. */
   lat: number;
   /** Longitude do centre do município. */
@@ -89,6 +91,7 @@ export async function geocodeCity(
   return {
     cityName: match.name ?? city,
     stateCode: stateCode || state.toUpperCase() || "BR",
+    osmId: match.osm_id,
     lat: parseFloat(match.lat),
     lon: parseFloat(match.lon),
   };
@@ -114,7 +117,7 @@ export async function searchNeighborhoodsByCity(
   if (!city) return { city: null, neighborhoods: [] };
 
   const neighborhoods = await fetchNeighborhoods({
-    data: { cityName: city.cityName, stateCode: city.stateCode },
+    data: { cityName: city.cityName, stateCode: city.stateCode, osmId: city.osmId },
   });
   return { city, neighborhoods };
 }

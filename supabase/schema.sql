@@ -33,11 +33,25 @@ CREATE TABLE IF NOT EXISTS restaurants (
   status restaurant_status DEFAULT 'draft',
   pix_key TEXT DEFAULT '',
   delivery_fee NUMERIC(10,2) DEFAULT 0,
+  operating_hours JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 -- Migração segura: garante colunas de entrega em bancos criados por versões antigas do schema
 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS delivery_fee NUMERIC(10,2) DEFAULT 0;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS operating_hours JSONB;
+-- Backfill: linhas antigas sem horário ganham padrão 17:00 — 00:00 todos os dias
+UPDATE restaurants
+SET operating_hours = '{
+  "seg": {"closed": false, "open": "17:00", "close": "00:00"},
+  "ter": {"closed": false, "open": "17:00", "close": "00:00"},
+  "qua": {"closed": false, "open": "17:00", "close": "00:00"},
+  "qui": {"closed": false, "open": "17:00", "close": "00:00"},
+  "sex": {"closed": false, "open": "17:00", "close": "00:00"},
+  "sab": {"closed": false, "open": "17:00", "close": "00:00"},
+  "dom": {"closed": false, "open": "17:00", "close": "00:00"}
+}'::jsonb
+WHERE operating_hours IS NULL;
 -- Taxa por bairro substitui o raio de entrega. Remove a coluna legada se existir.
 ALTER TABLE restaurants DROP COLUMN IF EXISTS delivery_radius_km;
 
@@ -97,6 +111,25 @@ CREATE TABLE IF NOT EXISTS products (
 
 CREATE INDEX IF NOT EXISTS idx_products_restaurant ON products(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+
+-- ============================================================
+-- PRODUCT ADDONS — cada lanche pode ter extras (Ovo, Queijo…)
+-- Um adicional pertence a UM produto específico e não vira
+-- categoria. O cliente escolhe no modal premium. Idempotente.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS product_addons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  price NUMERIC(10,2) NOT NULL DEFAULT 0,
+  available BOOLEAN DEFAULT true,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_product_addons_restaurant ON product_addons(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_product_addons_product ON product_addons(product_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_product_addons_unique_name ON product_addons(product_id, lower(name));
 
 -- ============================================================
 -- ADD-ON GROUPS (optional)
@@ -643,6 +676,12 @@ CREATE POLICY "owner_products" ON products FOR ALL
 CREATE POLICY "public_read_products" ON products FOR SELECT
   USING (restaurant_id IN (SELECT id FROM restaurants WHERE status = 'published'));
 
+-- PRODUCT ADDONS
+ALTER TABLE product_addons ENABLE ROW LEVEL SECURITY;
+SELECT drop_policies_if_exist('product_addons');
+CREATE POLICY "owner_product_addons" ON product_addons FOR ALL USING (is_restaurant_owner(restaurant_id));
+CREATE POLICY "public_read_product_addons" ON product_addons FOR SELECT USING (restaurant_id IN (SELECT id FROM restaurants WHERE status='published'));
+
 -- DELIVERY NEIGHBORHOODS
 ALTER TABLE delivery_neighborhoods ENABLE ROW LEVEL SECURITY;
 SELECT drop_policies_if_exist('delivery_neighborhoods');
@@ -889,6 +928,57 @@ BEGIN
 END $$;
 
 -- ============================================================
+-- STORAGE — bucket restaurant-images + RLS policies
+-- Único bucket para logo/banner/produtos. Leitura pública, escrita só do dono.
+-- ============================================================
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('restaurant-images', 'restaurant-images', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+CREATE OR REPLACE FUNCTION public.is_owner_of_storage_path(obj_name text)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  rid_text text;
+  rid uuid;
+BEGIN
+  rid_text := (string_to_array(obj_name, '/'))[1];
+  IF rid_text IS NULL OR rid_text = '' THEN RETURN false; END IF;
+  BEGIN
+    rid := rid_text::uuid;
+  EXCEPTION WHEN others THEN
+    RETURN false;
+  END;
+  RETURN is_restaurant_owner(rid);
+END;
+$$;
+
+DO $$ BEGIN DROP POLICY IF EXISTS "Public read restaurant-images" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Owner insert restaurant-images" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Owner update restaurant-images" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Owner delete restaurant-images" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "public read restaurant-images" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "owner insert restaurant-images" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "owner update restaurant-images" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "owner delete restaurant-images" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
+
+CREATE POLICY "Public read restaurant-images"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'restaurant-images');
+
+CREATE POLICY "Owner insert restaurant-images"
+  ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'restaurant-images' AND public.is_owner_of_storage_path(name));
+
+CREATE POLICY "Owner update restaurant-images"
+  ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'restaurant-images' AND public.is_owner_of_storage_path(name))
+  WITH CHECK (bucket_id = 'restaurant-images' AND public.is_owner_of_storage_path(name));
+
+CREATE POLICY "Owner delete restaurant-images"
+  ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'restaurant-images' AND public.is_owner_of_storage_path(name));
+
+-- ============================================================
 -- GRANTS — permissões explícitas para os roles do PostgREST.
 -- O Supabase concede por padrão; estes GRANTs garantem que o
 -- schema também funcione 100% num banco recém-criado sem depender
@@ -896,7 +986,7 @@ END $$;
 -- ============================================================
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 
-GRANT SELECT ON TABLE restaurants, categories, products, addon_groups, addons TO anon, authenticated;
+GRANT SELECT ON TABLE restaurants, categories, products, product_addons, addon_groups, addons TO anon, authenticated;
 GRANT INSERT, SELECT ON TABLE orders TO anon, authenticated;
 GRANT INSERT, SELECT ON TABLE order_items TO anon, authenticated;
 GRANT INSERT, SELECT ON TABLE order_status_history TO anon, authenticated;
@@ -905,6 +995,6 @@ GRANT SELECT ON TABLE profiles TO anon, authenticated;
 GRANT SELECT ON order_tracking TO anon, authenticated;
 
 -- Admin/dono: acesso total às tabelas de domínio via policies de owner
-GRANT ALL ON TABLE restaurants, categories, products, addon_groups, addons,
+GRANT ALL ON TABLE restaurants, categories, products, product_addons, addon_groups, addons,
   orders, order_items, order_status_history, cidadela_unlocks TO authenticated;
 GRANT ALL ON TABLE admin_trials, chat_messages, game_sessions, game_moves, profiles TO anon, authenticated, service_role;

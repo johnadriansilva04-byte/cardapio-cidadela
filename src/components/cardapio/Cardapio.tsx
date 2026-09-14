@@ -18,18 +18,19 @@ import {
 import { Link } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
 import { getRestaurantBySlug, getNeighborhoods } from "@/modules/supabase/restaurants";
-import { getMenuWithProducts } from "@/modules/supabase/menu";
+import { getMenuWithProducts, getAddonsByRestaurant } from "@/modules/supabase/menu";
 import { supabase } from "@/modules/supabase/client";
 import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
 import { brl, hexToRgba, newComanda } from "@/lib/utils";
 import { getOrCreateGuestId, rememberOrderId } from "@/lib/guestOrder";
-import type { Product, Category, Restaurant, Order, DeliveryNeighborhood } from "@/lib/types";
+import type { Product, Category, Restaurant, Order, DeliveryNeighborhood, ProductAddon, SelectedAddon } from "@/lib/types";
 import CartSheet from "./CartSheet";
 import CheckoutModal from "./CheckoutModal";
 import type { CheckoutForm } from "./CheckoutModal";
 import PaymentScreen from "./PaymentScreen";
 import SuccessModal from "./SuccessModal";
+import ProductAddonsModal from "./ProductAddonsModal";
 import {
   normalizeOperatingHours,
   isOpenNow,
@@ -202,6 +203,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<DeliveryNeighborhood[]>([]);
+  const [productAddons, setProductAddons] = useState<ProductAddon[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeCat, setActiveCat] = useState("");
@@ -214,6 +216,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const submittingRef = useRef(false);
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({});
   const [now, setNow] = useState(() => new Date());
+  const [addonModalProduct, setAddonModalProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -238,11 +241,12 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         }
         setRestaurant(r);
         const { categories: cats, products: prods } = await getMenuWithProducts(r.id);
-        const [nbrs] = await Promise.all([getNeighborhoods(r.id)]);
+        const [nbrs, pas] = await Promise.all([getNeighborhoods(r.id), getAddonsByRestaurant(r.id)]);
         if (!alive) return;
         setCategories(cats);
         setProducts(prods);
         setNeighborhoods(nbrs);
+        setProductAddons(pas);
         if (cats.length > 0) setActiveCat((prev) => prev || cats[0].id);
       } catch (e) {
         console.error("[public menu] load", e);
@@ -274,9 +278,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       if (!alive) return;
       try {
         const { categories: cats, products: prods } = await getMenuWithProducts(restaurantId);
+        const pas = await getAddonsByRestaurant(restaurantId);
         if (!alive) return;
         setCategories(cats);
         setProducts(prods);
+        setProductAddons(pas);
       } catch {
         /* ignore */
       }
@@ -296,6 +302,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       .channel(`public-menu-${restaurantId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "categories", filter: `restaurant_id=eq.${restaurantId}` }, refreshMenu)
       .on("postgres_changes", { event: "*", schema: "public", table: "products", filter: `restaurant_id=eq.${restaurantId}` }, refreshMenu)
+      .on("postgres_changes", { event: "*", schema: "public", table: "product_addons", filter: `restaurant_id=eq.${restaurantId}` }, refreshMenu)
       .on("postgres_changes", { event: "*", schema: "public", table: "restaurants", filter: `id=eq.${restaurantId}` }, refreshRestaurant)
       .subscribe();
 
@@ -311,21 +318,61 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     };
   }, [restaurant?.id, slug]);
 
-  const lines = useMemo(() => cart.map((ci) => ({ item: ci.product, qty: ci.quantity })), [cart]);
-  const count = lines.reduce((s, l) => s + l.qty, 0);
-  const subtotal = lines.reduce((s, l) => s + l.item.price * l.qty, 0);
+  const addonsByProduct = useMemo(() => {
+    const m = new Map<string, ProductAddon[]>();
+    for (const a of productAddons) {
+      if (!m.has(a.product_id)) m.set(a.product_id, []);
+      m.get(a.product_id)!.push(a);
+    }
+    // ensure sorted
+    for (const [k, v] of m) m.set(k, [...v].sort((a,b)=>a.sort_order-b.sort_order));
+    return m;
+  }, [productAddons]);
 
-  const add = useCallback((product: Product) => addToCart(product), [addToCart]);
-  const remove = useCallback((productId: string) => removeFromCart(productId), [removeFromCart]);
+  const lines = useMemo(() => {
+    return cart.map((ci) => {
+      const addonsPrice = ci.addons?.reduce((s, a) => s + Number(a.price), 0) ?? 0;
+      const unit = Number(ci.product.price) + addonsPrice;
+      return {
+        item: ci.product,
+        qty: ci.quantity,
+        addons: ci.addons ?? [],
+        notes: ci.notes ?? "",
+        unitPrice: unit,
+        lineTotal: unit * ci.quantity,
+      };
+    });
+  }, [cart]);
+
+  const count = lines.reduce((s, l) => s + l.qty, 0);
+  const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
+
+  const handleAddSimple = useCallback((product: Product) => addToCart(product), [addToCart]);
+  const handleRemove = useCallback((productId: string, addons?: SelectedAddon[]) => removeFromCart(productId, addons), [removeFromCart]);
 
   function scrollToCat(id: string) {
     setActiveCat(id);
     sectionsRef.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function openAddonModal(product: Product) {
+    const list = addonsByProduct.get(product.id) ?? [];
+    const available = list.filter((a) => a.available);
+    if (available.length > 0) {
+      setAddonModalProduct(product);
+    } else {
+      addToCart(product);
+    }
+  }
+
+  function handleAddonConfirm(selected: SelectedAddon[], notes: string) {
+    if (!addonModalProduct) return;
+    addToCart(addonModalProduct, selected, notes);
+    setAddonModalProduct(null);
+  }
+
   async function handleCheckout(form: CheckoutForm) {
     if (!restaurant) return;
-    // Bloqueia envio se estiver fechado (UX clara)
     if (restaurant.operating_hours && !isOpenNow(restaurant.operating_hours as unknown as never, new Date())) {
       const nxt = getNextOpenInfo(restaurant.operating_hours as unknown as never, new Date());
       setCheckoutError(
@@ -340,19 +387,28 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     setSubmitting(true);
     setCheckoutError("");
     try {
-      const orderItems = lines.map((l) => ({
-        product_id: l.item.id,
-        product_name: l.item.name,
-        quantity: l.qty,
-        unit_price: l.item.price,
-        total: l.item.price * l.qty,
-        notes: "",
-      }));
+      const orderItems = lines.map((l) => {
+        const addonsLabel = l.addons.length ? ` (+ ${l.addons.map((a) => a.name).join(", ")})` : "";
+        const notesParts: string[] = [];
+        if (l.addons.length) {
+          notesParts.push(`Adicionais: ${l.addons.map((a) => `${a.name} (+${brl(Number(a.price))})`).join(", ")}`);
+        }
+        if (l.notes) notesParts.push(l.notes);
+        return {
+          product_id: l.item.id,
+          product_name: l.item.name + addonsLabel,
+          quantity: l.qty,
+          unit_price: l.unitPrice,
+          total: l.lineTotal,
+          notes: notesParts.join(" | "),
+        };
+      });
       const comanda = newComanda();
       const deliveryFee =
         form.delivery_type === "entrega" ? Number(form.delivery_fee ?? restaurant.delivery_fee ?? 0) : 0;
       const orderTotal = subtotal + deliveryFee;
       const guestId = getOrCreateGuestId();
+      // junta observações gerais + notas de itens já no notes por item
       const { order, error } = await createOrder(
         restaurant.id,
         {
@@ -379,8 +435,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         setCheckoutError(error?.message || "Não foi possível concluir o pedido agora. Confira sua conexão e tente novamente.");
         return;
       }
-      // Garante que o pedido fique acessível mesmo se o cliente fechar a
-      // página antes de tocar em "Acompanhar pedido" — exibe em /meus-pedidos.
       rememberOrderId(order.id);
       clearCart();
       setCheckoutOpen(false);
@@ -789,16 +843,23 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
                   <div className="grid gap-3">
                     {catProducts.map((item) => {
-                      const inCart = cart.find((ci) => ci.product.id === item.id);
+                      const prodAddons = addonsByProduct.get(item.id) ?? [];
+                      const availableAddons = prodAddons.filter((a) => a.available);
+                      const hasAddons = availableAddons.length > 0;
+                      const qtyInCart = cart.filter((ci) => ci.product.id === item.id).reduce((s, ci) => s + ci.quantity, 0);
+                      const simpleInCart = !hasAddons ? cart.find((ci) => ci.product.id === item.id) : null;
                       const canOrder = isCurrentlyOpen;
+
+                      // price hint for card: cheapest addon?
+                      const cheapestAddon = availableAddons.length ? Math.min(...availableAddons.map(a=>Number(a.price))) : null;
+
                       return (
                         <div
                           key={item.id}
                           className="group relative flex gap-4 overflow-hidden rounded-2xl border bg-[#0f0f17] p-3 transition-all hover:shadow-[0_12px_40px_rgba(0,0,0,0.4)] sm:p-4"
-                          style={{ borderColor: inCart ? hexToRgba(accent, 0.35) : "rgba(255,255,255,0.07)" }}
+                          style={{ borderColor: qtyInCart ? hexToRgba(accent, 0.35) : "rgba(255,255,255,0.07)" }}
                         >
-                          {/* accent left bar when in cart */}
-                          {inCart && <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accent }} />}
+                          {qtyInCart > 0 && <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accent }} />}
 
                           {item.image_url ? (
                             <img src={item.image_url} alt={item.name} className="size-20 shrink-0 rounded-xl object-cover sm:size-24" loading="lazy" />
@@ -816,34 +877,66 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                             {item.description && (
                               <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-gray-400">{item.description}</p>
                             )}
-                            <div className="mt-2 flex items-center gap-2">
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
                               <p className="text-sm font-black" style={{ color: accent }}>
                                 {brl(item.price)}
                               </p>
+                              {hasAddons && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/25 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-300">
+                                  <Sparkles className="size-3" /> + adicionais
+                                </span>
+                              )}
                               {!canOrder && (
                                 <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300">fechado</span>
                               )}
                             </div>
+                            {hasAddons && cheapestAddon != null && (
+                              <p className="mt-1 text-[11px] font-medium text-violet-300/70">
+                                adicionais a partir de + {brl(cheapestAddon)}
+                              </p>
+                            )}
+                            {hasAddons && qtyInCart > 0 && (
+                              <p className="mt-1 text-[11px] font-bold text-white/70">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white">
+                                  {qtyInCart} no carrinho
+                                </span>
+                              </p>
+                            )}
                           </div>
 
-                          <div className="flex shrink-0 flex-col justify-center">
-                            {item.available ? (
+                          <div className="flex shrink-0 flex-col justify-center gap-1.5">
+                            {hasAddons ? (
+                              <button
+                                onClick={() => canOrder && openAddonModal(item)}
+                                disabled={!canOrder}
+                                title={!canOrder ? "Restaurante fechado" : "Escolher adicionais"}
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2.5 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${canOrder ? "hover:shadow-lg hover:brightness-110" : ""}`}
+                                style={{
+                                  borderColor: hexToRgba(accent, canOrder ? 0.5 : 0.2),
+                                  color: canOrder ? "#fff" : "#6b7280",
+                                  backgroundColor: canOrder ? accent : hexToRgba(accent, 0.04),
+                                  boxShadow: canOrder ? `0 6px 18px ${hexToRgba(accent, 0.35)}` : undefined,
+                                }}
+                              >
+                                <Plus className="size-3.5" /> {qtyInCart ? "Adicionar +" : "Adicionar"}
+                              </button>
+                            ) : item.available ? (
                               <>
-                                {inCart ? (
+                                {simpleInCart ? (
                                   <div
                                     className="flex items-center gap-1 rounded-full border p-1 shadow-md"
                                     style={{ borderColor: hexToRgba(accent, 0.35), backgroundColor: hexToRgba(accent, 0.1) }}
                                   >
                                     <button
-                                      onClick={() => remove(item.id)}
+                                      onClick={() => handleRemove(item.id)}
                                       className="grid size-8 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
                                       aria-label={`Remover ${item.name}`}
                                     >
                                       <Minus className="size-3.5" />
                                     </button>
-                                    <span className="w-6 text-center text-sm font-black text-white">{inCart.quantity}</span>
+                                    <span className="w-6 text-center text-sm font-black text-white">{simpleInCart.quantity}</span>
                                     <button
-                                      onClick={() => add(item)}
+                                      onClick={() => handleAddSimple(item)}
                                       disabled={!canOrder}
                                       className="grid size-8 place-items-center rounded-full text-white transition-colors hover:brightness-110 disabled:opacity-40"
                                       style={{ backgroundColor: accent }}
@@ -854,7 +947,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                   </div>
                                 ) : (
                                   <button
-                                    onClick={() => canOrder && add(item)}
+                                    onClick={() => canOrder && handleAddSimple(item)}
                                     disabled={!canOrder}
                                     title={!canOrder ? "Restaurante fechado" : "Adicionar ao pedido"}
                                     className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2.5 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${canOrder ? "hover:shadow-lg hover:brightness-110" : ""}`}
@@ -925,11 +1018,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           lines={lines}
           subtotal={subtotal}
           accent={accent}
-          onInc={(id) => {
-            const product = products.find((p) => p.id === id);
-            if (product) add(product);
-          }}
-          onDec={remove}
+          onInc={(item, addons) => addToCart(item, addons)}
+          onDec={(item, addons) => removeFromCart(item.id, addons)}
           onClose={() => setCartOpen(false)}
           onCheckout={() => {
             if (!isCurrentlyOpen) {
@@ -964,6 +1054,19 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           onConfirm={handleCheckout}
         />
       )}
+
+      {addonModalProduct && (() => {
+        const list = addonsByProduct.get(addonModalProduct.id) ?? [];
+        return (
+          <ProductAddonsModal
+            product={addonModalProduct}
+            addons={list}
+            accent={accent}
+            onClose={() => setAddonModalProduct(null)}
+            onConfirm={handleAddonConfirm}
+          />
+        );
+      })()}
 
       {pendingOrder && (
         <PaymentScreen

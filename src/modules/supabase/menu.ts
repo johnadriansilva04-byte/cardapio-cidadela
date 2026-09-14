@@ -1,5 +1,5 @@
 import { supabase } from "./client";
-import type { Category, Product } from "@/lib/types";
+import type { Category, Product, ProductAddon } from "@/lib/types";
 
 /**
  * Get all categories for a restaurant with their products
@@ -244,6 +244,90 @@ export async function deleteProduct(id: string): Promise<boolean> {
     return false;
   }
   return true;
+}
+
+// ============================================================
+// PRODUCT ADDONS
+// ============================================================
+
+export async function getProductAddons(productId: string): Promise<ProductAddon[]> {
+  const { data, error } = await supabase
+    .from("product_addons")
+    .select("*")
+    .eq("product_id", productId)
+    .order("sort_order", { ascending: true });
+  if (error) {
+    // tabela ainda não existe (migration não rodada) — não quebra
+    if (String(error.message).toLowerCase().includes("product_addons")) return [];
+    console.error("getProductAddons", error);
+    return [];
+  }
+  return (data ?? []) as ProductAddon[];
+}
+
+export async function getAddonsByRestaurant(restaurantId: string): Promise<ProductAddon[]> {
+  const { data, error } = await supabase
+    .from("product_addons")
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .order("sort_order", { ascending: true });
+  if (error) {
+    if (String(error.message).toLowerCase().includes("product_addons")) return [];
+    console.error("getAddonsByRestaurant", error);
+    return [];
+  }
+  return (data ?? []) as ProductAddon[];
+}
+
+export async function createProductAddon(input: {
+  restaurant_id: string;
+  product_id: string;
+  name: string;
+  price: number;
+}): Promise<ProductAddon | null> {
+  const { data: existing } = await supabase
+    .from("product_addons")
+    .select("sort_order")
+    .eq("product_id", input.product_id)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+  const nextOrder = existing && existing.length > 0 ? existing[0].sort_order + 1 : 0;
+  const { data, error } = await supabase
+    .from("product_addons")
+    .insert({ ...input, sort_order: nextOrder, available: true })
+    .select()
+    .single();
+  if (error) {
+    console.error("createProductAddon", error);
+    return null;
+  }
+  return data as ProductAddon;
+}
+
+export async function updateProductAddon(
+  id: string,
+  updates: Partial<Pick<ProductAddon, "name" | "price" | "available">>,
+): Promise<boolean> {
+  const { error } = await supabase.from("product_addons").update(updates).eq("id", id);
+  if (error) {
+    console.error("updateProductAddon", error);
+    return false;
+  }
+  return true;
+}
+
+export async function deleteProductAddon(id: string): Promise<boolean> {
+  const { error } = await supabase.from("product_addons").delete().eq("id", id);
+  if (error) {
+    console.error("deleteProductAddon", error);
+    return false;
+  }
+  return true;
+}
+
+export async function reorderProductAddons(ids: string[]): Promise<boolean> {
+  const results = await Promise.all(ids.map((id, idx) => supabase.from("product_addons").update({ sort_order: idx }).eq("id", id)));
+  return !results.some((r) => r.error);
 }
 
 /**

@@ -349,6 +349,9 @@ export function getOwnerIdSync(userId: string | undefined): string {
  * For each active legacy trial whose email/phone matches the user, it creates the
  * restaurant (with owner_id = user.id) or claims an existing one created on-demand
  * by the public fallback (owner_id = trial.store_id).
+ *
+ * Usa `.in()` em vez de `.or()` — evita 400 por caracteres especiais como `@` no
+ * PostgREST (ex: 48999880030@menufacil.local) e é mais robusto para encode.
  */
 export async function ensureRestaurantsForUser(user: {
   id: string;
@@ -360,24 +363,40 @@ export async function ensureRestaurantsForUser(user: {
   // Skip if admin_trials was already confirmed missing
   if (_adminTrialsAvailable === false) return;
 
-  const lookups = [user.email, user.phone].filter((v): v is string => Boolean(v)) as string[];
+  const raw = [user.email, user.phone].filter((v): v is string => Boolean(v)) as string[];
+  const lookups = [...new Set(raw.map((v) => v.trim()).filter(Boolean))];
   if (lookups.length === 0) return;
 
-  const { data: trials, error } = await supabase
-    .from("admin_trials")
-    .select("store_id, store_name, store_slogan, pix_key, whatsapp")
-    .or(lookups.flatMap((v) => [`admin_email=eq.${v}`, `admin_phone=eq.${v}`]).join(","))
-    .eq("is_active", true)
-    .limit(10);
+  // Busca legacy em duas consultas com `.in()` (robusto p/ `@`, `+`, etc.)
+  const baseSel = "store_id, store_name, store_slogan, pix_key, whatsapp";
+  const [byEmail, byPhone] = await Promise.all([
+    supabase.from("admin_trials").select(baseSel).in("admin_email", lookups).eq("is_active", true).limit(10),
+    supabase.from("admin_trials").select(baseSel).in("admin_phone", lookups).eq("is_active", true).limit(10),
+  ]);
 
+  const error = byEmail.error ?? byPhone.error;
   if (error) {
-    // Table doesn't exist or has wrong schema — don't retry this session
-    _adminTrialsAvailable = false;
+    const code = String((error as unknown as { code?: string }).code ?? "");
+    const msg = String(error.message ?? "").toLowerCase();
+    // 42P01 = undefined_table, PGRST116 etc — legacy pode não existir no banco
+    if (code === "42P01" || code === "PGRST205" || msg.includes("admin_trials")) {
+      _adminTrialsAvailable = false;
+    }
     return;
   }
 
+  type LegacyRow = { store_id: string; store_name: string | null; store_slogan: string | null; pix_key: string | null; whatsapp: string | null };
+  const emailRows = (byEmail.data ?? []) as LegacyRow[];
+  const phoneRows = (byPhone.data ?? []) as LegacyRow[];
+  const merged = new Map<string, LegacyRow>();
+  for (const t of [...emailRows, ...phoneRows]) {
+    const key = String(t.store_id ?? "");
+    if (key && !merged.has(key)) merged.set(key, t);
+  }
+  const trials = [...merged.values()];
+
   _adminTrialsAvailable = true;
-  if (!trials || trials.length === 0) return;
+  if (trials.length === 0) return;
 
   for (const trial of trials) {
     const { data: existing } = await supabase

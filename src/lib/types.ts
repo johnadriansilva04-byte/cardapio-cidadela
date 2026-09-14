@@ -70,7 +70,27 @@ export interface Product {
   created_at: string;
 }
 
-// --- Add-ons ---
+// --- Product Add-ons (ex: Ovo, Queijo, Presunto no X-Burguer) ---
+// Cada produto pode ter vários adicionais configurados pelo restaurante.
+// O cliente marca os que quer no modal e paga o valor de cada um a mais.
+export interface ProductAddon {
+  id: string;
+  restaurant_id: string;
+  product_id: string;
+  name: string;
+  price: number;
+  available: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SelectedAddon {
+  addon_id: string;
+  name: string;
+  price: number;
+}
+
+// Legacy aliased types (mantidos para compat se algum código referenciar)
 export interface AddonGroup {
   id: string;
   restaurant_id: string;
@@ -167,6 +187,7 @@ export interface CartItem {
   product: Product;
   quantity: number;
   notes: string;
+  addons?: SelectedAddon[];
 }
 
 // --- Checkout form ---

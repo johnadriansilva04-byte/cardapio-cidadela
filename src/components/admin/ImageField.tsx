@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, Link2, X, AlertCircle, ImageIcon, Loader2 } from "lucide-react";
-import { validateImageUrl } from "@/lib/imageValidation";
+import { Upload, X, ImageIcon, Loader2, AlertCircle } from "lucide-react";
 import { uploadRestaurantImage } from "@/modules/supabase/storage";
 
 type Props = {
@@ -9,42 +8,51 @@ type Props = {
   onChange: (url: string) => void;
   restaurantId: string;
   kind: "logo" | "banner" | "product";
-  placeholder?: string;
-  helpText?: string;
 };
 
-export function ImageField({ label, value, onChange, restaurantId, kind, placeholder, helpText }: Props) {
+export function ImageField({ label, value, onChange, restaurantId, kind }: Props) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const validationMsg = validateImageUrl(value);
-
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) {
-      setUploadError("Arquivo muito grande (máx. 4MB).");
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      setUploadError("Selecione um arquivo de imagem.");
-      return;
-    }
-    setUploading(true);
     setUploadError(null);
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setUploadError("Formato não permitido. Use JPG, PNG ou WebP.");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("Arquivo muito grande (máx. 5 MB).");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
+    setUploading(true);
     const { url, error } = await uploadRestaurantImage(restaurantId, file, kind);
     setUploading(false);
     if (url) {
       onChange(url);
       setPreviewError(false);
+      setUploadError(null);
     } else {
-      setUploadError(error ?? "Falha no upload. Tente uma URL direta.");
+      setUploadError(error ?? "Falha no upload. Tente novamente.");
     }
-    // reset input so same file can be picked again
     if (inputRef.current) inputRef.current.value = "";
   }
+
+  const emptyLabel = kind === "logo" ? "Nenhuma logo ainda" : kind === "banner" ? "Nenhuma capa ainda" : "Sem imagem";
+  const cta = value ? "Trocar imagem" : "Upload";
+  const previewClass =
+    kind === "logo"
+      ? "h-28 object-contain p-3 bg-white/[0.02]"
+      : kind === "banner"
+        ? "h-36 object-cover"
+        : "h-32 object-cover";
 
   return (
     <div className="space-y-2">
@@ -53,72 +61,73 @@ export function ImageField({ label, value, onChange, restaurantId, kind, placeho
         {label}
       </label>
 
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Link2 className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-gray-600" />
-          <input
-            value={value}
-            onChange={(e) => {
-              onChange(e.target.value);
-              setPreviewError(false);
-            }}
-            placeholder={placeholder ?? "https://... (URL direta da imagem)"}
-            className={`w-full rounded-lg border bg-white/[0.03] py-2.5 pl-8 pr-3 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 ${
-              validationMsg
-                ? "border-amber-500/40 focus:border-amber-500/60 focus:ring-amber-500/20"
-                : "border-white/10 focus:border-cyan-500/50 focus:ring-cyan-500/20"
-            }`}
-          />
-        </div>
-        <label className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-xs font-semibold text-gray-300 hover:bg-white/[0.08] disabled:opacity-40">
-          {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
-          {uploading ? "Enviando…" : "Upload"}
-          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
-        </label>
-      </div>
-
-      <p className="text-[10px] leading-relaxed text-gray-500">
-        {helpText ?? "Insira a URL direta da imagem (terminando em .jpg, .jpeg, .png ou .webp) ou faça upload. Evite colar link de página do Facebook — copie o endereço da imagem."}
-      </p>
-
-      {validationMsg && (
-        <p className="flex items-start gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-300">
-          <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-          <span>{validationMsg}</span>
-        </p>
-      )}
-      {uploadError && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] leading-relaxed text-red-300">{uploadError}</p>
-      )}
-
-      {value ? (
-        <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/40">
-          {!previewError ? (
+      <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
+        {value && !previewError ? (
+          <div className="relative">
             <img
               src={value}
               alt={`Preview — ${label}`}
-              className={`w-full object-cover ${kind === "product" ? "h-32" : kind === "logo" ? "h-24 object-contain p-2" : "h-28"}`}
+              className={`w-full ${previewClass}`}
               onError={() => setPreviewError(true)}
             />
-          ) : (
-            <div className="flex h-24 items-center justify-center gap-2 px-3 text-xs text-red-400">
-              <AlertCircle className="size-4 shrink-0" />
-              <span>Não foi possível carregar esta imagem. Verifique a URL ou tente outro arquivo.</span>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              onChange("");
-              setPreviewError(false);
-            }}
-            className="absolute right-2 top-2 grid size-6 place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/80"
-            aria-label="Remover imagem"
-          >
-            <X className="size-3.5" />
-          </button>
-        </div>
-      ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                onChange("");
+                setPreviewError(false);
+              }}
+              className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/80"
+              aria-label="Remover imagem"
+              title="Remover imagem"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
+            {previewError ? (
+              <>
+                <AlertCircle className="size-6 text-red-400" />
+                <p className="text-xs text-red-300">Não foi possível carregar esta imagem. Tente outro arquivo.</p>
+                <button
+                  type="button"
+                  onClick={() => setPreviewError(false)}
+                  className="text-xs text-gray-400 underline hover:text-white"
+                >
+                  Tentar novamente
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="grid size-10 place-items-center rounded-xl bg-white/[0.04] text-gray-600">
+                  <ImageIcon className="size-5" />
+                </div>
+                <p className="text-xs font-medium text-gray-500">{emptyLabel}</p>
+                <p className="text-[11px] text-gray-600">JPG, PNG ou WebP até 5 MB</p>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <label className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-gray-200 hover:bg-white/[0.08] disabled:opacity-40">
+        {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+        {uploading ? "Enviando…" : cta}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+          className="hidden"
+          onChange={handleFile}
+          disabled={uploading}
+        />
+      </label>
+
+      {uploadError && (
+        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] leading-relaxed text-red-300">
+          {uploadError}
+        </p>
+      )}
     </div>
   );
 }

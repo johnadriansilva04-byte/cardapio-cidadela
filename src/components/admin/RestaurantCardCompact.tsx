@@ -6,11 +6,11 @@ import {
   Eye,
   EyeOff,
   ImageIcon,
-  UtensilsCrossed,
   ClipboardList,
   Settings2,
   LayoutGrid,
   ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +39,6 @@ export function RestaurantCardCompact({
   onEdit,
   onTogglePublish,
   onDelete,
-  onManageMenu,
   onManageOrders,
   onSettings,
   toggling = false,
@@ -52,7 +51,8 @@ export function RestaurantCardCompact({
   onEdit: () => void;
   onTogglePublish: () => void;
   onDelete: () => void;
-  onManageMenu: () => void;
+  /** Mantido por compatibilidade de API — o clique no card já abre a gestão (tab Cardápio). */
+  onManageMenu?: () => void;
   onManageOrders: () => void;
   onSettings: () => void;
   toggling?: boolean;
@@ -154,21 +154,13 @@ export function RestaurantCardCompact({
           </p>
         )}
 
-        <div className="mt-auto flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={onEdit}
-            className="h-7 rounded-full bg-white/10 px-3 text-xs text-white hover:bg-white/15"
-          >
-            <Pencil className="size-3" /> Editar
-          </Button>
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           <Button
             size="sm"
             variant="outline"
             onClick={onTogglePublish}
             disabled={toggling}
-            className={`h-7 rounded-full border px-3 text-xs ${isPublished ? "border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"}`}
+            className={`h-7 flex-1 gap-1.5 rounded-full border text-xs ${isPublished ? "border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"}`}
           >
             {isPublished ? (
               <>
@@ -186,18 +178,12 @@ export function RestaurantCardCompact({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 rounded-full bg-white/[0.06] px-3 text-xs text-gray-300 hover:bg-white/10 hover:text-white"
+                className="h-7 gap-1 rounded-full bg-white/[0.06] px-2.5 text-xs text-gray-300 hover:bg-white/10 hover:text-white"
               >
-                Mais
+                Gerenciar <ChevronDown className="size-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="border-white/10 bg-[#1a1a22] text-gray-200">
-              <DropdownMenuItem
-                onClick={onManageMenu}
-                className="gap-2 focus:bg-white/10 focus:text-white"
-              >
-                <UtensilsCrossed className="size-3.5" /> Cardápio
-              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={onManageOrders}
                 className="gap-2 focus:bg-white/10 focus:text-white"
@@ -217,14 +203,14 @@ export function RestaurantCardCompact({
               >
                 <Pencil className="size-3.5" /> Editar dados
               </DropdownMenuItem>
+              <DropdownMenuItem asChild className="gap-2 focus:bg-white/10 focus:text-white">
+                <Link to="/admin/compartilhar">Compartilhar</Link>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={onDelete}
                 className="gap-2 text-red-300 focus:bg-red-500/15 focus:text-red-200"
               >
                 <Trash2 className="size-3.5" /> Excluir
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="gap-2 focus:bg-white/10 focus:text-white">
-                <Link to="/admin/compartilhar">Compartilhar</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

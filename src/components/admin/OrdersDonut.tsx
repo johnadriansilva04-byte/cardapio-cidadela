@@ -16,10 +16,17 @@ type Props = {
   counts: Record<OrderStatus, number>;
   totalRevenue: number; // computado fora — usado no centro do donut e legenda
   totalOrders: number;
+  cancelledCount?: number;
   cancelledRevenue?: number;
 };
 
-export function OrdersDonut({ counts, totalOrders, totalRevenue, cancelledRevenue = 0 }: Props) {
+export function OrdersDonut({
+  counts,
+  totalOrders,
+  totalRevenue,
+  cancelledCount = 0,
+  cancelledRevenue = 0,
+}: Props) {
   const data = (Object.keys(counts) as OrderStatus[])
     .map((s) => ({
       name: ORDER_STATUS_LABELS[s],
@@ -40,19 +47,21 @@ export function OrdersDonut({ counts, totalOrders, totalRevenue, cancelledRevenu
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative h-[180px] w-full shrink-0 sm:h-[190px] sm:w-[220px]">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5">
+      <div className="flex flex-col gap-5 md:flex-row md:items-center">
+        <div className="relative mx-auto h-[190px] w-[220px] shrink-0 md:mx-0 md:h-[210px] md:w-[250px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 dataKey="value"
                 nameKey="name"
-                innerRadius={62}
-                outerRadius={88}
+                innerRadius={68}
+                outerRadius={96}
                 paddingAngle={2}
                 stroke="rgba(255,255,255,0.08)"
+                startAngle={90}
+                endAngle={-270}
               >
                 {data.map((e) => (
                   <Cell key={e.key} fill={e.color} />
@@ -81,16 +90,15 @@ export function OrdersDonut({ counts, totalOrders, totalRevenue, cancelledRevenu
             <p className="text-[9px] font-semibold uppercase tracking-widest text-gray-500">
               Faturamento
             </p>
-            <p className="text-sm font-black text-white">{brl(totalRevenue)}</p>
-            <p className="text-[10px] text-gray-500">{totalOrders} pedidos</p>
+            <p className="text-base font-black text-white">{brl(totalRevenue)}</p>
+            <p className="text-[10px] text-gray-500">
+              {totalOrders} pedido{totalOrders === 1 ? "" : "s"}
+            </p>
           </div>
         </div>
 
-        <div className="min-w-0 flex-1 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-            Pedidos por status
-          </p>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {(Object.keys(counts) as OrderStatus[]).map((s) => (
               <div
                 key={s}
@@ -104,15 +112,22 @@ export function OrdersDonut({ counts, totalOrders, totalRevenue, cancelledRevenu
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-gray-500">
-            Total <span className="font-bold text-white">{totalOrders}</span> pedidos • faturamento
-            não inclui cancelados{" "}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-[11px] text-gray-500">
+            <span>
+              Total no filtro: <span className="font-bold text-white">{totalOrders}</span>
+            </span>
             {cancelledRevenue > 0 && (
-              <span className="text-red-400">
-                (R$ {brl(cancelledRevenue).replace("R$ ", "")} cancelados fora)
+              <span>
+                <span className="text-red-400/90">
+                  {cancelledCount > 0
+                    ? `${cancelledCount} cancelado${cancelledCount === 1 ? "" : "s"}`
+                    : "Cancelados"}{" "}
+                  ({brl(cancelledRevenue)})
+                </span>{" "}
+                — fora do faturamento
               </span>
             )}
-          </p>
+          </div>
         </div>
       </div>
     </div>

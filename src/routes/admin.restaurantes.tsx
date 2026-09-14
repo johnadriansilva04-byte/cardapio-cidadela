@@ -307,7 +307,11 @@ function RestaurantesPage() {
                   })
                 }
                 onSettings={() =>
-                  navigate({ to: "/admin/cardapio", search: { restaurantId: r.id } })
+                  navigate({
+                    to: "/admin/restaurante/$id",
+                    params: { id: r.id },
+                    search: { tab: "config" },
+                  })
                 }
                 toggling={togglingId === r.id}
               />

@@ -10,10 +10,7 @@ import {
   RefreshCw,
   Wallet,
   UtensilsCrossed,
-  Timer,
-  CheckCircle2,
   Calendar,
-  Ban,
   LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
@@ -526,48 +523,24 @@ function AdminDashboardOverview() {
             </div>
           </section>
 
-          {/* Pedidos + Faturamento */}
-          <section className="grid gap-4 lg:grid-cols-5">
-            <div className="space-y-3 lg:col-span-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-bold tracking-tight text-white">
-                    Pedidos por status
-                  </h2>
-                  <p className="text-[11px] text-gray-500">
-                    {activeRestaurant?.name ?? "Todos os restaurantes"} •{" "}
-                    {range === "all" ? "todo o período" : `últimos ${range.replace("d", "")} dias`}
-                  </p>
-                </div>
+          {/* Pedidos por status + faturamento consolidado */}
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold tracking-tight text-white">Pedidos por status</h2>
+                <p className="text-[11px] text-gray-500">
+                  {activeRestaurant?.name ?? "Todos os restaurantes"} •{" "}
+                  {range === "all" ? "todo o período" : `últimos ${range.replace("d", "")} dias`} •{" "}
+                  faturamento calculado pelos pedidos não cancelados
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
                 <Link
                   to="/admin/pedidos"
                   className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
                 >
                   Ver pedidos <ArrowRight className="size-3" />
                 </Link>
-              </div>
-              {ordersLoading ? (
-                <div className="flex h-[220px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02]">
-                  <div className="size-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-                </div>
-              ) : (
-                <OrdersDonut
-                  counts={counts}
-                  totalRevenue={financeMetrics.totalRevenue}
-                  totalOrders={financeMetrics.totalOrders}
-                  cancelledRevenue={financeMetrics.cancelledRevenue}
-                />
-              )}
-            </div>
-
-            <div className="space-y-3 lg:col-span-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-bold tracking-tight text-white">Faturamento</h2>
-                  <p className="text-[11px] text-gray-500">
-                    Calculado pelos pedidos registrados — não é saldo bancário
-                  </p>
-                </div>
                 <Link
                   to="/admin/financeiro"
                   className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
@@ -575,37 +548,20 @@ function AdminDashboardOverview() {
                   Ver financeiro <ArrowRight className="size-3" />
                 </Link>
               </div>
-
-              {/* Mini resumo financeiro compacto */}
-              <div className="grid grid-cols-2 gap-3">
-                <MetricCard
-                  icon={Wallet}
-                  label="Faturamento (não cancelados)"
-                  value={brl(financeMetrics.totalRevenue)}
-                />
-                <MetricCard
-                  icon={CheckCircle2}
-                  label="Pedidos entregues"
-                  value={String(financeMetrics.deliveredCount)}
-                />
-                <MetricCard
-                  icon={Timer}
-                  label="Aguardando preparo"
-                  value={String(financeMetrics.preparingCount + financeMetrics.receivedCount)}
-                />
-                <MetricCard
-                  icon={Ban}
-                  label="Cancelados"
-                  value={String(financeMetrics.cancelledCount)}
-                />
-              </div>
-
-              <div className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.04] p-3 text-[11px] leading-relaxed text-amber-200/80">
-                Pedidos cancelados ({financeMetrics.cancelledCount}) não entram no faturamento. Este
-                painel usa os dados reais de pedidos — {brl(financeMetrics.cancelledRevenue)} em
-                pedidos cancelados neste filtro.
-              </div>
             </div>
+            {ordersLoading ? (
+              <div className="flex h-[220px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02]">
+                <div className="size-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+              </div>
+            ) : (
+              <OrdersDonut
+                counts={counts}
+                totalRevenue={financeMetrics.totalRevenue}
+                totalOrders={financeMetrics.totalOrders}
+                cancelledCount={financeMetrics.cancelledCount}
+                cancelledRevenue={financeMetrics.cancelledRevenue}
+              />
+            )}
           </section>
         </>
       )}
@@ -674,41 +630,6 @@ function KpiCard({
         </div>
       </div>
       {hint && <p className="mt-2.5 truncate text-[11px] text-gray-500">{hint}</p>}
-    </div>
-  );
-}
-
-const METRIC_TONES: Record<string, string> = {
-  cyan: "bg-cyan-500/15 text-cyan-300",
-  emerald: "bg-emerald-500/15 text-emerald-300",
-  amber: "bg-amber-500/15 text-amber-300",
-  violet: "bg-violet-500/15 text-violet-300",
-  red: "bg-red-500/15 text-red-300",
-  zinc: "bg-zinc-500/15 text-zinc-300",
-};
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  tone = "zinc",
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  tone?: keyof typeof METRIC_TONES;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-      <div className="flex items-center gap-2.5">
-        <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${METRIC_TONES[tone]}`}>
-          <Icon className="size-3.5" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-lg font-black text-white">{value}</p>
-          <p className="truncate text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
-        </div>
-      </div>
     </div>
   );
 }

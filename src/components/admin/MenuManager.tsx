@@ -297,7 +297,7 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
     }
     const created = await createProductAddon({
       restaurant_id: restaurant.id,
-      product_id: null as any, // Global addon
+      product_id: "", // Global addon - string vazia em vez de null
       name: newAddon.name.trim(),
       price,
     });

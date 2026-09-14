@@ -300,20 +300,20 @@ export async function getRestaurantAddons(restaurantId: string): Promise<Product
 
 export async function createProductAddon(input: {
   restaurant_id: string;
-  product_id: string;
+  product_id: string | null;
   name: string;
   price: number;
 }): Promise<ProductAddon | null> {
   const { data: existing } = await supabase
     .from("product_addons")
     .select("sort_order")
-    .eq("product_id", input.product_id)
+    .eq("product_id", input.product_id || "")
     .order("sort_order", { ascending: false })
     .limit(1);
   const nextOrder = existing && existing.length > 0 ? existing[0].sort_order + 1 : 0;
   const { data, error } = await supabase
     .from("product_addons")
-    .insert({ ...input, sort_order: nextOrder, available: true })
+    .insert({ ...input, product_id: input.product_id || "", sort_order: nextOrder, available: true })
     .select()
     .single();
   if (error) {

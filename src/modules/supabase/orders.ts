@@ -52,19 +52,25 @@ export async function createOrder(
     total: number;
     notes?: string;
   }[],
-): Promise<Order | null> {
+): Promise<{ order: Order | null; error?: { message: string; code?: string } }> {
   const key = idempotencyKey(restaurantId, orderData.customer_phone, items);
 
   // If an identical order was already created (e.g. double-click on submit), return it instead of inserting again.
 
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from("orders")
     .select("*")
     .eq("idempotency_key", key)
     .maybeSingle();
 
+  if (lookupError && lookupError.code !== "PGRST116") {
+    console.error("Error checking idempotency:", lookupError);
+  }
+
   if (existing) {
-    return { ...(existing as Order), order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })) };
+    return {
+      order: { ...(existing as Order), order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })) },
+    };
   }
 
   // Create order.
@@ -111,11 +117,18 @@ export async function createOrder(
         .eq("idempotency_key", key)
         .maybeSingle();
       if (dup) {
-        return { ...(dup as Order), order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })) };
+        return {
+          order: { ...(dup as Order), order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })) },
+        };
       }
     }
     console.error("Error creating order:", orderError);
-    return null;
+    // Expose the real error so the UI can diagnose RLS/schema issues
+    const hint =
+      orderError.code === "42501"
+        ? "Permissão negada (RLS). Execute o schema.sql no Supabase."
+        : orderError.message;
+    return { order: null, error: { message: hint, code: orderError.code } };
   }
 
   // Insert order items
@@ -145,30 +158,32 @@ export async function createOrder(
   });
 
   return {
-    id: orderId,
-    restaurant_id: restaurantId,
-    comanda: orderData.comanda,
-    customer_id: orderData.customer_id ?? null,
-    customer_name: orderData.customer_name,
-    customer_phone: orderData.customer_phone,
-    customer_email: orderData.customer_email,
-    delivery_address: orderData.delivery_address,
-    customer_complement: orderData.customer_complement ?? "",
-    customer_neighborhood: orderData.customer_neighborhood ?? "",
-    customer_city: orderData.customer_city ?? "",
-    delivery_type: orderData.delivery_type,
-    observations: orderData.observations,
-    subtotal: orderData.subtotal,
-    delivery_fee: orderData.delivery_fee,
-    total: orderData.total,
-    payment_method: orderData.payment_method,
-    payment_status: orderData.payment_method === "pix" ? "awaiting_confirmation" : "pending",
-    status: "received" as OrderStatus,
-    idempotency_key: key,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    cidadela_unlocked: false,
-    order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })),
+    order: {
+      id: orderId,
+      restaurant_id: restaurantId,
+      comanda: orderData.comanda,
+      customer_id: orderData.customer_id ?? null,
+      customer_name: orderData.customer_name,
+      customer_phone: orderData.customer_phone,
+      customer_email: orderData.customer_email,
+      delivery_address: orderData.delivery_address,
+      customer_complement: orderData.customer_complement ?? "",
+      customer_neighborhood: orderData.customer_neighborhood ?? "",
+      customer_city: orderData.customer_city ?? "",
+      delivery_type: orderData.delivery_type,
+      observations: orderData.observations,
+      subtotal: orderData.subtotal,
+      delivery_fee: orderData.delivery_fee,
+      total: orderData.total,
+      payment_method: orderData.payment_method,
+      payment_status: orderData.payment_method === "pix" ? "awaiting_confirmation" : "pending",
+      status: "received" as OrderStatus,
+      idempotency_key: key,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      cidadela_unlocked: false,
+      order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })),
+    },
   };
 }
 

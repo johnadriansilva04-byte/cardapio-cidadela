@@ -256,7 +256,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       const customerPhone = form.customer_phone;
       const customerName = form.customer_name;
 
-      const order = await createOrder(
+      const { order, error } = await createOrder(
         restaurant.id,
         {
           comanda,
@@ -280,7 +280,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
       if (!order) {
         setCheckoutError(
-          "Não foi possível concluir o pedido agora. Confira sua conexão e tente novamente.",
+          error?.message ||
+            "Não foi possível concluir o pedido agora. Confira sua conexão e tente novamente.",
         );
         return;
       }
@@ -493,52 +494,51 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           href="https://pracinha.online"
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute right-4 top-[9.5rem] z-50 size-[4.5rem] transition-transform hover:scale-105 active:scale-95"
+          className="absolute right-3 top-[9.5rem] z-50 group inline-flex items-center gap-2 rounded-full border px-4 py-2 backdrop-blur-md transition-all hover:scale-105 active:scale-95 shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+          style={{
+            backgroundColor: hexToRgba(accent, 0.15),
+            borderColor: hexToRgba(accent, 0.5),
+            boxShadow: `0 0 20px ${hexToRgba(accent, 0.35)}, 0 4px 24px rgba(0,0,0,0.5)`,
+          }}
           aria-label="Conheça a Cidadela"
         >
           <span
-            className="absolute inset-0 animate-pulse rounded-full"
-            style={{ backgroundColor: hexToRgba(accent, 0.35) }}
+            className="absolute inset-0 rounded-full animate-pulse opacity-40 group-hover:opacity-60 transition-opacity"
+            style={{ backgroundColor: hexToRgba(accent, 0.25) }}
           />
-          <span
-            className="relative flex size-[4.5rem] flex-col items-center justify-center rounded-full border-2 bg-[#0a0a12]/90 shadow-[0_0_24px_rgba(0,0,0,0.7)]"
-            style={{ borderColor: accent }}
-          >
-            <svg
-              viewBox="0 0 100 100"
-              className="absolute inset-0 size-full"
-            >
-              <defs>
-                <path
-                  id="textPath"
-                  d="M 12,56 A 38,38 0 0,1 88,56"
-                  fill="none"
-                />
-              </defs>
-              <text
-                fill={accent}
-                fontSize="7"
-                fontWeight="900"
-                letterSpacing="0.4"
-                className="font-sans"
-              >
-                <textPath href="#textPath" startOffset="50%" textAnchor="middle">
-                  CONHEÇA A CIDADELA
-                </textPath>
-              </text>
-            </svg>
+          <span className="relative grid size-6 place-items-center rounded-full bg-white/10 shrink-0">
             <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
-              className="mt-6 size-6 text-amber-400"
+              strokeLinejoin="round"
+              className="size-3.5"
+              style={{ color: accent }}
             >
               <rect x="5" y="11" width="14" height="10" rx="2" />
               <path d="M8 11V7a4 4 0 0 1 8 0v4" />
             </svg>
           </span>
+          <span
+            className="relative text-[11px] font-extrabold uppercase tracking-[0.12em]"
+            style={{ color: accent }}
+          >
+            Conheça a Cidadela
+          </span>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="relative size-3.5 shrink-0 transition-transform group-hover:translate-x-0.5"
+            style={{ color: accent }}
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
         </a>
       </div>
 

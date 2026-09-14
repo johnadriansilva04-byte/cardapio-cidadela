@@ -108,6 +108,111 @@ export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
 }
 
+/**
+ * Update the user's profile (name) in the `profiles` table.
+ * Returns true on success.
+ */
+export async function updateProfileName(name: string): Promise<{ ok: boolean; error?: string }> {
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return { ok: false, error: "Você não está autenticado." };
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, error: "Informe seu nome." };
+
+  // Update profile table
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({ name: trimmed, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+  if (profileError) {
+    console.error("[auth] update profile error:", profileError.message);
+    return { ok: false, error: "Erro ao atualizar o perfil." };
+  }
+
+  // Also update auth metadata so the sidebar updates
+  const { error: metaError } = await supabase.auth.updateUser({
+    data: { name: trimmed },
+  });
+  if (metaError) {
+    // Non-fatal — profile updated, metadata may lag
+    console.warn("[auth] update metadata error:", metaError.message);
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Update the user's password.
+ * Verifies a required current password if provided (best-effort on the
+ * phone→pseudo email mapping), then updates via Supabase.
+ */
+export async function updatePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (newPassword.length < 6) {
+    return { ok: false, error: "A nova senha deve ter no mínimo 6 caracteres." };
+  }
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return { ok: false, error: "Você não está autenticado." };
+
+  // Re-authenticate with current password (Supabase maps phone→pseudo email)
+  const digits = (user.user_metadata?.phone as string) || normalizePhone(user.phone || "");
+  if (digits && currentPassword) {
+    const emailToUse = `${digits.replace(/\D/g, "")}@menufacil.local`;
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: emailToUse,
+      password: currentPassword,
+    });
+    if (reauthError) {
+      return { ok: false, error: "Senha atual incorreta." };
+    }
+  } else if (!currentPassword) {
+    return { ok: false, error: "Informe a senha atual." };
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+  if (updateError) {
+    console.error("[auth] update password error:", updateError.message);
+    return { ok: false, error: "Erro ao alterar a senha." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Exclui a conta do usuário atual.
+ * Delega para a RPC `delete_own_account` (SECURITY DEFINER) que remove os
+ * restaurantes do dono (CASCADE) e depois o registro em auth.users (que
+ * cascateia para profiles). Não é possível apagar o próprio auth user com a
+ * chave anon do cliente — por isso a lógica vive no banco.
+ */
+export async function deleteAccount(): Promise<{ ok: boolean; error?: string }> {
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return { ok: false, error: "Você não está autenticado." };
+
+  try {
+    const { error: rpcErr } = await supabase.rpc("delete_own_account");
+    if (rpcErr) {
+      console.error("[auth] delete_own_account rpc error:", rpcErr.message);
+      return {
+        ok: false,
+        error:
+          "Não foi possível excluir a conta agora. Verifique se o schema.sql foi atualizado no Supabase ou tente novamente.",
+      };
+    }
+  } catch (err) {
+    console.error("[auth] delete_own_account exception:", err);
+    return { ok: false, error: "Erro inesperado ao excluir a conta." };
+  }
+
+  await supabase.auth.signOut();
+  return { ok: true };
+}
+
 /** Get the current session (returns null if no session) */
 export async function getCurrentSession(): Promise<Session | null> {
   const { data } = await supabase.auth.getSession();
@@ -124,9 +229,7 @@ export async function getCurrentUser(): Promise<User | null> {
  * Fetch the user profile from the `profiles` table.
  * Returns null if no profile exists.
  */
-export async function getUserProfile(
-  userId: string,
-): Promise<UserProfile | null> {
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
@@ -181,10 +284,8 @@ export function onAuthStateChange(
  * Check if Supabase is properly configured (URL and key are set).
  */
 export function isSupabaseConfigured(): boolean {
-  const url =
-    import.meta.env?.VITE_SUPABASE_URL || "";
-  const key =
-    import.meta.env?.VITE_SUPABASE_ANON_KEY || "";
+  const url = import.meta.env?.VITE_SUPABASE_URL || "";
+  const key = import.meta.env?.VITE_SUPABASE_ANON_KEY || "";
   return Boolean(url && key && !url.includes("placeholder"));
 }
 

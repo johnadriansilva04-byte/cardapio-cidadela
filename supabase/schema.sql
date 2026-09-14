@@ -501,6 +501,45 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- ============================================================
+-- DELETE OWN ACCOUNT (privacy & self-service)
+-- Exclui os dados do dono e o próprio usuário auth.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.delete_own_account()
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  current_uid uuid := auth.uid();
+  affected_ids uuid[];
+BEGIN
+  IF current_uid IS NULL THEN
+    RETURN false;
+  END IF;
+
+  -- Guarda os restaurantes do dono antes de apagá-los
+  SELECT ARRAY(
+    SELECT id FROM restaurants WHERE owner_id = current_uid::text
+  ) INTO affected_ids;
+
+  -- Limpa autuações do jogo da Cidadela ligadas aos restaurantes
+  IF affected_ids IS NOT NULL AND cardinality(affected_ids) > 0 THEN
+    DELETE FROM cidadela_unlocks WHERE restaurant_id = ANY(affected_ids);
+  END IF;
+
+  -- Restaurantes do dono (pedidos, categorias, produtos, histórico → CASCADE)
+  DELETE FROM restaurants WHERE owner_id = current_uid::text;
+
+  -- Profile (removido junto com rows de restaurants acima)
+  DELETE FROM profiles WHERE id = current_uid;
+
+  -- Remove o usuário real do auth (cascateia para o que restou)
+  DELETE FROM auth.users WHERE id = current_uid;
+
+  RETURN true;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.delete_own_account() TO authenticated;
+
+-- ============================================================
 -- ROW LEVEL SECURITY — Tabelas principais
 -- ============================================================
 

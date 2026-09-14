@@ -156,17 +156,17 @@ export function RestaurantCardCompact({
           </p>
         )}
 
-        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          {/* Atalhos diretos: pedidos e configurações abrem direto no restaurante */}
+        <div className="grid grid-cols-3 gap-1.5" onClick={(e) => e.stopPropagation()}>
+          {/* Atalhos diretos: cardápio, pedidos e configurações abrem direto no restaurante */}
           {onManageMenu && (
             <Button
               size="sm"
               variant="ghost"
               onClick={onManageMenu}
               title="Gerenciar cardápio"
-              className="h-7 gap-1 rounded-full bg-white/[0.05] px-2.5 text-xs text-gray-300 hover:bg-cyan-500/15 hover:text-cyan-300"
+              className="h-8 gap-1 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-2 text-[11px] font-semibold text-emerald-300 hover:border-emerald-300/60 hover:bg-emerald-500/20 hover:text-emerald-200"
             >
-              <UtensilsCrossed className="size-3" /> Cardápio
+              <UtensilsCrossed className="size-3.5" /> Cardápio
             </Button>
           )}
           <Button
@@ -174,27 +174,32 @@ export function RestaurantCardCompact({
             variant="ghost"
             onClick={onManageOrders}
             title="Gerenciar pedidos"
-            className="h-7 gap-1 rounded-full bg-white/[0.05] px-2.5 text-xs text-gray-300 hover:bg-cyan-500/15 hover:text-cyan-300"
+            className="h-8 gap-1 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 text-[11px] font-semibold text-amber-300 hover:border-amber-300/60 hover:bg-amber-500/20 hover:text-amber-200"
           >
-            <ClipboardList className="size-3" /> Pedidos
+            <ClipboardList className="size-3.5" /> Pedidos
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={onSettings}
             title="Configurações do restaurante"
-            className="h-7 gap-1 rounded-full bg-white/[0.05] px-2.5 text-xs text-gray-300 hover:bg-cyan-500/15 hover:text-cyan-300"
+            className="h-8 gap-1 rounded-lg border border-sky-400/30 bg-sky-500/10 px-2 text-[11px] font-semibold text-sky-300 hover:border-sky-300/60 hover:bg-sky-500/20 hover:text-sky-200"
           >
-            <Settings2 className="size-3" /> Config
+            <Settings2 className="size-3.5" /> Config
           </Button>
+        </div>
 
+        <div
+          className="mt-2.5 flex items-center gap-1.5 border-t border-white/5 pt-2.5"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Ações de controle (publicar, editar, excluir) */}
           <Button
             size="sm"
             variant="outline"
             onClick={onTogglePublish}
             disabled={toggling}
-            className={`h-7 gap-1 rounded-full border text-xs ${isPublished ? "border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"}`}
+            className={`h-7 flex-1 gap-1 rounded-full border text-xs ${isPublished ? "border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"}`}
             title={isPublished ? "Despublicar restaurante" : "Publicar restaurante"}
           >
             {isPublished ? (

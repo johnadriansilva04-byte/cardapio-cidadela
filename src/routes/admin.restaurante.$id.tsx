@@ -11,9 +11,9 @@ import {
   RefreshCw,
   Store,
   ArrowLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
 import { MenuManager } from "@/components/admin/MenuManager";
 import { OrderManager } from "@/components/admin/OrderManager";
@@ -28,6 +28,8 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 import { brl } from "@/lib/utils";
+import { supabase } from "@/modules/supabase/client";
+import { getMenuWithProducts } from "@/modules/supabase/menu";
 import { toast } from "sonner";
 
 const validTabs = ["cardapio", "pedidos", "config"] as const;
@@ -58,7 +60,83 @@ function RestaurantDetailPage() {
   const [toggling, setToggling] = useState(false);
   const [publishConfirm, setPublishConfirm] = useState(false);
   const [tab, setTab] = useState<string>(search.tab ?? "cardapio");
+  const [menuCount, setMenuCount] = useState<number | null>(null);
+  const [pendingOrders, setPendingOrders] = useState<number | null>(null);
   const retryRef = useRef(0);
+
+  // Contadores ao vivo para deixar os atalhos bem visíveis
+  const restaurantIdForStats = restaurant?.id;
+  useEffect(() => {
+    let cancelled = false;
+    setMenuCount(null);
+    setPendingOrders(null);
+    if (!restaurantIdForStats) return;
+
+    (async () => {
+      try {
+        const { products } = await getMenuWithProducts(restaurantIdForStats);
+        if (!cancelled) setMenuCount(products.length);
+      } catch {
+        /* mantém null */
+      }
+    })();
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let poll: ReturnType<typeof setInterval> | null = null;
+
+    const fetchPending = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("id,status")
+          .eq("restaurant_id", restaurantIdForStats)
+          .in("status", ["received", "preparing", "ready", "out_for_delivery"]);
+        if (!cancelled && !error) setPendingOrders(data?.length ?? 0);
+      } catch {
+        /* mantém valor atual */
+      }
+    };
+
+    channel = supabase
+      .channel(`restaurante_stats_${restaurantIdForStats}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `restaurant_id=eq.${restaurantIdForStats}`,
+        },
+        () => fetchPending(),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "products",
+          filter: `restaurant_id=eq.${restaurantIdForStats}`,
+        },
+        () =>
+          getMenuWithProducts(restaurantIdForStats).then(
+            ({ products }) => !cancelled && setMenuCount(products.length),
+          ),
+      )
+      .subscribe();
+
+    fetchPending();
+    poll = setInterval(fetchPending, 15000);
+
+    return () => {
+      cancelled = true;
+      if (poll) clearInterval(poll);
+      try {
+        supabase.removeChannel(channel!);
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [restaurantIdForStats]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -297,45 +375,25 @@ function RestaurantDetailPage() {
         </div>
       )}
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="border-white/10 bg-white/[0.03]">
-          <TabsTrigger
-            value="cardapio"
-            className="gap-2 data-[state=active]:bg-cyan-500 data-[state=active]:text-black"
-          >
-            <UtensilsCrossed className="size-3.5" /> Cardápio
-          </TabsTrigger>
-          <TabsTrigger
-            value="pedidos"
-            className="gap-2 data-[state=active]:bg-cyan-500 data-[state=active]:text-black"
-          >
-            <ClipboardList className="size-3.5" /> Pedidos
-          </TabsTrigger>
-          <TabsTrigger
-            value="config"
-            className="gap-2 data-[state=active]:bg-cyan-500 data-[state=active]:text-black"
-          >
-            <Settings2 className="size-3.5" /> Configurações
-          </TabsTrigger>
-        </TabsList>
+      <AdminModuleNav
+        tab={tab}
+        onSelect={setTab}
+        menuCount={menuCount}
+        pendingOrders={pendingOrders}
+      />
 
-        <TabsContent value="cardapio" className="mt-4">
-          <MenuManager key={restaurant.id} restaurant={restaurant} />
-        </TabsContent>
-        <TabsContent value="pedidos" className="mt-4">
-          <OrderManager key={restaurant.id} restaurant={restaurant} />
-        </TabsContent>
-        <TabsContent value="config" className="mt-4">
-          <div className="grid items-start gap-5 lg:grid-cols-2">
-            <div className="min-w-0">
-              <RestaurantCardSummary restaurant={restaurant} onEdit={() => setEditOpen(true)} />
-            </div>
-            <div className="min-w-0">
-              <NeighborhoodManager restaurant={restaurant} />
-            </div>
+      {tab === "cardapio" && <MenuManager key={restaurant.id} restaurant={restaurant} />}
+      {tab === "pedidos" && <OrderManager key={restaurant.id} restaurant={restaurant} />}
+      {tab === "config" && (
+        <div className="grid items-start gap-5 lg:grid-cols-2">
+          <div className="min-w-0">
+            <RestaurantCardSummary restaurant={restaurant} onEdit={() => setEditOpen(true)} />
           </div>
-        </TabsContent>
-      </Tabs>
+          <div className="min-w-0">
+            <NeighborhoodManager restaurant={restaurant} />
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={publishConfirm}
@@ -360,6 +418,120 @@ function RestaurantDetailPage() {
         onSubmit={handleSave}
       />
     </div>
+  );
+}
+
+const MODULES: {
+  id: "cardapio" | "pedidos" | "config";
+  label: string;
+  description: string;
+  icon: typeof UtensilsCrossed;
+  accent: string;
+  chip: string;
+}[] = [
+  {
+    id: "cardapio",
+    label: "Cardápio",
+    description: "Categorias, lanches e disponibilidade",
+    icon: UtensilsCrossed,
+    accent: "from-emerald-500/20 to-teal-500/5 border-emerald-400/40 hover:border-emerald-300/70",
+    chip: "bg-emerald-500 text-black",
+  },
+  {
+    id: "pedidos",
+    label: "Pedidos",
+    description: "Acompanhe e atualize os pedidos",
+    icon: ClipboardList,
+    accent: "from-amber-500/20 to-orange-500/5 border-amber-400/40 hover:border-amber-300/70",
+    chip: "bg-amber-500 text-black",
+  },
+  {
+    id: "config",
+    label: "Configurações",
+    description: "Dados, entrega e bairros",
+    icon: Settings2,
+    accent: "from-sky-500/20 to-indigo-500/5 border-sky-400/40 hover:border-sky-300/70",
+    chip: "bg-sky-500 text-black",
+  },
+];
+
+function AdminModuleNav({
+  tab,
+  onSelect,
+  menuCount,
+  pendingOrders,
+}: {
+  tab: string;
+  onSelect: (tab: "cardapio" | "pedidos" | "config") => void;
+  menuCount: number | null;
+  pendingOrders: number | null;
+}) {
+  return (
+    <nav className="space-y-3">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">
+        Selecione a área
+      </p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {MODULES.map((m) => {
+          const active = tab === m.id;
+          const value = m.id === "cardapio" ? menuCount : m.id === "pedidos" ? pendingOrders : null;
+          const valueLabel =
+            value === null
+              ? "…"
+              : m.id === "cardapio"
+                ? `${value} item${value === 1 ? "" : "s"}`
+                : `${value} ativo${value === 1 ? "" : "s"}`;
+          const highlight = m.id === "pedidos" && (pendingOrders ?? 0) > 0;
+          return (
+            <button
+              key={m.id}
+              onClick={() => onSelect(m.id)}
+              aria-pressed={active}
+              className={`group flex items-center gap-4 rounded-2xl border bg-gradient-to-br p-5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${m.accent} ${
+                active
+                  ? "ring-2 ring-white/50 shadow-lg"
+                  : "hover:-translate-y-0.5 hover:shadow-[0_10px_34px_rgba(0,0,0,0.45)]"
+              }`}
+            >
+              <span
+                className={`grid size-14 shrink-0 place-items-center rounded-2xl transition-transform group-hover:scale-105 ${
+                  active ? "bg-white text-black" : "bg-black/40 text-white"
+                }`}
+              >
+                <m.icon className="size-7" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span
+                    className={`text-base font-black tracking-tight text-white ${active ? "underline decoration-2 underline-offset-4" : ""}`}
+                  >
+                    {m.label}
+                  </span>
+                  {highlight && (
+                    <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[12px] font-black text-white shadow-[0_0_12px_rgba(239,68,68,0.7)]">
+                      {pendingOrders! > 99 ? "99+" : pendingOrders}
+                    </span>
+                  )}
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-white/60">
+                  {m.description}
+                </span>
+                <span className="mt-3 inline-flex items-center gap-1">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${active ? "bg-white/15 text-white" : m.chip}`}
+                  >
+                    {valueLabel}
+                  </span>
+                  <ChevronRight
+                    className={`size-4 transition-all ${active ? "text-white translate-x-0.5" : "text-white/40 group-hover:translate-x-0.5 group-hover:text-white"}`}
+                  />
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 

@@ -19,7 +19,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
-import { playNewOrderAlert } from "@/lib/orderAlertSound";
+import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -39,6 +39,7 @@ const NAV_ITEMS = [
 
 function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const matchRoute = useMatchRoute();
   const { isAuthenticated, loading, signOut, user } = useAuth();
 
@@ -48,22 +49,84 @@ function AdminLayout() {
     }
   }, [loading, isAuthenticated]);
 
-  // Heartbeat sonoro: toca quando QUALQUER restaurante do dono recebe pedido novo
   useEffect(() => {
-    if (!isAuthenticated || !user) return;
+    requestOrderNotificationPermission();
+  }, []);
+
+  // Badge + som: conta pedidos ativos (received/preparing/ready/out_for_delivery) e toca alerta em INSERT
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      setPendingCount(0);
+      return;
+    }
     const channels: RealtimeChannel[] = [];
     let cancelled = false;
+    let poll: ReturnType<typeof setInterval> | null = null;
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+
+    const fetchPending = async () => {
+      try {
+        const rests = await getRestaurantsByOwner(user.id);
+        if (cancelled) return;
+        if (rests.length === 0) {
+          setPendingCount(0);
+          return;
+        }
+        const ids = rests.map((r) => r.id);
+        const { data, error } = await supabase
+          .from("orders")
+          .select("id,status")
+          .in("restaurant_id", ids)
+          .in("status", ["received", "preparing", "ready", "out_for_delivery"]);
+        if (cancelled) return;
+        if (error) {
+          console.error("[admin badge] fetch", error);
+          return;
+        }
+        setPendingCount(data?.length ?? 0);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    const scheduleFetch = () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(fetchPending, 380);
+    };
 
     (async () => {
       try {
         await ensureRestaurantsForUser(user);
         if (cancelled) return;
+        await fetchPending();
+        if (cancelled) return;
         const rests = await getRestaurantsByOwner(user.id);
         if (cancelled) return;
         for (const r of rests) {
           try {
-            const ch = subscribeToOrders(r.id, (eventType) => {
-              if (eventType === "INSERT") playNewOrderAlert();
+            const ch = subscribeToOrders(r.id, (eventType, order) => {
+              if (eventType === "INSERT") {
+                if (["received", "preparing", "ready", "out_for_delivery"].includes(order.status)) {
+                  setPendingCount((c) => c + 1);
+                }
+                playNewOrderAlert();
+                if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+                  try {
+                    new Notification("🔔 Novo pedido!", {
+                      body: `${order.customer_name} — ${order.comanda} • R$ ${Number(order.total).toFixed(2)}`,
+                    });
+                  } catch {
+                    /* ignore */
+                  }
+                }
+                const orig = document.title;
+                document.title = `🔔 NOVO PEDIDO! ${order.comanda}`;
+                setTimeout(() => {
+                  if (!cancelled) document.title = orig;
+                }, 4200);
+              } else if (eventType === "UPDATE" || eventType === "DELETE") {
+                scheduleFetch();
+              }
             });
             if (ch) channels.push(ch);
           } catch {
@@ -75,8 +138,12 @@ function AdminLayout() {
       }
     })();
 
+    poll = setInterval(fetchPending, 15000);
+
     return () => {
       cancelled = true;
+      if (debounce) clearTimeout(debounce);
+      if (poll) clearInterval(poll);
       for (const ch of channels) {
         try {
           supabase.removeChannel(ch);
@@ -100,7 +167,7 @@ function AdminLayout() {
   return (
     <div className="flex h-screen bg-[#0a0a0f]">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-white/5 bg-[#0c0c14] lg:flex">
-        <SidebarContent />
+        <SidebarContent pendingCount={pendingCount} />
       </aside>
 
       {sidebarOpen && (
@@ -127,7 +194,7 @@ function AdminLayout() {
                   item.to === "/admin"
                     ? matchRoute({ to: "/admin", fuzzy: false })
                     : matchRoute({ to: item.to });
-
+                const isPedidos = item.to === "/admin/pedidos";
                 return (
                   <Link
                     key={item.to}
@@ -140,7 +207,12 @@ function AdminLayout() {
                     }`}
                   >
                     <item.icon className="size-4" />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {isPedidos && pendingCount > 0 && (
+                      <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse">
+                        {pendingCount > 99 ? "99+" : pendingCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -173,7 +245,7 @@ function AdminLayout() {
   );
 }
 
-function SidebarContent() {
+function SidebarContent({ pendingCount = 0 }: { pendingCount?: number }) {
   const matchRoute = useMatchRoute();
   const { signOut } = useAuth();
 
@@ -192,7 +264,7 @@ function SidebarContent() {
             item.to === "/admin"
               ? matchRoute({ to: "/admin", fuzzy: false })
               : matchRoute({ to: item.to });
-
+          const isPedidos = item.to === "/admin/pedidos";
           return (
             <Link
               key={item.to}
@@ -204,7 +276,12 @@ function SidebarContent() {
               }`}
             >
               <item.icon className="size-4" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {isPedidos && pendingCount > 0 && (
+                <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse">
+                  {pendingCount > 99 ? "99+" : pendingCount}
+                </span>
+              )}
             </Link>
           );
         })}

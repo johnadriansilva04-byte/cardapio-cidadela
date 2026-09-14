@@ -23,50 +23,114 @@ function registerUnlockOnce() {
   if (unlockRegistered || typeof window === "undefined") return;
   unlockRegistered = true;
   const unlock = () => {
-    getAudioContext();
+    const c = getAudioContext();
+    if (c?.state === "suspended") void c.resume();
   };
   window.addEventListener("pointerdown", unlock, { once: true });
   window.addEventListener("keydown", unlock, { once: true });
   window.addEventListener("touchstart", unlock, { once: true });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      if (audioCtx?.state === "suspended") void audioCtx.resume();
+    }
+  });
+}
+
+export function requestOrderNotificationPermission() {
+  if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    void Notification.requestPermission();
+  }
+}
+
+function fallbackBeep() {
+  try {
+    const a = new Audio(
+      "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==",
+    );
+    a.volume = 1;
+    void a.play().catch(() => {});
+  } catch {
+    /* ignore */
+  }
 }
 
 export function playNewOrderAlert() {
+  // vibração em mobile
+  try {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate([220, 80, 220, 80, 320]);
+    }
+  } catch {
+    /* ignore */
+  }
+
   const ctx = getAudioContext();
-  if (!ctx) return;
+  if (!ctx) {
+    fallbackBeep();
+    return;
+  }
+  // Se ainda suspenso (sem gesto), tenta fallback audível
+  if (ctx.state === "suspended") {
+    void ctx.resume().catch(() => fallbackBeep());
+    // tenta tocar mesmo suspenso — alguns browsers ainda tocam baixo
+  }
   const t = ctx.currentTime;
 
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0.0001, t);
-  master.gain.exponentialRampToValueAtTime(1.2, t + 0.02);
-  master.gain.setValueAtTime(1.2, t +0.28);
-  master.gain.exponentialRampToValueAtTime(0.0001, t +1.6);
-  master.connect(ctx.destination);
+  try {
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, t);
+    master.gain.exponentialRampToValueAtTime(1.35, t + 0.02);
+    master.gain.setValueAtTime(1.35, t + 0.32);
+    master.gain.exponentialRampToValueAtTime(0.0001, t + 1.9);
+    master.connect(ctx.destination);
 
-  const lowpass = ctx.createBiquadFilter();
-  lowpass.type = "lowpass";
-  lowpass.frequency.value = 240;
-  lowpass.connect(master);
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = "lowpass";
+    lowpass.frequency.value = 420;
+    lowpass.connect(master);
 
-  const PULSES = [
-    { at: 0, freq: 120 },
-    { at: 0.32, freq:  80 },
-    { at: 0.64, freq:  50 },
-  ] as const;
+    // grave pulsante + camada aguda estridente pra cortar o ambiente
+    const PULSES = [
+      { at: 0, freq: 165, type: "sawtooth" as const, gain: 1.0 },
+      { at: 0.34, freq: 110, type: "sawtooth" as const, gain: 0.95 },
+      { at: 0.68, freq: 82, type: "square" as const, gain: 1.0 },
+      { at: 0.96, freq: 165, type: "square" as const, gain: 0.9 },
+    ];
 
-  for (const pulse of PULSES) {
-    const start = t + pulse.at;
-    const osc = ctx.createOscillator();
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(pulse.freq, start);
-    osc.frequency.exponentialRampToValueAtTime(45, start +0.2);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, start);
-    g.gain.exponentialRampToValueAtTime(1.0, start +0.015);
-    g.gain.exponentialRampToValueAtTime(0.0001, start +0.28);
-    osc.connect(g);
-    g.connect(lowpass);
-    osc.start(start);
-    osc.stop(start +0.3);
+    for (const pulse of PULSES) {
+      const start = t + pulse.at;
+      const osc = ctx.createOscillator();
+      osc.type = pulse.type;
+      osc.frequency.setValueAtTime(pulse.freq, start);
+      osc.frequency.exponentialRampToValueAtTime(pulse.freq * 0.55, start + 0.22);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(pulse.gain, start + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
+      osc.connect(g);
+      g.connect(lowpass);
+      osc.start(start);
+      osc.stop(start + 0.32);
+    }
+
+    // camada aguda tipo "ding-ding" por cima (sine 880hz)
+    for (const at of [0.02, 0.36, 0.7, 0.98]) {
+      const start = t + at;
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.55, start + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
+      osc.connect(g);
+      g.connect(master);
+      osc.start(start);
+      osc.stop(start + 0.2);
+    }
+  } catch {
+    fallbackBeep();
   }
 }
 

@@ -47,6 +47,16 @@ function ConfigPage() {
 
   const retryRef = useRef(0);
 
+  // Scroll automático ao abrir com #conta (vindo do menu da conta na sidebar)
+  useEffect(() => {
+    if (window.location.hash === "#conta") {
+      // Aguarda o conteúdo renderizar antes de rolar
+      requestAnimationFrame(() => {
+        document.getElementById("conta")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -345,7 +355,7 @@ function AccountSection() {
   }
 
   return (
-    <div className="max-w-lg space-y-5">
+    <div id="conta" className="max-w-lg space-y-5 scroll-mt-6">
       <div>
         <h2 className="text-lg font-bold text-white">Minha conta</h2>
         <p className="mt-0.5 text-sm text-gray-500">

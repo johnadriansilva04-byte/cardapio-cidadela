@@ -12,8 +12,7 @@ import {
   MessageCircle,
   ChevronDown,
   ChevronUp,
-  Sparkles,
-  Flame,
+  Info,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
@@ -36,7 +35,6 @@ import {
   isOpenNow,
   getTodaySchedule,
   getNextOpenInfo,
-  getClosesAt,
   DAY_ORDER,
   DAY_LABEL,
   formatRange,
@@ -78,123 +76,6 @@ async function ensureRestaurantFromLegacyTrial(slug: string): Promise<Restaurant
   return data as Restaurant;
 }
 
-function OpenBadge({
-  restaurant,
-  now,
-}: {
-  restaurant: Restaurant;
-  accent: string;
-  now: Date;
-}) {
-  const hasHours = Boolean(restaurant.operating_hours);
-  const open = hasHours ? isOpenNow(restaurant.operating_hours as unknown as never, now) : true;
-  const today = hasHours ? getTodaySchedule(restaurant.operating_hours as unknown as never, now) : null;
-  const closesAt = hasHours && open ? getClosesAt(restaurant.operating_hours as unknown as never, now) : null;
-  const next = hasHours && !open ? getNextOpenInfo(restaurant.operating_hours as unknown as never, now) : null;
-
-  if (!hasHours) return null;
-
-  return (
-    <div
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold backdrop-blur-md ${
-        open
-          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
-          : "border-red-500/30 bg-red-500/10 text-red-300"
-      }`}
-    >
-      <span className="relative flex size-2">
-        <span
-          className={`absolute inline-flex size-2 animate-ping rounded-full opacity-75 ${open ? "bg-emerald-400" : "bg-red-400"}`}
-        />
-        <span className={`relative inline-flex size-2 rounded-full ${open ? "bg-emerald-400" : "bg-red-400"}`} />
-      </span>
-      {open ? (
-        <>
-          Aberto agora
-          {closesAt && <span className="font-normal opacity-80">• fecha às {closesAt}</span>}
-        </>
-      ) : (
-        <>
-          Fechado agora
-          {next ? (
-            <span className="font-normal opacity-80">• abre {next.label.toLowerCase()} às {next.time}</span>
-          ) : today?.schedule.closed ? (
-            <span className="font-normal opacity-80">• hoje fechado</span>
-          ) : null}
-        </>
-      )}
-    </div>
-  );
-}
-
-function HoursPanel({
-  restaurant,
-  accent,
-  now,
-}: {
-  restaurant: Restaurant;
-  accent: string;
-  now: Date;
-}) {
-  const [open, setOpen] = useState(false);
-  const hours = restaurant.operating_hours ? normalizeOperatingHours(restaurant.operating_hours as unknown) : null;
-  if (!hours) return null;
-  const isOpen = isOpenNow(hours as unknown as never, now);
-
-  return (
-    <div className="mx-auto max-w-2xl px-4">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left backdrop-blur transition-colors hover:bg-white/[0.06]"
-      >
-        <span className="flex items-center gap-2 text-sm font-semibold text-white">
-          <Clock className="size-4" style={{ color: accent }} />
-          Horário de funcionamento
-          <span
-            className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-black tracking-wide ${
-              isOpen ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/15 text-red-300"
-            }`}
-          >
-            {isOpen ? "ABERTO" : "FECHADO"}
-          </span>
-        </span>
-        {open ? <ChevronUp className="size-4 text-gray-500" /> : <ChevronDown className="size-4 text-gray-500" />}
-      </button>
-
-      {open && (
-        <div className="mt-2 overflow-hidden rounded-2xl border border-white/10 bg-[#0f0f17]">
-          <div className="divide-y divide-white/[0.06]">
-            {DAY_ORDER.map((k) => {
-              const s = hours[k];
-              const isToday = DAY_LABEL[k].dow === now.getDay();
-              return (
-                <div
-                  key={k}
-                  className={`flex items-center justify-between px-4 py-2.5 text-sm ${isToday ? "bg-white/[0.04]" : ""}`}
-                >
-                  <span className={`flex items-center gap-2 ${isToday ? "font-bold text-white" : "text-gray-400"}`}>
-                    {isToday && <span className="size-1.5 rounded-full" style={{ backgroundColor: accent }} />}
-                    {DAY_LABEL[k].label}
-                    {isToday && <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px]">HOJE</span>}
-                  </span>
-                  <span
-                    className={`text-xs font-semibold ${s.closed ? "text-gray-500" : isToday ? "text-white" : "text-gray-300"}`}
-                  >
-                    {formatRange(s)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="border-t border-white/5 bg-white/[0.02] px-4 py-2.5 text-center text-[11px] text-gray-500">
-            Horário de Brasília • viradas após meia-noite contam como o dia anterior
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function PublicMenu({ slug }: PublicMenuProps) {
   const { cart, addToCart, removeFromCart, clearCart, setCart } = usePlatformStore();
   const { user } = useAuth();
@@ -217,6 +98,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({});
   const [now, setNow] = useState(() => new Date());
   const [addonModalProduct, setAddonModalProduct] = useState<Product | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -360,8 +242,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     const available = list.filter((a) => a.available);
     if (available.length > 0) {
       setAddonModalProduct(product);
-    } else {
-      addToCart(product);
     }
   }
 
@@ -597,7 +477,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             </span>
             <span className="shrink-0 text-[11px] font-medium text-white/70">
               {isCurrentlyOpen ? (
-                <>{getClosesAt(restaurant.operating_hours as unknown as never, now) && <>fecha às {getClosesAt(restaurant.operating_hours as unknown as never, now)}</>}</>
+                todayHours && !todayHours.schedule.closed ? `fecha às ${todayHours.schedule.close}` : null
               ) : nextOpen ? (
                 <>abre {nextOpen.label.toLowerCase()} às {nextOpen.time}</>
               ) : null}
@@ -606,152 +486,154 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </div>
       )}
 
-      {/* HERO — premium */}
+      {/* HERO — compact */}
       <div className="relative overflow-hidden">
         {/* banner */}
         <div
-          className="relative h-[280px] w-full sm:h-[340px]"
+          className="relative h-[120px] w-full sm:h-[140px]"
           style={{
             backgroundImage: restaurant.banner_url
               ? `url(${restaurant.banner_url})`
-              : `radial-gradient(800px 400px at 20% 20%, ${hexToRgba(accent, 0.35)} 0%, transparent 60%), radial-gradient(700px 500px at 90% 10%, ${hexToRgba(accent, 0.18)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
+              : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
             backgroundSize: restaurant.banner_url ? "cover" : undefined,
             backgroundPosition: restaurant.banner_url ? "center" : undefined,
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/60 to-black/20" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-transparent" />
-
-          {/* subtle grain */}
-          <div className="pointer-events-none absolute inset-0 opacity-[0.04]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/80 to-black/30" />
 
           <Link
             to="/meus-pedidos"
             search={{ from: slug }}
-            className="absolute left-3 top-4 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur transition-colors hover:border-white/30 hover:bg-black/70"
+            className="absolute left-3 top-3 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur transition-colors hover:border-white/30 hover:bg-black/70"
             aria-label="Meus pedidos"
           >
             <ShoppingBag className="size-3.5" /> Meus pedidos
           </Link>
 
-          {/* centered content */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
-            {/* logo */}
-            <div className="relative">
-              <div className="absolute -inset-3 rounded-[28px] opacity-30 blur-xl" style={{ backgroundColor: accent }} />
+          {/* compact content */}
+          <div className="absolute inset-0 flex items-center px-4">
+            <div className="flex items-center gap-3">
+              {/* logo */}
               {restaurant.logo_url ? (
                 <img
                   src={restaurant.logo_url}
                   alt={restaurant.name}
-                  className="relative size-24 rounded-[20px] border border-white/20 object-cover shadow-[0_20px_60px_rgba(0,0,0,0.6)] sm:size-28"
+                  className="size-12 shrink-0 rounded-xl border border-white/20 object-cover shadow-lg sm:size-14"
                 />
               ) : (
                 <div
-                  className="relative grid size-24 place-items-center rounded-[20px] border bg-[#0a0a12]/90 shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur sm:size-28"
+                  className="grid size-12 shrink-0 place-items-center rounded-xl border bg-[#0a0a12]/90 shadow-lg sm:size-14"
                   style={{ borderColor: hexToRgba(accent, 0.4) }}
                 >
-                  <UtensilsCrossed className="size-9" style={{ color: accent }} />
+                  <UtensilsCrossed className="size-5" style={{ color: accent }} />
                 </div>
               )}
-            </div>
 
-            <h1 className="mt-4 max-w-lg text-balance text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.7)] sm:text-4xl">
-              {restaurant.name}
-            </h1>
-            {(restaurant.description || restaurant.slogan) && (
-              <p className="mx-auto mt-2 max-w-md text-balance text-sm leading-relaxed text-white/80 sm:text-[15px]">
-                {restaurant.description || `“${restaurant.slogan}”`}
-              </p>
-            )}
-
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <OpenBadge restaurant={restaurant} accent={accent} now={now} />
-              {restaurant.address && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/30 px-3 py-1.5 text-xs font-medium text-white/80 backdrop-blur">
-                  <MapPin className="size-3.5 opacity-70" /> {restaurant.address.slice(0, 32)}
-                  {restaurant.address.length > 32 ? "…" : ""}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Cidadela floating pill — refinado */}
-          <a
-            href="https://pracinha.online"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute bottom-4 right-4 z-20 hidden items-center gap-2 rounded-full border border-white/15 bg-black/40 px-3 py-2 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-black/60 hover:scale-[1.02] sm:flex"
-          >
-            <Sparkles className="size-3.5 text-cyan-400" />
-            Conheça a Cidadela
-          </a>
-
-          <a
-            href="https://pracinha.online"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute right-3 top-3 z-20 flex size-14 items-center justify-center rounded-full border-2 bg-black/40 text-[8px] font-black leading-none tracking-widest text-yellow-300 backdrop-blur sm:hidden"
-            style={{ borderColor: "rgba(0,230,255,0.6)", boxShadow: "0 0 18px rgba(0,230,255,0.4)" }}
-          >
-            <span className="text-center">
-              CONHEÇA
-              <br />
-              CIDADELA
-            </span>
-          </a>
-        </div>
-
-        {/* info cards under hero */}
-        <div className="mx-auto -mt-6 max-w-2xl px-4">
-          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-[#101018]/90 p-2 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:gap-3 sm:p-3">
-            <div className="rounded-xl bg-white/[0.04] px-3 py-3 text-center">
-              <Clock className="mx-auto size-4 text-gray-500" />
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">Entrega</p>
-              <p className="text-xs font-bold text-white">30–45 min</p>
-            </div>
-            <div className="rounded-xl bg-white/[0.04] px-3 py-3 text-center">
-              <Flame className="mx-auto size-4" style={{ color: accent }} />
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">Avaliação</p>
-              <p className="text-xs font-bold text-white">4.9 ★</p>
-            </div>
-            <div className="rounded-xl bg-white/[0.04] px-3 py-3 text-center">
-              <ShoppingBag className="mx-auto size-4 text-gray-500" />
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">Pedido mín.</p>
-              <p className="text-xs font-bold text-white">sem mínimo</p>
+              <div className="min-w-0">
+                <h1 className="truncate text-lg font-black tracking-tight text-white sm:text-xl">
+                  {restaurant.name}
+                </h1>
+                <div className="mt-1 flex items-center gap-2">
+                  {restaurant.operating_hours && (
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold backdrop-blur-md ${
+                        isCurrentlyOpen
+                          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
+                          : "border-red-500/30 bg-red-500/10 text-red-300"
+                      }`}
+                    >
+                      <span className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-red-400"}`} />
+                      {isCurrentlyOpen ? "Aberto" : "Fechado"}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* contact row */}
-          {(restaurant.phone || restaurant.whatsapp) && (
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
-              {restaurant.whatsapp && (
-                <a
-                  href={`https://wa.me/${restaurant.whatsapp.replace(/\D/g, "")}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 font-semibold text-emerald-300 hover:bg-emerald-500/15"
-                >
-                  <MessageCircle className="size-3.5" /> WhatsApp
-                </a>
-              )}
-              {restaurant.phone && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-gray-300">
-                  <Phone className="size-3.5" /> {restaurant.phone}
-                </span>
-              )}
-              {restaurant.address && (
-                <span className="hidden items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-gray-300 sm:inline-flex">
-                  <MapPin className="size-3.5" /> {restaurant.address}
-                </span>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* hours panel */}
-      <div className="mt-5">
-        <HoursPanel restaurant={restaurant} accent={accent} now={now} />
+      {/* restaurant info toggle */}
+      <div className="mx-auto max-w-2xl px-4 mt-4">
+        <button
+          onClick={() => setInfoOpen((v) => !v)}
+          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05]"
+        >
+          <span className="flex items-center gap-2 text-xs font-semibold text-gray-400">
+            <Info className="size-3.5" />
+            Informações do restaurante
+          </span>
+          {infoOpen ? <ChevronUp className="size-4 text-gray-500" /> : <ChevronDown className="size-4 text-gray-500" />}
+        </button>
+
+        {infoOpen && (
+          <div className="mt-2 overflow-hidden rounded-xl border border-white/10 bg-[#0f0f17]">
+            <div className="p-4 space-y-3">
+              {/* hours */}
+              {restaurant.operating_hours && (
+                <div>
+                  <p className="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-2">
+                    <Clock className="size-3.5" style={{ color: accent }} />
+                    Horário de funcionamento
+                  </p>
+                  <div className="space-y-1">
+                    {DAY_ORDER.map((k) => {
+                      const hours = restaurant.operating_hours ? normalizeOperatingHours(restaurant.operating_hours as unknown) : null;
+                      if (!hours) return null;
+                      const s = hours[k];
+                      const isToday = DAY_LABEL[k].dow === now.getDay();
+                      return (
+                        <div
+                          key={k}
+                          className={`flex items-center justify-between text-xs ${isToday ? "bg-white/[0.04] rounded px-2 py-1" : ""}`}
+                        >
+                          <span className={`${isToday ? "font-bold text-white" : "text-gray-400"}`}>
+                            {DAY_LABEL[k].label}
+                          </span>
+                          <span className={`font-semibold ${s.closed ? "text-gray-500" : isToday ? "text-white" : "text-gray-300"}`}>
+                            {formatRange(s)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* contact */}
+              {(restaurant.phone || restaurant.whatsapp || restaurant.address) && (
+                <div className="pt-2 border-t border-white/5">
+                  <p className="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-2">
+                    <Phone className="size-3.5" />
+                    Contato
+                  </p>
+                  <div className="space-y-1.5">
+                    {restaurant.whatsapp && (
+                      <a
+                        href={`https://wa.me/${restaurant.whatsapp.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 text-xs text-emerald-300 hover:text-emerald-200"
+                      >
+                        <MessageCircle className="size-3.5" /> WhatsApp
+                      </a>
+                    )}
+                    {restaurant.phone && (
+                      <p className="flex items-center gap-2 text-xs text-gray-300">
+                        <Phone className="size-3.5" /> {restaurant.phone}
+                      </p>
+                    )}
+                    {restaurant.address && (
+                      <p className="flex items-center gap-2 text-xs text-gray-300">
+                        <MapPin className="size-3.5" /> {restaurant.address}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* closed banner — quando fechado, bem bonito */}
@@ -841,7 +723,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                     <span className="h-px flex-1" style={{ backgroundColor: hexToRgba(accent, 0.18) }} />
                   </div>
 
-                  <div className="grid gap-3">
+                  <div className="grid gap-2">
                     {catProducts.map((item) => {
                       const prodAddons = addonsByProduct.get(item.id) ?? [];
                       const availableAddons = prodAddons.filter((a) => a.available);
@@ -850,99 +732,66 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                       const simpleInCart = !hasAddons ? cart.find((ci) => ci.product.id === item.id) : null;
                       const canOrder = isCurrentlyOpen;
 
-                      // price hint for card: cheapest addon?
-                      const cheapestAddon = availableAddons.length ? Math.min(...availableAddons.map(a=>Number(a.price))) : null;
-
                       return (
                         <div
                           key={item.id}
-                          className="group relative flex gap-4 overflow-hidden rounded-2xl border bg-[#0f0f17] p-3 transition-all hover:shadow-[0_12px_40px_rgba(0,0,0,0.4)] sm:p-4"
+                          className="group relative flex gap-3 overflow-hidden rounded-xl border bg-[#0f0f17] p-2.5 transition-all hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
                           style={{ borderColor: qtyInCart ? hexToRgba(accent, 0.35) : "rgba(255,255,255,0.07)" }}
                         >
-                          {qtyInCart > 0 && <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accent }} />}
+                          {qtyInCart > 0 && <span className="absolute inset-y-0 left-0 w-0.5" style={{ backgroundColor: accent }} />}
 
                           {item.image_url ? (
-                            <img src={item.image_url} alt={item.name} className="size-20 shrink-0 rounded-xl object-cover sm:size-24" loading="lazy" />
+                            <img src={item.image_url} alt={item.name} className="size-16 shrink-0 rounded-lg object-cover" loading="lazy" />
                           ) : (
                             <div
-                              className="grid size-20 shrink-0 place-items-center rounded-xl border sm:size-24"
+                              className="grid size-16 shrink-0 place-items-center rounded-lg border"
                               style={{ borderColor: hexToRgba(accent, 0.22), backgroundColor: hexToRgba(accent, 0.07) }}
                             >
-                              <UtensilsCrossed className="size-6" style={{ color: accent }} />
+                              <UtensilsCrossed className="size-5" style={{ color: accent }} />
                             </div>
                           )}
 
                           <div className="min-w-0 flex-1 py-0.5">
-                            <p className="line-clamp-1 text-[15px] font-bold leading-tight text-white">{item.name}</p>
+                            <p className="line-clamp-1 text-sm font-bold leading-tight text-white">{item.name}</p>
                             {item.description && (
-                              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-gray-400">{item.description}</p>
+                              <p className="mt-0.5 line-clamp-1 text-[11px] leading-relaxed text-gray-400">{item.description}</p>
                             )}
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <div className="mt-1.5 flex items-center gap-2">
                               <p className="text-sm font-black" style={{ color: accent }}>
                                 {brl(item.price)}
                               </p>
                               {hasAddons && (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/25 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-300">
-                                  <Sparkles className="size-3" /> + adicionais
+                                <span className="text-[10px] text-violet-300">
+                                  + adicionais
                                 </span>
                               )}
                               {!canOrder && (
-                                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300">fechado</span>
+                                <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">fechado</span>
                               )}
                             </div>
-                            {hasAddons && cheapestAddon != null && (
-                              <p className="mt-1 text-[11px] font-medium text-violet-300/70">
-                                adicionais a partir de + {brl(cheapestAddon)}
-                              </p>
-                            )}
-                            {hasAddons && qtyInCart > 0 && (
-                              <p className="mt-1 text-[11px] font-bold text-white/70">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white">
-                                  {qtyInCart} no carrinho
-                                </span>
-                              </p>
-                            )}
                           </div>
 
-                          <div className="flex shrink-0 flex-col justify-center gap-1.5">
-                            {hasAddons ? (
-                              <button
-                                onClick={() => canOrder && openAddonModal(item)}
-                                disabled={!canOrder}
-                                title={!canOrder ? "Restaurante fechado" : "Escolher adicionais"}
-                                className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2.5 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${canOrder ? "hover:shadow-lg hover:brightness-110" : ""}`}
-                                style={{
-                                  borderColor: hexToRgba(accent, canOrder ? 0.5 : 0.2),
-                                  color: canOrder ? "#fff" : "#6b7280",
-                                  backgroundColor: canOrder ? accent : hexToRgba(accent, 0.04),
-                                  boxShadow: canOrder ? `0 6px 18px ${hexToRgba(accent, 0.35)}` : undefined,
-                                }}
-                              >
-                                <Plus className="size-3.5" /> {qtyInCart ? "Adicionar +" : "Adicionar"}
-                              </button>
-                            ) : item.available ? (
+                          <div className="flex shrink-0 flex-col justify-center">
+                            {item.available ? (
                               <>
-                                {simpleInCart ? (
-                                  <div
-                                    className="flex items-center gap-1 rounded-full border p-1 shadow-md"
-                                    style={{ borderColor: hexToRgba(accent, 0.35), backgroundColor: hexToRgba(accent, 0.1) }}
-                                  >
+                                {qtyInCart > 0 ? (
+                                  <div className="flex items-center gap-1">
                                     <button
                                       onClick={() => handleRemove(item.id)}
-                                      className="grid size-8 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
+                                      className="grid size-7 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
                                       aria-label={`Remover ${item.name}`}
                                     >
-                                      <Minus className="size-3.5" />
+                                      <Minus className="size-3" />
                                     </button>
-                                    <span className="w-6 text-center text-sm font-black text-white">{simpleInCart.quantity}</span>
+                                    <span className="w-5 text-center text-xs font-black text-white">{qtyInCart}</span>
                                     <button
                                       onClick={() => handleAddSimple(item)}
                                       disabled={!canOrder}
-                                      className="grid size-8 place-items-center rounded-full text-white transition-colors hover:brightness-110 disabled:opacity-40"
+                                      className="grid size-7 place-items-center rounded-full text-white transition-colors hover:brightness-110 disabled:opacity-40"
                                       style={{ backgroundColor: accent }}
                                       aria-label={`Adicionar ${item.name}`}
                                     >
-                                      <Plus className="size-3.5" />
+                                      <Plus className="size-3" />
                                     </button>
                                   </div>
                                 ) : (
@@ -950,19 +799,29 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                     onClick={() => canOrder && handleAddSimple(item)}
                                     disabled={!canOrder}
                                     title={!canOrder ? "Restaurante fechado" : "Adicionar ao pedido"}
-                                    className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2.5 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${canOrder ? "hover:shadow-lg hover:brightness-110" : ""}`}
+                                    className={`inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${canOrder ? "hover:shadow-lg hover:brightness-110" : ""}`}
                                     style={{
                                       borderColor: hexToRgba(accent, canOrder ? 0.5 : 0.2),
-                                      color: canOrder ? accent : "#6b7280",
-                                      backgroundColor: hexToRgba(accent, canOrder ? 0.09 : 0.04),
+                                      color: canOrder ? "#fff" : "#6b7280",
+                                      backgroundColor: canOrder ? accent : hexToRgba(accent, 0.04),
+                                      boxShadow: canOrder ? `0 4px 12px ${hexToRgba(accent, 0.35)}` : undefined,
                                     }}
                                   >
-                                    <Plus className="size-3.5" /> Add
+                                    <Plus className="size-3" /> Add
+                                  </button>
+                                )}
+                                {hasAddons && qtyInCart > 0 && (
+                                  <button
+                                    onClick={() => canOrder && openAddonModal(item)}
+                                    disabled={!canOrder}
+                                    className="mt-1 text-[10px] text-violet-300 hover:text-violet-200 disabled:opacity-50"
+                                  >
+                                    + adicionais
                                   </button>
                                 )}
                               </>
                             ) : (
-                              <span className="rounded-full bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">Indisponível</span>
+                              <span className="rounded-full bg-white/5 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-gray-500">Indisponível</span>
                             )}
                           </div>
                         </div>
@@ -975,14 +834,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           )}
         </div>
       </main>
-
-      {/* footer */}
-      <footer className="mx-auto max-w-2xl px-4 pb-6">
-        <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-4 text-center">
-          <p className="text-xs font-semibold text-gray-400">{restaurant.name} • Cardápio Digital</p>
-          <p className="mt-1 text-[11px] text-gray-600">Feito com ♥ no Cardápio Cidadela • pracinha.online</p>
-        </div>
-      </footer>
 
       {/* Floating cart bar — premium */}
       {count > 0 && !cartOpen && !checkoutOpen && !pendingOrder && !successOrder && (

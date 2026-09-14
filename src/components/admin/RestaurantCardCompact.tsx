@@ -111,12 +111,12 @@ export function RestaurantCardCompact({
           </a>
         </div>
         {/* avatar overlapping */}
-        <div className="absolute -bottom-6 left-3 flex size-14 items-center justify-center rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
+        <div className="absolute -bottom-8 left-3 z-10 flex size-16 items-center justify-center rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
               alt={restaurant.name}
-              className="size-14 rounded-2xl object-cover"
+              className="size-16 rounded-2xl object-cover"
               loading="lazy"
             />
           ) : (
@@ -126,7 +126,7 @@ export function RestaurantCardCompact({
       </div>
 
       {/* ─── CONTENT ─── */}
-      <div className="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-8">
+      <div className="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-10">
         {/* Name + chevron */}
         <div className="flex items-center justify-between gap-2">
           <h3 className="min-w-0 truncate text-sm font-bold leading-snug text-white group-hover:text-cyan-300 transition-colors">

@@ -838,111 +838,111 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
               </div>
             );
           })}
-        </div>
-      )}
 
-      {/* Adicionais Globais como categoria no final */}
-      <div
-        className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0e0e15] transition-colors hover:border-white/[0.12]"
-      >
-        <div className="flex items-center gap-2 border-b border-white/[0.05] bg-white/[0.02] px-4 py-3">
-          <Sparkles className="size-4 shrink-0 text-violet-400" />
-          <h3 className="min-w-0 flex-1 truncate text-sm font-bold uppercase tracking-wide text-white">
-            Adicionais Globais
-          </h3>
-          <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-bold text-gray-300">
-            {addons.filter(a => !a.product_id || a.product_id === "").length} itens
-          </span>
-        </div>
-
-        <div className="space-y-2 p-3">
-          {addons.filter(a => !a.product_id || a.product_id === "").length === 0 ? (
-            <div className="grid place-items-center py-8 text-center">
-              <div className="grid size-10 place-items-center rounded-xl bg-white/[0.03] text-gray-700">
-                <Sparkles className="size-4" />
-              </div>
-              <p className="mt-2 text-xs text-gray-600">Nenhum adicional global configurado.</p>
+          {/* Adicionais Globais como categoria na grid */}
+          <div
+            className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0e0e15] transition-colors hover:border-white/[0.12]"
+          >
+            <div className="flex items-center gap-2 border-b border-white/[0.05] bg-white/[0.02] px-4 py-3">
+              <Sparkles className="size-4 shrink-0 text-violet-400" />
+              <h3 className="min-w-0 flex-1 truncate text-sm font-bold uppercase tracking-wide text-white">
+                Adicionais Globais
+              </h3>
+              <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-bold text-gray-300">
+                {addons.filter(a => !a.product_id || a.product_id === "").length} itens
+              </span>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {addons
-                .filter(a => !a.product_id || a.product_id === "")
-                .sort((a, b) => a.sort_order - b.sort_order)
-                .map((a) => (
-                  <div
-                    key={a.id}
-                    className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
-                      a.available
-                        ? "border-white/[0.06] bg-white/[0.03]"
-                        : "border-amber-500/15 bg-amber-500/[0.04] opacity-70"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-white">{a.name}</p>
-                      <p className="text-xs font-bold text-violet-300">+ {brl(Number(a.price))}</p>
-                    </div>
-                    <button
-                      onClick={() => handleToggleAddon(a.id, !a.available)}
-                      title={a.available ? "Desativar" : "Ativar"}
-                      className={`size-7 rounded-full transition-colors ${
-                        a.available
-                          ? "bg-emerald-500 text-white hover:bg-emerald-400"
-                          : "bg-amber-500 text-white hover:bg-amber-400"
-                      }`}
-                    >
-                      {a.available ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
-                    </button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => {
-                        setEditingAddonId(a.id);
-                        setEditAddon({ name: a.name, price: String(a.price) });
-                      }}
-                      className="size-7 text-gray-500 hover:text-white"
-                    >
-                      <Pencil className="size-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => setAddonToDelete(a)}
-                      className="size-7 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
+
+            <div className="space-y-2 p-3">
+              {addons.filter(a => !a.product_id || a.product_id === "").length === 0 ? (
+                <div className="grid place-items-center py-8 text-center">
+                  <div className="grid size-10 place-items-center rounded-xl bg-white/[0.03] text-gray-700">
+                    <Sparkles className="size-4" />
                   </div>
-                ))}
+                  <p className="mt-2 text-xs text-gray-600">Nenhum adicional global configurado.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {addons
+                    .filter(a => !a.product_id || a.product_id === "")
+                    .sort((a, b) => a.sort_order - b.sort_order)
+                    .map((a) => (
+                      <div
+                        key={a.id}
+                        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+                          a.available
+                            ? "border-white/[0.06] bg-white/[0.03]"
+                            : "border-amber-500/15 bg-amber-500/[0.04] opacity-70"
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-white">{a.name}</p>
+                          <p className="text-xs font-bold text-violet-300">+ {brl(Number(a.price))}</p>
+                        </div>
+                        <button
+                          onClick={() => handleToggleAddon(a.id, !a.available)}
+                          title={a.available ? "Desativar" : "Ativar"}
+                          className={`size-7 rounded-full transition-colors ${
+                            a.available
+                              ? "bg-emerald-500 text-white hover:bg-emerald-400"
+                              : "bg-amber-500 text-white hover:bg-amber-400"
+                          }`}
+                        >
+                          {a.available ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
+                        </button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingAddonId(a.id);
+                            setEditAddon({ name: a.name, price: String(a.price) });
+                          }}
+                          className="size-7 text-gray-500 hover:text-white"
+                        >
+                          <Pencil className="size-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setAddonToDelete(a)}
+                          className="size-7 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              )}
+              
+              <div className="mt-3 flex gap-2">
+                <Input
+                  placeholder="Nome do adicional (ex: Ovo)"
+                  value={newAddon.name}
+                  onChange={(e) => setNewAddon({ ...newAddon, name: e.target.value })}
+                  className="flex-1"
+                />
+                <div className="flex w-24 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2">
+                  <DollarSign className="size-3.5 shrink-0 text-gray-500" />
+                  <input
+                    className="w-full bg-transparent py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none"
+                    value={newAddon.price}
+                    onChange={(e) => setNewAddon({ ...newAddon, price: e.target.value })}
+                    placeholder="3,00"
+                    inputMode="decimal"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleCreateGlobalAddon}
+                  className="bg-violet-500 text-white hover:bg-violet-400"
+                >
+                  <Plus className="size-3.5" /> Adicionar
+                </Button>
+              </div>
             </div>
-          )}
-          
-          <div className="mt-3 flex gap-2">
-            <Input
-              placeholder="Nome do adicional (ex: Ovo)"
-              value={newAddon.name}
-              onChange={(e) => setNewAddon({ ...newAddon, name: e.target.value })}
-              className="flex-1"
-            />
-            <div className="flex w-24 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2">
-              <DollarSign className="size-3.5 shrink-0 text-gray-500" />
-              <input
-                className="w-full bg-transparent py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none"
-                value={newAddon.price}
-                onChange={(e) => setNewAddon({ ...newAddon, price: e.target.value })}
-                placeholder="3,00"
-                inputMode="decimal"
-              />
-            </div>
-            <Button
-              size="sm"
-              onClick={handleCreateGlobalAddon}
-              className="bg-violet-500 text-white hover:bg-violet-400"
-            >
-              <Plus className="size-3.5" /> Adicionar
-            </Button>
           </div>
         </div>
-      </div>
+      )}
 
       <ConfirmDialog
         open={Boolean(catToDelete)}

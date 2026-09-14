@@ -89,6 +89,7 @@ export interface Order {
   id: string;
   restaurant_id: string;
   customer_id: string | null;
+  guest_id?: string | null;
   idempotency_key: string | null;
   comanda: string;
   customer_name: string;
@@ -110,6 +111,19 @@ export interface Order {
   created_at: string;
   updated_at: string;
   order_items?: OrderItem[];
+}
+
+/** Pedido na perspectiva do cliente (sem dados pessoais) */
+export interface GuestOrderSummary {
+  id: string;
+  restaurant_id: string;
+  restaurant_name: string;
+  comanda: string;
+  status: OrderStatus;
+  total: number;
+  delivery_type: string;
+  payment_method: string;
+  created_at: string;
 }
 
 export interface OrderStatusHistoryEntry {

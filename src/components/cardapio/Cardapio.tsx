@@ -8,6 +8,7 @@ import { supabase } from "@/modules/supabase/client";
 import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
 import { brl, hexToRgba, newComanda } from "@/lib/utils";
+import { getOrCreateGuestId, rememberOrderId } from "@/lib/guestOrder";
 import type { Product, Category, Restaurant, Order } from "@/lib/types";
 import CartSheet from "./CartSheet";
 import CheckoutModal from "./CheckoutModal";
@@ -249,11 +250,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           : 0;
       const orderTotal = subtotal + deliveryFee;
 
+      const guestId = getOrCreateGuestId();
       const { order, error } = await createOrder(
         restaurant.id,
         {
           comanda,
           customer_id: user?.id ?? null,
+          guest_id: guestId,
           customer_name: customerName,
           customer_phone: customerPhone,
           customer_email: form.customer_email,
@@ -279,6 +282,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         return;
       }
 
+      // Garante que o pedido fique acessível mesmo se o cliente fechar a
+      // página antes de tocar em "Acompanhar pedido" — exibe em /meus-pedidos.
+      rememberOrderId(order.id);
       clearCart();
       setCheckoutOpen(false);
       const normalized = {
@@ -446,6 +452,14 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-[#07070b]" />
+
+        <Link
+          to="/meus-pedidos"
+          className="absolute left-3 top-4 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur transition-colors hover:border-white/30 hover:bg-black/70"
+          aria-label="Meus pedidos"
+        >
+          <ShoppingBag className="size-3.5" /> Meus pedidos
+        </Link>
 
         <div className="absolute left-0 right-0 top-10 px-4 text-center sm:top-14">
           {restaurant.logo_url ? (

@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS orders (
   comanda TEXT NOT NULL,
   idempotency_key TEXT,
   customer_id TEXT,
+  guest_id TEXT,
   customer_name TEXT NOT NULL,
   customer_phone TEXT DEFAULT '',
   customer_email TEXT DEFAULT '',
@@ -131,6 +132,7 @@ CREATE TABLE IF NOT EXISTS orders (
 -- Migração segura: garante colunas exigidas pelo app em bancos criados por versões antigas do schema
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS guest_id TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS comanda TEXT NOT NULL DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_phone TEXT DEFAULT '';
@@ -148,6 +150,7 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cidadela_unlocked BOOLEAN DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_orders_restaurant ON orders(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_orders_guest ON orders(guest_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_comanda ON orders(comanda);
@@ -235,6 +238,62 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_order_tracking(UUID) TO anon, authenticated;
+
+-- Lista pedidos de um "convidado" (guest_id) — dados limitados (sem PII),
+-- acessível a anon pois o guest_id é um token aleatório portado pelo cliente.
+CREATE OR REPLACE FUNCTION public.get_orders_by_guest(p_guest TEXT)
+RETURNS TABLE (
+  id UUID,
+  restaurant_id UUID,
+  restaurant_name TEXT,
+  comanda TEXT,
+  status TEXT,
+  total NUMERIC,
+  delivery_type TEXT,
+  payment_method TEXT,
+  created_at TIMESTAMPTZ
+) LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    o.id,
+    o.restaurant_id,
+    r.name AS restaurant_name,
+    o.comanda,
+    o.status::text,
+    o.total,
+    o.delivery_type,
+    o.payment_method,
+    o.created_at
+  FROM orders o
+  JOIN restaurants r ON r.id = o.restaurant_id
+  WHERE o.guest_id = p_guest
+  ORDER BY o.created_at DESC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_orders_by_guest(TEXT) TO anon, authenticated;
+
+-- Mantém a tabela de convidados limpa: pedidos encerrados
+-- (entregue/cancelado) com mais de 24h deixam de ser listados e o
+-- guest_id é anonimizado, cumprindo a vida curta do "convidado".
+CREATE OR REPLACE FUNCTION public.cleanup_expired_guest_orders()
+RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  affected integer;
+BEGIN
+  UPDATE orders
+  SET guest_id = NULL
+  WHERE status IN ('delivered', 'cancelled')
+    AND updated_at < now() - interval '24 hours'
+    AND guest_id IS NOT NULL;
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  RETURN affected;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.cleanup_expired_guest_orders() TO anon, authenticated;
 
 -- ============================================================
 -- CIDADELA UNLOCKS (auto-unlock after order confirmation)

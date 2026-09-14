@@ -308,16 +308,9 @@ export async function createProductAddon(input: {
   price: number;
 }): Promise<ProductAddon | null> {
   const productId = input.product_id || GLOBAL_ADDON_PRODUCT_ID;
-  const { data: existing } = await supabase
-    .from("product_addons")
-    .select("sort_order")
-    .eq("product_id", productId)
-    .order("sort_order", { ascending: false })
-    .limit(1);
-  const nextOrder = existing && existing.length > 0 ? existing[0].sort_order + 1 : 0;
   const { data, error } = await supabase
     .from("product_addons")
-    .insert({ ...input, product_id: productId, sort_order: nextOrder, available: true })
+    .insert({ ...input, product_id: productId, available: true })
     .select()
     .single();
   if (error) {

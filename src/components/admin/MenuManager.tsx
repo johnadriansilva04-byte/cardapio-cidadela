@@ -854,10 +854,14 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
             {addons.filter(a => !a.product_id || a.product_id === "").length} itens
           </span>
         </div>
-        <div className="p-4">
+
+        <div className="space-y-2 p-3">
           {addons.filter(a => !a.product_id || a.product_id === "").length === 0 ? (
-            <div className="text-center py-8 text-gray-500 text-xs">
-              Nenhum adicional global configurado
+            <div className="grid place-items-center py-8 text-center">
+              <div className="grid size-10 place-items-center rounded-xl bg-white/[0.03] text-gray-700">
+                <Sparkles className="size-4" />
+              </div>
+              <p className="mt-2 text-xs text-gray-600">Nenhum adicional global configurado.</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -912,7 +916,7 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
             </div>
           )}
           
-          <div className="mt-4 flex gap-2">
+          <div className="mt-3 flex gap-2">
             <Input
               placeholder="Nome do adicional (ex: Ovo)"
               value={newAddon.name}
@@ -968,97 +972,6 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
         confirmLabel="Excluir"
         onConfirm={handleDeleteAddon}
       />
-
-      {/* Seção de Adicionais Globais do Restaurante */}
-      <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-white">Adicionais Globais</h3>
-          <p className="text-xs text-gray-500">Disponíveis para TODOS os lanches</p>
-        </div>
-        
-        {addons.filter(a => !a.product_id || a.product_id === "").length === 0 ? (
-          <div className="text-center py-8 text-gray-500 text-xs">
-            Nenhum adicional global configurado
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {addons
-              .filter(a => !a.product_id || a.product_id === "")
-              .sort((a, b) => a.sort_order - b.sort_order)
-              .map((a) => (
-                <div
-                  key={a.id}
-                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
-                    a.available
-                      ? "border-white/[0.06] bg-white/[0.03]"
-                      : "border-amber-500/15 bg-amber-500/[0.04] opacity-70"
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-white">{a.name}</p>
-                    <p className="text-xs font-bold text-violet-300">+ {brl(Number(a.price))}</p>
-                  </div>
-                  <button
-                    onClick={() => handleToggleAddon(a.id, !a.available)}
-                    title={a.available ? "Desativar" : "Ativar"}
-                    className={`size-7 rounded-full transition-colors ${
-                      a.available
-                        ? "bg-emerald-500 text-white hover:bg-emerald-400"
-                        : "bg-amber-500 text-white hover:bg-amber-400"
-                    }`}
-                  >
-                    {a.available ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
-                  </button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingAddonId(a.id);
-                      setEditAddon({ name: a.name, price: String(a.price) });
-                    }}
-                    className="size-7 text-gray-500 hover:text-white"
-                  >
-                    <Pencil className="size-3" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setAddonToDelete(a)}
-                    className="size-7 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
-                  >
-                    <Trash2 className="size-3" />
-                  </Button>
-                </div>
-              ))}
-          </div>
-        )}
-        
-        <div className="mt-4 flex gap-2">
-          <Input
-            placeholder="Nome do adicional (ex: Ovo)"
-            value={newAddon.name}
-            onChange={(e) => setNewAddon({ ...newAddon, name: e.target.value })}
-            className="flex-1"
-          />
-          <div className="flex w-24 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2">
-            <DollarSign className="size-3.5 shrink-0 text-gray-500" />
-            <input
-              className="w-full bg-transparent py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none"
-              value={newAddon.price}
-              onChange={(e) => setNewAddon({ ...newAddon, price: e.target.value })}
-              placeholder="3,00"
-              inputMode="decimal"
-            />
-          </div>
-          <Button
-            size="sm"
-            onClick={handleCreateGlobalAddon}
-            className="bg-cyan-600 text-white hover:bg-cyan-500"
-          >
-            <Plus className="size-3.5" /> Adicionar
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

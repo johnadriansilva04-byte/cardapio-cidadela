@@ -496,41 +496,43 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           rel="noopener noreferrer"
           className="absolute right-3 top-[9.5rem] z-50 group flex size-20 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95 sm:size-24"
           style={{
-            background: `radial-gradient(ellipse at 30% 30%, ${hexToRgba(accent, 0.8)} 0%, #07070b 75%)`,
-            border: `2.5px solid ${accent}`,
-            boxShadow: `0 0 18px ${hexToRgba(accent, 0.6)}, 0 0 40px ${hexToRgba(accent, 0.25)}, 0 4px 20px rgba(0,0,0,0.6)`,
+            background: `radial-gradient(ellipse at 30% 30%, #00E6FF 0%, #0891b2 28%, #0a0a18 78%)`,
+            border: `2.5px solid #00E6FF`,
+            boxShadow: `0 0 18px rgba(0,230,255,0.6), 0 0 40px rgba(0,230,255,0.25), 0 4px 20px rgba(0,0,0,0.6)`,
           }}
           aria-label="Conheça a Cidadela"
         >
-          {/* outer neon glow ring */}
+          {/* outer neon glow ring — pulsante */}
           <span
             className="pointer-events-none absolute inset-[-4px] rounded-full animate-pulse opacity-60"
-            style={{ border: `2px solid ${hexToRgba(accent, 0.4)}`, filter: "blur(1px)" }}
+            style={{ border: `2px solid rgba(0,230,255,0.4)`, filter: "blur(1px)" }}
           />
           {/* inner circle fill */}
           <span
             className="absolute inset-0 rounded-full"
             style={{
-              background: `radial-gradient(ellipse at 30% 30%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%)`,
+              background: `radial-gradient(ellipse at 30% 30%, rgba(0,230,255,0.22) 0%, transparent 60%)`,
             }}
           />
           {/* spray-drip texture dots */}
           <span
             className="pointer-events-none absolute inset-1 rounded-full opacity-[0.08]"
             style={{
-              background: `radial-gradient(circle at 25% 65%, ${accent} 1px, transparent 1px), radial-gradient(circle at 75% 45%, ${accent} 1px, transparent 1px), radial-gradient(circle at 50% 85%, ${accent} 0.8px, transparent 0.8px)`,
+              background: `radial-gradient(circle at 25% 65%, #00E6FF 1px, transparent 1px), radial-gradient(circle at 75% 45%, #00E6FF 1px, transparent 1px), radial-gradient(circle at 50% 85%, #00E6FF 0.8px, transparent 0.8px)`,
             }}
           />
-          {/* content — grafite / piche hand-tag look */}
+          {/* content — grafite / piche hand-tag look: preto/amarelo neon pulsante */}
           <span className="relative flex flex-col items-center justify-center px-2 text-center">
             <span
-              className="font-black leading-none tracking-[0.08em] drop-shadow-[0_1px_8px_rgba(6,182,212,0.6)]"
+              className="font-black leading-none tracking-[0.08em]"
               style={{
-                fontFamily: "'Permanent Marker','Rock Salt',cursive",
+                fontFamily: "'Permanent Marker','Bangers',cursive",
                 fontSize: "11px",
-                color: accent,
-                textShadow: `0 0 6px ${hexToRgba(accent, 0.9)}, 0 0 18px ${hexToRgba(accent, 0.5)}`,
+                color: "#FACC15",
+                WebkitTextStroke: "0.3px rgba(0,0,0,0.85)",
+                textShadow: `0 0 6px rgba(250,204,21,0.95), 0 0 16px rgba(250,204,21,0.5), 1px 1px 0 rgba(0,0,0,0.85)`,
                 transform: "rotate(-3deg)",
+                animation: "graf-pulse 1.6s ease-in-out infinite",
               }}
             >
               CONHEÇA
@@ -538,11 +540,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             <span
               className="font-black leading-none tracking-[0.12em]"
               style={{
-                fontFamily: "'Permanent Marker','Rock Salt',cursive",
+                fontFamily: "'Permanent Marker','Bangers',cursive",
                 fontSize: "13px",
-                color: "#22d3ee",
-                textShadow: `0 0 8px rgba(34,211,238,0.9), 0 0 18px rgba(34,211,238,0.45), 1px 1px 0 rgba(0,0,0,0.8)`,
+                color: "#FACC15",
+                WebkitTextStroke: "0.35px rgba(0,0,0,0.9)",
+                textShadow: `0 0 8px rgba(250,204,21,1), 0 0 18px rgba(250,204,21,0.55), 0 0 30px rgba(0,230,255,0.35), 1px 1px 0 rgba(0,0,0,0.9)`,
                 transform: "rotate(-3deg)",
+                animation: "graf-pulse 1.6s ease-in-out infinite 0.12s",
               }}
             >
               A CIDADELA
@@ -552,19 +556,19 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke={accent}
+                stroke="#FACC15"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 className="size-3.5"
-                style={{ filter: `drop-shadow(0 0 4px ${hexToRgba(accent, 0.8)})` }}
+                style={{ filter: `drop-shadow(0 0 4px rgba(250,204,21,0.9))` }}
               >
                 <rect x="5" y="11" width="14" height="10" rx="2" />
                 <path d="M8 11V7a4 4 0 0 1 8 0v4" />
               </svg>
               <span
-                className="text-[7px] font-bold tracking-[0.2em] opacity-70"
-                style={{ color: accent }}
+                className="text-[7px] font-bold tracking-[0.2em]"
+                style={{ color: "#FACC15", textShadow: "0 0 6px rgba(250,204,21,0.7)" }}
               >
                 PRACINHA
               </span>

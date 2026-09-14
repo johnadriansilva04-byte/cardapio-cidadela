@@ -193,6 +193,11 @@
   to { background-position-y: -96px; }
 }
 
+@keyframes graf-pulse {
+  0%, 100% { transform: rotate(-3deg) scale(1); filter: brightness(1); }
+  50% { transform: rotate(-2deg) scale(1.07); filter: brightness(1.35); }
+}
+
 @utility animate-float {
   animation: float 3s ease-in-out infinite;
 }

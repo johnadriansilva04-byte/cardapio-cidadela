@@ -494,51 +494,82 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           href="https://pracinha.online"
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute right-3 top-[9.5rem] z-50 group inline-flex items-center gap-2 rounded-full border px-4 py-2 backdrop-blur-md transition-all hover:scale-105 active:scale-95 shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+          className="absolute right-3 top-[9.5rem] z-50 group flex size-20 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95 sm:size-24"
           style={{
-            backgroundColor: hexToRgba(accent, 0.15),
-            borderColor: hexToRgba(accent, 0.5),
-            boxShadow: `0 0 20px ${hexToRgba(accent, 0.35)}, 0 4px 24px rgba(0,0,0,0.5)`,
+            background: `radial-gradient(ellipse at 30% 30%, ${hexToRgba(accent, 0.8)} 0%, #07070b 75%)`,
+            border: `2.5px solid ${accent}`,
+            boxShadow: `0 0 18px ${hexToRgba(accent, 0.6)}, 0 0 40px ${hexToRgba(accent, 0.25)}, 0 4px 20px rgba(0,0,0,0.6)`,
           }}
           aria-label="Conheça a Cidadela"
         >
+          {/* outer neon glow ring */}
           <span
-            className="absolute inset-0 rounded-full animate-pulse opacity-40 group-hover:opacity-60 transition-opacity"
-            style={{ backgroundColor: hexToRgba(accent, 0.25) }}
+            className="pointer-events-none absolute inset-[-4px] rounded-full animate-pulse opacity-60"
+            style={{ border: `2px solid ${hexToRgba(accent, 0.4)}`, filter: "blur(1px)" }}
           />
-          <span className="relative grid size-6 place-items-center rounded-full bg-white/10 shrink-0">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="size-3.5"
-              style={{ color: accent }}
-            >
-              <rect x="5" y="11" width="14" height="10" rx="2" />
-              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-            </svg>
-          </span>
+          {/* inner circle fill */}
           <span
-            className="relative text-[11px] font-extrabold uppercase tracking-[0.12em]"
-            style={{ color: accent }}
-          >
-            Conheça a Cidadela
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: `radial-gradient(ellipse at 30% 30%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%)`,
+            }}
+          />
+          {/* spray-drip texture dots */}
+          <span
+            className="pointer-events-none absolute inset-1 rounded-full opacity-[0.08]"
+            style={{
+              background: `radial-gradient(circle at 25% 65%, ${accent} 1px, transparent 1px), radial-gradient(circle at 75% 45%, ${accent} 1px, transparent 1px), radial-gradient(circle at 50% 85%, ${accent} 0.8px, transparent 0.8px)`,
+            }}
+          />
+          {/* content — grafite / piche hand-tag look */}
+          <span className="relative flex flex-col items-center justify-center px-2 text-center">
+            <span
+              className="font-black leading-none tracking-[0.08em] drop-shadow-[0_1px_8px_rgba(6,182,212,0.6)]"
+              style={{
+                fontFamily: "'Permanent Marker','Rock Salt',cursive",
+                fontSize: "11px",
+                color: accent,
+                textShadow: `0 0 6px ${hexToRgba(accent, 0.9)}, 0 0 18px ${hexToRgba(accent, 0.5)}`,
+                transform: "rotate(-3deg)",
+              }}
+            >
+              CONHEÇA
+            </span>
+            <span
+              className="font-black leading-none tracking-[0.12em]"
+              style={{
+                fontFamily: "'Permanent Marker','Rock Salt',cursive",
+                fontSize: "13px",
+                color: "#22d3ee",
+                textShadow: `0 0 8px rgba(34,211,238,0.9), 0 0 18px rgba(34,211,238,0.45), 1px 1px 0 rgba(0,0,0,0.8)`,
+                transform: "rotate(-3deg)",
+              }}
+            >
+              A CIDADELA
+            </span>
+            {/* drip + lock icon */}
+            <span className="mt-0.5 flex items-center gap-1 opacity-90">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={accent}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5"
+                style={{ filter: `drop-shadow(0 0 4px ${hexToRgba(accent, 0.8)})` }}
+              >
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              </svg>
+              <span
+                className="text-[7px] font-bold tracking-[0.2em] opacity-70"
+                style={{ color: accent }}
+              >
+                PRACINHA
+              </span>
+            </span>
           </span>
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="relative size-3.5 shrink-0 transition-transform group-hover:translate-x-0.5"
-            style={{ color: accent }}
-          >
-            <path d="M9 18l6-6-6-6" />
-          </svg>
         </a>
       </div>
 

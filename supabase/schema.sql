@@ -708,7 +708,8 @@ $$ LANGUAGE plpgsql;
 -- TRIGGER: popula o cardápio padrão automaticamente ao criar restaurante
 -- (corrige restaurante novo nascendo sem produtos — página pública vazia)
 -- ============================================================
-DROP FUNCTION IF EXISTS trg_setup_default_menu_fn();
+DROP TRIGGER IF EXISTS trg_setup_default_menu ON restaurants;
+DROP FUNCTION IF EXISTS trg_setup_default_menu_fn() CASCADE;
 CREATE FUNCTION trg_setup_default_menu_fn() RETURNS TRIGGER AS $$
 BEGIN
   PERFORM setup_default_menu(NEW.id);
@@ -716,7 +717,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trg_setup_default_menu ON restaurants;
 CREATE TRIGGER trg_setup_default_menu
 AFTER INSERT ON restaurants
 FOR EACH ROW

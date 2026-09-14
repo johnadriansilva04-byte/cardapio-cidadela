@@ -8,7 +8,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   getRestaurantsByOwner,
   ensureRestaurantsForUser,
@@ -26,6 +26,7 @@ function AdminDashboardOverview() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const retryRef = useRef(0);
 
   useEffect(() => {
     if (authLoading) return;
@@ -44,6 +45,15 @@ function AdminDashboardOverview() {
         const data = await getRestaurantsByOwner(user!.id);
         if (cancelled) return;
         setRestaurants(data);
+        if (data.length > 0) {
+          retryRef.current = 0;
+        } else if (retryRef.current < 3) {
+          retryRef.current++;
+          await new Promise((r) => setTimeout(r, retryRef.current * 400));
+          if (cancelled) return;
+          const retry = await getRestaurantsByOwner(user!.id);
+          if (!cancelled) setRestaurants(retry);
+        }
       } catch (e) {
         console.error("[dashboard] load", e);
         if (!cancelled) setError("Falha ao carregar o dashboard.");

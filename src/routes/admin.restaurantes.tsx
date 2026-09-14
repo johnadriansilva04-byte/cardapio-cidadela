@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Store,
   Plus,
@@ -40,6 +40,7 @@ function RestaurantesPage() {
   const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  const retryRef = useRef(0);
 
   useEffect(() => {
     if (authLoading) return;
@@ -58,6 +59,15 @@ function RestaurantesPage() {
         const data = await getRestaurantsByOwner(user!.id);
         if (cancelled) return;
         setRestaurants(data);
+        if (data.length > 0) {
+          retryRef.current = 0;
+        } else if (retryRef.current < 3) {
+          retryRef.current++;
+          await new Promise((r) => setTimeout(r, retryRef.current * 400));
+          if (cancelled) return;
+          const retry = await getRestaurantsByOwner(user!.id);
+          if (!cancelled) setRestaurants(retry);
+        }
       } catch (e) {
         console.error("[restaurantes] load", e);
         if (!cancelled) setError("Falha ao carregar restaurantes.");
@@ -291,15 +301,15 @@ function RestaurantesPage() {
                         {copied === r.slug ? "Copiado" : "Copiar"}
                       </button>
 
-                      <a
-                        href={`/cardapio/${r.slug}`}
+                      <Link
+                        to="/cardapio/$slug"
+                        params={{ slug: r.slug }}
                         target="_blank"
-                        rel="noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/20"
                         title="Abrir cardápio"
                       >
                         <ExternalLink className="size-4" /> Abrir
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </div>

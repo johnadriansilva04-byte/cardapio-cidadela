@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Store, AlertCircle, RefreshCw } from "lucide-react";
 import {
   getRestaurantsByOwner,
@@ -30,6 +30,8 @@ function ConfigPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
+  const retryRef = useRef(0);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -48,9 +50,22 @@ function ConfigPage() {
         if (cancelled) return;
         setRestaurants(data);
         if (data.length > 0) {
+          retryRef.current = 0;
           const pick = data[0];
           setSelectedId((prev) => prev || pick.id);
           fillFields(pick);
+        } else if (retryRef.current < 3) {
+          retryRef.current++;
+          await new Promise((r) => setTimeout(r, retryRef.current * 400));
+          if (cancelled) return;
+          const retry = await getRestaurantsByOwner(user!.id);
+          if (!cancelled) {
+            setRestaurants(retry);
+            if (retry.length > 0) {
+              setSelectedId((prev) => prev || retry[0].id);
+              fillFields(retry[0]);
+            }
+          }
         }
       } catch (e) {
         console.error("[config] load", e);

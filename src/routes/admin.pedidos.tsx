@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Store, AlertCircle, RefreshCw } from "lucide-react";
 import {
   getRestaurantsByOwner,
@@ -20,6 +20,7 @@ function PedidosPage() {
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const retryRef = useRef(0);
 
   useEffect(() => {
     if (authLoading) return;
@@ -39,7 +40,19 @@ function PedidosPage() {
         if (cancelled) return;
         setRestaurants(data);
         if (data.length > 0) {
+          retryRef.current = 0;
           setSelectedId((prev) => prev || data[0].id);
+        } else if (retryRef.current < 3) {
+          // Parent layout may still be ensuring restaurants — retry after a delay
+          retryRef.current++;
+          const delay = retryRef.current * 400;
+          await new Promise((r) => setTimeout(r, delay));
+          if (cancelled) return;
+          const retry = await getRestaurantsByOwner(user!.id);
+          if (!cancelled) {
+            setRestaurants(retry);
+            if (retry.length > 0) setSelectedId((prev) => prev || retry[0].id);
+          }
         }
       } catch (e) {
         console.error("[pedidos] load error", e);
@@ -58,9 +71,9 @@ function PedidosPage() {
 
   // keep selectedId in sync if restaurants refetched and previous selection vanished
   useEffect(() => {
-    if (!selectedId && restaurants.length > 0) setSelectedId(restaurants[0].id);
-    if (selectedId && !restaurants.some((r) => r.id === selectedId) && restaurants.length > 0) {
-      setSelectedId(restaurants[0].id);
+    if (restaurants.length > 0) {
+      if (!selectedId) setSelectedId(restaurants[0].id);
+      else if (!restaurants.some((r) => r.id === selectedId)) setSelectedId(restaurants[0].id);
     }
   }, [restaurants, selectedId]);
 

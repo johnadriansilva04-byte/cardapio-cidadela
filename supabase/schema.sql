@@ -103,10 +103,14 @@ CREATE TABLE IF NOT EXISTS orders (
   restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
   comanda TEXT NOT NULL,
   idempotency_key TEXT,
+  customer_id TEXT,
   customer_name TEXT NOT NULL,
   customer_phone TEXT DEFAULT '',
   customer_email TEXT DEFAULT '',
   delivery_address TEXT DEFAULT '',
+  customer_complement TEXT DEFAULT '',
+  customer_neighborhood TEXT DEFAULT '',
+  customer_city TEXT DEFAULT '',
   delivery_type TEXT DEFAULT 'retirada',
   observations TEXT DEFAULT '',
   subtotal NUMERIC(10,2) NOT NULL DEFAULT 0,
@@ -121,10 +125,14 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 -- Migração segura: garante colunas exigidas pelo app em bancos criados por versões antigas do schema
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS comanda TEXT NOT NULL DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_phone TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_complement TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_neighborhood TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_city TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_type TEXT DEFAULT 'retirada';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS observations TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal NUMERIC(10,2) NOT NULL DEFAULT 0;

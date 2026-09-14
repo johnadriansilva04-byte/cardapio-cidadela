@@ -116,11 +116,12 @@ CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 -- PRODUCT ADDONS — cada lanche pode ter extras (Ovo, Queijo…)
 -- Um adicional pertence a UM produto específico e não vira
 -- categoria. O cliente escolhe no modal premium. Idempotente.
+-- Alterado: product_id agora pode ser NULL para adicionais globais
 -- ============================================================
 CREATE TABLE IF NOT EXISTS product_addons (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES products(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   price NUMERIC(10,2) NOT NULL DEFAULT 0,
   available BOOLEAN DEFAULT true,
@@ -130,6 +131,9 @@ CREATE TABLE IF NOT EXISTS product_addons (
 CREATE INDEX IF NOT EXISTS idx_product_addons_restaurant ON product_addons(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_product_addons_product ON product_addons(product_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_product_addons_unique_name ON product_addons(product_id, lower(name));
+
+-- Migração para permitir adicionais globais (product_id NULL)
+ALTER TABLE product_addons ALTER COLUMN product_id DROP NOT NULL;
 
 -- ============================================================
 -- ADD-ON GROUPS (optional)

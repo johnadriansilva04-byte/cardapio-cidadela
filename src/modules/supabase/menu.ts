@@ -298,19 +298,15 @@ export async function getRestaurantAddons(restaurantId: string): Promise<Product
   return (data ?? []) as ProductAddon[];
 }
 
-// UUID fixo para representar adicionais globais
-const GLOBAL_ADDON_PRODUCT_ID = "00000000-0000-0000-0000-000000000000";
-
 export async function createProductAddon(input: {
   restaurant_id: string;
   product_id: string | null;
   name: string;
   price: number;
 }): Promise<ProductAddon | null> {
-  const productId = input.product_id || GLOBAL_ADDON_PRODUCT_ID;
   const { data, error } = await supabase
     .from("product_addons")
-    .insert({ ...input, product_id: productId, available: true })
+    .insert({ ...input, available: true })
     .select()
     .single();
   if (error) {

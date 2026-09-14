@@ -24,9 +24,6 @@ import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
 import { brl, hexToRgba, newComanda } from "@/lib/utils";
 import { getOrCreateGuestId, rememberOrderId } from "@/lib/guestOrder";
-
-// UUID fixo para representar adicionais globais
-const GLOBAL_ADDON_PRODUCT_ID = "00000000-0000-0000-0000-000000000000";
 import type { Product, Category, Restaurant, Order, DeliveryNeighborhood, RestaurantAddon, ProductAddon, SelectedAddon } from "@/lib/types";
 import CartSheet from "./CartSheet";
 import CheckoutModal from "./CheckoutModal";
@@ -218,7 +215,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   // Global addons available for all products
   const globalAddons = useMemo(() => {
-    return productAddons.filter(a => a.product_id === GLOBAL_ADDON_PRODUCT_ID).sort((a,b)=>a.sort_order-b.sort_order);
+    return productAddons.filter(a => !a.product_id).sort((a,b)=>a.sort_order-b.sort_order);
   }, [productAddons]);
 
   const lines = useMemo(() => {

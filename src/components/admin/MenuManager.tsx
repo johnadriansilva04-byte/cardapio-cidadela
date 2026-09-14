@@ -26,9 +26,6 @@ import { ImageField } from "@/components/admin/ImageField";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import type { Restaurant, Category, Product, ProductAddon } from "@/lib/types";
 import { brl } from "@/lib/utils";
-
-// UUID fixo para representar adicionais globais
-const GLOBAL_ADDON_PRODUCT_ID = "00000000-0000-0000-0000-000000000000";
 import {
   getCategories,
   createCategory,
@@ -852,12 +849,12 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                 Adicionais Globais
               </h3>
               <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-bold text-gray-300">
-                {addons.filter(a => a.product_id === GLOBAL_ADDON_PRODUCT_ID).length} itens
+                {addons.filter(a => !a.product_id).length} itens
               </span>
             </div>
 
             <div className="space-y-2 p-3">
-              {addons.filter(a => a.product_id === GLOBAL_ADDON_PRODUCT_ID).length === 0 ? (
+              {addons.filter(a => !a.product_id).length === 0 ? (
                 <div className="grid place-items-center py-8 text-center">
                   <div className="grid size-10 place-items-center rounded-xl bg-white/[0.03] text-gray-700">
                     <Sparkles className="size-4" />
@@ -867,7 +864,7 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
               ) : (
                 <div className="space-y-2">
                   {addons
-                    .filter(a => a.product_id === GLOBAL_ADDON_PRODUCT_ID)
+                    .filter(a => !a.product_id)
                     .sort((a, b) => a.sort_order - b.sort_order)
                     .map((a) => (
                       <div

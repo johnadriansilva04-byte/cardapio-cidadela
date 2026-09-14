@@ -1,62 +1,67 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
-import { Store, AlertCircle, RefreshCw } from "lucide-react";
-import {
-  getRestaurantsByOwner,
-  ensureRestaurantsForUser,
-} from "@/modules/supabase/restaurants";
-import { OrderManager } from "@/components/admin/OrderManager";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
-import type { Restaurant } from "@/lib/types";
 
 export const Route = createFileRoute("/admin/pedidos")({
   head: () => ({ meta: [{ title: "Pedidos — Cardápio Cidadela" }] }),
   component: PedidosPage,
 });
 
+/**
+ * Rota legada: o gerenciamento de pedidos agora vive dentro de cada
+ * restaurante (/admin/restaurante/$id?tab=pedidos). Redireciona para
+ * o primeiro restaurante do dono para não quebrar links antigos.
+ */
 function PedidosPage() {
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const retryRef = useRef(0);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       setLoading(false);
-      setRestaurants([]);
       return;
     }
     let cancelled = false;
     async function load() {
       try {
         setLoading(true);
-        setError(null);
         await ensureRestaurantsForUser(user!);
         if (cancelled) return;
         const data = await getRestaurantsByOwner(user!.id);
         if (cancelled) return;
-        setRestaurants(data);
         if (data.length > 0) {
-          retryRef.current = 0;
-          setSelectedId((prev) => prev || data[0].id);
-        } else if (retryRef.current < 3) {
-          // Parent layout may still be ensuring restaurants — retry after a delay
+          navigate({
+            to: "/admin/restaurante/$id",
+            params: { id: data[0].id },
+            search: { tab: "pedidos" },
+            replace: true,
+          });
+          return;
+        }
+        if (retryRef.current < 3) {
           retryRef.current++;
-          const delay = retryRef.current * 400;
-          await new Promise((r) => setTimeout(r, delay));
+          await new Promise((r) => setTimeout(r, retryRef.current * 400));
           if (cancelled) return;
           const retry = await getRestaurantsByOwner(user!.id);
-          if (!cancelled) {
-            setRestaurants(retry);
-            if (retry.length > 0) setSelectedId((prev) => prev || retry[0].id);
+          if (!cancelled && retry.length > 0) {
+            navigate({
+              to: "/admin/restaurante/$id",
+              params: { id: retry[0].id },
+              search: { tab: "pedidos" },
+              replace: true,
+            });
           }
         }
-      } catch (e) {
-        console.error("[pedidos] load error", e);
-        if (!cancelled) setError("Falha ao carregar restaurantes. Tente novamente.");
+        if (!cancelled) {
+          navigate({ to: "/admin/restaurantes", replace: true });
+        }
+      } catch {
+        if (!cancelled) navigate({ to: "/admin/restaurantes", replace: true });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -65,78 +70,15 @@ function PedidosPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading]);
-
-  const selected = restaurants.find((r) => r.id === selectedId) ?? restaurants[0] ?? null;
-
-  // keep selectedId in sync if restaurants refetched and previous selection vanished
-  useEffect(() => {
-    if (restaurants.length > 0) {
-      if (!selectedId) setSelectedId(restaurants[0].id);
-      else if (!restaurants.some((r) => r.id === selectedId)) setSelectedId(restaurants[0].id);
-    }
-  }, [restaurants, selectedId]);
+  }, [user, authLoading, navigate]);
 
   if (authLoading || loading) {
     return (
-      <div className="flex justify-center py-20">
-        <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+      <div className="flex justify-center py-24">
+        <Loader2 className="size-8 animate-spin text-cyan-400" />
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
-        <AlertCircle className="mx-auto size-8 text-red-400" />
-        <p className="mt-3 text-sm text-red-300">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
-        >
-          <RefreshCw className="size-4" /> Tentar novamente
-        </button>
-      </div>
-    );
-  }
-
-  if (restaurants.length === 0) {
-    return (
-      <div className="rounded-2xl border border-white/5 bg-white/[0.02] py-16 text-center">
-        <Store className="mx-auto size-12 text-gray-700" />
-        <p className="mt-4 text-sm text-gray-400">
-          Crie um restaurante primeiro para ver pedidos
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Pedidos</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Gerencie os pedidos recebidos em tempo real
-        </p>
-      </div>
-
-      <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {restaurants.map((r) => (
-          <button
-            key={r.id}
-            onClick={() => setSelectedId(r.id)}
-            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-              selectedId === r.id
-                ? "bg-cyan-500 text-black"
-                : "border border-white/10 text-gray-400 hover:text-white hover:border-white/20"
-            }`}
-          >
-            {r.name}
-          </button>
-        ))}
-      </div>
-
-      {selected && <OrderManager key={selected.id} restaurant={selected} />}
-    </div>
-  );
+  return null;
 }

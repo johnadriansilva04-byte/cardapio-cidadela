@@ -269,7 +269,7 @@ export function RestaurantDialog({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="rest-delivery-fee" className="text-gray-300">
-                Taxa de entrega (R$)
+                Taxa de entrega padrão (R$)
               </Label>
               <Input
                 id="rest-delivery-fee"
@@ -283,7 +283,7 @@ export function RestaurantDialog({
                 className="border-white/10 bg-white/[0.04] text-white"
               />
               <p className="text-[11px] text-gray-600">
-                Valor cobrado do cliente quando ele escolher “Entrega”.
+                Taxa padrão. Você pode definir taxas por bairro em Configurações do restaurante.
               </p>
             </div>
             <div className="grid gap-2">
@@ -301,7 +301,9 @@ export function RestaurantDialog({
                 placeholder="Ex: 4"
                 className="border-white/10 bg-white/[0.04] text-white"
               />
-              <p className="text-[11px] text-gray-600">Distância máxima atendida pela entrega.</p>
+              <p className="text-[11px] text-gray-600">
+                Distância máxima atendida (referência para o cliente).
+              </p>
             </div>
           </div>
 

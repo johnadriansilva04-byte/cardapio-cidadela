@@ -5,8 +5,6 @@ import {
   UtensilsCrossed,
   LayoutDashboard,
   Store,
-  Sandwich,
-  ClipboardList,
   Wallet,
   Share2,
   Settings,
@@ -47,8 +45,6 @@ export const Route = createFileRoute("/admin")({
 const NAV_ITEMS = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/restaurantes", label: "Restaurantes", icon: Store },
-  { to: "/admin/cardapio", label: "Cardápio", icon: Sandwich },
-  { to: "/admin/pedidos", label: "Pedidos", icon: ClipboardList },
   { to: "/admin/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/admin/compartilhar", label: "Compartilhar", icon: Share2 },
   { to: "/admin/config", label: "Configurações", icon: Settings },
@@ -288,7 +284,7 @@ function SidebarContent({
         </p>
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.to);
-          const isPedidos = item.to === "/admin/pedidos";
+          const showBadge = item.to === "/admin/restaurantes" && pendingCount > 0;
           return (
             <Link
               key={item.to}
@@ -311,8 +307,11 @@ function SidebarContent({
                 )}
               />
               <span className="flex-1 truncate">{item.label}</span>
-              {isPedidos && pendingCount > 0 && (
-                <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white shadow-[0_0_10px_rgba(239,68,68,0.6)]">
+              {showBadge && (
+                <span
+                  className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white shadow-[0_0_10px_rgba(239,68,68,0.6)]"
+                  title={`${pendingCount} pedido${pendingCount === 1 ? "" : "s"} pendente${pendingCount === 1 ? "" : "s"}`}
+                >
                   {pendingCount > 99 ? "99+" : pendingCount}
                 </span>
               )}

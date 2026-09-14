@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
 import { MenuManager } from "@/components/admin/MenuManager";
 import { OrderManager } from "@/components/admin/OrderManager";
+import { NeighborhoodManager } from "@/components/admin/NeighborhoodManager";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
 import {
@@ -325,8 +326,13 @@ function RestaurantDetailPage() {
           <OrderManager key={restaurant.id} restaurant={restaurant} />
         </TabsContent>
         <TabsContent value="config" className="mt-4">
-          <div className="max-w-xl">
-            <RestaurantCardSummary restaurant={restaurant} onEdit={() => setEditOpen(true)} />
+          <div className="grid items-start gap-5 lg:grid-cols-2">
+            <div className="min-w-0">
+              <RestaurantCardSummary restaurant={restaurant} onEdit={() => setEditOpen(true)} />
+            </div>
+            <div className="min-w-0">
+              <NeighborhoodManager restaurant={restaurant} />
+            </div>
           </div>
         </TabsContent>
       </Tabs>
@@ -365,7 +371,7 @@ function RestaurantCardSummary({
   onEdit: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
       <div className="flex items-start gap-3">
         {restaurant.logo_url ? (
           <img
@@ -392,7 +398,7 @@ function RestaurantCardSummary({
         <Button
           variant="outline"
           onClick={onEdit}
-          className="rounded-full border-white/10 bg-white/[0.04] text-xs text-gray-300 hover:bg-white/[0.08]"
+          className="shrink-0 rounded-full border-white/10 bg-white/[0.04] text-xs text-gray-300 hover:bg-white/[0.08]"
         >
           <Settings2 className="size-3.5" /> Editar
         </Button>

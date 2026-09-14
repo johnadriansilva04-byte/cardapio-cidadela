@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { brl, hexToRgba } from "@/lib/utils";
+import type { DeliveryNeighborhood } from "@/lib/types";
 
 export interface CheckoutForm {
   customer_name: string;
@@ -26,6 +27,7 @@ export default function CheckoutModal({
   serverError = "",
   deliveryFee = 0,
   deliveryRadiusKm = 0,
+  neighborhoods = [],
   onClose,
   onConfirm,
 }: {
@@ -37,6 +39,7 @@ export default function CheckoutModal({
   serverError?: string;
   deliveryFee?: number;
   deliveryRadiusKm?: number;
+  neighborhoods?: DeliveryNeighborhood[];
   onClose: () => void;
   onConfirm: (form: CheckoutForm) => void;
 }) {
@@ -59,8 +62,25 @@ export default function CheckoutModal({
     "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none";
 
   const isDelivery = form.delivery_type === "entrega";
-  const appliedFee = isDelivery ? deliveryFee : 0;
+
+  // Taxa de entrega: usa o bairro selecionado quando ele tem taxa própria;
+  // caso contrário, usa a taxa fixa do restaurante (ou 0 se nem isso existir).
+  const hasNeighborhoods = neighborhoods.length > 0;
+  const inNeighborhood = hasNeighborhoods
+    ? neighborhoods.find(
+        (n) => n.name.toLowerCase() === form.customer_neighborhood.trim().toLowerCase(),
+      )
+    : undefined;
+  const appliedFee = isDelivery ? (inNeighborhood ? inNeighborhood.fee : deliveryFee) : 0;
   const totalWithFee = total + appliedFee;
+
+  function selectType(t: "entrega" | "retirada") {
+    setForm((s) => ({
+      ...s,
+      delivery_type: t,
+      delivery_fee: t === "entrega" ? appliedFee : 0,
+    }));
+  }
 
   function submit() {
     if (submitting) return;
@@ -70,6 +90,10 @@ export default function CheckoutModal({
     }
     if (isDelivery && !form.delivery_address.trim()) {
       setError("Informe o endereço de entrega");
+      return;
+    }
+    if (isDelivery && hasNeighborhoods && !form.customer_neighborhood.trim()) {
+      setError("Selecione o bairro da entrega");
       return;
     }
     setError("");
@@ -110,13 +134,7 @@ export default function CheckoutModal({
             {(["retirada", "entrega"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    delivery_type: t,
-                    delivery_fee: t === "entrega" ? deliveryFee : 0,
-                  })
-                }
+                onClick={() => selectType(t)}
                 className="flex-1 rounded-lg border px-3 py-2 text-xs font-semibold uppercase transition-all"
                 style={
                   form.delivery_type === t
@@ -152,13 +170,42 @@ export default function CheckoutModal({
                   value={form.customer_complement}
                   onChange={(e) => setForm({ ...form, customer_complement: e.target.value })}
                 />
-                <input
-                  className={field}
-                  placeholder="Bairro"
-                  value={form.customer_neighborhood}
-                  onChange={(e) => setForm({ ...form, customer_neighborhood: e.target.value })}
-                />
+                {hasNeighborhoods ? (
+                  <select
+                    className={field + " appearance-none"}
+                    value={form.customer_neighborhood}
+                    onChange={(e) => setForm({ ...form, customer_neighborhood: e.target.value })}
+                  >
+                    <option value="">Bairro *</option>
+                    {[...neighborhoods]
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((n) => (
+                        <option key={n.id} value={n.name} className="bg-[#0b0b12] text-white">
+                          {n.name}
+                        </option>
+                      ))}
+                  </select>
+                ) : (
+                  <input
+                    className={field}
+                    placeholder="Bairro"
+                    value={form.customer_neighborhood}
+                    onChange={(e) => setForm({ ...form, customer_neighborhood: e.target.value })}
+                  />
+                )}
               </div>
+              {hasNeighborhoods && isDelivery && form.customer_neighborhood && (
+                <p
+                  className="text-[11px] font-semibold"
+                  style={{
+                    color: inNeighborhood ? "#34d399" : "#fbbf24",
+                  }}
+                >
+                  {inNeighborhood
+                    ? `Entrega em ${form.customer_neighborhood}: ${brl(inNeighborhood.fee)}`
+                    : "Bairro não cadastrado — será aplicada a taxa padrão."}
+                </p>
+              )}
               <input
                 className={field}
                 placeholder="Cidade"
@@ -219,8 +266,8 @@ export default function CheckoutModal({
               <div className="mt-1 flex items-center justify-between">
                 <span>
                   Taxa de entrega{" "}
-                  {deliveryRadiusKm > 0 && (
-                    <span className="text-gray-600">• até {deliveryRadiusKm} km</span>
+                  {isDelivery && inNeighborhood && (
+                    <span className="text-gray-600">• {inNeighborhood.name}</span>
                   )}
                 </span>
                 <span className={isDelivery ? "font-semibold text-white" : "text-gray-500"}>

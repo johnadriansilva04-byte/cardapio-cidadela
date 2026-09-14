@@ -45,6 +45,28 @@ CREATE INDEX IF NOT EXISTS idx_restaurants_slug ON restaurants(slug);
 CREATE INDEX IF NOT EXISTS idx_restaurants_owner ON restaurants(owner_id);
 
 -- ============================================================
+-- DELIVERY NEIGHBORHOODS (taxa por bairro)
+-- Permite ao dono cadastrar bairros atendidos e a taxa de
+-- entrega específica de cada um. O checkout usa o bairro para
+-- calcular a taxa exata (fallback: taxa fixa do restaurante).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS delivery_neighborhoods (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  fee NUMERIC(10,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_neighborhoods_restaurant_name
+  ON delivery_neighborhoods(restaurant_id, lower(name));
+CREATE INDEX IF NOT EXISTS idx_neighborhoods_restaurant
+  ON delivery_neighborhoods(restaurant_id);
+
+GRANT SELECT ON TABLE delivery_neighborhoods TO anon, authenticated;
+GRANT ALL ON TABLE delivery_neighborhoods TO authenticated;
+
+-- ============================================================
 -- CATEGORIES
 -- ============================================================
 CREATE TABLE IF NOT EXISTS categories (
@@ -619,6 +641,15 @@ CREATE POLICY "owner_products" ON products FOR ALL
   USING (is_restaurant_owner(restaurant_id));
 -- Público lê produtos de restaurantes publicados
 CREATE POLICY "public_read_products" ON products FOR SELECT
+  USING (restaurant_id IN (SELECT id FROM restaurants WHERE status = 'published'));
+
+-- DELIVERY NEIGHBORHOODS
+ALTER TABLE delivery_neighborhoods ENABLE ROW LEVEL SECURITY;
+SELECT drop_policies_if_exist('delivery_neighborhoods');
+CREATE POLICY "owner_neighborhoods" ON delivery_neighborhoods FOR ALL
+  USING (is_restaurant_owner(restaurant_id));
+-- Público lê bairros/taxas de restaurantes publicados
+CREATE POLICY "public_read_neighborhoods" ON delivery_neighborhoods FOR SELECT
   USING (restaurant_id IN (SELECT id FROM restaurants WHERE status = 'published'));
 
 -- ORDERS

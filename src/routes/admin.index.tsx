@@ -492,12 +492,23 @@ function AdminDashboardOverview() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Link
-                  to="/admin/pedidos"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-                >
-                  Ver pedidos <ArrowRight className="size-3" />
-                </Link>
+                {activeRestaurant ? (
+                  <Link
+                    to="/admin/restaurante/$id"
+                    params={{ id: activeRestaurant.id }}
+                    search={{ tab: "pedidos" }}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                  >
+                    Ver pedidos <ArrowRight className="size-3" />
+                  </Link>
+                ) : (
+                  <Link
+                    to="/admin/restaurantes"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                  >
+                    Ver pedidos <ArrowRight className="size-3" />
+                  </Link>
+                )}
                 <Link
                   to="/admin/financeiro"
                   className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"

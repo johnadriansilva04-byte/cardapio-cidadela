@@ -28,6 +28,15 @@ export interface Restaurant {
   updated_at: string;
 }
 
+// --- Delivery neighborhood (taxa por bairro) ---
+export interface DeliveryNeighborhood {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  fee: number;
+  created_at: string;
+}
+
 // --- Category ---
 export interface Category {
   id: string;

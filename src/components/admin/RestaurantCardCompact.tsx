@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   ChevronRight,
   ChevronDown,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +40,7 @@ export function RestaurantCardCompact({
   onEdit,
   onTogglePublish,
   onDelete,
+  onManageMenu,
   onManageOrders,
   onSettings,
   toggling = false,
@@ -155,12 +157,45 @@ export function RestaurantCardCompact({
         )}
 
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          {/* Atalhos diretos: pedidos e configurações abrem direto no restaurante */}
+          {onManageMenu && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onManageMenu}
+              title="Gerenciar cardápio"
+              className="h-7 gap-1 rounded-full bg-white/[0.05] px-2.5 text-xs text-gray-300 hover:bg-cyan-500/15 hover:text-cyan-300"
+            >
+              <UtensilsCrossed className="size-3" /> Cardápio
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onManageOrders}
+            title="Gerenciar pedidos"
+            className="h-7 gap-1 rounded-full bg-white/[0.05] px-2.5 text-xs text-gray-300 hover:bg-cyan-500/15 hover:text-cyan-300"
+          >
+            <ClipboardList className="size-3" /> Pedidos
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onSettings}
+            title="Configurações do restaurante"
+            className="h-7 gap-1 rounded-full bg-white/[0.05] px-2.5 text-xs text-gray-300 hover:bg-cyan-500/15 hover:text-cyan-300"
+          >
+            <Settings2 className="size-3" /> Config
+          </Button>
+
+          {/* Ações de controle (publicar, editar, excluir) */}
           <Button
             size="sm"
             variant="outline"
             onClick={onTogglePublish}
             disabled={toggling}
-            className={`h-7 flex-1 gap-1.5 rounded-full border text-xs ${isPublished ? "border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"}`}
+            className={`h-7 gap-1 rounded-full border text-xs ${isPublished ? "border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"}`}
+            title={isPublished ? "Despublicar restaurante" : "Publicar restaurante"}
           >
             {isPublished ? (
               <>
@@ -179,24 +214,12 @@ export function RestaurantCardCompact({
                 size="sm"
                 variant="ghost"
                 className="h-7 gap-1 rounded-full bg-white/[0.06] px-2.5 text-xs text-gray-300 hover:bg-white/10 hover:text-white"
+                title="Mais ações"
               >
-                Gerenciar <ChevronDown className="size-3" />
+                <ChevronDown className="size-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="border-white/10 bg-[#1a1a22] text-gray-200">
-              <DropdownMenuItem
-                onClick={onManageOrders}
-                className="gap-2 focus:bg-white/10 focus:text-white"
-              >
-                <ClipboardList className="size-3.5" /> Pedidos
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={onSettings}
-                className="gap-2 focus:bg-white/10 focus:text-white"
-              >
-                <Settings2 className="size-3.5" /> Configurações
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-white/10" />
               <DropdownMenuItem
                 onClick={onEdit}
                 className="gap-2 focus:bg-white/10 focus:text-white"

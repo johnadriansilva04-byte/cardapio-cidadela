@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { ShoppingBag, Plus, Minus, Home, Clock, ChefHat, UtensilsCrossed } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
-import { getRestaurantBySlug } from "@/modules/supabase/restaurants";
+import { getRestaurantBySlug, getNeighborhoods } from "@/modules/supabase/restaurants";
 import { getMenuWithProducts } from "@/modules/supabase/menu";
 import { supabase } from "@/modules/supabase/client";
 import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
 import { brl, hexToRgba, newComanda } from "@/lib/utils";
 import { getOrCreateGuestId, rememberOrderId } from "@/lib/guestOrder";
-import type { Product, Category, Restaurant, Order } from "@/lib/types";
+import type { Product, Category, Restaurant, Order, DeliveryNeighborhood } from "@/lib/types";
 import CartSheet from "./CartSheet";
 import CheckoutModal from "./CheckoutModal";
 import type { CheckoutForm } from "./CheckoutModal";
@@ -60,6 +60,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<DeliveryNeighborhood[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeCat, setActiveCat] = useState("");
@@ -91,9 +92,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         }
         setRestaurant(r);
         const { categories: cats, products: prods } = await getMenuWithProducts(r.id);
+        const [nbrs] = await Promise.all([getNeighborhoods(r.id)]);
         if (!alive) return;
         setCategories(cats);
         setProducts(prods);
+        setNeighborhoods(nbrs);
         if (cats.length > 0) setActiveCat((prev) => prev || cats[0].id);
       } catch (e) {
         console.error("[public menu] load", e);
@@ -807,6 +810,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           serverError={checkoutError}
           deliveryFee={Number(restaurant.delivery_fee ?? 0) || 0}
           deliveryRadiusKm={Number(restaurant.delivery_radius_km ?? 0) || 0}
+          neighborhoods={neighborhoods}
           onClose={() => setCheckoutOpen(false)}
           onConfirm={handleCheckout}
         />

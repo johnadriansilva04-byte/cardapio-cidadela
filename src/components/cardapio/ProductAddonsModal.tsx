@@ -6,18 +6,20 @@ import type { Product, ProductAddon, SelectedAddon } from "@/lib/types";
 export default function ProductAddonsModal({
   product,
   addons,
+  initialSelected = [],
   accent = "#06b6d4",
   onClose,
   onConfirm,
 }: {
   product: Product;
   addons: ProductAddon[];
+  initialSelected?: string[];
   accent?: string;
   onClose: () => void;
   onConfirm: (selected: SelectedAddon[], notes: string) => void;
 }) {
   const available = useMemo(() => addons.filter((a) => a.available), [addons]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(initialSelected));
   const [notes, setNotes] = useState("");
 
   const selectedTotal = useMemo(() => {

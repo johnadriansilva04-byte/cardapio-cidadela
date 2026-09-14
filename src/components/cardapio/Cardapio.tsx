@@ -18,7 +18,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
 import { getRestaurantBySlug, getNeighborhoods } from "@/modules/supabase/restaurants";
-import { getMenuWithProducts, getRestaurantAddons } from "@/modules/supabase/menu";
+import { getMenuWithProducts, getAddonsByRestaurant } from "@/modules/supabase/menu";
 import { supabase } from "@/modules/supabase/client";
 import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
@@ -125,7 +125,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         }
         setRestaurant(r);
         const { categories: cats, products: prods } = await getMenuWithProducts(r.id);
-        const [nbrs, pas] = await Promise.all([getNeighborhoods(r.id), getRestaurantAddons(r.id)]);
+        const [nbrs, pas] = await Promise.all([getNeighborhoods(r.id), getAddonsByRestaurant(r.id)]);
         if (!alive) return;
         setCategories(cats);
         setProducts(prods);
@@ -162,7 +162,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       if (!alive) return;
       try {
         const { categories: cats, products: prods } = await getMenuWithProducts(restaurantId);
-        const pas = await getRestaurantAddons(restaurantId);
+        const pas = await getAddonsByRestaurant(restaurantId);
         if (!alive) return;
         setCategories(cats);
         setProducts(prods);
@@ -213,10 +213,14 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     return m;
   }, [productAddons]);
 
-  // Global addons available for all products
+  // Adicionais "globais" = sem produto ou apontando para produto inexistente
+  // (registros antigos usavam um UUID sentinela em product_id).
   const globalAddons = useMemo(() => {
-    return productAddons.filter(a => !a.product_id).sort((a,b)=>a.sort_order-b.sort_order);
-  }, [productAddons]);
+    const productIds = new Set(products.map((p) => p.id));
+    return productAddons
+      .filter((a) => !a.product_id || !productIds.has(a.product_id))
+      .sort((a, b) => a.sort_order - b.sort_order);
+  }, [productAddons, products]);
 
   const lines = useMemo(() => {
     return cart.map((ci) => {
@@ -236,22 +240,34 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const count = lines.reduce((s, l) => s + l.qty, 0);
   const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
 
-  const handleAddSimple = useCallback((product: Product) => addToCart(product), [addToCart]);
   const handleRemove = useCallback((productId: string, addons?: SelectedAddon[]) => removeFromCart(productId, addons), [removeFromCart]);
+
+  // Adicionais específicos do produto têm prioridade; sem eles, valem os globais.
+  function addonsForProduct(productId: string): ProductAddon[] {
+    const specific = addonsByProduct.get(productId) ?? [];
+    return specific.length > 0 ? specific : globalAddons;
+  }
+
+  function openAddonModal(product: Product, cartIndex?: number) {
+    const available = addonsForProduct(product.id).filter((a) => a.available);
+    if (available.length > 0) {
+      setEditingCartItemIndex(cartIndex ?? null);
+      setAddonModalProduct(product);
+    }
+  }
+
+  // Produtos com adicionais disponíveis abrem o modal para o cliente escolher.
+  function handleAddSimple(product: Product) {
+    if (addonsForProduct(product.id).some((a) => a.available)) {
+      openAddonModal(product);
+      return;
+    }
+    addToCart(product);
+  }
 
   function scrollToCat(id: string) {
     setActiveCat(id);
     sectionsRef.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function openAddonModal(product: Product, cartIndex?: number) {
-    // Use global addons first, then product-specific addons
-    const list = globalAddons.length > 0 ? globalAddons : (addonsByProduct.get(product.id) ?? []);
-    const available = list.filter((a) => a.available);
-    if (available.length > 0) {
-      setAddonModalProduct(product);
-      setEditingCartItemIndex(cartIndex ?? null);
-    }
   }
 
   function handleAddonConfirm(selected: SelectedAddon[], notes: string) {
@@ -739,11 +755,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
                   <div className="grid gap-2">
                     {catProducts.map((item) => {
-                      // Use global addons for all products
-                      const availableAddons = globalAddons.filter((a) => a.available);
+                      const availableAddons = addonsForProduct(item.id).filter((a) => a.available);
                       const hasAddons = availableAddons.length > 0;
                       const qtyInCart = cart.filter((ci) => ci.product.id === item.id).reduce((s, ci) => s + ci.quantity, 0);
-                      const simpleInCart = !hasAddons ? cart.find((ci) => ci.product.id === item.id) : null;
                       const canOrder = isCurrentlyOpen;
 
                       return (
@@ -785,55 +799,69 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                             </div>
                           </div>
 
-                          <div className="flex shrink-0 flex-col justify-center">
+                          <div className="flex shrink-0 flex-col justify-center gap-1.5">
                             {item.available ? (
-                              <>
-                                {qtyInCart > 0 ? (
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      onClick={() => handleRemove(item.id)}
-                                      className="grid size-7 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
-                                      aria-label={`Remover ${item.name}`}
-                                    >
-                                      <Minus className="size-3" />
-                                    </button>
-                                    <span className="w-5 text-center text-xs font-black text-white">{qtyInCart}</span>
-                                    <button
-                                      onClick={() => handleAddSimple(item)}
-                                      disabled={!canOrder}
-                                      className="grid size-7 place-items-center rounded-full text-white transition-colors hover:brightness-110 disabled:opacity-40"
-                                      style={{ backgroundColor: accent }}
-                                      aria-label={`Adicionar ${item.name}`}
-                                    >
-                                      <Plus className="size-3" />
-                                    </button>
-                                  </div>
-                                ) : (
+                              hasAddons ? (
+                                <>
                                   <button
-                                    onClick={() => canOrder && handleAddSimple(item)}
+                                    onClick={() => canOrder && openAddonModal(item)}
                                     disabled={!canOrder}
-                                    title={!canOrder ? "Restaurante fechado" : "Adicionar ao pedido"}
-                                    className={`inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${canOrder ? "hover:shadow-lg hover:brightness-110" : ""}`}
+                                    className="inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                                     style={{
-                                      borderColor: hexToRgba(accent, canOrder ? 0.5 : 0.2),
                                       color: canOrder ? "#fff" : "#6b7280",
                                       backgroundColor: canOrder ? accent : hexToRgba(accent, 0.04),
                                       boxShadow: canOrder ? `0 4px 12px ${hexToRgba(accent, 0.35)}` : undefined,
                                     }}
+                                    aria-label={`Escolher adicionais de ${item.name}`}
                                   >
                                     <Plus className="size-3" /> Add
                                   </button>
-                                )}
-                                {hasAddons && qtyInCart > 0 && (
+                                  {qtyInCart > 0 && (
+                                    <button
+                                      onClick={() => canOrder && openAddonModal(item, cart.findIndex((ci) => ci.product.id === item.id))}
+                                      disabled={!canOrder}
+                                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-bold text-gray-300 hover:bg-white/10 disabled:opacity-50"
+                                    >
+                                      <Sparkles className="size-3" /> Editar ({qtyInCart})
+                                    </button>
+                                  )}
+                                </>
+                              ) : qtyInCart > 0 ? (
+                                <div className="flex items-center gap-1">
                                   <button
-                                    onClick={() => canOrder && openAddonModal(item, cart.findIndex(ci => ci.product.id === item.id))}
-                                    disabled={!canOrder}
-                                    className="mt-2 inline-flex items-center gap-1 rounded-lg border border-cyan-400/50 bg-cyan-500/10 px-2 py-1 text-[10px] font-bold text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400/70 disabled:opacity-50"
+                                    onClick={() => handleRemove(item.id)}
+                                    className="grid size-7 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
+                                    aria-label={`Remover ${item.name}`}
                                   >
-                                    <Sparkles className="size-3" /> + adicionais
+                                    <Minus className="size-3" />
                                   </button>
-                                )}
-                              </>
+                                  <span className="w-5 text-center text-xs font-black text-white">{qtyInCart}</span>
+                                  <button
+                                    onClick={() => handleAddSimple(item)}
+                                    disabled={!canOrder}
+                                    className="grid size-7 place-items-center rounded-full text-white transition-colors hover:brightness-110 disabled:opacity-40"
+                                    style={{ backgroundColor: accent }}
+                                    aria-label={`Adicionar ${item.name}`}
+                                  >
+                                    <Plus className="size-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => canOrder && handleAddSimple(item)}
+                                  disabled={!canOrder}
+                                  title={!canOrder ? "Restaurante fechado" : "Adicionar ao pedido"}
+                                  className={`inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${canOrder ? "hover:shadow-lg hover:brightness-110" : ""}`}
+                                  style={{
+                                    borderColor: hexToRgba(accent, canOrder ? 0.5 : 0.2),
+                                    color: canOrder ? "#fff" : "#6b7280",
+                                    backgroundColor: canOrder ? accent : hexToRgba(accent, 0.04),
+                                    boxShadow: canOrder ? `0 4px 12px ${hexToRgba(accent, 0.35)}` : undefined,
+                                  }}
+                                >
+                                  <Plus className="size-3" /> Add
+                                </button>
+                              )
                             ) : (
                               <span className="rounded-full bg-white/5 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-gray-500">Indisponível</span>
                             )}
@@ -921,11 +949,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       )}
 
       {addonModalProduct && (() => {
-        const list = addonsByProduct.get(addonModalProduct.id) ?? [];
+        const list = addonsForProduct(addonModalProduct.id);
+        const editingItem = editingCartItemIndex !== null ? cart[editingCartItemIndex] : null;
         return (
           <ProductAddonsModal
             product={addonModalProduct}
             addons={list}
+            initialSelected={editingItem?.addons?.map((a) => a.addon_id) ?? []}
             accent={accent}
             onClose={() => setAddonModalProduct(null)}
             onConfirm={handleAddonConfirm}

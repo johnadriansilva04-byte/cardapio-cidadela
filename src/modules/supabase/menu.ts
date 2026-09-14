@@ -279,25 +279,6 @@ export async function getAddonsByRestaurant(restaurantId: string): Promise<Produ
   return (data ?? []) as ProductAddon[];
 }
 
-/**
- * Get global restaurant addons (aplicáveis a qualquer produto)
- * Busca adicionais com product_id null ou vazio, indicando que são globais
- */
-export async function getRestaurantAddons(restaurantId: string): Promise<ProductAddon[]> {
-  const { data, error } = await supabase
-    .from("product_addons")
-    .select("*")
-    .eq("restaurant_id", restaurantId)
-    .is("product_id", null)
-    .order("sort_order", { ascending: true });
-  if (error) {
-    if (String(error.message).toLowerCase().includes("product_addons")) return [];
-    console.error("getRestaurantAddons", error);
-    return [];
-  }
-  return (data ?? []) as ProductAddon[];
-}
-
 export async function createProductAddon(input: {
   restaurant_id: string;
   product_id: string | null;

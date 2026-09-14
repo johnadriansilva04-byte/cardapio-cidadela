@@ -37,6 +37,17 @@ export async function getRestaurantsByOwner(
     console.error("Error fetching restaurants:", error);
     return [];
   }
+
+  // Auto-publish any draft restaurants so the owner can see their cardápio
+  const draftOnes = (data ?? []).filter((r) => r.status === "draft");
+  for (const r of draftOnes) {
+    await supabase
+      .from("restaurants")
+      .update({ status: "published", updated_at: new Date().toISOString() })
+      .eq("id", r.id);
+    r.status = "published";
+  }
+
   return (data ?? []) as Restaurant[];
 }
 
@@ -279,17 +290,18 @@ export async function ensureRestaurantsForUser(user: {
   for (const trial of trials) {
     const { data: existing } = await supabase
       .from("restaurants")
-      .select("id, owner_id")
+      .select("id, owner_id, status")
       .eq("slug", trial.store_id)
       .maybeSingle();
 
     if (existing) {
-      if (existing.owner_id !== user.id) {
-        await supabase.from("restaurants").update({ owner_id: user.id }).eq("id", existing.id);
+      const updates: Record<string, unknown> = {};
+      if (existing.owner_id !== user.id) updates.owner_id = user.id;
+      if (existing.status === "draft") updates.status = "published";
+      if (Object.keys(updates).length > 0) {
+        await supabase.from("restaurants").update(updates).eq("id", existing.id);
       }
     } else {
-      // NOTA: a coluna `slogan` não existe no schema atual do Supabase.
-      // O slogan do trial (store_slogan) é preservado em `description`.
       await supabase.from("restaurants").insert({
         owner_id: user.id,
         name: trial.store_name ?? "Meu Restaurante",

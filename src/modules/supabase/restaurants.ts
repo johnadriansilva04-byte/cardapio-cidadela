@@ -189,17 +189,33 @@ export async function updateRestaurant(
       | "secondary_color"
       | "status"
       | "pix_key"
+      | "operating_hours"
       | "slug"
       | "delivery_fee"
     >
   >,
 ): Promise<boolean> {
-  const { error } = await supabase
-    .from("restaurants")
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("id", id);
+  const payload = { ...updates, updated_at: new Date().toISOString() } as Record<string, unknown>;
+  const { error } = await supabase.from("restaurants").update(payload).eq("id", id);
 
   if (error) {
+    // Graceful fallback: se a migration de operating_hours ainda não foi rodada,
+    // o campo ainda não existe no DB e o update falha. Tenta sem ele.
+    const msg = String(error.message ?? "").toLowerCase();
+    const code = String((error as unknown as { code?: string }).code ?? "");
+    const isMissingColumn =
+      msg.includes("operating_hours") || msg.includes("column") || code === "PGRST204" || code === "42703";
+    if (isMissingColumn && "operating_hours" in payload) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { operating_hours: _omit, ...rest } = payload;
+      console.warn("[restaurants] operating_hours column missing — retrying without it. Rode supabase_operating_hours_migration.sql", error);
+      const { error: retryError } = await supabase.from("restaurants").update(rest).eq("id", id);
+      if (retryError) {
+        console.error("Error updating restaurant (retry):", retryError);
+        return false;
+      }
+      return true;
+    }
     console.error("Error updating restaurant:", error);
     return false;
   }

@@ -6,6 +6,16 @@
 // --- Restaurant ---
 export type RestaurantStatus = "draft" | "published" | "paused";
 
+export interface OperatingHours {
+  seg: { closed: boolean; open: string; close: string };
+  ter: { closed: boolean; open: string; close: string };
+  qua: { closed: boolean; open: string; close: string };
+  qui: { closed: boolean; open: string; close: string };
+  sex: { closed: boolean; open: string; close: string };
+  sab: { closed: boolean; open: string; close: string };
+  dom: { closed: boolean; open: string; close: string };
+}
+
 export interface Restaurant {
   id: string;
   owner_id: string;
@@ -23,6 +33,7 @@ export interface Restaurant {
   status: RestaurantStatus;
   pix_key: string;
   delivery_fee?: number;
+  operating_hours?: OperatingHours | null;
   created_at: string;
   updated_at: string;
 }

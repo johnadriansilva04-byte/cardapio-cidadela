@@ -254,14 +254,21 @@ export async function ensureRestaurantsForUser(user: {
   ) as string[];
   if (lookups.length === 0) return;
 
-  const { data: trials } = await supabase
-    .from("admin_trials")
-    .select("store_id, store_name, store_slogan, pix_key, whatsapp")
-    .or(lookups.flatMap((v) => [`admin_email=eq.${v}`, `admin_phone=eq.${v}`]).join(","))
-    .eq("is_active", true)
-    .limit(10);
+  let trials: { store_id: string; store_name: string | null; store_slogan: string | null; pix_key: string | null; whatsapp: string | null }[] | null = null;
+  try {
+    const result = await supabase
+      .from("admin_trials")
+      .select("store_id, store_name, store_slogan, pix_key, whatsapp")
+      .or(lookups.flatMap((v) => [`admin_email=eq.${v}`, `admin_phone=eq.${v}`]).join(","))
+      .eq("is_active", true)
+      .limit(10);
+    trials = result.data;
+  } catch {
+    // admin_trials table may not exist — safe to ignore
+    return;
+  }
 
-  if (!trials) return;
+  if (!trials || trials.length === 0) return;
 
   for (const trial of trials) {
     const { data: existing } = await supabase

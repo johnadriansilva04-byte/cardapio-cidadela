@@ -26,9 +26,7 @@ import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/lib/types";
 import {
   getOrdersByRestaurant,
   updateOrderStatus,
-  subscribeToOrders,
 } from "@/modules/supabase/orders";
-import { supabase } from "@/modules/supabase/client";
 
 const OPERATIONAL_STATUSES: OrderStatus[] = [
   "received",
@@ -88,26 +86,10 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
     };
   }, [restaurant.id]);
 
-  useEffect(() => {
-    let active = true;
-    const sub = subscribeToOrders(restaurant.id, (_eventType, newOrder) => {
-      if (!active) return;
-      setOrders((prev) => {
-        const idx = prev.findIndex((o) => o.id === newOrder.id);
-        if (idx >= 0) {
-          const updated = [...prev];
-          updated[idx] = { ...updated[idx], ...newOrder } as Order;
-          return updated;
-        }
-        return [newOrder, ...prev];
-      });
-    });
-
-    return () => {
-      active = false;
-      if (sub) supabase.removeChannel(sub);
-    };
-  }, [restaurant.id]);
+  // Realtime subscription is handled by the parent admin layout
+  // (admin.tsx) which subscribes once per restaurant for order alerts.
+  // Avoid subscribing here to prevent "cannot add postgres_changes
+  // callbacks after subscribe" errors from duplicate channel names.
 
   async function changeStatus(orderId: string, status: OrderStatus) {
     const ok = await updateOrderStatus(orderId, status);

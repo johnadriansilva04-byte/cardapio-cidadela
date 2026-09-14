@@ -1,15 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import {
-  Store,
-  AlertCircle,
-  RefreshCw,
-  Eye,
-  EyeOff,
-  ExternalLink,
-  UtensilsCrossed,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Store, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -17,17 +8,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  getRestaurantsByOwner,
-  ensureRestaurantsForUser,
-  updateRestaurant,
-} from "@/modules/supabase/restaurants";
+import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { MenuManager } from "@/components/admin/MenuManager";
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
-import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
 import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/cardapio")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -44,8 +28,6 @@ function CardapioPage() {
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [publishConfirm, setPublishConfirm] = useState<Restaurant | null>(null);
-  const [toggling, setToggling] = useState(false);
   const retryRef = useRef(0);
 
   useEffect(() => {
@@ -103,23 +85,6 @@ function CardapioPage() {
 
   const selected = restaurants.find((r) => r.id === selectedId) ?? restaurants[0] ?? null;
 
-  async function togglePublish() {
-    if (!publishConfirm) return;
-    const next = publishConfirm.status === "published" ? "paused" : "published";
-    setToggling(true);
-    const ok = await updateRestaurant(publishConfirm.id, { status: next });
-    setToggling(false);
-    if (!ok) {
-      toast.error("Falha ao alterar status.");
-      return;
-    }
-    setRestaurants((prev) =>
-      prev.map((r) => (r.id === publishConfirm.id ? { ...r, status: next } : r)),
-    );
-    toast.success(next === "published" ? "Cardápio publicado!" : "Cardápio despublicado.");
-    setPublishConfirm(null);
-  }
-
   if (authLoading || loading) {
     return (
       <div className="flex justify-center py-20">
@@ -153,8 +118,6 @@ function CardapioPage() {
       </div>
     );
   }
-
-  const isPublished = selected?.status === "published";
 
   return (
     <div className="space-y-5">
@@ -199,50 +162,7 @@ function CardapioPage() {
         </div>
       )}
 
-      {selected && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-gray-400">
-            <UtensilsCrossed className="size-3.5" /> Status do cardápio
-          </span>
-          <RestaurantStatusBadge status={selected.status} />
-          <span className="font-mono text-[11px] text-gray-500">/cardapio/{selected.slug}</span>
-          <Button
-            size="sm"
-            onClick={() => setPublishConfirm(selected)}
-            className={`ml-auto rounded-full text-xs font-bold ${isPublished ? "bg-amber-500 text-black hover:bg-amber-400" : "bg-emerald-500 text-white hover:bg-emerald-400"}`}
-          >
-            {isPublished ? (
-              <>
-                <EyeOff className="size-3.5" /> Despublicar
-              </>
-            ) : (
-              <>
-                <Eye className="size-3.5" /> Publicar
-              </>
-            )}
-          </Button>
-        </div>
-      )}
-
       {selected && <MenuManager key={selected.id} restaurant={selected} />}
-
-      <ConfirmDialog
-        open={Boolean(publishConfirm)}
-        onOpenChange={(o) => !o && setPublishConfirm(null)}
-        title={
-          publishConfirm?.status === "published" ? "Despublicar cardápio?" : "Publicar cardápio?"
-        }
-        description={
-          publishConfirm?.status === "published"
-            ? "Clientes verão “indisponível” ao abrir o link. Você pode republicar a qualquer momento."
-            : "O cardápio ficará acessível publicamente em /cardapio/" +
-              (publishConfirm?.slug ?? "")
-        }
-        confirmLabel={publishConfirm?.status === "published" ? "Despublicar" : "Publicar"}
-        variant={publishConfirm?.status === "published" ? "destructive" : "default"}
-        onConfirm={togglePublish}
-        loading={toggling}
-      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import {
   Store,
@@ -301,15 +301,15 @@ function RestaurantesPage() {
                         {copied === r.slug ? "Copiado" : "Copiar"}
                       </button>
 
-                      <Link
-                        to="/cardapio/$slug"
-                        params={{ slug: r.slug }}
+                      <a
+                        href={menuUrl(r.slug)}
                         target="_blank"
+                        rel="noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/20"
                         title="Abrir cardápio"
                       >
                         <ExternalLink className="size-4" /> Abrir
-                      </Link>
+                      </a>
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { Link } from "@tanstack/react-router";
 import { Copy, Check, ExternalLink, QrCode, AlertTriangle } from "lucide-react";
 import type { Restaurant } from "@/lib/types";
 
@@ -69,14 +68,14 @@ export function SharePanel({ restaurant }: { restaurant: Restaurant }) {
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
             {copied ? "Copiado!" : "Copiar link"}
           </button>
-          <Link
-            to="/cardapio/$slug"
-            params={{ slug: restaurant.slug }}
+          <a
+            href={publicUrl}
             target="_blank"
+            rel="noreferrer"
             className="flex items-center justify-center gap-2 rounded-lg border border-cyan-500/50 py-2.5 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/10"
           >
             <ExternalLink className="size-4" /> Abrir cardápio
-          </Link>
+          </a>
         </div>
       </div>
 

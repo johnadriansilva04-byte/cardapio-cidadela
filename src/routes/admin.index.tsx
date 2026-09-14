@@ -480,6 +480,47 @@ function AdminDashboardOverview() {
         </div>
       ) : (
         <>
+          {/* Pedidos por status + faturamento consolidado */}
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold tracking-tight text-white">Pedidos por status</h2>
+                <p className="text-[11px] text-gray-500">
+                  {activeRestaurant?.name ?? "Todos os restaurantes"} •{" "}
+                  {range === "all" ? "todo o período" : `últimos ${range.replace("d", "")} dias`} •{" "}
+                  faturamento calculado pelos pedidos não cancelados
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/admin/pedidos"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                >
+                  Ver pedidos <ArrowRight className="size-3" />
+                </Link>
+                <Link
+                  to="/admin/financeiro"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                >
+                  Ver financeiro <ArrowRight className="size-3" />
+                </Link>
+              </div>
+            </div>
+            {ordersLoading ? (
+              <div className="flex h-[220px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02]">
+                <div className="size-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+              </div>
+            ) : (
+              <OrdersDonut
+                counts={counts}
+                totalRevenue={financeMetrics.totalRevenue}
+                totalOrders={financeMetrics.totalOrders}
+                cancelledCount={financeMetrics.cancelledCount}
+                cancelledRevenue={financeMetrics.cancelledRevenue}
+              />
+            )}
+          </section>
+
           {/* Seus restaurantes - grid compacto */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
@@ -540,47 +581,6 @@ function AdminDashboardOverview() {
                 />
               ))}
             </div>
-          </section>
-
-          {/* Pedidos por status + faturamento consolidado */}
-          <section className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h2 className="text-sm font-bold tracking-tight text-white">Pedidos por status</h2>
-                <p className="text-[11px] text-gray-500">
-                  {activeRestaurant?.name ?? "Todos os restaurantes"} •{" "}
-                  {range === "all" ? "todo o período" : `últimos ${range.replace("d", "")} dias`} •{" "}
-                  faturamento calculado pelos pedidos não cancelados
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/admin/pedidos"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-                >
-                  Ver pedidos <ArrowRight className="size-3" />
-                </Link>
-                <Link
-                  to="/admin/financeiro"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-                >
-                  Ver financeiro <ArrowRight className="size-3" />
-                </Link>
-              </div>
-            </div>
-            {ordersLoading ? (
-              <div className="flex h-[220px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02]">
-                <div className="size-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-              </div>
-            ) : (
-              <OrdersDonut
-                counts={counts}
-                totalRevenue={financeMetrics.totalRevenue}
-                totalOrders={financeMetrics.totalOrders}
-                cancelledCount={financeMetrics.cancelledCount}
-                cancelledRevenue={financeMetrics.cancelledRevenue}
-              />
-            )}
           </section>
         </>
       )}

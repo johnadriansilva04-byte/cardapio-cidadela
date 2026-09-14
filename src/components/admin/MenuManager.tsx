@@ -72,9 +72,8 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   const [editProd, setEditProd] = useState({ name: "", description: "", price: "", image_url: "" });
   const [prodToDelete, setProdToDelete] = useState<Product | null>(null);
 
-  // adicionais
-  const [openAddonsFor, setOpenAddonsFor] = useState<string | null>(null);
-  const [newAddon, setNewAddon] = useState<Record<string, { name: string; price: string }>>({});
+  // adicionais - disabled for now, use global addons only
+  const [newAddon, setNewAddon] = useState<{ name: string; price: string }>({ name: "", price: "" });
   const [editingAddonId, setEditingAddonId] = useState<string | null>(null);
   const [editAddon, setEditAddon] = useState<{ name: string; price: string }>({ name: "", price: "" });
   const [addonToDelete, setAddonToDelete] = useState<ProductAddon | null>(null);
@@ -286,21 +285,20 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   }
 
   // ====== ADDONS ======
-  async function handleCreateAddon(productId: string) {
-    const f = newAddon[productId];
-    if (!f?.name.trim() || !f.price) {
+  async function handleCreateGlobalAddon() {
+    if (!newAddon.name.trim() || !newAddon.price) {
       toast.error("Preencha nome e preço do adicional");
       return;
     }
-    const price = Number(f.price.replace(",", "."));
+    const price = Number(newAddon.price.replace(",", "."));
     if (isNaN(price) || price < 0) {
       toast.error("Preço inválido");
       return;
     }
     const created = await createProductAddon({
       restaurant_id: restaurant.id,
-      product_id: productId,
-      name: f.name.trim(),
+      product_id: null as any, // Global addon
+      name: newAddon.name.trim(),
       price,
     });
     if (!created) {
@@ -308,8 +306,8 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
       return;
     }
     setAddons((prev) => [...prev, created]);
-    setNewAddon((prev) => ({ ...prev, [productId]: { name: "", price: "" } }));
-    toast.success(`Adicional "${created.name}" adicionado!`);
+    setNewAddon({ name: "", price: "" });
+    toast.success(`Adicional global "${created.name}" adicionado!`);
   }
 
   async function handleUpdateAddon(id: string) {
@@ -591,10 +589,6 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
 
                   {catProducts.map((p, prodIndex) => {
                     const isProdEditing = editingProdId === p.id;
-                    const prodAddons = addons
-                      .filter((a) => a.product_id === p.id)
-                      .sort((a, b) => a.sort_order - b.sort_order);
-                    const addonsOpen = openAddonsFor === p.id;
                     if (isProdEditing) {
                       return (
                         <div
@@ -702,12 +696,7 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                                   Pausado
                                 </span>
                               )}
-                              {prodAddons.length > 0 && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold text-violet-300">
-                                  <Sparkles className="size-3" /> {prodAddons.length} adicional
-                                  {prodAddons.length !== 1 ? "es" : ""}
-                                </span>
-                              )}
+
                             </div>
                           </div>
 
@@ -777,209 +766,6 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                               </Button>
                             </div>
                           </div>
-                        </div>
-
-                        {/* Adicionais toggle */}
-                        <div className="border-t border-white/[0.06]">
-                          <button
-                            onClick={() => setOpenAddonsFor(addonsOpen ? null : p.id)}
-                            className="flex w-full items-center justify-between px-3 py-2.5 text-left transition-colors hover:bg-white/[0.03]"
-                          >
-                            <span className="flex items-center gap-2 text-xs font-semibold text-gray-400">
-                              <span className="grid size-6 place-items-center rounded-lg bg-violet-500/15 text-violet-300">
-                                <Layers3 className="size-3.5" />
-                              </span>
-                              Adicionais
-                              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-gray-300">
-                                {prodAddons.length}
-                              </span>
-                              {prodAddons.filter((a) => a.available).length !== prodAddons.length && (
-                                <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
-                                  {prodAddons.filter((a) => a.available).length} ativos
-                                </span>
-                              )}
-                            </span>
-                            <span
-                              className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors ${
-                                addonsOpen
-                                  ? "border-violet-500/40 bg-violet-500 text-white"
-                                  : "border-white/10 bg-white/[0.06] text-gray-400 hover:text-white"
-                              }`}
-                            >
-                              {addonsOpen ? "Fechar" : prodAddons.length ? "Gerenciar" : "Adicionar"}
-                            </span>
-                          </button>
-
-                          {addonsOpen && (
-                            <div className="border-t border-white/[0.06] bg-[#0a0a12] p-3">
-                              {/* info */}
-                              <div className="mb-3 flex gap-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] px-3 py-2.5">
-                                <Sparkles className="mt-0.5 size-3.5 shrink-0 text-violet-400" />
-                                <p className="text-[11px] leading-relaxed text-violet-200/80">
-                                  Cada adicional fica <strong className="text-violet-200">vinculado a este lanche</strong> e
-                                  não vira categoria. O cliente clica no item e vê uma janelinha premium com ovo, queijo
-                                  etc. + preço — cada um soma no total.
-                                </p>
-                              </div>
-
-                              {/* lista */}
-                              {prodAddons.length === 0 ? (
-                                <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-6 text-center">
-                                  <Layers3 className="mx-auto size-5 text-gray-600" />
-                                  <p className="mt-2 text-xs font-semibold text-gray-500">
-                                    Nenhum adicional ainda
-                                  </p>
-                                  <p className="mt-1 text-[11px] text-gray-600">
-                                    Ex: Ovo, Queijo, Presunto, Hambúrguer extra…
-                                  </p>
-                                </div>
-                              ) : (
-                                <div className="space-y-2">
-                                  {prodAddons.map((a) => {
-                                    const isEditingAddon = editingAddonId === a.id;
-                                    if (isEditingAddon) {
-                                      return (
-                                        <div
-                                          key={a.id}
-                                          className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.04] p-2.5"
-                                        >
-                                          <div className="flex gap-2">
-                                            <Input
-                                              className={field + " flex-1"}
-                                              value={editAddon.name}
-                                              onChange={(e) => setEditAddon({ ...editAddon, name: e.target.value })}
-                                              placeholder="Nome (ex: Ovo)"
-                                              autoFocus
-                                            />
-                                            <div className="flex w-28 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2">
-                                              <DollarSign className="size-3.5 shrink-0 text-gray-500" />
-                                              <input
-                                                className="w-full bg-transparent py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none"
-                                                value={editAddon.price}
-                                                onChange={(e) => setEditAddon({ ...editAddon, price: e.target.value })}
-                                                placeholder="3,00"
-                                                inputMode="decimal"
-                                              />
-                                            </div>
-                                          </div>
-                                          <div className="mt-2 flex gap-2">
-                                            <Button
-                                              size="sm"
-                                              onClick={() => handleUpdateAddon(a.id)}
-                                              className="flex-1 bg-emerald-500 text-white hover:bg-emerald-400"
-                                            >
-                                              <Check className="size-3.5" /> Salvar
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              onClick={() => setEditingAddonId(null)}
-                                              className="flex-1 border-white/10 bg-white/[0.04] text-gray-300"
-                                            >
-                                              Cancelar
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      );
-                                    }
-                                    return (
-                                      <div
-                                        key={a.id}
-                                        className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${
-                                          a.available
-                                            ? "border-white/[0.06] bg-white/[0.03]"
-                                            : "border-amber-500/15 bg-amber-500/[0.04] opacity-70"
-                                        }`}
-                                      >
-                                        <div className="min-w-0 flex-1">
-                                          <p className="truncate text-sm font-semibold text-white">{a.name}</p>
-                                          <p className="text-xs font-bold text-violet-300">+ {brl(Number(a.price))}</p>
-                                        </div>
-                                        <button
-                                          onClick={() => handleToggleAddon(a.id, !a.available)}
-                                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold uppercase ${
-                                            a.available
-                                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                                              : "border-amber-500/20 bg-amber-500/10 text-amber-300"
-                                          }`}
-                                        >
-                                          {a.available ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
-                                          {a.available ? "Ativo" : "Pausado"}
-                                        </button>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => {
-                                            setEditingAddonId(a.id);
-                                            setEditAddon({ name: a.name, price: String(a.price) });
-                                          }}
-                                          className="size-7 shrink-0 text-gray-500 hover:text-white"
-                                        >
-                                          <Pencil className="size-3" />
-                                        </Button>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => setAddonToDelete(a)}
-                                          className="size-7 shrink-0 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
-                                        >
-                                          <Trash2 className="size-3" />
-                                        </Button>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-
-                              {/* novo */}
-                              <div className="mt-3 rounded-xl border border-dashed border-violet-500/25 bg-violet-500/[0.04] p-3">
-                                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-violet-300">
-                                  Novo adicional para {p.name}
-                                </p>
-                                <div className="flex gap-2">
-                                  <Input
-                                    className={field + " flex-1"}
-                                    placeholder="Ex: Ovo"
-                                    value={newAddon[p.id]?.name ?? ""}
-                                    onChange={(e) =>
-                                      setNewAddon((prev) => ({
-                                        ...prev,
-                                        [p.id]: { name: e.target.value, price: prev[p.id]?.price ?? "" },
-                                      }))
-                                    }
-                                    onKeyDown={(e) => e.key === "Enter" && handleCreateAddon(p.id)}
-                                  />
-                                  <div className="flex w-28 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2">
-                                    <DollarSign className="size-3.5 shrink-0 text-gray-500" />
-                                    <input
-                                      className="w-full bg-transparent py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none"
-                                      placeholder="3,00"
-                                      inputMode="decimal"
-                                      value={newAddon[p.id]?.price ?? ""}
-                                      onChange={(e) =>
-                                        setNewAddon((prev) => ({
-                                          ...prev,
-                                          [p.id]: { name: prev[p.id]?.name ?? "", price: e.target.value },
-                                        }))
-                                      }
-                                      onKeyDown={(e) => e.key === "Enter" && handleCreateAddon(p.id)}
-                                    />
-                                  </div>
-                                  <Button
-                                    onClick={() => handleCreateAddon(p.id)}
-                                    disabled={!newAddon[p.id]?.name.trim() || !newAddon[p.id]?.price}
-                                    className="shrink-0 bg-violet-500 text-white hover:bg-violet-400 disabled:opacity-40"
-                                  >
-                                    <Plus className="size-4" /> Add
-                                  </Button>
-                                </div>
-                                <p className="mt-2 text-[11px] text-gray-500">
-                                  Dica: use <span className="font-mono text-gray-400">3,00</span> ou{" "}
-                                  <span className="font-mono text-gray-400">3.00</span> — o valor some ao preço do lanche.
-                                </p>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     );
@@ -1079,10 +865,101 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
         open={Boolean(addonToDelete)}
         onOpenChange={(o) => !o && setAddonToDelete(null)}
         title="Excluir adicional?"
-        description={addonToDelete ? `"${addonToDelete.name}" será removido deste produto.` : ""}
+        description={addonToDelete ? `"${addonToDelete.name}" será removido globalmente de todos os lanches.` : ""}
         confirmLabel="Excluir"
         onConfirm={handleDeleteAddon}
       />
+
+      {/* Seção de Adicionais Globais do Restaurante */}
+      <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-white">Adicionais Globais</h3>
+          <p className="text-xs text-gray-500">Disponíveis para TODOS os lanches</p>
+        </div>
+        
+        {addons.filter(a => !a.product_id || a.product_id === "").length === 0 ? (
+          <div className="text-center py-8 text-gray-500 text-xs">
+            Nenhum adicional global configurado
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {addons
+              .filter(a => !a.product_id || a.product_id === "")
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((a) => (
+                <div
+                  key={a.id}
+                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+                    a.available
+                      ? "border-white/[0.06] bg-white/[0.03]"
+                      : "border-amber-500/15 bg-amber-500/[0.04] opacity-70"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-white">{a.name}</p>
+                    <p className="text-xs font-bold text-violet-300">+ {brl(Number(a.price))}</p>
+                  </div>
+                  <button
+                    onClick={() => handleToggleAddon(a.id, !a.available)}
+                    title={a.available ? "Desativar" : "Ativar"}
+                    className={`size-7 rounded-full transition-colors ${
+                      a.available
+                        ? "bg-emerald-500 text-white hover:bg-emerald-400"
+                        : "bg-amber-500 text-white hover:bg-amber-400"
+                    }`}
+                  >
+                    {a.available ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
+                  </button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditingAddonId(a.id);
+                      setEditAddon({ name: a.name, price: String(a.price) });
+                    }}
+                    className="size-7 text-gray-500 hover:text-white"
+                  >
+                    <Pencil className="size-3" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setAddonToDelete(a)}
+                    className="size-7 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
+                  >
+                    <Trash2 className="size-3" />
+                  </Button>
+                </div>
+              ))}
+          </div>
+        )}
+        
+        <div className="mt-4 flex gap-2">
+          <Input
+            placeholder="Nome do adicional (ex: Ovo)"
+            value={newAddon.name}
+            onChange={(e) => setNewAddon({ ...newAddon, name: e.target.value })}
+            className="flex-1"
+          />
+          <div className="flex w-24 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2">
+            <DollarSign className="size-3.5 shrink-0 text-gray-500" />
+            <input
+              className="w-full bg-transparent py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none"
+              value={newAddon.price}
+              onChange={(e) => setNewAddon({ ...newAddon, price: e.target.value })}
+              placeholder="3,00"
+              inputMode="decimal"
+            />
+          </div>
+          <Button
+            size="sm"
+            onClick={handleCreateGlobalAddon}
+            className="bg-cyan-600 text-white hover:bg-cyan-500"
+          >
+            <Plus className="size-3.5" /> Adicionar
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

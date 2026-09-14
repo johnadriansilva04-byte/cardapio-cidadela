@@ -1,10 +1,23 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ImageField } from "@/components/admin/ImageField";
 import { validateImageUrl } from "@/lib/imageValidation";
 import type { Restaurant, RestaurantStatus } from "@/lib/types";
@@ -23,6 +36,8 @@ export type RestaurantFormValues = {
   secondary_color: string;
   status: RestaurantStatus;
   pix_key: string;
+  delivery_fee: string;
+  delivery_radius_km: string;
 };
 
 function slugify(name: string): string {
@@ -63,6 +78,8 @@ export function RestaurantDialog({
     secondary_color: restaurant?.secondary_color ?? "#8b5cf6",
     status: (restaurant?.status as RestaurantStatus) ?? "published",
     pix_key: restaurant?.pix_key ?? "",
+    delivery_fee: restaurant?.delivery_fee ? String(restaurant.delivery_fee) : "",
+    delivery_radius_km: restaurant?.delivery_radius_km ? String(restaurant.delivery_radius_km) : "",
   }));
   const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +101,10 @@ export function RestaurantDialog({
       secondary_color: restaurant?.secondary_color ?? "#8b5cf6",
       status: (restaurant?.status as RestaurantStatus) ?? "published",
       pix_key: restaurant?.pix_key ?? "",
+      delivery_fee: restaurant?.delivery_fee ? String(restaurant.delivery_fee) : "",
+      delivery_radius_km: restaurant?.delivery_radius_km
+        ? String(restaurant.delivery_radius_km)
+        : "",
     });
   }, [open, restaurant]);
 
@@ -94,7 +115,10 @@ export function RestaurantDialog({
       setError("Informe o nome do restaurante.");
       return;
     }
-    let slug = form.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+    let slug = form.slug
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "");
     if (!slug) slug = slugify(name);
     if (!slug) {
       setError("Slug inválido. Use letras, números e hífens.");
@@ -119,9 +143,13 @@ export function RestaurantDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto border-white/10 bg-[#0f0f14] text-white sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle className="text-white">{isEdit ? "Editar restaurante" : "Novo restaurante"}</DialogTitle>
+          <DialogTitle className="text-white">
+            {isEdit ? "Editar restaurante" : "Novo restaurante"}
+          </DialogTitle>
           <DialogDescription className="text-gray-500">
-            {isEdit ? "Altere os dados e salve. O link público atualiza ao vivo." : "O cardápio nasce publicado e com itens de exemplo."}
+            {isEdit
+              ? "Altere os dados e salve. O link público atualiza ao vivo."
+              : "O cardápio nasce publicado e com itens de exemplo."}
           </DialogDescription>
         </DialogHeader>
 
@@ -157,13 +185,18 @@ export function RestaurantDialog({
                 value={form.slug}
                 onChange={(e) => {
                   setSlugTouched(true);
-                  setForm((s) => ({ ...s, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }));
+                  setForm((s) => ({
+                    ...s,
+                    slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                  }));
                 }}
                 placeholder="cantina-da-pracinha"
                 className="flex-1 border-white/10 bg-white/[0.04] font-mono text-sm text-white"
               />
             </div>
-            <p className="text-[11px] text-gray-600">Letras minúsculas, números e hífens. Se já existir, será ajustado automaticamente.</p>
+            <p className="text-[11px] text-gray-600">
+              Letras minúsculas, números e hífens. Se já existir, será ajustado automaticamente.
+            </p>
           </div>
 
           <div className="grid gap-2">
@@ -185,13 +218,25 @@ export function RestaurantDialog({
               <Label htmlFor="rest-phone" className="text-gray-300">
                 Telefone
               </Label>
-              <Input id="rest-phone" value={form.phone} onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))} placeholder="(11) 99999-9999" className="border-white/10 bg-white/[0.04] text-white" />
+              <Input
+                id="rest-phone"
+                value={form.phone}
+                onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
+                placeholder="(11) 99999-9999"
+                className="border-white/10 bg-white/[0.04] text-white"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="rest-wa" className="text-gray-300">
                 WhatsApp
               </Label>
-              <Input id="rest-wa" value={form.whatsapp} onChange={(e) => setForm((s) => ({ ...s, whatsapp: e.target.value }))} placeholder="5511999999999" className="border-white/10 bg-white/[0.04] text-white" />
+              <Input
+                id="rest-wa"
+                value={form.whatsapp}
+                onChange={(e) => setForm((s) => ({ ...s, whatsapp: e.target.value }))}
+                placeholder="5511999999999"
+                className="border-white/10 bg-white/[0.04] text-white"
+              />
             </div>
           </div>
 
@@ -199,20 +244,74 @@ export function RestaurantDialog({
             <Label htmlFor="rest-address" className="text-gray-300">
               Endereço
             </Label>
-            <Input id="rest-address" value={form.address} onChange={(e) => setForm((s) => ({ ...s, address: e.target.value }))} placeholder="Rua, número, bairro" className="border-white/10 bg-white/[0.04] text-white" />
+            <Input
+              id="rest-address"
+              value={form.address}
+              onChange={(e) => setForm((s) => ({ ...s, address: e.target.value }))}
+              placeholder="Rua, número, bairro"
+              className="border-white/10 bg-white/[0.04] text-white"
+            />
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="rest-pix" className="text-gray-300">
               Chave PIX
             </Label>
-            <Input id="rest-pix" value={form.pix_key} onChange={(e) => setForm((s) => ({ ...s, pix_key: e.target.value }))} placeholder="CPF, telefone, e-mail ou aleatória" className="border-white/10 bg-white/[0.04] text-white" />
+            <Input
+              id="rest-pix"
+              value={form.pix_key}
+              onChange={(e) => setForm((s) => ({ ...s, pix_key: e.target.value }))}
+              placeholder="CPF, telefone, e-mail ou aleatória"
+              className="border-white/10 bg-white/[0.04] text-white"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="rest-delivery-fee" className="text-gray-300">
+                Taxa de entrega (R$)
+              </Label>
+              <Input
+                id="rest-delivery-fee"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={form.delivery_fee}
+                onChange={(e) => setForm((s) => ({ ...s, delivery_fee: e.target.value }))}
+                placeholder="Ex: 5,00"
+                className="border-white/10 bg-white/[0.04] text-white"
+              />
+              <p className="text-[11px] text-gray-600">
+                Valor cobrado do cliente quando ele escolher “Entrega”.
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="rest-radius" className="text-gray-300">
+                Raio de entrega (km)
+              </Label>
+              <Input
+                id="rest-radius"
+                type="number"
+                min="0"
+                step="0.1"
+                inputMode="decimal"
+                value={form.delivery_radius_km}
+                onChange={(e) => setForm((s) => ({ ...s, delivery_radius_km: e.target.value }))}
+                placeholder="Ex: 4"
+                className="border-white/10 bg-white/[0.04] text-white"
+              />
+              <p className="text-[11px] text-gray-600">Distância máxima atendida pela entrega.</p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label className="text-gray-300">Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm((s) => ({ ...s, status: v as RestaurantStatus }))}>
+              <Select
+                value={form.status}
+                onValueChange={(v) => setForm((s) => ({ ...s, status: v as RestaurantStatus }))}
+              >
                 <SelectTrigger className="border-white/10 bg-white/[0.04] text-white">
                   <SelectValue />
                 </SelectTrigger>
@@ -227,31 +326,75 @@ export function RestaurantDialog({
               <div className="grid gap-2">
                 <Label className="text-gray-300">Cor principal</Label>
                 <div className="flex items-center gap-2">
-                  <input type="color" value={form.primary_color} onChange={(e) => setForm((s) => ({ ...s, primary_color: e.target.value }))} className="size-8 rounded border-0 bg-transparent" />
-                  <Input value={form.primary_color} onChange={(e) => setForm((s) => ({ ...s, primary_color: e.target.value }))} className="h-8 flex-1 border-white/10 bg-white/[0.04] font-mono text-xs text-white" />
+                  <input
+                    type="color"
+                    value={form.primary_color}
+                    onChange={(e) => setForm((s) => ({ ...s, primary_color: e.target.value }))}
+                    className="size-8 rounded border-0 bg-transparent"
+                  />
+                  <Input
+                    value={form.primary_color}
+                    onChange={(e) => setForm((s) => ({ ...s, primary_color: e.target.value }))}
+                    className="h-8 flex-1 border-white/10 bg-white/[0.04] font-mono text-xs text-white"
+                  />
                 </div>
               </div>
               <div className="grid gap-2">
                 <Label className="text-gray-300">Cor secundária</Label>
                 <div className="flex items-center gap-2">
-                  <input type="color" value={form.secondary_color} onChange={(e) => setForm((s) => ({ ...s, secondary_color: e.target.value }))} className="size-8 rounded border-0 bg-transparent" />
-                  <Input value={form.secondary_color} onChange={(e) => setForm((s) => ({ ...s, secondary_color: e.target.value }))} className="h-8 flex-1 border-white/10 bg-white/[0.04] font-mono text-xs text-white" />
+                  <input
+                    type="color"
+                    value={form.secondary_color}
+                    onChange={(e) => setForm((s) => ({ ...s, secondary_color: e.target.value }))}
+                    className="size-8 rounded border-0 bg-transparent"
+                  />
+                  <Input
+                    value={form.secondary_color}
+                    onChange={(e) => setForm((s) => ({ ...s, secondary_color: e.target.value }))}
+                    className="h-8 flex-1 border-white/10 bg-white/[0.04] font-mono text-xs text-white"
+                  />
                 </div>
               </div>
             </div>
           </div>
 
-          <ImageField label="Logo do restaurante" value={form.logo_url} onChange={(v) => setForm((s) => ({ ...s, logo_url: v }))} restaurantId={rid} kind="logo" placeholder="https://.../logo.jpg" />
-          <ImageField label="Banner / capa" value={form.banner_url} onChange={(v) => setForm((s) => ({ ...s, banner_url: v }))} restaurantId={rid} kind="banner" placeholder="https://.../banner.jpg" />
+          <ImageField
+            label="Logo do restaurante"
+            value={form.logo_url}
+            onChange={(v) => setForm((s) => ({ ...s, logo_url: v }))}
+            restaurantId={rid}
+            kind="logo"
+            placeholder="https://.../logo.jpg"
+          />
+          <ImageField
+            label="Banner / capa"
+            value={form.banner_url}
+            onChange={(v) => setForm((s) => ({ ...s, banner_url: v }))}
+            restaurantId={rid}
+            kind="banner"
+            placeholder="https://.../banner.jpg"
+          />
 
-          {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
+          {error && (
+            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {error}
+            </p>
+          )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white"
+          >
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting} className="bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-50">
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-50"
+          >
             {submitting ? "Salvando…" : isEdit ? "Salvar alterações" : "Criar restaurante"}
           </Button>
         </DialogFooter>

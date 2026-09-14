@@ -32,9 +32,14 @@ CREATE TABLE IF NOT EXISTS restaurants (
   secondary_color TEXT DEFAULT '#8b5cf6',
   status restaurant_status DEFAULT 'draft',
   pix_key TEXT DEFAULT '',
+  delivery_fee NUMERIC(10,2) DEFAULT 0,
+  delivery_radius_km NUMERIC(10,2) DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+-- Migração segura: garante colunas de entrega em bancos criados por versões antigas do schema
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS delivery_fee NUMERIC(10,2) DEFAULT 0;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS delivery_radius_km NUMERIC(10,2) DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_restaurants_slug ON restaurants(slug);
 CREATE INDEX IF NOT EXISTS idx_restaurants_owner ON restaurants(owner_id);

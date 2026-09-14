@@ -14,6 +14,7 @@ export interface CheckoutForm {
   observations: string;
   payment_method: "pix" | "dinheiro" | "cartao";
   change_for: string;
+  delivery_fee?: number;
 }
 
 export default function CheckoutModal({
@@ -23,6 +24,8 @@ export default function CheckoutModal({
   prefillPhone,
   submitting = false,
   serverError = "",
+  deliveryFee = 0,
+  deliveryRadiusKm = 0,
   onClose,
   onConfirm,
 }: {
@@ -32,6 +35,8 @@ export default function CheckoutModal({
   prefillPhone?: string;
   submitting?: boolean;
   serverError?: string;
+  deliveryFee?: number;
+  deliveryRadiusKm?: number;
   onClose: () => void;
   onConfirm: (form: CheckoutForm) => void;
 }) {
@@ -53,18 +58,22 @@ export default function CheckoutModal({
   const field =
     "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none";
 
+  const isDelivery = form.delivery_type === "entrega";
+  const appliedFee = isDelivery ? deliveryFee : 0;
+  const totalWithFee = total + appliedFee;
+
   function submit() {
     if (submitting) return;
     if (!form.customer_name.trim() || !form.customer_phone.trim()) {
       setError("Preencha nome e telefone");
       return;
     }
-    if (form.delivery_type === "entrega" && !form.delivery_address.trim()) {
+    if (isDelivery && !form.delivery_address.trim()) {
       setError("Informe o endereço de entrega");
       return;
     }
     setError("");
-    onConfirm(form);
+    onConfirm({ ...form, delivery_fee: appliedFee });
   }
 
   return (
@@ -82,32 +91,32 @@ export default function CheckoutModal({
             className={field}
             placeholder="Seu nome *"
             value={form.customer_name}
-            onChange={(e) =>
-              setForm({ ...form, customer_name: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
           />
           <input
             className={field}
             placeholder="Telefone *"
             value={form.customer_phone}
-            onChange={(e) =>
-              setForm({ ...form, customer_phone: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, customer_phone: e.target.value })}
           />
           <input
             className={field}
             placeholder="E-mail (opcional)"
             value={form.customer_email}
-            onChange={(e) =>
-              setForm({ ...form, customer_email: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, customer_email: e.target.value })}
           />
 
           <div className="flex gap-2">
             {(["retirada", "entrega"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => setForm({ ...form, delivery_type: t })}
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    delivery_type: t,
+                    delivery_fee: t === "entrega" ? deliveryFee : 0,
+                  })
+                }
                 className="flex-1 rounded-lg border px-3 py-2 text-xs font-semibold uppercase transition-all"
                 style={
                   form.delivery_type === t
@@ -134,35 +143,27 @@ export default function CheckoutModal({
                 className={field}
                 placeholder="Endereço (rua, número) *"
                 value={form.delivery_address}
-                onChange={(e) =>
-                  setForm({ ...form, delivery_address: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, delivery_address: e.target.value })}
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
                   className={field}
                   placeholder="Complemento"
                   value={form.customer_complement}
-                  onChange={(e) =>
-                    setForm({ ...form, customer_complement: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, customer_complement: e.target.value })}
                 />
                 <input
                   className={field}
                   placeholder="Bairro"
                   value={form.customer_neighborhood}
-                  onChange={(e) =>
-                    setForm({ ...form, customer_neighborhood: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, customer_neighborhood: e.target.value })}
                 />
               </div>
               <input
                 className={field}
                 placeholder="Cidade"
                 value={form.customer_city}
-                onChange={(e) =>
-                  setForm({ ...form, customer_city: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, customer_city: e.target.value })}
               />
             </>
           )}
@@ -172,9 +173,7 @@ export default function CheckoutModal({
             rows={2}
             placeholder="Observações"
             value={form.observations}
-            onChange={(e) =>
-              setForm({ ...form, observations: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, observations: e.target.value })}
           />
 
           <div className="flex gap-2">
@@ -207,15 +206,40 @@ export default function CheckoutModal({
               className={field}
               placeholder="Troco para quanto?"
               value={form.change_for}
-              onChange={(e) =>
-                setForm({ ...form, change_for: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, change_for: e.target.value })}
             />
           )}
 
-          {error && (
-            <p className="text-xs font-semibold text-red-400">{error}</p>
+          {(appliedFee > 0 || isDelivery) && (
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs">
+              <div className="flex items-center justify-between text-gray-400">
+                <span>Subtotal</span>
+                <span>{brl(total)}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span>
+                  Taxa de entrega{" "}
+                  {deliveryRadiusKm > 0 && (
+                    <span className="text-gray-600">• até {deliveryRadiusKm} km</span>
+                  )}
+                </span>
+                <span className={isDelivery ? "font-semibold text-white" : "text-gray-500"}>
+                  {isDelivery ? brl(appliedFee) : "—"}
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between border-t border-white/10 pt-1.5 font-bold text-white">
+                <span>Total</span>
+                <span
+                  style={{ color: isDelivery ? accent : undefined }}
+                  className={!isDelivery ? "text-gray-400" : ""}
+                >
+                  {brl(totalWithFee)}
+                </span>
+              </div>
+            </div>
           )}
+
+          {error && <p className="text-xs font-semibold text-red-400">{error}</p>}
           {serverError && (
             <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold leading-relaxed text-red-300">
               {serverError}
@@ -231,7 +255,7 @@ export default function CheckoutModal({
               boxShadow: `0 0 20px ${hexToRgba(accent, 0.4)}`,
             }}
           >
-            {submitting ? "Enviando pedido..." : `Confirmar pedido • ${brl(total)}`}
+            {submitting ? "Enviando pedido..." : `Confirmar pedido • ${brl(totalWithFee)}`}
           </button>
         </div>
       </div>

@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import {
-  ShoppingBag,
-  Plus,
-  Minus,
-  Home,
-  Clock,
-  ChefHat,
-  UtensilsCrossed,
-} from "lucide-react";
+import { ShoppingBag, Plus, Minus, Home, Clock, ChefHat, UtensilsCrossed } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
 import { getRestaurantBySlug } from "@/modules/supabase/restaurants";
@@ -60,13 +52,7 @@ async function ensureRestaurantFromLegacyTrial(slug: string): Promise<Restaurant
 }
 
 export default function PublicMenu({ slug }: PublicMenuProps) {
-  const {
-    cart,
-    addToCart,
-    removeFromCart,
-    clearCart,
-    setCart,
-  } = usePlatformStore();
+  const { cart, addToCart, removeFromCart, clearCart, setCart } = usePlatformStore();
 
   const { user } = useAuth();
 
@@ -116,7 +102,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       }
     }
     load();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [slug]);
 
   // Clear cart when restaurant slug changes — but only once per slug
@@ -255,6 +243,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       const comanda = newComanda();
       const customerPhone = form.customer_phone;
       const customerName = form.customer_name;
+      const deliveryFee =
+        form.delivery_type === "entrega"
+          ? Number(form.delivery_fee ?? restaurant.delivery_fee ?? 0)
+          : 0;
+      const orderTotal = subtotal + deliveryFee;
 
       const { order, error } = await createOrder(
         restaurant.id,
@@ -271,8 +264,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           delivery_type: form.delivery_type,
           observations: form.observations,
           subtotal,
-          delivery_fee: 0,
-          total: subtotal,
+          delivery_fee: deliveryFee,
+          total: orderTotal,
           payment_method: form.payment_method,
         },
         orderItems,
@@ -357,12 +350,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
             <UtensilsCrossed className="size-7 text-gray-500" />
           </div>
-          <h1 className="text-xl font-bold text-white">
-            Cardápio não encontrado
-          </h1>
+          <h1 className="text-xl font-bold text-white">Cardápio não encontrado</h1>
           <p className="mt-2 text-sm leading-relaxed text-gray-400">
-            O cardápio que você procura não existe ou o link está incorreto.
-            Confira o endereço ou fale com o estabelecimento.
+            O cardápio que você procura não existe ou o link está incorreto. Confira o endereço ou
+            fale com o estabelecimento.
           </p>
           <div className="mt-2 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2">
             <p className="font-mono text-xs text-gray-500">/{slug}</p>
@@ -414,9 +405,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           <p className="mt-2 text-sm leading-relaxed text-gray-400">
             Cardápio temporariamente indisponível.
           </p>
-          <p className="mt-1 text-xs text-gray-500">
-            Tente novamente mais tarde.
-          </p>
+          <p className="mt-1 text-xs text-gray-500">Tente novamente mais tarde.</p>
           <a
             href={`/cardapio/${restaurant.slug}`}
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500"
@@ -583,9 +572,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       >
         <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {categories.map((c) => {
-            const catProducts = products.filter(
-              (p) => p.category_id === c.id && p.available,
-            );
+            const catProducts = products.filter((p) => p.category_id === c.id && p.available);
             return (
               <button
                 key={c.id}
@@ -621,19 +608,14 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
                 <ShoppingBag className="size-6 text-gray-500" />
               </div>
-              <h2 className="text-base font-semibold text-white">
-                Cardápio em breve
-              </h2>
+              <h2 className="text-base font-semibold text-white">Cardápio em breve</h2>
               <p className="mx-auto mt-2 max-w-xs text-sm text-gray-400">
-                Este estabelecimento ainda não publicou seus itens. Volte em
-                instantes!
+                Este estabelecimento ainda não publicou seus itens. Volte em instantes!
               </p>
             </div>
           ) : (
             categories.map((cat) => {
-              const catProducts = products.filter(
-                (p) => p.category_id === cat.id && p.available,
-              );
+              const catProducts = products.filter((p) => p.category_id === cat.id && p.available);
               if (catProducts.length === 0) return null;
 
               return (
@@ -660,9 +642,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
                   <div className="space-y-3">
                     {catProducts.map((item) => {
-                      const inCart = cart.find(
-                        (ci) => ci.product.id === item.id,
-                      );
+                      const inCart = cart.find((ci) => ci.product.id === item.id);
                       return (
                         <div
                           key={item.id}
@@ -686,26 +666,18 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                 backgroundColor: hexToRgba(accent, 0.08),
                               }}
                             >
-                              <UtensilsCrossed
-                                className="size-5"
-                                style={{ color: accent }}
-                              />
+                              <UtensilsCrossed className="size-5" style={{ color: accent }} />
                             </div>
                           )}
 
                           <div className="min-w-0 flex-1">
-                            <p className="text-[15px] font-bold text-white">
-                              {item.name}
-                            </p>
+                            <p className="text-[15px] font-bold text-white">{item.name}</p>
                             {item.description && (
                               <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-gray-400">
                                 {item.description}
                               </p>
                             )}
-                            <p
-                              className="mt-1.5 text-sm font-bold"
-                              style={{ color: accent }}
-                            >
+                            <p className="mt-1.5 text-sm font-bold" style={{ color: accent }}>
                               {brl(item.price)}
                             </p>
                           </div>
@@ -818,6 +790,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           prefillPhone={user?.user_metadata?.phone || ""}
           submitting={submitting}
           serverError={checkoutError}
+          deliveryFee={Number(restaurant.delivery_fee ?? 0) || 0}
+          deliveryRadiusKm={Number(restaurant.delivery_radius_km ?? 0) || 0}
           onClose={() => setCheckoutOpen(false)}
           onConfirm={handleCheckout}
         />
@@ -848,7 +822,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             total: currentOrder.total,
             customer_name: currentOrder.customer_name,
             customer_phone: currentOrder.customer_phone,
-            items: (currentOrder.items as { product_name: string; quantity: number; total: number }[]) ?? [],
+            items:
+              (currentOrder.items as { product_name: string; quantity: number; total: number }[]) ??
+              [],
             observations: currentOrder.observations,
             payment_method: currentOrder.payment_method,
             delivery_type: currentOrder.delivery_type,

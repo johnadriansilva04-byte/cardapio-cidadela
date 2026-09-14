@@ -26,6 +26,7 @@ import {
 } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
+import { brl } from "@/lib/utils";
 import { toast } from "sonner";
 
 const validTabs = ["cardapio", "pedidos", "config"] as const;
@@ -117,13 +118,35 @@ function RestaurantDetailPage() {
         secondary_color: values.secondary_color,
         status: values.status,
         pix_key: values.pix_key,
+        delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+        delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
       });
       if (!ok) {
         toast.error("Erro ao salvar.");
         return;
       }
-      setRestaurant((prev) => (prev ? { ...prev, ...values } : prev));
-      setRestaurants((prev) => prev.map((r) => (r.id === restaurant.id ? { ...r, ...values } : r)));
+      setRestaurant((prev) =>
+        prev
+          ? {
+              ...prev,
+              ...values,
+              delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+              delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
+            }
+          : prev,
+      );
+      setRestaurants((prev) =>
+        prev.map((r) =>
+          r.id === restaurant.id
+            ? {
+                ...r,
+                ...values,
+                delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+                delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
+              }
+            : r,
+        ),
+      );
       setEditOpen(false);
       toast.success("Restaurante atualizado!");
     } finally {
@@ -380,6 +403,11 @@ function RestaurantCardSummary({
           <RestaurantStatusBadge status={restaurant.status} />
         </div>
         <div className="truncate">PIX: {restaurant.pix_key || "—"}</div>
+        <div className="truncate">Taxa de entrega: {brl(restaurant.delivery_fee ?? 0)}</div>
+        <div className="truncate">
+          Raio de entrega:{" "}
+          {restaurant.delivery_radius_km ? `${restaurant.delivery_radius_km} km` : "—"}
+        </div>
       </div>
     </div>
   );

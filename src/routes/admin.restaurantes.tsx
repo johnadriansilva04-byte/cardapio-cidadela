@@ -122,7 +122,9 @@ function RestaurantesPage() {
         values.phone ||
         values.whatsapp ||
         values.address ||
-        values.pix_key
+        values.pix_key ||
+        values.delivery_fee ||
+        values.delivery_radius_km
       ) {
         const ok = await updateRestaurant(created.id, {
           logo_url: values.logo_url,
@@ -134,12 +136,16 @@ function RestaurantesPage() {
           primary_color: values.primary_color,
           secondary_color: values.secondary_color,
           status: values.status,
+          delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+          delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
         });
         if (ok)
           Object.assign(created, {
             logo_url: values.logo_url,
             banner_url: values.banner_url,
             status: values.status,
+            delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+            delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
           });
       }
       setRestaurants((prev) => [created, ...prev]);
@@ -167,13 +173,24 @@ function RestaurantesPage() {
         secondary_color: values.secondary_color,
         status: values.status,
         pix_key: values.pix_key,
+        delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+        delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
       });
       if (!ok) {
         toast.error("Erro ao salvar.");
         return;
       }
       setRestaurants((prev) =>
-        prev.map((r) => (r.id === editing.id ? ({ ...r, ...values } as Restaurant) : r)),
+        prev.map((r) =>
+          r.id === editing.id
+            ? ({
+                ...r,
+                ...values,
+                delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+                delivery_radius_km: parseFloat(values.delivery_radius_km.replace(",", ".")) || 0,
+              } as Restaurant)
+            : r,
+        ),
       );
       setEditing(null);
       toast.success("Restaurante atualizado!");

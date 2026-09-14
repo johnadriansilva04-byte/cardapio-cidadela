@@ -19,7 +19,13 @@ export function brl(value: number): string {
  */
 export function hexToRgba(hex: string | undefined | null, alpha: number): string {
   const h = (hex ?? "#06b6d4").replace("#", "");
-  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const full =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
   if (!/^[0-9a-fA-F]{6}$/.test(full)) return `rgba(6, 182, 212, ${alpha})`;
   const n = parseInt(full, 16);
   const r = (n >> 16) & 255;
@@ -85,6 +91,7 @@ export function buildThermalTicket(
     delivery_type: string;
     observations: string;
     total: number;
+    delivery_fee?: number;
     payment_method: string;
     change_for?: string;
     order_items?: { product_name: string; quantity: number; total: number }[];
@@ -98,8 +105,10 @@ export function buildThermalTicket(
   const row = (l: string, r: string) => l.slice(0, W - r.length - 1).padEnd(W - r.length) + r;
 
   const items = order.order_items ?? [];
+  const isDelivery = order.delivery_type === "entrega";
+  const fee = isDelivery ? (order.delivery_fee ?? 0) : 0;
 
-  return [
+  const rows = [
     center(restaurantName.toUpperCase()),
     center("PEDIDO"),
     line,
@@ -107,20 +116,21 @@ export function buildThermalTicket(
     `DATA..: ${new Date(order.created_at).toLocaleString("pt-BR")}`,
     `CLIENTE: ${order.customer_name}`,
     `FONE...: ${order.customer_phone}`,
-    order.delivery_type === "entrega"
-      ? `ENDER..: ${order.delivery_address}`
-      : "RETIRADA NO BALCAO",
+    isDelivery ? `ENDER..: ${order.delivery_address}` : "RETIRADA NO BALCAO",
     line,
     ...items.map((i) => row(`${i.quantity}x ${i.product_name}`, brl(i.total))),
     line,
-    row("TOTAL", brl(order.total)),
+  ];
+
+  if (isDelivery && fee > 0) rows.push(row("TAXA ENTREGA", brl(fee)));
+  rows.push(row("TOTAL", brl(order.total)));
+  rows.push(
     `PAGTO.: ${order.payment_method.toUpperCase()}${order.change_for ? ` (troco p/ ${order.change_for})` : ""}`,
-    order.observations ? `OBS...: ${order.observations}` : "",
-    line,
-    "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  );
+  if (order.observations) rows.push(`OBS...: ${order.observations}`);
+  rows.push(line, "");
+
+  return rows.filter(Boolean).join("\n");
 }
 
 /**
@@ -168,8 +178,20 @@ export function buildPixPayload(opts: {
     field(53, "986") + // Moeda BRL
     field(54, amountStr) + // Valor
     field(58, "BR") + // País
-    field(59, merchantName.replace(/[^A-Z0-9 ]/gi, "").slice(0, 25).toUpperCase()) +
-    field(60, merchantCity.replace(/[^A-Z0-9 ]/gi, "").slice(0, 15).toUpperCase()) +
+    field(
+      59,
+      merchantName
+        .replace(/[^A-Z0-9 ]/gi, "")
+        .slice(0, 25)
+        .toUpperCase(),
+    ) +
+    field(
+      60,
+      merchantCity
+        .replace(/[^A-Z0-9 ]/gi, "")
+        .slice(0, 15)
+        .toUpperCase(),
+    ) +
     field(62, field(5, txidClean)); // TXID
 
   return body + "6304" + crc16(body + "6304");
@@ -206,15 +228,22 @@ export function buildWhatsAppMessage(
     payment_method: string;
     delivery_type: string;
     delivery_address: string;
+    delivery_fee?: number;
   },
   restaurantName: string,
 ): string {
+  const isDelivery = order.delivery_type === "entrega";
+  const fee = isDelivery ? (order.delivery_fee ?? 0) : 0;
+  const subtotal = order.total - fee;
+
   const lines = [
     `🍽️ *NOVO PEDIDO ${order.comanda}*`,
     `━━━━━━━━━━━━━━`,
     "",
     `👤 ${order.customer_name}`,
-    `📍 ${order.delivery_type === "entrega" ? order.delivery_address : "Retirada"}`,
+    isDelivery
+      ? `📍 *Entrega:* ${order.delivery_address || "Endereço não informado"}`
+      : "🏪 Retirada no balcão",
     `💳 ${order.payment_method.toUpperCase()}`,
     "",
     `📋 *Itens:*`,
@@ -225,6 +254,10 @@ export function buildWhatsAppMessage(
   });
 
   lines.push("");
+  if (isDelivery && fee > 0) {
+    lines.push(`*Subtotal:* ${brl(subtotal)}`);
+    lines.push(`🛵 *Taxa de entrega:* ${brl(fee)}`);
+  }
   lines.push(`💰 *TOTAL: ${brl(order.total)}*`);
 
   if (order.observations) {

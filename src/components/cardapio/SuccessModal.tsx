@@ -17,6 +17,9 @@ interface SuccessOrder {
   observations: string;
   payment_method: string;
   delivery_type: string;
+  delivery_address?: string;
+  delivery_fee?: number;
+  subtotal?: number;
 }
 
 export default function SuccessModal({
@@ -62,8 +65,8 @@ export default function SuccessModal({
               color: restaurantAccent,
             }}
           >
-            <Star className="size-3.5 fill-current" />
-            +{soberaniaPoints(order.total)} pontos de soberania
+            <Star className="size-3.5 fill-current" />+{soberaniaPoints(order.total)} pontos de
+            soberania
           </div>
         )}
 
@@ -89,7 +92,8 @@ export default function SuccessModal({
                     observations: order.observations,
                     payment_method: order.payment_method,
                     delivery_type: order.delivery_type,
-                    delivery_address: "",
+                    delivery_address: order.delivery_address ?? "",
+                    delivery_fee: order.delivery_fee ?? 0,
                   },
                   restaurantName,
                 );

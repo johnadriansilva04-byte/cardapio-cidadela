@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { getOrderTrackingPublic, getOrderHistory, subscribeToOrders } from "@/modules/supabase/orders";
+import {
+  getOrderTrackingPublic,
+  getOrderHistory,
+  subscribeToOrders,
+} from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import { brl, formatDate } from "@/lib/utils";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/lib/types";
@@ -16,7 +20,9 @@ export const Route = createFileRoute("/pedido/$orderId")({
 function OrderTrackingPage() {
   const { orderId } = Route.useParams();
   const [order, setOrder] = useState<Order | null>(null);
-  const [history, setHistory] = useState<{ status: OrderStatus; note: string; created_at: string }[]>([]);
+  const [history, setHistory] = useState<
+    { status: OrderStatus; note: string; created_at: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -34,6 +40,9 @@ function OrderTrackingPage() {
           const raw = localStorage.getItem("last_order");
           const local = raw ? JSON.parse(raw) : null;
           if (local && local.id === orderId) {
+            const fee = Number(local.delivery_fee ?? 0) || 0;
+            const subtotal =
+              typeof local.subtotal === "number" ? local.subtotal : Number(local.total ?? 0) - fee;
             setOrder({
               id: local.id,
               restaurant_id: "",
@@ -43,30 +52,32 @@ function OrderTrackingPage() {
               customer_name: local.customer_name ?? "Cliente",
               customer_phone: local.customer_phone ?? "",
               customer_email: "",
-              delivery_address: "",
+              delivery_address: local.delivery_address ?? "",
               customer_complement: "",
               customer_neighborhood: "",
               customer_city: "",
               delivery_type: local.delivery_type ?? "retirada",
               observations: local.observations ?? "",
-              subtotal: local.total,
-              delivery_fee: 0,
-              total: local.total,
+              subtotal,
+              delivery_fee: fee,
+              total: Number(local.total ?? 0),
               payment_method: local.payment_method ?? "pix",
               payment_status: "awaiting_confirmation",
               status: "received",
               cidadela_unlocked: false,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
-              order_items: (local.items ?? []).map((it: { product_name: string; quantity: number; total: number }, i: number) => ({
-                id: `local-${i}`,
-                product_id: "",
-                product_name: it.product_name,
-                quantity: it.quantity,
-                unit_price: it.quantity > 0 ? it.total / it.quantity : 0,
-                total: it.total,
-                notes: "",
-              })),
+              order_items: (local.items ?? []).map(
+                (it: { product_name: string; quantity: number; total: number }, i: number) => ({
+                  id: `local-${i}`,
+                  product_id: "",
+                  product_name: it.product_name,
+                  quantity: it.quantity,
+                  unit_price: it.quantity > 0 ? it.total / it.quantity : 0,
+                  total: it.total,
+                  notes: "",
+                }),
+              ),
             });
             setLoading(false);
             return;
@@ -85,7 +96,9 @@ function OrderTrackingPage() {
       setLoading(false);
     }
     load();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [orderId]);
 
   // Subscribe to status updates
@@ -122,9 +135,7 @@ function OrderTrackingPage() {
         <div className="text-center px-6">
           <p className="text-5xl mb-4">🔍</p>
           <h1 className="text-xl font-bold text-white">Pedido não encontrado</h1>
-          <p className="mt-2 text-sm text-gray-400">
-            Verifique o link e tente novamente.
-          </p>
+          <p className="mt-2 text-sm text-gray-400">Verifique o link e tente novamente.</p>
         </div>
       </div>
     );
@@ -138,9 +149,7 @@ function OrderTrackingPage() {
         {/* Header */}
         <div className="mb-6 text-center">
           <h1 className="text-lg font-bold text-white">Acompanhar Pedido</h1>
-          <p className="mt-1 text-sm text-gray-400">
-            Comanda {order.comanda}
-          </p>
+          <p className="mt-1 text-sm text-gray-400">Comanda {order.comanda}</p>
           {Math.floor(order.total / 30) > 0 && (
             <div className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-xs font-bold text-cyan-400">
               ⭐ +{Math.floor(order.total / 30)} pontos de soberania
@@ -176,9 +185,7 @@ function OrderTrackingPage() {
                 <div key={step} className="relative flex items-center gap-4 py-3">
                   <div
                     className={`relative z-10 size-12 shrink-0 rounded-full border-2 ${
-                      isCompleted
-                        ? "border-cyan-500 bg-cyan-500/20"
-                        : "border-gray-700 bg-black"
+                      isCompleted ? "border-cyan-500 bg-cyan-500/20" : "border-gray-700 bg-black"
                     } flex items-center justify-center`}
                   >
                     {isCompleted ? (
@@ -200,11 +207,7 @@ function OrderTrackingPage() {
                     >
                       {ORDER_STATUS_LABELS[step]}
                     </p>
-                    {isCurrent && (
-                      <p className="text-[10px] text-cyan-400">
-                        Status atual
-                      </p>
-                    )}
+                    {isCurrent && <p className="text-[10px] text-cyan-400">Status atual</p>}
                   </div>
                 </div>
               );
@@ -214,9 +217,7 @@ function OrderTrackingPage() {
 
         {/* Order details */}
         <div className="rounded-xl border border-cyan-500/20 bg-black/40 p-4">
-          <h3 className="mb-3 text-xs font-bold uppercase text-gray-500">
-            Detalhes do pedido
-          </h3>
+          <h3 className="mb-3 text-xs font-bold uppercase text-gray-500">Detalhes do pedido</h3>
 
           {order.order_items && order.order_items.length > 0 && (
             <div className="space-y-2">

@@ -236,6 +236,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         delivery_type: order.delivery_type,
         observations: order.observations,
         total: order.total,
+        delivery_fee: order.delivery_fee ?? 0,
         payment_method: order.payment_method,
         order_items: order.order_items?.map((i) => ({
           product_name: i.product_name,
@@ -265,6 +266,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         payment_method: order.payment_method,
         delivery_type: order.delivery_type,
         delivery_address: order.delivery_address || "",
+        delivery_fee: order.delivery_fee || 0,
       },
       restaurant.name,
     );

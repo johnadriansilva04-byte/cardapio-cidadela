@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
+  Sparkles,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
@@ -98,6 +99,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({});
   const [now, setNow] = useState(() => new Date());
   const [addonModalProduct, setAddonModalProduct] = useState<Product | null>(null);
+  const [editingCartItemIndex, setEditingCartItemIndex] = useState<number | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
@@ -237,18 +239,33 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     sectionsRef.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function openAddonModal(product: Product) {
+  function openAddonModal(product: Product, cartIndex?: number) {
     const list = addonsByProduct.get(product.id) ?? [];
     const available = list.filter((a) => a.available);
     if (available.length > 0) {
       setAddonModalProduct(product);
+      setEditingCartItemIndex(cartIndex ?? null);
     }
   }
 
   function handleAddonConfirm(selected: SelectedAddon[], notes: string) {
     if (!addonModalProduct) return;
-    addToCart(addonModalProduct, selected, notes);
+    
+    if (editingCartItemIndex !== null) {
+      // Update existing cart item with new addons
+      const existingItem = cart[editingCartItemIndex];
+      if (existingItem && existingItem.product.id === addonModalProduct.id) {
+        // Remove the old item and add the updated one
+        removeFromCart(addonModalProduct.id, existingItem.addons);
+        addToCart(addonModalProduct, selected, notes);
+      }
+    } else {
+      // Add new item (shouldn't happen with current flow, but keeping for safety)
+      addToCart(addonModalProduct, selected, notes);
+    }
+    
     setAddonModalProduct(null);
+    setEditingCartItemIndex(null);
   }
 
   async function handleCheckout(form: CheckoutForm) {
@@ -500,15 +517,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/80 to-black/30" />
-
-          <Link
-            to="/meus-pedidos"
-            search={{ from: slug }}
-            className="absolute left-3 top-3 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur transition-colors hover:border-white/30 hover:bg-black/70"
-            aria-label="Meus pedidos"
-          >
-            <ShoppingBag className="size-3.5" /> Meus pedidos
-          </Link>
 
           {/* compact content */}
           <div className="absolute inset-0 flex items-center px-4">
@@ -812,11 +820,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                 )}
                                 {hasAddons && qtyInCart > 0 && (
                                   <button
-                                    onClick={() => canOrder && openAddonModal(item)}
+                                    onClick={() => canOrder && openAddonModal(item, cart.findIndex(ci => ci.product.id === item.id))}
                                     disabled={!canOrder}
-                                    className="mt-1 text-[10px] text-violet-300 hover:text-violet-200 disabled:opacity-50"
+                                    className="mt-1 inline-flex items-center gap-1 rounded-lg border border-cyan-400/50 bg-cyan-500/10 px-2 py-1 text-[10px] font-bold text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400/70 disabled:opacity-50"
                                   >
-                                    + adicionais
+                                    <Sparkles className="size-3" /> + adicionais
                                   </button>
                                 )}
                               </>
@@ -959,6 +967,20 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           restaurantWhatsapp={restaurant.whatsapp}
           onClose={() => setSuccessOrder(null)}
         />
+      )}
+
+      {/* Fixed bottom button - Meus pedidos */}
+      {count === 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+          <Link
+            to="/meus-pedidos"
+            search={{ from: slug }}
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/50 px-4 py-2.5 text-xs font-semibold text-white/90 backdrop-blur transition-all hover:border-white/30 hover:bg-black/70 shadow-lg"
+            aria-label="Meus pedidos"
+          >
+            <ShoppingBag className="size-4" /> Meus pedidos
+          </Link>
+        </div>
       )}
     </div>
   );

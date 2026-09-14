@@ -110,8 +110,11 @@ export function RestaurantCardCompact({
             <ExternalLink className="size-3.5" />
           </a>
         </div>
-        {/* avatar overlapping */}
-        <div className="absolute -bottom-8 left-3 z-10 flex size-16 items-center justify-center rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
+      </div>
+
+      {/* avatar overlapping - moved outside cover container */}
+      <div className="relative">
+        <div className="absolute top-0 left-3 z-20 flex size-16 items-center justify-center rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
@@ -126,28 +129,28 @@ export function RestaurantCardCompact({
       </div>
 
       {/* ─── CONTENT ─── */}
-      <div className="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-10">
-        {/* Name + chevron */}
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="min-w-0 truncate text-sm font-bold leading-snug text-white group-hover:text-cyan-300 transition-colors">
+      <div className="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-8 relative">
+        {/* Item count - top right */}
+        {menuItemCount !== null && (
+          <p className="absolute top-4 right-0 inline-flex items-center gap-1 text-[11px] text-gray-500">
+            <LayoutGrid className="size-3" /> {menuItemCount} item{menuItemCount === 1 ? "" : "s"} no cardápio
+          </p>
+        )}
+
+        {/* Name + chevron - centered */}
+        <div className="flex items-center justify-center gap-2">
+          <h3 className="min-w-0 truncate text-sm font-bold leading-snug text-white group-hover:text-cyan-300 transition-colors text-center">
             {restaurant.name}
           </h3>
           <ChevronRight className="size-4 shrink-0 text-gray-600 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-400" />
         </div>
 
-        {/* Description */}
+        {/* Description - middle right */}
         {restaurant.description ? (
-          <p className="line-clamp-1 text-[11px] leading-relaxed text-gray-400">
+          <p className="line-clamp-1 text-[11px] leading-relaxed text-gray-400 text-right -mt-1">
             {restaurant.description}
           </p>
         ) : null}
-
-        {/* Item count */}
-        {menuItemCount !== null && (
-          <p className="inline-flex items-center gap-1 text-[11px] text-gray-500">
-            <LayoutGrid className="size-3" /> {menuItemCount} item{menuItemCount === 1 ? "" : "s"} no cardápio
-          </p>
-        )}
 
         {/* Action shortcuts */}
         <div className="mt-0.5 grid grid-cols-3 gap-1.5" onClick={(e) => e.stopPropagation()}>

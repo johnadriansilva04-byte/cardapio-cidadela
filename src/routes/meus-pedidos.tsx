@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ShoppingBag, PackageOpen, ExternalLink, ArrowLeft, RefreshCw, Clock } from "lucide-react";
 import { getMyOrders, isOrderClosed, pruneClosedOrderIds, getGuestId } from "@/lib/guestOrder";
@@ -8,6 +8,9 @@ import { brl, formatDate } from "@/lib/utils";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, type GuestOrderSummary } from "@/lib/types";
 
 export const Route = createFileRoute("/meus-pedidos")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    from: typeof search.from === "string" ? search.from : undefined,
+  }),
   head: () => ({
     meta: [{ title: "Meus pedidos — Cardápio Cidadela" }],
   }),
@@ -15,8 +18,21 @@ export const Route = createFileRoute("/meus-pedidos")({
 });
 
 function MyOrdersPage() {
+  const search = Route.useSearch();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<GuestOrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Slug do restaurante de onde o cliente voltou (ex.: /cardapio/meu-restaurante)
+  const from = search.from;
+
+  function goBack() {
+    if (from) {
+      navigate({ to: "/cardapio/$slug", params: { slug: from } });
+    } else {
+      navigate({ to: "/", replace: true });
+    }
+  }
   const [refreshing, setRefreshing] = useState(false);
   const subscribedRoomsRef = useRef(new Set<string>());
   const ordersRef = useRef<GuestOrderSummary[]>([]);
@@ -113,10 +129,12 @@ function MyOrdersPage() {
             tempo real.
           </p>
           <Link
-            to="/"
+            to={from ? "/cardapio/$slug" : "/"}
+            params={from ? { slug: from } : undefined}
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cyan-500"
           >
-            <ArrowLeft className="size-4" /> Voltar ao início
+            <ArrowLeft className="size-4" />
+            {from ? "Voltar ao cardápio" : "Voltar ao início"}
           </Link>
         </div>
       </div>
@@ -130,7 +148,7 @@ function MyOrdersPage() {
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.history.back()}
+              onClick={goBack}
               className="grid size-9 place-items-center rounded-lg border border-white/10 text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
               aria-label="Voltar"
             >

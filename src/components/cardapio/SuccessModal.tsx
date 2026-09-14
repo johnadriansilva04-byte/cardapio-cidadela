@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { CheckCircle2, MessageCircle, ExternalLink, Crown, Star, ShoppingBag } from "lucide-react";
+import { CheckCircle2, MessageCircle, ExternalLink, Crown, Star } from "lucide-react";
 import { brl, buildWhatsAppMessage, sendToWhatsApp } from "@/lib/utils";
 
 function soberaniaPoints(total: number): number {
@@ -77,14 +77,6 @@ export default function SuccessModal({
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] py-3 text-sm font-semibold text-white transition-colors hover:bg-white/[0.08]"
           >
             <ExternalLink className="size-4" /> Acompanhar pedido em tempo real
-          </a>
-
-          {/* My orders — caso o cliente feche sem abrir o tracking */}
-          <a
-            href="/meus-pedidos"
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/5 py-3 text-sm font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/10"
-          >
-            <ShoppingBag className="size-4" /> Ver meus pedidos
           </a>
 
           {/* WhatsApp button */}

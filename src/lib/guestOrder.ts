@@ -101,7 +101,7 @@ export async function getMyOrders(): Promise<GuestOrderSummary[]> {
     }
   }
 
-  const uniqueIds = [...new Set([...remembered, ...(guestId ? [] : [])])];
+  const uniqueIds = [...new Set(remembered)];
   for (const id of uniqueIds) {
     try {
       const { data, error } = await supabase

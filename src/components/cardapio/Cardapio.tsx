@@ -455,6 +455,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
         <Link
           to="/meus-pedidos"
+          search={{ from: slug }}
           className="absolute left-3 top-4 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur transition-colors hover:border-white/30 hover:bg-black/70"
           aria-label="Meus pedidos"
         >

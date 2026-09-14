@@ -18,13 +18,13 @@ import {
 import { Link } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
 import { getRestaurantBySlug, getNeighborhoods } from "@/modules/supabase/restaurants";
-import { getMenuWithProducts, getAddonsByRestaurant } from "@/modules/supabase/menu";
+import { getMenuWithProducts, getRestaurantAddons } from "@/modules/supabase/menu";
 import { supabase } from "@/modules/supabase/client";
 import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
 import { brl, hexToRgba, newComanda } from "@/lib/utils";
 import { getOrCreateGuestId, rememberOrderId } from "@/lib/guestOrder";
-import type { Product, Category, Restaurant, Order, DeliveryNeighborhood, ProductAddon, SelectedAddon } from "@/lib/types";
+import type { Product, Category, Restaurant, Order, DeliveryNeighborhood, RestaurantAddon, ProductAddon, SelectedAddon } from "@/lib/types";
 import CartSheet from "./CartSheet";
 import CheckoutModal from "./CheckoutModal";
 import type { CheckoutForm } from "./CheckoutModal";
@@ -125,7 +125,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         }
         setRestaurant(r);
         const { categories: cats, products: prods } = await getMenuWithProducts(r.id);
-        const [nbrs, pas] = await Promise.all([getNeighborhoods(r.id), getAddonsByRestaurant(r.id)]);
+        const [nbrs, pas] = await Promise.all([getNeighborhoods(r.id), getRestaurantAddons(r.id)]);
         if (!alive) return;
         setCategories(cats);
         setProducts(prods);
@@ -162,7 +162,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       if (!alive) return;
       try {
         const { categories: cats, products: prods } = await getMenuWithProducts(restaurantId);
-        const pas = await getAddonsByRestaurant(restaurantId);
+        const pas = await getRestaurantAddons(restaurantId);
         if (!alive) return;
         setCategories(cats);
         setProducts(prods);
@@ -213,6 +213,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     return m;
   }, [productAddons]);
 
+  // Global addons available for all products
+  const globalAddons = useMemo(() => {
+    return productAddons.filter(a => !a.product_id || a.product_id === "").sort((a,b)=>a.sort_order-b.sort_order);
+  }, [productAddons]);
+
   const lines = useMemo(() => {
     return cart.map((ci) => {
       const addonsPrice = ci.addons?.reduce((s, a) => s + Number(a.price), 0) ?? 0;
@@ -240,7 +245,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   }
 
   function openAddonModal(product: Product, cartIndex?: number) {
-    const list = addonsByProduct.get(product.id) ?? [];
+    // Use global addons first, then product-specific addons
+    const list = globalAddons.length > 0 ? globalAddons : (addonsByProduct.get(product.id) ?? []);
     const available = list.filter((a) => a.available);
     if (available.length > 0) {
       setAddonModalProduct(product);
@@ -733,8 +739,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
                   <div className="grid gap-2">
                     {catProducts.map((item) => {
-                      const prodAddons = addonsByProduct.get(item.id) ?? [];
-                      const availableAddons = prodAddons.filter((a) => a.available);
+                      // Use global addons for all products
+                      const availableAddons = globalAddons.filter((a) => a.available);
                       const hasAddons = availableAddons.length > 0;
                       const qtyInCart = cart.filter((ci) => ci.product.id === item.id).reduce((s, ci) => s + ci.quantity, 0);
                       const simpleInCart = !hasAddons ? cart.find((ci) => ci.product.id === item.id) : null;
@@ -822,7 +828,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                   <button
                                     onClick={() => canOrder && openAddonModal(item, cart.findIndex(ci => ci.product.id === item.id))}
                                     disabled={!canOrder}
-                                    className="mt-1 inline-flex items-center gap-1 rounded-lg border border-cyan-400/50 bg-cyan-500/10 px-2 py-1 text-[10px] font-bold text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400/70 disabled:opacity-50"
+                                    className="mt-2 inline-flex items-center gap-1 rounded-lg border border-cyan-400/50 bg-cyan-500/10 px-2 py-1 text-[10px] font-bold text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400/70 disabled:opacity-50"
                                   >
                                     <Sparkles className="size-3" /> + adicionais
                                   </button>

@@ -70,7 +70,20 @@ export interface Product {
   created_at: string;
 }
 
-// --- Product Add-ons (ex: Ovo, Queijo, Presunto no X-Burguer) ---
+// --- Restaurant Add-ons (ex: Ovo, Queijo, Bacon - globais para todos os lanches) ---
+// Adicionais configurados pelo restaurante que podem ser aplicados a qualquer produto.
+// O cliente marca os que quer no modal e paga o valor de cada um a mais.
+export interface RestaurantAddon {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  price: number;
+  available: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+// --- Product Add-ons (legado - mantido para compatibilidade) ---
 // Cada produto pode ter vários adicionais configurados pelo restaurante.
 // O cliente marca os que quer no modal e paga o valor de cada um a mais.
 export interface ProductAddon {

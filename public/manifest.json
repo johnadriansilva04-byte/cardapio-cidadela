@@ -1,52 +1,60 @@
 {
-  "name": "Cardápio Cidadela - Gestão Mobile",
-  "short_name": "Cidadela Mobile",
-  "description": "Sistema de gestão mobile para restaurantes - receba pedidos e gerencie seu negócio",
+  "schemaVersion": 1,
+  "name": "Cardápio Cidadela",
+  "short_name": "Cidadela",
+  "description": "Cardápio digital e gestão de pedidos para restaurantes: receba pedidos, acompanhe o caixa e gerencie o cardápio pelo celular.",
+  "id": "/",
   "start_url": "/mobile",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#0a0a0f",
   "theme_color": "#06b6d4",
   "orientation": "portrait",
-  "scope": "/mobile",
+  "scope": "/",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["business", "food", "productivity"],
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["business", "food", "productivity"],
   "shortcuts": [
     {
       "name": "Pedidos",
       "short_name": "Pedidos",
-      "description": "Ver pedidos recebidos",
+      "description": "Acompanhar os pedidos que estão entrando",
       "url": "/mobile",
-      "icons": [
-        {
-          "src": "/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
-      "description": "Ver estatísticas",
+      "name": "Painel",
+      "short_name": "Painel",
+      "description": "Visão de faturamento e desempenho",
       "url": "/mobile/dashboard",
-      "icons": [
-        {
-          "src": "/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Clientes",
+      "short_name": "Clientes",
+      "description": "Histórico de clientes e recorrência",
+      "url": "/mobile/clientes",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

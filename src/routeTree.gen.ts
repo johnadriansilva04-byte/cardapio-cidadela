@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MeusPedidosRouteImport } from './routes/meus-pedidos'
+import { Route as MobileRouteImport } from './routes/mobile'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -25,6 +26,10 @@ import { Route as AdminPedidosRouteImport } from './routes/admin.pedidos'
 import { Route as AdminRestaurantesRouteImport } from './routes/admin.restaurantes'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as CardapioSlugRouteImport } from './routes/cardapio.$slug'
+import { Route as MobileIndexRouteImport } from './routes/mobile.index'
+import { Route as MobileClientesRouteImport } from './routes/mobile.clientes'
+import { Route as MobileConfigRouteImport } from './routes/mobile.config'
+import { Route as MobileDashboardRouteImport } from './routes/mobile.dashboard'
 import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
 import { Route as AdminRestauranteIdRouteImport } from './routes/admin.restaurante.$id'
 
@@ -46,6 +51,11 @@ const LoginRoute = LoginRouteImport.update({
 const MeusPedidosRoute = MeusPedidosRouteImport.update({
   id: '/meus-pedidos',
   path: '/meus-pedidos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MobileRoute = MobileRouteImport.update({
+  id: '/mobile',
+  path: '/mobile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -108,6 +118,26 @@ const CardapioSlugRoute = CardapioSlugRouteImport.update({
   path: '/cardapio/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MobileIndexRoute = MobileIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobileClientesRoute = MobileClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobileConfigRoute = MobileConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobileDashboardRoute = MobileDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => MobileRoute,
+} as any)
 const PedidoOrderIdRoute = PedidoOrderIdRouteImport.update({
   id: '/pedido/$orderId',
   path: '/pedido/$orderId',
@@ -124,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/meus-pedidos': typeof MeusPedidosRoute
+  '/mobile': typeof MobileRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -135,8 +166,12 @@ export interface FileRoutesByFullPath {
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/cardapio/$slug': typeof CardapioSlugRoute
+  '/mobile/clientes': typeof MobileClientesRoute
+  '/mobile/config': typeof MobileConfigRoute
+  '/mobile/dashboard': typeof MobileDashboardRoute
   '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
 }
 export interface FileRoutesByTo {
@@ -154,8 +189,12 @@ export interface FileRoutesByTo {
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/cardapio/$slug': typeof CardapioSlugRoute
+  '/mobile/clientes': typeof MobileClientesRoute
+  '/mobile/config': typeof MobileConfigRoute
+  '/mobile/dashboard': typeof MobileDashboardRoute
   '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/admin': typeof AdminIndexRoute
+  '/mobile': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
 }
 export interface FileRoutesById {
@@ -164,6 +203,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/meus-pedidos': typeof MeusPedidosRoute
+  '/mobile': typeof MobileRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -175,8 +215,12 @@ export interface FileRoutesById {
   '/admin/restaurantes': typeof AdminRestaurantesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/cardapio/$slug': typeof CardapioSlugRoute
+  '/mobile/clientes': typeof MobileClientesRoute
+  '/mobile/config': typeof MobileConfigRoute
+  '/mobile/dashboard': typeof MobileDashboardRoute
   '/pedido/$orderId': typeof PedidoOrderIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
 }
 export interface FileRouteTypes {
@@ -186,6 +230,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/meus-pedidos'
+    | '/mobile'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
@@ -197,8 +242,12 @@ export interface FileRouteTypes {
     | '/admin/restaurantes'
     | '/auth/callback'
     | '/cardapio/$slug'
+    | '/mobile/clientes'
+    | '/mobile/config'
+    | '/mobile/dashboard'
     | '/pedido/$orderId'
     | '/admin/'
+    | '/mobile/'
     | '/admin/restaurante/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -216,8 +265,12 @@ export interface FileRouteTypes {
     | '/admin/restaurantes'
     | '/auth/callback'
     | '/cardapio/$slug'
+    | '/mobile/clientes'
+    | '/mobile/config'
+    | '/mobile/dashboard'
     | '/pedido/$orderId'
     | '/admin'
+    | '/mobile'
     | '/admin/restaurante/$id'
   id:
     | '__root__'
@@ -225,6 +278,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/meus-pedidos'
+    | '/mobile'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
@@ -236,8 +290,12 @@ export interface FileRouteTypes {
     | '/admin/restaurantes'
     | '/auth/callback'
     | '/cardapio/$slug'
+    | '/mobile/clientes'
+    | '/mobile/config'
+    | '/mobile/dashboard'
     | '/pedido/$orderId'
     | '/admin/'
+    | '/mobile/'
     | '/admin/restaurante/$id'
   fileRoutesById: FileRoutesById
 }
@@ -246,6 +304,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   LoginRoute: typeof LoginRoute
   MeusPedidosRoute: typeof MeusPedidosRoute
+  MobileRoute: typeof MobileRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
@@ -282,6 +341,13 @@ declare module '@tanstack/react-router' {
       path: '/meus-pedidos'
       fullPath: '/meus-pedidos'
       preLoaderRoute: typeof MeusPedidosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mobile': {
+      id: '/mobile'
+      path: '/mobile'
+      fullPath: '/mobile'
+      preLoaderRoute: typeof MobileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -368,6 +434,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CardapioSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mobile/': {
+      id: '/mobile/'
+      path: '/'
+      fullPath: '/mobile/'
+      preLoaderRoute: typeof MobileIndexRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/clientes': {
+      id: '/mobile/clientes'
+      path: '/clientes'
+      fullPath: '/mobile/clientes'
+      preLoaderRoute: typeof MobileClientesRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/config': {
+      id: '/mobile/config'
+      path: '/config'
+      fullPath: '/mobile/config'
+      preLoaderRoute: typeof MobileConfigRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/dashboard': {
+      id: '/mobile/dashboard'
+      path: '/dashboard'
+      fullPath: '/mobile/dashboard'
+      preLoaderRoute: typeof MobileDashboardRouteImport
+      parentRoute: typeof MobileRoute
+    }
     '/pedido/$orderId': {
       id: '/pedido/$orderId'
       path: '/pedido/$orderId'
@@ -409,11 +503,29 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface MobileRouteChildren {
+  MobileClientesRoute: typeof MobileClientesRoute
+  MobileConfigRoute: typeof MobileConfigRoute
+  MobileDashboardRoute: typeof MobileDashboardRoute
+  MobileIndexRoute: typeof MobileIndexRoute
+}
+
+const MobileRouteChildren: MobileRouteChildren = {
+  MobileClientesRoute: MobileClientesRoute,
+  MobileConfigRoute: MobileConfigRoute,
+  MobileDashboardRoute: MobileDashboardRoute,
+  MobileIndexRoute: MobileIndexRoute,
+}
+
+const MobileRouteWithChildren =
+  MobileRoute._addFileChildren(MobileRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   LoginRoute: LoginRoute,
   MeusPedidosRoute: MeusPedidosRoute,
+  MobileRoute: MobileRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,

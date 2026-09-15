@@ -183,7 +183,7 @@ export default function OperatingHoursConfig({
             {DAY_ORDER.map((key) => {
               const s = value[key];
               const meta = DAY_LABEL[key];
-              const isWeekend = key === "saturday" || key === "sunday";
+              const isWeekend = key === "sab" || key === "dom";
               
               return (
                 <div

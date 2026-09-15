@@ -1,234 +1,283 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
-import { Clock, CheckCircle2, XCircle, Package, Search, Filter, ChevronDown, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Ban, Package, RefreshCw, Search, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { getRestaurantsByOwner } from "@/modules/supabase/restaurants";
-import { getOrdersByRestaurant, updateOrderStatus } from "@/modules/supabase/orders";
-import { supabase } from "@/modules/supabase/client";
+import { OrderCard } from "@/components/mobile/OrderCard";
+import { EmptyState, InlineError } from "@/modules/ui/Feedback";
+import { computeMetrics, isActive } from "@/modules/mobile/orders";
+import {
+  loadPreferences,
+  savePreference,
+  subscribePreferences,
+} from "@/modules/mobile/preferences";
+import { useOwnerOrders } from "@/modules/mobile/useOwnerOrders";
+import { updateOrderStatus } from "@/modules/supabase/orders";
 import { brl } from "@/lib/utils";
-import type { Order } from "@/lib/types";
+import type { Order, OrderStatus } from "@/lib/types";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/mobile/")({
   head: () => ({
-    meta: [{ title: "Pedidos — Gestão Mobile" }],
+    meta: [
+      { title: "Pedidos — Gestão Mobile" },
+      {
+        name: "description",
+        content: "Acompanhe, avance e finalize os pedidos do seu restaurante em tempo real.",
+      },
+    ],
   }),
-  component: MobilePedidos,
+  component: MobileOrdersPage,
 });
 
-function MobilePedidos() {
+type FilterKey = "active" | "today" | "all";
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: "active", label: "Em andamento" },
+  { key: "today", label: "Hoje" },
+  { key: "all", label: "Todos" },
+];
+
+function startOfToday(): number {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function MobileOrdersPage() {
   const { user } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "pending" | "completed">("pending");
+  const { restaurants, orders, loading, error, refresh, reloadOrders, restaurantNames } =
+    useOwnerOrders(user?.id);
+
+  const [filter, setFilter] = useState<FilterKey>("active");
+  const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [prefs, setPrefs] = useState(() => loadPreferences());
 
-  useEffect(() => {
-    loadOrders();
-  }, [user, filter]);
+  useEffect(() => subscribePreferences(setPrefs), []);
 
-  async function loadOrders() {
-    if (!user) return;
-    try {
-      setLoading(true);
-      const restaurants = await getRestaurantsByOwner(user.id);
-      if (restaurants.length === 0) {
-        setOrders([]);
-        setLoading(false);
-        return;
+  const metrics = useMemo(() => computeMetrics(orders, restaurantNames), [orders, restaurantNames]);
+
+  const visibleOrders = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const todayStart = startOfToday();
+
+    return orders.filter((order) => {
+      if (filter === "active" && !isActive(order.status)) return false;
+      if (
+        filter === "today" &&
+        new Date(order.created_at).getTime() < todayStart &&
+        !isActive(order.status)
+      ) {
+        return false;
       }
-
-      const allOrders: Order[] = [];
-      for (const restaurant of restaurants) {
-        const restaurantOrders = await getOrdersByRestaurant(restaurant.id);
-        allOrders.push(...restaurantOrders);
-      }
-
-      let filtered = allOrders.sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      if (!term) return true;
+      return (
+        order.customer_name.toLowerCase().includes(term) ||
+        order.comanda.toLowerCase().includes(term) ||
+        (order.customer_phone ?? "").includes(term)
       );
+    });
+  }, [orders, filter, search]);
 
-      if (filter === "pending") {
-        filtered = filtered.filter(o => 
-          ["received", "preparing", "ready", "out_for_delivery"].includes(o.status)
-        );
-      } else if (filter === "completed") {
-        filtered = filtered.filter(o => 
-          ["delivered", "cancelled"].includes(o.status)
-        );
+  const handleAdvance = useCallback(
+    async (order: Order, status: OrderStatus) => {
+      setBusyId(order.id);
+      const ok = await updateOrderStatus(order.id, status);
+      if (ok) {
+        toast.success(`${order.comanda} → ${status === "delivered" ? "concluído" : "atualizado"}`);
+        await reloadOrders();
+      } else {
+        toast.error("Não foi possível atualizar o pedido.");
       }
+      setBusyId(null);
+    },
+    [reloadOrders],
+  );
 
-      setOrders(filtered);
-    } catch (error) {
-      console.error("Error loading orders:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const handleCancel = useCallback(
+    async (order: Order) => {
+      setBusyId(order.id);
+      const ok = await updateOrderStatus(order.id, "cancelled");
+      if (ok) {
+        toast.success(`${order.comanda} cancelado.`);
+        await reloadOrders();
+      } else {
+        toast.error("Não foi possível cancelar o pedido.");
+      }
+      setBusyId(null);
+    },
+    [reloadOrders],
+  );
 
   async function handleRefresh() {
     setRefreshing(true);
-    await loadOrders();
+    await refresh();
     setRefreshing(false);
   }
 
-  async function updateStatus(orderId: string, newStatus: string) {
-    try {
-      await updateOrderStatus(orderId, newStatus);
-      await loadOrders();
-    } catch (error) {
-      console.error("Error updating order:", error);
-    }
-  }
-
-  function getStatusBadge(status: string) {
-    const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-      received: { label: "Recebido", color: "text-amber-400", bg: "bg-amber-500/10" },
-      preparing: { label: "Preparando", color: "text-blue-400", bg: "bg-blue-500/10" },
-      ready: { label: "Pronto", color: "text-emerald-400", bg: "bg-emerald-500/10" },
-      out_for_delivery: { label: "Saiu", color: "text-purple-400", bg: "bg-purple-500/10" },
-      delivered: { label: "Entregue", color: "text-gray-400", bg: "bg-gray-500/10" },
-      cancelled: { label: "Cancelado", color: "text-red-400", bg: "bg-red-500/10" },
-    };
-
-    const config = statusConfig[status] || { label: status, color: "text-gray-400", bg: "bg-gray-500/10" };
-    return (
-      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${config.color} ${config.bg}`}>
-        {config.label}
-      </span>
-    );
-  }
-
-  function getNextActions(status: string) {
-    const flow: Record<string, string[]> = {
-      received: ["preparing", "cancelled"],
-      preparing: ["ready", "cancelled"],
-      ready: ["out_for_delivery", "cancelled"],
-      out_for_delivery: ["delivered", "cancelled"],
-      delivered: [],
-      cancelled: [],
-    };
-    return flow[status] || [];
+  function toggleSound() {
+    const next = !prefs.sound;
+    savePreference("sound", next);
+    toast.success(next ? "Alerta sonoro ativado." : "Alerta sonoro desativado.");
   }
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center p-4">
-        <div className="text-center">
-          <RefreshCw className="mx-auto size-8 animate-spin text-cyan-400" />
-          <p className="mt-3 text-sm text-gray-400">Carregando pedidos...</p>
-        </div>
+      <div className="flex h-full flex-col items-center justify-center p-4">
+        <RefreshCw className="size-7 animate-spin text-cyan-400" />
+        <p className="mt-3 text-sm text-gray-400">Carregando pedidos…</p>
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 p-4">
+      {/* Cabeçalho: números que o operador olha de relance */}
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-white">Pedidos</h1>
-          <p className="text-xs text-gray-400">{orders.length} pedido{orders.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-gray-400">
+            {metrics.activeCount > 0
+              ? `${metrics.activeCount} em andamento · ${brl(metrics.todayRevenue)} hoje`
+              : `${metrics.todayOrders} hoje · ${brl(metrics.todayRevenue)}`}
+          </p>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="grid size-10 place-items-center rounded-xl bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
-        >
-          <RefreshCw className={`size-5 ${refreshing ? "animate-spin" : ""}`} />
-        </button>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex gap-2">
-        {(["all", "pending", "completed"] as const).map((f) => (
+        <div className="flex items-center gap-2">
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold uppercase transition-all ${
-              filter === f
-                ? "bg-cyan-500 text-black"
-                : "bg-white/5 text-gray-400 hover:bg-white/10"
+            type="button"
+            onClick={toggleSound}
+            aria-label={prefs.sound ? "Desativar alerta sonoro" : "Ativar alerta sonoro"}
+            title={prefs.sound ? "Alerta sonoro ligado" : "Alerta sonoro desligado"}
+            className={`grid size-10 place-items-center rounded-xl border transition-colors ${
+              prefs.sound
+                ? "border-cyan-500/25 bg-cyan-500/10 text-cyan-300"
+                : "border-white/10 bg-white/5 text-gray-500"
             }`}
           >
-            {f === "all" ? "Todos" : f === "pending" ? "Pendentes" : "Concluídos"}
+            {prefs.sound ? <Volume2 className="size-5" /> : <VolumeX className="size-5" />}
           </button>
-        ))}
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            aria-label="Atualizar pedidos"
+            className="grid size-10 place-items-center rounded-xl bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+          >
+            <RefreshCw className={`size-5 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </div>
       </div>
 
-      {/* Orders List */}
+      {error && <InlineError message={error} onRetry={handleRefresh} retrying={refreshing} />}
+
+      {/* Busca + filtros */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar por cliente, telefone ou comanda"
+            className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          {FILTERS.map((item) => {
+            const count =
+              item.key === "active"
+                ? metrics.activeCount
+                : item.key === "today"
+                  ? metrics.todayOrders
+                  : metrics.totalOrders;
+            const isActiveFilter = filter === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setFilter(item.key)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all ${
+                  isActiveFilter
+                    ? "bg-cyan-500 text-black"
+                    : "border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10"
+                }`}
+              >
+                {item.label}
+                <span
+                  className={`rounded-full px-1.5 text-[10px] ${
+                    isActiveFilter ? "bg-black/20 text-black" : "bg-white/10 text-gray-400"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Lista */}
       <div className="space-y-3">
-        {orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Package className="size-12 text-gray-600" />
-            <p className="mt-3 text-sm font-medium text-gray-400">Nenhum pedido encontrado</p>
-            <p className="text-xs text-gray-600">Os pedidos aparecerão aqui quando chegarem</p>
-          </div>
+        {visibleOrders.length === 0 ? (
+          <EmptyState
+            icon={search ? Search : Package}
+            title={
+              search
+                ? "Nenhum pedido com esse termo"
+                : filter === "active"
+                  ? "Nenhum pedido em andamento"
+                  : "Nenhum pedido por aqui"
+            }
+            description={
+              search
+                ? "Confira a grafia ou limpe a busca para ver todos os pedidos."
+                : "Assim que um cliente enviar um pedido, ele aparece aqui com alerta sonoro."
+            }
+            action={
+              search ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-300 hover:bg-white/10"
+                >
+                  Limpar busca
+                </button>
+              ) : undefined
+            }
+          />
         ) : (
-          orders.map((order) => (
-            <div
+          visibleOrders.map((order) => (
+            <OrderCard
               key={order.id}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3"
-            >
-              {/* Order Header */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-white">#{order.comanda}</h3>
-                    {getStatusBadge(order.status)}
-                  </div>
-                  <p className="mt-1 text-xs text-gray-400">{order.customer_name}</p>
-                  <p className="text-[10px] text-gray-500">
-                    {new Date(order.created_at).toLocaleString("pt-BR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-cyan-400">{brl(Number(order.total))}</p>
-                </div>
-              </div>
-
-              {/* Order Items */}
-              <div className="space-y-1.5 border-t border-white/5 pt-3">
-                {order.items?.map((item: any, idx: number) => (
-                  <div key={idx} className="flex items-start gap-2 text-xs">
-                    <span className="font-bold text-gray-400">{item.quantity}x</span>
-                    <span className="flex-1 text-gray-300">{item.product_name}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Actions */}
-              {getNextActions(order.status).length > 0 && (
-                <div className="flex gap-2 border-t border-white/5 pt-3">
-                  {getNextActions(order.status).map((action) => (
-                    <button
-                      key={action}
-                      onClick={() => updateStatus(order.id, action)}
-                      className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold uppercase transition-all ${
-                        action === "cancelled"
-                          ? "bg-red-500/10 text-red-400 hover:bg-red-500/20"
-                          : "bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
-                      }`}
-                    >
-                      {action === "preparing" && "Preparar"}
-                      {action === "ready" && "Pronto"}
-                      {action === "out_for_delivery" && "Entregar"}
-                      {action === "delivered" && "Concluir"}
-                      {action === "cancelled" && "Cancelar"}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+              order={order}
+              restaurant={restaurants.find((r) => r.id === order.restaurant_id)}
+              showRestaurant={restaurants.length > 1}
+              // Com "cards recolhidos" ligado, o operador abre o que precisa;
+              // desligado, os pedidos em andamento já vêm com os itens à vista.
+              defaultOpen={!prefs.compactCards && isActive(order.status)}
+              busy={busyId === order.id}
+              onAdvance={handleAdvance}
+              onCancel={handleCancel}
+            />
           ))
         )}
       </div>
+
+      {/* Rodapé de contexto: totais do histórico */}
+      {filter !== "active" && (metrics.finishedCount > 0 || metrics.cancelledCount > 0) && (
+        <div className="flex items-center justify-center gap-4 pt-1 text-[11px] text-gray-500">
+          <span className="inline-flex items-center gap-1.5">
+            <Package className="size-3" /> {metrics.finishedCount} entregues
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Ban className="size-3" /> {metrics.cancelledCount} cancelados
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
-export default MobilePedidos;
+export default MobileOrdersPage;

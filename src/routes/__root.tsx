@@ -11,15 +11,15 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/components/AuthProvider";
+import { Toaster } from "@/components/ui/sonner";
+import { captureInstallPrompt, registerServiceWorker } from "@/modules/pwa/install";
 
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-white">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-white">
-          Página não encontrada
-        </h2>
+        <h2 className="mt-4 text-xl font-semibold text-white">Página não encontrada</h2>
         <p className="mt-2 text-sm text-gray-400">
           A página que você procura não existe ou foi movida.
         </p>
@@ -43,9 +43,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-white">
-          Algo deu errado
-        </h1>
+        <h1 className="text-xl font-semibold tracking-tight text-white">Algo deu errado</h1>
         <p className="mt-2 text-sm text-gray-400">
           Ocorreu um erro ao carregar a página. Tente novamente.
         </p>
@@ -88,11 +86,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Cardápio Cidadela — Cardápios Digitais" },
       {
         property: "og:description",
-        content:
-          "Crie, gerencie e publique cardápios digitais para restaurantes.",
+        content: "Crie, gerencie e publique cardápios digitais para restaurantes.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#06b6d4" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Cidadela" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -107,7 +108,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Permanent+Marker&family=Bangers&display=swap",
       },
       { rel: "manifest", href: "/manifest.json" },
-      { rel: "apple-touch-icon", href: "/icon-192.png" },
+      { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -133,10 +135,18 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  // Precisa rodar no root: o `beforeinstallprompt` dispara uma vez, cedo,
+  // e um listener dentro da tela de Configurações chegaria tarde demais.
+  useEffect(() => {
+    captureInstallPrompt();
+    registerServiceWorker();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Outlet />
+        <Toaster position="top-center" />
       </AuthProvider>
     </QueryClientProvider>
   );

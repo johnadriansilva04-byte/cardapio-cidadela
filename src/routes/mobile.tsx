@@ -1,10 +1,7 @@
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useEffect, useState, type ComponentType } from "react";
 import {
   UtensilsCrossed,
-  Bell,
-  BellOff,
   Home,
   Users,
   TrendingUp,
@@ -12,44 +9,45 @@ import {
   LogOut,
   Loader2,
   X,
-  ChevronDown,
-  Download,
-  CheckCircle2,
-  Clock,
-  Package,
-  DollarSign,
   Menu,
+  Package,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
-import { subscribeToOrders } from "@/modules/supabase/orders";
-import { supabase } from "@/modules/supabase/client";
+import { useOwnerPendingOrders } from "@/modules/mobile/useOwnerOrders";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
+import { notifyNewOrder } from "@/modules/mobile/preferences";
+import { InstallCard } from "@/components/pwa/InstallCard";
 import { cn } from "@/lib/utils";
 import { signOut as supabaseSignOut } from "@/modules/supabase/auth";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 export const Route = createFileRoute("/mobile")({
   head: () => ({
-    meta: [{ title: "Gestão Mobile — Cardápio Cidadela" }],
+    meta: [
+      { title: "Gestão Mobile — Cardápio Cidadela" },
+      {
+        name: "description",
+        content:
+          "Acompanhe e avance os pedidos do seu restaurante pelo celular, com alerta sonoro em cada novo pedido.",
+      },
+    ],
   }),
   component: MobileLayout,
 });
 
-const MOBILE_NAV_ITEMS = [
+interface NavItem {
+  to: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}
+
+const NAV_ITEMS: NavItem[] = [
   { to: "/mobile", label: "Pedidos", icon: Package },
   { to: "/mobile/clientes", label: "Clientes", icon: Users },
-  { to: "/mobile/dashboard", label: "Dashboard", icon: TrendingUp },
+  { to: "/mobile/dashboard", label: "Painel", icon: TrendingUp },
   { to: "/mobile/config", label: "Config", icon: Settings },
-] as const;
-
-const COLORS = ["#06b6d4", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444"];
+];
 
 function MobileLayout() {
-  const [activeTab, setActiveTab] = useState("pedidos");
-  const [pendingCount, setPendingCount] = useState(0);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [installing, setInstalling] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isAuthenticated, loading, user } = useAuth();
   const navigate = useNavigate();
@@ -64,129 +62,13 @@ function MobileLayout() {
     requestOrderNotificationPermission();
   }, []);
 
-  // PWA Install Prompt
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setShowInstallPrompt(true);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  // Badge + som: conta pedidos ativos
-  useEffect(() => {
-    if (!isAuthenticated || !user) {
-      setPendingCount(0);
-      return;
-    }
-    const channels: RealtimeChannel[] = [];
-    let cancelled = false;
-    let poll: ReturnType<typeof setInterval> | null = null;
-    let debounce: ReturnType<typeof setTimeout> | null = null;
-
-    const fetchPending = async () => {
-      try {
-        const rests = await getRestaurantsByOwner(user.id);
-        if (cancelled) return;
-        if (rests.length === 0) {
-          setPendingCount(0);
-          return;
-        }
-        const ids = rests.map((r) => r.id);
-        const { data, error } = await supabase
-          .from("orders")
-          .select("id,status")
-          .in("restaurant_id", ids)
-          .in("status", ["received", "preparing", "ready", "out_for_delivery"]);
-        if (cancelled) return;
-        if (error) {
-          console.error("[mobile badge] fetch", error);
-          return;
-        }
-        setPendingCount(data?.length ?? 0);
-      } catch {
-        /* ignore */
-      }
-    };
-
-    const scheduleFetch = () => {
-      if (debounce) clearTimeout(debounce);
-      debounce = setTimeout(fetchPending, 380);
-    };
-
-    (async () => {
-      try {
-        await ensureRestaurantsForUser(user);
-        if (cancelled) return;
-        await fetchPending();
-        if (cancelled) return;
-        const rests = await getRestaurantsByOwner(user.id);
-        if (cancelled) return;
-        for (const r of rests) {
-          try {
-            const ch = subscribeToOrders(r.id, (eventType, order) => {
-              if (eventType === "INSERT") {
-                if (["received", "preparing", "ready", "out_for_delivery"].includes(order.status)) {
-                  setPendingCount((c) => c + 1);
-                }
-                playNewOrderAlert();
-                if (
-                  typeof window !== "undefined" &&
-                  "Notification" in window &&
-                  Notification.permission === "granted"
-                ) {
-                  try {
-                    new Notification("🔔 Novo pedido!", {
-                      body: `${order.customer_name} — ${order.comanda} • R$ ${Number(order.total).toFixed(2)}`,
-                    });
-                  } catch {
-                    /* ignore */
-                  }
-                }
-              } else if (eventType === "UPDATE" || eventType === "DELETE") {
-                scheduleFetch();
-              }
-            });
-            if (ch) channels.push(ch);
-          } catch {
-            /* ignore per-restaurant realtime failure */
-          }
-        }
-      } catch {
-        /* ignore global realtime failure */
-      }
-    })();
-
-    poll = setInterval(fetchPending, 15000);
-
-    return () => {
-      cancelled = true;
-      if (debounce) clearTimeout(debounce);
-      if (poll) clearInterval(poll);
-      for (const ch of channels) {
-        try {
-          supabase.removeChannel(ch);
-        } catch {
-          /* ignore */
-        }
-      }
-    };
-  }, [isAuthenticated, user]);
-
-  async function handleInstall() {
-    setInstalling(true);
-    const promptEvent = (window as any).deferredPrompt;
-    if (promptEvent) {
-      promptEvent.prompt();
-      const { outcome } = await promptEvent.userChoice;
-      if (outcome === "accepted") {
-        setShowInstallPrompt(false);
-      }
-      (window as any).deferredPrompt = null;
-    }
-    setInstalling(false);
-  }
+  const pendingCount = useOwnerPendingOrders(user?.id, (order) => {
+    playNewOrderAlert();
+    notifyNewOrder(
+      " Novo pedido!",
+      `${order.customer_name} — ${order.comanda} • R$ ${Number(order.total).toFixed(2)}`,
+    );
+  });
 
   async function handleSignOut() {
     await supabaseSignOut();
@@ -205,11 +87,14 @@ function MobileLayout() {
 
   return (
     <div className="flex h-screen bg-[#0a0a0f]">
-      {/* Sidebar */}
-      <aside className={`w-64 shrink-0 flex-col border-r border-white/[0.06] bg-[#0c0c14] transition-all duration-300 ${
-        sidebarOpen ? "translate-x-0" : "-translate-x-full absolute z-50 h-full"
-      } lg:translate-x-0 lg:relative lg:z-0`}>
-        <div className="flex items-center gap-2 px-4 py-4 border-b border-white/5">
+      {/* Sidebar — navegação em tablet e desktop */}
+      <aside
+        className={cn(
+          "absolute z-50 flex h-full w-64 shrink-0 flex-col border-r border-white/[0.06] bg-[#0c0c14] transition-transform duration-300 lg:relative lg:z-0 lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        <div className="flex items-center gap-2 border-b border-white/5 px-4 py-4">
           <span className="grid size-8 place-items-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-violet-500/10">
             <UtensilsCrossed className="size-4 text-cyan-400" />
           </span>
@@ -217,40 +102,52 @@ function MobileLayout() {
             Cardápio <span className="text-cyan-400">Cidadela</span>
           </span>
           <button
+            type="button"
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden ml-auto grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white"
+            aria-label="Fechar menu"
+            className="ml-auto grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white lg:hidden"
           >
             <X className="size-4" />
           </button>
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {MOBILE_NAV_ITEMS.map((item) => {
-            const isActive = activeTab === item.to.split("/").pop();
-            return (
-              <button
-                key={item.to}
-                onClick={() => {
-                  setActiveTab(item.to.split("/").pop() || "pedidos");
-                  navigate({ to: item.to });
-                  setSidebarOpen(false);
-                }}
-                className={cn(
-                  "flex items-center gap-3 w-full rounded-xl px-3 py-2.5 text-sm transition-all",
-                  isActive ? "bg-cyan-500/10 text-cyan-400" : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
-                )}
-              >
-                <item.icon className="size-4" />
-                <span className="font-medium">{item.label}</span>
-              </button>
-            );
-          })}
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              activeOptions={{ exact: item.to === "/mobile" }}
+              activeProps={{ className: "bg-cyan-500/10 font-medium text-cyan-300" }}
+              inactiveProps={{
+                className: "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
+              }}
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all"
+            >
+              <item.icon className="size-4 shrink-0" />
+              <span className="flex-1">{item.label}</span>
+              {item.to === "/mobile" && pendingCount > 0 && (
+                <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white">
+                  {pendingCount > 99 ? "99+" : pendingCount}
+                </span>
+              )}
+            </Link>
+          ))}
+
+          <Link
+            to="/admin"
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-400 transition-all hover:bg-white/[0.04] hover:text-gray-200"
+          >
+            <Home className="size-4 shrink-0" />
+            <span className="flex-1">Painel completo</span>
+          </Link>
         </nav>
 
         <div className="border-t border-white/5 px-3 py-4">
           <button
+            type="button"
             onClick={handleSignOut}
-            className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 text-sm text-gray-400 hover:bg-white/[0.04] hover:text-gray-200 transition-all"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-400 transition-all hover:bg-white/[0.04] hover:text-gray-200"
           >
             <LogOut className="size-4" />
             <span className="font-medium">Sair</span>
@@ -258,60 +155,81 @@ function MobileLayout() {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="flex items-center justify-between border-b border-white/[0.06] bg-[#0c0c14] px-4 py-3">
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex items-center gap-3 border-b border-white/[0.06] bg-[#0c0c14] px-4 py-3">
           <button
+            type="button"
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white"
+            aria-label="Abrir menu"
+            className="grid size-9 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white lg:hidden"
           >
-            <Menu className="size-4" />
+            <Menu className="size-5" />
           </button>
-          <div className="flex items-center gap-2">
+
+          <span className="flex items-center gap-2 lg:hidden">
+            <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/10">
+              <UtensilsCrossed className="size-3.5 text-cyan-400" />
+            </span>
+            <span className="text-sm font-bold text-white">Cidadela</span>
+          </span>
+
+          <div className="ml-auto flex items-center gap-2">
             {pendingCount > 0 && (
-              <div className="flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/20 px-3 py-1.5">
-                <Bell className="size-3.5 text-red-400" />
-                <span className="text-xs font-bold text-red-400">{pendingCount}</span>
-              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-300">
+                <span className="size-1.5 animate-pulse rounded-full bg-red-400" />
+                {pendingCount} em andamento
+              </span>
             )}
           </div>
         </header>
 
-        {/* Install Prompt Banner */}
-        {showInstallPrompt && (
-          <div className="border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/[0.08] to-violet-500/[0.05] px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-cyan-500/20">
-                <Download className="size-4 text-cyan-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-cyan-300">Instalar aplicativo</p>
-                <p className="text-[10px] text-gray-400">Adicione à tela inicial para acesso rápido</p>
-              </div>
-              <button
-                onClick={handleInstall}
-                disabled={installing}
-                className="shrink-0 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-black transition-all hover:bg-cyan-400 disabled:opacity-50"
-              >
-                {installing ? <Loader2 className="size-3 animate-spin" /> : "Instalar"}
-              </button>
-              <button
-                onClick={() => setShowInstallPrompt(false)}
-                className="shrink-0 grid size-6 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
+        <InstallCard variant="banner" />
 
-        {/* Content */}
-        <main className="flex-1 overflow-auto">
+        {/* pb-20 reserva espaço para a barra inferior no celular */}
+        <main className="flex-1 overflow-auto pb-20 lg:pb-0">
           <Outlet />
         </main>
+
+        <BottomNav pendingCount={pendingCount} />
       </div>
     </div>
+  );
+}
+
+/** Barra inferior — o acesso principal quando o app roda no celular. */
+function BottomNav({ pendingCount }: { pendingCount: number }) {
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/[0.08] bg-[#0c0c14]/95 backdrop-blur lg:hidden">
+      <div className="mx-auto flex max-w-lg items-stretch">
+        {NAV_ITEMS.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            activeOptions={{ exact: item.to === "/mobile" }}
+            activeProps={{ className: "text-cyan-300" }}
+            inactiveProps={{ className: "text-gray-500" }}
+            className="relative flex flex-1 flex-col items-center gap-1 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2.5 text-[10px] font-semibold transition-colors"
+          >
+            <span className="relative">
+              <item.icon className="size-5" />
+              {item.to === "/mobile" && pendingCount > 0 && (
+                <span className="absolute -right-2.5 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white">
+                  {pendingCount > 9 ? "9+" : pendingCount}
+                </span>
+              )}
+            </span>
+            {item.label}
+          </Link>
+        ))}
+      </div>
+    </nav>
   );
 }
 

@@ -3,6 +3,8 @@
 // O AudioContext so pode iniciar depois de um gesto do usuário —
 // registramos um unlock global no primeiro pointerdown/touch/keydown.
 
+import { loadPreferences } from "@/modules/mobile/preferences";
+
 let audioCtx: AudioContext | null = null;
 let unlockRegistered = false;
 
@@ -38,9 +40,15 @@ function registerUnlockOnce() {
 
 export function requestOrderNotificationPermission() {
   if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (!loadPreferences().notifications) return;
   if (Notification.permission === "default") {
     void Notification.requestPermission();
   }
+}
+
+/** Diz se o alerta sonoro está ligado nas preferências do dispositivo. */
+export function isOrderAlertEnabled(): boolean {
+  return loadPreferences().sound;
 }
 
 function fallbackBeep() {
@@ -56,6 +64,9 @@ function fallbackBeep() {
 }
 
 export function playNewOrderAlert() {
+  // Preferência por dispositivo — quem opera no balcão pode desligar o som.
+  if (!loadPreferences().sound) return;
+
   // vibração em mobile
   try {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {

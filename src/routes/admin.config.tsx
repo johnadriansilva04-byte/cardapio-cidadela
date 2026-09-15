@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import {
   Store,
@@ -13,8 +13,8 @@ import {
   Smartphone,
   Save,
   Loader2,
-  Download,
-  X,
+  Building2,
+  Store as StoreIcon,
 } from "lucide-react";
 import {
   getRestaurantsByOwner,
@@ -24,6 +24,8 @@ import {
 import { updateProfileName, updatePassword, deleteAccount } from "@/modules/supabase/auth";
 import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { InstallCard } from "@/components/pwa/InstallCard";
+import { ExpandableSection } from "@/modules/ui/ExpandableSection";
 import type { Restaurant } from "@/lib/types";
 import OperatingHoursConfig from "@/components/admin/OperatingHoursConfig";
 import {
@@ -55,8 +57,6 @@ function ConfigPage() {
   const [hours, setHours] = useState<OperatingHours>({ ...DEFAULT_OPERATING_HOURS });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [installing, setInstalling] = useState(false);
 
   const retryRef = useRef(0);
 
@@ -67,16 +67,6 @@ function ConfigPage() {
         document.getElementById("conta")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
-  }, []);
-
-  // PWA Install Prompt
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setShowInstallPrompt(true);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   useEffect(() => {
@@ -167,7 +157,9 @@ function ConfigPage() {
     if (ok) {
       setRestaurants((prev) =>
         prev.map((r) =>
-          r.id === selected.id ? { ...r, whatsapp, phone, address, pix_key: pixKey, operating_hours: serialized } : r,
+          r.id === selected.id
+            ? { ...r, whatsapp, phone, address, pix_key: pixKey, operating_hours: serialized }
+            : r,
         ),
       );
       setMessage("Configurações salvas com sucesso!");
@@ -177,20 +169,6 @@ function ConfigPage() {
       setMessage("Erro ao salvar. Tente novamente.");
       toast.error("Erro ao salvar.");
     }
-  }
-
-  async function handleInstall() {
-    setInstalling(true);
-    const promptEvent = (window as any).deferredPrompt;
-    if (promptEvent) {
-      promptEvent.prompt();
-      const { outcome } = await promptEvent.userChoice;
-      if (outcome === "accepted") {
-        setShowInstallPrompt(false);
-      }
-      (window as any).deferredPrompt = null;
-    }
-    setInstalling(false);
   }
 
   if (authLoading || loading) {
@@ -250,60 +228,43 @@ function ConfigPage() {
         ))}
       </div>
 
-      {/* Mobile App Install Banner */}
-      {showInstallPrompt && (
-        <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/[0.08] to-violet-500/[0.05] p-5">
-          <div className="flex items-start gap-4">
-            <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-cyan-500/20">
-              <Smartphone className="size-6 text-cyan-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-cyan-300">Instalar App Mobile</h3>
-              <p className="text-xs text-gray-400 mt-1">
-                Baixe o aplicativo de gestão mobile para receber pedidos e gerenciar seu restaurante diretamente do celular.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowInstallPrompt(false)}
-              className="shrink-0 grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-          <div className="mt-4 flex gap-3">
-            <button
-              onClick={handleInstall}
-              disabled={installing}
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-black transition-all hover:bg-cyan-400 disabled:opacity-50"
-            >
-              {installing ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-              {installing ? "Instalando..." : "Instalar Agora"}
-            </button>
-            <a
-              href="/mobile"
-              target="_blank"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-gray-300 transition-all hover:bg-white/10 hover:text-white"
-            >
-              <Smartphone className="size-4" />
-              Abrir Versão Mobile
-            </a>
-          </div>
-        </div>
+      <InstallCard />
+
+      {selected && (
+        <ExpandableSection
+          icon={<Building2 className="size-5" />}
+          tone="cyan"
+          title="Horário de funcionamento"
+          summary="Define quando a loja aceita pedidos pelo cardápio"
+        >
+          <OperatingHoursConfig value={hours} onChange={setHours} />
+          <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-[11px] leading-relaxed text-amber-200/90">
+            Configure como <strong>17:00 — 00:00</strong> e clique em &ldquo;Aplicar em toda a
+            semana&rdquo;. Depois ajuste dias pontuais (ex: fechar domingo) sem refazer tudo.
+          </p>
+        </ExpandableSection>
       )}
 
       {selected && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-4 rounded-2xl border border-white/5 bg-white/[0.02] p-6">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400">Dados do restaurante</h2>
+        <ExpandableSection
+          icon={<StoreIcon className="size-5" />}
+          title="Dados do restaurante"
+          summary="WhatsApp, telefone, endereço e chave PIX usada no checkout"
+        >
+          <div className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-400">WhatsApp do restaurante</label>
+              <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                WhatsApp do restaurante
+              </label>
               <input
                 className={field}
                 placeholder="5511999999999"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
               />
-              <p className="mt-1 text-[10px] text-gray-600">Usado para receber pedidos e compartilhar o link.</p>
+              <p className="mt-1 text-[10px] text-gray-600">
+                Usado para receber pedidos e compartilhar o link.
+              </p>
             </div>
 
             <div>
@@ -327,18 +288,26 @@ function ConfigPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-400">Chave PIX do restaurante</label>
+              <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                Chave PIX do restaurante
+              </label>
               <input
                 className={field}
                 placeholder="CPF, telefone, e-mail ou chave aleatória"
                 value={pixKey}
                 onChange={(e) => setPixKey(e.target.value)}
               />
-              <p className="mt-1 text-[10px] text-gray-600">Exibida no QR Code ao finalizar pagamento via PIX.</p>
+              <p className="mt-1 text-[10px] text-gray-600">
+                Exibida no QR Code ao finalizar pagamento via PIX.
+              </p>
             </div>
 
             {message && (
-              <p className={`text-xs ${message.includes("Erro") ? "text-red-400" : "text-cyan-300"}`}>{message}</p>
+              <p
+                className={`text-xs ${message.includes("Erro") ? "text-red-400" : "text-cyan-300"}`}
+              >
+                {message}
+              </p>
             )}
 
             <button
@@ -349,48 +318,28 @@ function ConfigPage() {
               {saving ? "Salvando..." : "Salvar configurações"}
             </button>
           </div>
-
-          <div>
-            <OperatingHoursConfig value={hours} onChange={setHours} />
-            <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-[11px] leading-relaxed text-amber-200/90">
-              💡 Configure como <strong>17:00 — 00:00</strong> e clique em &ldquo;Aplicar em toda a semana&rdquo;. Depois ajuste dias pontuais
-              (ex: fechar domingo) sem refazer tudo.
-            </p>
-          </div>
-        </div>
+        </ExpandableSection>
       )}
 
       {/* Mobile App Section */}
-      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/10">
-            <Smartphone className="size-4 text-cyan-400" />
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-white">Aplicativo Mobile</h3>
-            <p className="text-[10px] text-gray-400">Gestão de pedidos no celular</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <a
-            href="/mobile"
-            target="_blank"
-            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
-          >
-            <Smartphone className="size-3" />
-            <span>Abrir</span>
-          </a>
-          {!showInstallPrompt && (
-            <button
-              onClick={() => setShowInstallPrompt(true)}
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20 transition-colors"
-            >
-              <Download className="size-3" />
-              <span>Instalar</span>
-            </button>
-          )}
-        </div>
-      </div>
+      <ExpandableSection
+        icon={<Smartphone className="size-5" />}
+        tone="violet"
+        title="Gestão pelo celular"
+        summary="Formato compacto de pedidos, feito para usar no balcão"
+      >
+        <p className="text-xs leading-relaxed text-gray-400">
+          A versão mobile mostra os pedidos com resumo recolhido, avança o status em um toque e
+          transforma sua tela em um painel de operação.
+        </p>
+        <Link
+          to="/mobile"
+          className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-semibold text-gray-200 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <Smartphone className="size-3.5" />
+          <span>Abrir gestão mobile</span>
+        </Link>
+      </ExpandableSection>
 
       <div className="py-2">
         <div className="my-6 h-px bg-white/[0.06]" />
@@ -473,7 +422,9 @@ function AccountSection() {
     <div id="conta" className="max-w-lg space-y-5 scroll-mt-6">
       <div>
         <h2 className="text-lg font-bold text-white">Minha conta</h2>
-        <p className="mt-0.5 text-sm text-gray-500">Edite seus dados de acesso, altere a senha ou exclua a conta.</p>
+        <p className="mt-0.5 text-sm text-gray-500">
+          Edite seus dados de acesso, altere a senha ou exclua a conta.
+        </p>
       </div>
 
       <div className="space-y-4 rounded-2xl border border-white/5 bg-white/[0.02] p-6">
@@ -484,13 +435,22 @@ function AccountSection() {
         <div>
           <label className="mb-1.5 block text-xs font-medium text-gray-400">Nome</label>
           <div className="flex gap-2">
-            <input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
+            <input
+              className={field}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome"
+            />
             <button
               onClick={handleSaveName}
               disabled={savingName}
               className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-black hover:bg-cyan-400 disabled:opacity-50"
             >
-              {savingName ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              {savingName ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
               Salvar
             </button>
           </div>
@@ -498,7 +458,11 @@ function AccountSection() {
             <Smartphone className="size-3" /> Telefone: {phone || "—"}
           </p>
           {nameMsg && (
-            <p className={`mt-1.5 text-xs ${nameMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}>{nameMsg.text}</p>
+            <p
+              className={`mt-1.5 text-xs ${nameMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}
+            >
+              {nameMsg.text}
+            </p>
           )}
         </div>
       </div>
@@ -538,7 +502,11 @@ function AccountSection() {
           />
           Mostrar senhas
         </label>
-        {pwdMsg && <p className={`text-xs ${pwdMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}>{pwdMsg.text}</p>}
+        {pwdMsg && (
+          <p className={`text-xs ${pwdMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}>
+            {pwdMsg.text}
+          </p>
+        )}
         <button
           onClick={handleSavePwd}
           disabled={savingPwd || !currentPwd || !newPwd}

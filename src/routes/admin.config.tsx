@@ -13,6 +13,8 @@ import {
   Smartphone,
   Save,
   Loader2,
+  Download,
+  X,
 } from "lucide-react";
 import {
   getRestaurantsByOwner,
@@ -53,6 +55,8 @@ function ConfigPage() {
   const [hours, setHours] = useState<OperatingHours>({ ...DEFAULT_OPERATING_HOURS });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
   const retryRef = useRef(0);
 
@@ -63,6 +67,16 @@ function ConfigPage() {
         document.getElementById("conta")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
+  }, []);
+
+  // PWA Install Prompt
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setShowInstallPrompt(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   useEffect(() => {
@@ -165,6 +179,20 @@ function ConfigPage() {
     }
   }
 
+  async function handleInstall() {
+    setInstalling(true);
+    const promptEvent = (window as any).deferredPrompt;
+    if (promptEvent) {
+      promptEvent.prompt();
+      const { outcome } = await promptEvent.userChoice;
+      if (outcome === "accepted") {
+        setShowInstallPrompt(false);
+      }
+      (window as any).deferredPrompt = null;
+    }
+    setInstalling(false);
+  }
+
   if (authLoading || loading) {
     return (
       <div className="flex justify-center py-20">
@@ -221,6 +249,47 @@ function ConfigPage() {
           </button>
         ))}
       </div>
+
+      {/* Mobile App Install Banner */}
+      {showInstallPrompt && (
+        <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/[0.08] to-violet-500/[0.05] p-5">
+          <div className="flex items-start gap-4">
+            <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-cyan-500/20">
+              <Smartphone className="size-6 text-cyan-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-cyan-300">Instalar App Mobile</h3>
+              <p className="text-xs text-gray-400 mt-1">
+                Baixe o aplicativo de gestão mobile para receber pedidos e gerenciar seu restaurante diretamente do celular.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowInstallPrompt(false)}
+              className="shrink-0 grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={handleInstall}
+              disabled={installing}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-black transition-all hover:bg-cyan-400 disabled:opacity-50"
+            >
+              {installing ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+              {installing ? "Instalando..." : "Instalar Agora"}
+            </button>
+            <a
+              href="/mobile"
+              target="_blank"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-gray-300 transition-all hover:bg-white/10 hover:text-white"
+            >
+              <Smartphone className="size-4" />
+              Abrir Versão Mobile
+            </a>
+          </div>
+        </div>
+      )}
 
       {selected && (
         <div className="grid gap-6 lg:grid-cols-2">
@@ -290,6 +359,38 @@ function ConfigPage() {
           </div>
         </div>
       )}
+
+      {/* Mobile App Section */}
+      <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-violet-500/10">
+            <Smartphone className="size-5 text-cyan-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-white">Aplicativo Mobile</h3>
+            <p className="text-xs text-gray-400">Gestão de pedidos no celular</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <a
+            href="/mobile"
+            target="_blank"
+            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <span>Abrir versão mobile</span>
+            <Smartphone className="size-4" />
+          </a>
+          {!showInstallPrompt && (
+            <button
+              onClick={() => setShowInstallPrompt(true)}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20 transition-colors"
+            >
+              <Download className="size-4" />
+              Instalar aplicativo
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="py-2">
         <div className="my-6 h-px bg-white/[0.06]" />

@@ -526,66 +526,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </div>
       )}
 
-      {/* HERO — compact */}
-      <div className="relative overflow-hidden">
-        {/* banner */}
-        <div
-          className="relative h-[280px] w-full sm:h-[320px]"
-          style={{
-            backgroundImage: restaurant.banner_url
-              ? `url(${restaurant.banner_url})`
-              : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
-            backgroundSize: restaurant.banner_url ? "cover" : undefined,
-            backgroundPosition: restaurant.banner_url ? "center center" : undefined,
-          }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/80 to-black/30" />
-
-          {/* compact content */}
-          <div className="absolute inset-0 flex items-center px-4">
-            <div className="flex items-center gap-3">
-              {/* logo */}
-              {restaurant.logo_url ? (
-                <img
-                  src={restaurant.logo_url}
-                  alt={restaurant.name}
-                  className="size-12 shrink-0 rounded-xl border border-white/20 object-cover shadow-lg sm:size-14"
-                />
-              ) : (
-                <div
-                  className="grid size-12 shrink-0 place-items-center rounded-xl border bg-[#0a0a12]/90 shadow-lg sm:size-14"
-                  style={{ borderColor: hexToRgba(accent, 0.4) }}
-                >
-                  <UtensilsCrossed className="size-5" style={{ color: accent }} />
-                </div>
-              )}
-
-              <div className="min-w-0">
-                <h1 className="truncate text-lg font-black tracking-tight text-white sm:text-xl">
-                  {restaurant.name}
-                </h1>
-                <div className="mt-1 flex items-center gap-2">
-                  {restaurant.operating_hours && (
-                    <div
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold backdrop-blur-md ${
-                        isCurrentlyOpen
-                          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
-                          : "border-red-500/30 bg-red-500/10 text-red-300"
-                      }`}
-                    >
-                      <span className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-red-400"}`} />
-                      {isCurrentlyOpen ? "Aberto" : "Fechado"}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* restaurant info toggle */}
-      <div className="mx-auto max-w-2xl px-4 mt-4">
+      {/* restaurant info toggle — moved to top */}
+      <div className="mx-auto max-w-2xl px-4 mt-2">
         <button
           onClick={() => setInfoOpen((v) => !v)}
           className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05]"
@@ -667,38 +609,90 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         )}
       </div>
 
+      {/* HERO — compact */}
+      <div className="relative overflow-hidden mt-2">
+        {/* banner */}
+        <div
+          className="relative h-[200px] w-full sm:h-[240px]"
+          style={{
+            backgroundImage: restaurant.banner_url
+              ? `url(${restaurant.banner_url})`
+              : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
+            backgroundSize: restaurant.banner_url ? "cover" : undefined,
+            backgroundPosition: restaurant.banner_url ? "center center" : undefined,
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/80 to-black/30" />
+
+          {/* compact content */}
+          <div className="absolute inset-0 flex items-center px-4">
+            <div className="flex items-center gap-3">
+              {/* logo */}
+              {restaurant.logo_url ? (
+                <img
+                  src={restaurant.logo_url}
+                  alt={restaurant.name}
+                  className="size-12 shrink-0 rounded-xl border border-white/20 object-cover shadow-lg sm:size-14"
+                />
+              ) : (
+                <div
+                  className="grid size-12 shrink-0 place-items-center rounded-xl border bg-[#0a0a12]/90 shadow-lg sm:size-14"
+                  style={{ borderColor: hexToRgba(accent, 0.4) }}
+                >
+                  <UtensilsCrossed className="size-5" style={{ color: accent }} />
+                </div>
+              )}
+
+              <div className="min-w-0">
+                <h1 className="truncate text-lg font-black tracking-tight text-white sm:text-xl">
+                  {restaurant.name}
+                </h1>
+                <div className="mt-1 flex items-center gap-2">
+                  {restaurant.operating_hours && (
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold backdrop-blur-md ${
+                        isCurrentlyOpen
+                          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
+                          : "border-red-500/30 bg-red-500/10 text-red-300"
+                      }`}
+                    >
+                      <span className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-red-400"}`} />
+                      {isCurrentlyOpen ? "Aberto" : "Fechado"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* closed banner — quando fechado, bem bonito */}
       {!isCurrentlyOpen && (
-        <div className="mx-auto mt-4 max-w-2xl px-4">
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-amber-500/5 p-4">
-            <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-500/15">
-              <Clock className="size-5 text-amber-300" />
+        <div className="mx-auto mt-2 max-w-2xl px-4">
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-amber-500/5 p-3">
+            <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-amber-500/15">
+              <Clock className="size-4 text-amber-300" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-amber-200">Restaurante fechado agora</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-amber-100/70">
+              <p className="text-xs font-bold text-amber-200">Restaurante fechado agora</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-amber-100/70">
                 {nextOpen ? (
                   <>
                     Abre <strong className="text-amber-200">{nextOpen.label.toLowerCase()}</strong> às{" "}
-                    <strong className="text-amber-200">{nextOpen.time}</strong>. Você pode navegar no cardápio, mas o
-                    pedido só poderá ser finalizado quando estiver aberto.
+                    <strong className="text-amber-200">{nextOpen.time}</strong>.
                   </>
                 ) : (
                   <>Hoje não há atendimento. Volte em breve!</>
                 )}
               </p>
-              {todayHours && !todayHours.schedule.closed && (
-                <p className="mt-1 text-[11px] text-amber-100/60">
-                  Hoje: {todayHours.schedule.open} — {todayHours.schedule.close}
-                </p>
-              )}
             </div>
           </div>
         </div>
       )}
 
       {/* categories — sticky */}
-      <div className="sticky top-[41px] z-20 mt-6 border-y border-white/5 bg-[#07070b]/80 backdrop-blur-xl sm:top-[37px]">
+      <div className="sticky top-[41px] z-20 mt-2 border-y border-white/5 bg-[#07070b]/80 backdrop-blur-xl sm:top-[37px]">
         <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {categories.map((c) => {
             const catProducts = products.filter((p) => p.category_id === c.id && p.available);
@@ -745,8 +739,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               if (catProducts.length === 0) return null;
 
               return (
-                <section key={cat.id} ref={(el) => { sectionsRef.current[cat.id] = el; }} className="scroll-mt-28 pt-8">
-                  <div className="mb-4 flex items-center gap-3">
+                <section key={cat.id} ref={(el) => { sectionsRef.current[cat.id] = el; }} className="scroll-mt-20 pt-2">
+                  <div className="mb-3 flex items-center gap-3">
                     <span className="h-px flex-1" style={{ backgroundColor: hexToRgba(accent, 0.18) }} />
                     <h2 className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-white">
                       {cat.name}

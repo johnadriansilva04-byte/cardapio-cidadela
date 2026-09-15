@@ -256,12 +256,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     }
   }
 
-  // Produtos com adicionais disponíveis abrem o modal para o cliente escolher.
+  // O botão principal adiciona o item direto ao carrinho; os adicionais são
+  // escolhidos pelo botão secundário "+ adicionais".
   function handleAddSimple(product: Product) {
-    if (addonsForProduct(product.id).some((a) => a.available)) {
-      openAddonModal(product);
-      return;
-    }
     addToCart(product);
   }
 
@@ -272,20 +269,24 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   function handleAddonConfirm(selected: SelectedAddon[], notes: string) {
     if (!addonModalProduct) return;
-    
+
     if (editingCartItemIndex !== null) {
-      // Update existing cart item with new addons
       const existingItem = cart[editingCartItemIndex];
       if (existingItem && existingItem.product.id === addonModalProduct.id) {
-        // Remove the old item and add the updated one
-        removeFromCart(addonModalProduct.id, existingItem.addons);
-        addToCart(addonModalProduct, selected, notes);
+        // Substitui a linha no lugar, preservando a quantidade já escolhida.
+        setCart(
+          cart.map((ci, idx) =>
+            idx === editingCartItemIndex ? { ...ci, addons: selected, notes } : ci,
+          ),
+        );
+        setAddonModalProduct(null);
+        setEditingCartItemIndex(null);
+        return;
       }
-    } else {
-      // Add new item (shouldn't happen with current flow, but keeping for safety)
-      addToCart(addonModalProduct, selected, notes);
     }
-    
+
+    addToCart(addonModalProduct, selected, notes);
+
     setAddonModalProduct(null);
     setEditingCartItemIndex(null);
   }
@@ -803,28 +804,53 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                             {item.available ? (
                               hasAddons ? (
                                 <>
-                                  <button
-                                    onClick={() => canOrder && openAddonModal(item)}
-                                    disabled={!canOrder}
-                                    className="inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
-                                    style={{
-                                      color: canOrder ? "#fff" : "#6b7280",
-                                      backgroundColor: canOrder ? accent : hexToRgba(accent, 0.04),
-                                      boxShadow: canOrder ? `0 4px 12px ${hexToRgba(accent, 0.35)}` : undefined,
-                                    }}
-                                    aria-label={`Escolher adicionais de ${item.name}`}
-                                  >
-                                    <Plus className="size-3" /> Add
-                                  </button>
-                                  {qtyInCart > 0 && (
+                                  {qtyInCart > 0 ? (
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() => handleRemove(item.id)}
+                                        className="grid size-7 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
+                                        aria-label={`Remover ${item.name}`}
+                                      >
+                                        <Minus className="size-3" />
+                                      </button>
+                                      <span className="w-5 text-center text-xs font-black text-white">{qtyInCart}</span>
+                                      <button
+                                        onClick={() => handleAddSimple(item)}
+                                        disabled={!canOrder}
+                                        className="grid size-7 place-items-center rounded-full text-white transition-colors hover:brightness-110 disabled:opacity-40"
+                                        style={{ backgroundColor: accent }}
+                                        aria-label={`Adicionar ${item.name}`}
+                                      >
+                                        <Plus className="size-3" />
+                                      </button>
+                                    </div>
+                                  ) : (
                                     <button
-                                      onClick={() => canOrder && openAddonModal(item, cart.findIndex((ci) => ci.product.id === item.id))}
+                                      onClick={() => canOrder && handleAddSimple(item)}
                                       disabled={!canOrder}
-                                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-bold text-gray-300 hover:bg-white/10 disabled:opacity-50"
+                                      title={!canOrder ? "Restaurante fechado" : "Adicionar ao pedido"}
+                                      className={`inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${canOrder ? "hover:shadow-lg hover:brightness-110" : ""}`}
+                                      style={{
+                                        borderColor: hexToRgba(accent, canOrder ? 0.5 : 0.2),
+                                        color: canOrder ? "#fff" : "#6b7280",
+                                        backgroundColor: canOrder ? accent : hexToRgba(accent, 0.04),
+                                        boxShadow: canOrder ? `0 4px 12px ${hexToRgba(accent, 0.35)}` : undefined,
+                                      }}
                                     >
-                                      <Sparkles className="size-3" /> Editar ({qtyInCart})
+                                      <Plus className="size-3" /> Add
                                     </button>
                                   )}
+                                  <button
+                                    onClick={() =>
+                                      canOrder &&
+                                      openAddonModal(item, qtyInCart > 0 ? cart.findIndex((ci) => ci.product.id === item.id) : undefined)
+                                    }
+                                    disabled={!canOrder}
+                                    title={!canOrder ? "Restaurante fechado" : "Escolher adicionais"}
+                                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-violet-500/40 bg-violet-500/10 px-2 py-1 text-[10px] font-bold text-violet-300 transition-colors hover:border-violet-400/70 hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <Sparkles className="size-3" /> + adicionais
+                                  </button>
                                 </>
                               ) : qtyInCart > 0 ? (
                                 <div className="flex items-center gap-1">

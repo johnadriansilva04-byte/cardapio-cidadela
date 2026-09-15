@@ -361,32 +361,32 @@ function ConfigPage() {
       )}
 
       {/* Mobile App Section */}
-      <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-violet-500/10">
-            <Smartphone className="size-5 text-cyan-400" />
+      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/10">
+            <Smartphone className="size-4 text-cyan-400" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Aplicativo Mobile</h3>
-            <p className="text-xs text-gray-400">Gestão de pedidos no celular</p>
+            <h3 className="text-xs font-bold text-white">Aplicativo Mobile</h3>
+            <p className="text-[10px] text-gray-400">Gestão de pedidos no celular</p>
           </div>
         </div>
-        <div className="space-y-3">
+        <div className="flex gap-2">
           <a
             href="/mobile"
             target="_blank"
-            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
           >
-            <span>Abrir versão mobile</span>
-            <Smartphone className="size-4" />
+            <Smartphone className="size-3" />
+            <span>Abrir</span>
           </a>
           {!showInstallPrompt && (
             <button
               onClick={() => setShowInstallPrompt(true)}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20 transition-colors"
             >
-              <Download className="size-4" />
-              Instalar aplicativo
+              <Download className="size-3" />
+              <span>Instalar</span>
             </button>
           )}
         </div>

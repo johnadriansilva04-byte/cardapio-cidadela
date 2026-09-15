@@ -18,6 +18,7 @@ import {
   Clock,
   Package,
   DollarSign,
+  Menu,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
@@ -49,6 +50,7 @@ function MobileLayout() {
   const [pendingCount, setPendingCount] = useState(0);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isAuthenticated, loading, user } = useAuth();
   const navigate = useNavigate();
 
@@ -202,69 +204,27 @@ function MobileLayout() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen flex-col bg-[#0a0a0f]">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b border-white/[0.06] bg-[#0c0c14] px-4 py-3">
-        <div className="flex items-center gap-2">
+    <div className="flex h-screen bg-[#0a0a0f]">
+      {/* Sidebar */}
+      <aside className={`w-64 shrink-0 flex-col border-r border-white/[0.06] bg-[#0c0c14] transition-all duration-300 ${
+        sidebarOpen ? "translate-x-0" : "-translate-x-full absolute z-50 h-full"
+      } lg:translate-x-0 lg:relative lg:z-0`}>
+        <div className="flex items-center gap-2 px-4 py-4 border-b border-white/5">
           <span className="grid size-8 place-items-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-violet-500/10">
             <UtensilsCrossed className="size-4 text-cyan-400" />
           </span>
           <span className="text-sm font-bold">
             Cardápio <span className="text-cyan-400">Cidadela</span>
           </span>
-        </div>
-        <div className="flex items-center gap-2">
-          {pendingCount > 0 && (
-            <div className="flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/20 px-3 py-1.5">
-              <Bell className="size-3.5 text-red-400" />
-              <span className="text-xs font-bold text-red-400">{pendingCount}</span>
-            </div>
-          )}
           <button
-            onClick={handleSignOut}
-            className="grid size-8 place-items-center rounded-lg text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden ml-auto grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white"
           >
-            <LogOut className="size-4" />
+            <X className="size-4" />
           </button>
         </div>
-      </header>
 
-      {/* Install Prompt Banner */}
-      {showInstallPrompt && (
-        <div className="border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/[0.08] to-violet-500/[0.05] px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-cyan-500/20">
-              <Download className="size-4 text-cyan-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-cyan-300">Instalar aplicativo</p>
-              <p className="text-[10px] text-gray-400">Adicione à tela inicial para acesso rápido</p>
-            </div>
-            <button
-              onClick={handleInstall}
-              disabled={installing}
-              className="shrink-0 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-black transition-all hover:bg-cyan-400 disabled:opacity-50"
-            >
-              {installing ? <Loader2 className="size-3 animate-spin" /> : "Instalar"}
-            </button>
-            <button
-              onClick={() => setShowInstallPrompt(false)}
-              className="shrink-0 grid size-6 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white"
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <Outlet />
-      </main>
-
-      {/* Bottom Navigation */}
-      <nav className="border-t border-white/[0.06] bg-[#0c0c14] px-2 py-2">
-        <div className="flex items-center justify-around">
+        <nav className="flex-1 space-y-1 px-3 py-4">
           {MOBILE_NAV_ITEMS.map((item) => {
             const isActive = activeTab === item.to.split("/").pop();
             return (
@@ -273,19 +233,84 @@ function MobileLayout() {
                 onClick={() => {
                   setActiveTab(item.to.split("/").pop() || "pedidos");
                   navigate({ to: item.to });
+                  setSidebarOpen(false);
                 }}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl px-3 py-2 transition-all",
-                  isActive ? "text-cyan-400" : "text-gray-500 hover:text-gray-300",
+                  "flex items-center gap-3 w-full rounded-xl px-3 py-2.5 text-sm transition-all",
+                  isActive ? "bg-cyan-500/10 text-cyan-400" : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
                 )}
               >
-                <item.icon className="size-5" />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <item.icon className="size-4" />
+                <span className="font-medium">{item.label}</span>
               </button>
             );
           })}
+        </nav>
+
+        <div className="border-t border-white/5 px-3 py-4">
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 text-sm text-gray-400 hover:bg-white/[0.04] hover:text-gray-200 transition-all"
+          >
+            <LogOut className="size-4" />
+            <span className="font-medium">Sair</span>
+          </button>
         </div>
-      </nav>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="flex items-center justify-between border-b border-white/[0.06] bg-[#0c0c14] px-4 py-3">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white"
+          >
+            <Menu className="size-4" />
+          </button>
+          <div className="flex items-center gap-2">
+            {pendingCount > 0 && (
+              <div className="flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/20 px-3 py-1.5">
+                <Bell className="size-3.5 text-red-400" />
+                <span className="text-xs font-bold text-red-400">{pendingCount}</span>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* Install Prompt Banner */}
+        {showInstallPrompt && (
+          <div className="border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/[0.08] to-violet-500/[0.05] px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-cyan-500/20">
+                <Download className="size-4 text-cyan-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-cyan-300">Instalar aplicativo</p>
+                <p className="text-[10px] text-gray-400">Adicione à tela inicial para acesso rápido</p>
+              </div>
+              <button
+                onClick={handleInstall}
+                disabled={installing}
+                className="shrink-0 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-black transition-all hover:bg-cyan-400 disabled:opacity-50"
+              >
+                {installing ? <Loader2 className="size-3 animate-spin" /> : "Instalar"}
+              </button>
+              <button
+                onClick={() => setShowInstallPrompt(false)}
+                className="shrink-0 grid size-6 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Content */}
+        <main className="flex-1 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

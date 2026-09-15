@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Clock, Copy, Check, Power, Zap, Calendar, Sun, Moon, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, Copy, Check, Power, Zap, Calendar, Sun, Moon, ChevronDown, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   DAY_ORDER,
@@ -25,7 +25,7 @@ export default function OperatingHoursConfig({
   const [bulkOpen, setBulkOpen] = useState("17:00");
   const [bulkClose, setBulkClose] = useState("00:00");
   const [copied, setCopied] = useState(false);
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const allEqual = useMemo(() => {
     const first = value[DAY_ORDER[0]];
@@ -54,18 +54,6 @@ export default function OperatingHoursConfig({
     onChange({ ...value, [key]: { ...value[key], ...patch } });
   }
 
-  function toggleDayExpanded(key: string) {
-    setExpandedDays((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }
-
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -91,101 +79,140 @@ export default function OperatingHoursConfig({
         )}
       </div>
 
-      {/* Quick Setup Section */}
-      <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/[0.08] to-cyan-600/[0.04] p-4">
-        <div className="flex items-start gap-2 mb-3">
-          <div className="grid size-6 shrink-0 place-items-center rounded-lg bg-cyan-500/20">
-            <Zap className="size-3 text-cyan-400" />
-          </div>
-          <div className="flex-1">
-            <h4 className="text-xs font-bold text-cyan-300">Configuração rápida</h4>
-            <p className="text-[10px] text-gray-400 mt-0.5">
-              Defina o mesmo horário para todos os dias
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-[10px] font-medium text-gray-300">
-              <Sun className="size-3 text-amber-400" />
-              Abertura
-            </label>
-            <input
-              type="time"
-              value={bulkOpen}
-              onChange={(e) => setBulkOpen(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder:text-gray-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 transition-all [&::-webkit-calendar-picker-indicator]:invert"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-[10px] font-medium text-gray-300">
-              <Moon className="size-3 text-indigo-400" />
-              Fechamento
-            </label>
-            <input
-              type="time"
-              value={bulkClose}
-              onChange={(e) => setBulkClose(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder:text-gray-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 transition-all [&::-webkit-calendar-picker-indicator]:invert"
-            />
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={applyToAll}
-          className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-cyan-500/25 transition-all hover:from-cyan-400 hover:to-cyan-500 hover:shadow-cyan-500/40 active:scale-[0.98]"
+      {/* Collapsed View */}
+      {!isExpanded && (
+        <div 
+          className="rounded-xl border border-white/10 bg-white/[0.04] p-4 cursor-pointer hover:bg-white/[0.06] transition-colors"
+          onClick={() => setIsExpanded(true)}
         >
-          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
-          {copied ? "Aplicado!" : "Aplicar para toda semana"}
-        </button>
-      </div>
-
-      {/* Individual Days Section */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Ajuste individual</span>
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                <Clock className="size-4 text-cyan-400" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Horários da semana</p>
+                <p className="text-xs text-gray-400">
+                  {allEqual && value[DAY_ORDER[0]] && !value[DAY_ORDER[0]].closed
+                    ? formatRange(value[DAY_ORDER[0]]) + " todos os dias"
+                    : "Horários individuais configurados"
+                  }
+                </p>
+              </div>
+            </div>
+            <ChevronDown className="size-5 text-gray-400" />
+          </div>
         </div>
+      )}
 
-        <div className="space-y-2">
-          {DAY_ORDER.map((key) => {
-            const s = value[key];
-            const meta = DAY_LABEL[key];
-            const isWeekend = key === "saturday" || key === "sunday";
-            const isExpanded = expandedDays.has(key);
-            
-            return (
-              <div
-                key={key}
-                className={`rounded-xl border transition-all duration-200 overflow-hidden ${
-                  s.closed
-                    ? "border-white/5 bg-white/[0.02]"
-                    : "border-white/10 bg-white/[0.04]"
-                }`}
-              >
-                {/* Collapsed Header */}
-                <div 
-                  className="flex items-center gap-3 p-3 cursor-pointer hover:bg-white/[0.02] transition-colors"
-                  onClick={() => toggleDayExpanded(key)}
+      {/* Expanded View - Full Week Editor */}
+      {isExpanded && (
+        <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/[0.08] to-cyan-600/[0.04] p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-cyan-500/20">
+                <Clock className="size-4 text-cyan-400" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-cyan-300">Editar horários da semana</h4>
+                <p className="text-xs text-gray-400">Configure cada dia individualmente</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="grid size-8 place-items-center rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition-colors"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+
+          {/* Quick Setup */}
+          <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+            <div className="flex items-start gap-2 mb-3">
+              <div className="grid size-6 shrink-0 place-items-center rounded-lg bg-cyan-500/20">
+                <Zap className="size-3 text-cyan-400" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-xs font-bold text-cyan-300">Configuração rápida</h4>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Defina o mesmo horário para todos os dias
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-[10px] font-medium text-gray-300">
+                  <Sun className="size-3 text-amber-400" />
+                  Abertura
+                </label>
+                <input
+                  type="time"
+                  value={bulkOpen}
+                  onChange={(e) => setBulkOpen(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder:text-gray-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 transition-all [&::-webkit-calendar-picker-indicator]:invert"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-[10px] font-medium text-gray-300">
+                  <Moon className="size-3 text-indigo-400" />
+                  Fechamento
+                </label>
+                <input
+                  type="time"
+                  value={bulkClose}
+                  onChange={(e) => setBulkClose(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-white placeholder:text-gray-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 transition-all [&::-webkit-calendar-picker-indicator]:invert"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={applyToAll}
+              className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-cyan-500/25 transition-all hover:from-cyan-400 hover:to-cyan-500 hover:shadow-cyan-500/40 active:scale-[0.98]"
+            >
+              {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+              {copied ? "Aplicado!" : "Aplicar para toda a semana"}
+            </button>
+          </div>
+
+          {/* Individual Days Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {DAY_ORDER.map((key) => {
+              const s = value[key];
+              const meta = DAY_LABEL[key];
+              const isWeekend = key === "saturday" || key === "sunday";
+              
+              return (
+                <div
+                  key={key}
+                  className={`rounded-xl border p-3 space-y-3 ${
+                    s.closed
+                      ? "border-white/5 bg-white/[0.02]"
+                      : "border-white/10 bg-white/[0.04]"
+                  }`}
                 >
-                  <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${
-                    isWeekend 
-                      ? "bg-purple-500/10 border border-purple-500/20" 
-                      : "bg-cyan-500/10 border border-cyan-500/20"
-                  }`}>
-                    <span className="text-xs font-bold text-white">
-                      {meta.short}
-                    </span>
+                  {/* Day Header */}
+                  <div className="flex items-center gap-2">
+                    <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${
+                      isWeekend 
+                        ? "bg-purple-500/10 border border-purple-500/20" 
+                        : "bg-cyan-500/10 border border-cyan-500/20"
+                    }`}>
+                      <span className="text-xs font-bold text-white">
+                        {meta.short}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-white">{meta.label}</p>
+                      <p className="text-[10px] text-gray-500">{isWeekend ? "Final de semana" : "Dia útil"}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-white">{meta.label}</p>
-                    <p className="text-[10px] text-gray-500">{isWeekend ? "Final de semana" : "Dia útil"}</p>
-                  </div>
-                  <label className="flex items-center gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+
+                  {/* Toggle */}
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <Switch
                       checked={!s.closed}
                       onCheckedChange={(checked) => setDayClosed(key, !checked)}
@@ -197,24 +224,11 @@ export default function OperatingHoursConfig({
                       {s.closed ? "Fechado" : "Aberto"}
                     </span>
                   </label>
-                  {!s.closed && (
-                    <div className="flex items-center gap-1 px-2 py-1 rounded bg-white/5 border border-white/10">
-                      <Clock className="size-3 text-gray-400" />
-                      <span className="text-[10px] font-semibold text-gray-300">
-                        {formatRange(s)}
-                      </span>
-                    </div>
-                  )}
-                  <button className="shrink-0 p-1 text-gray-500 hover:text-white transition-colors">
-                    {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-                  </button>
-                </div>
 
-                {/* Expanded Content */}
-                {isExpanded && !s.closed && (
-                  <div className="px-3 pb-3 pt-0 border-t border-white/5">
-                    <div className="flex items-center gap-2 pt-3">
-                      <div className="flex-1">
+                  {/* Time Inputs */}
+                  {!s.closed && (
+                    <div className="space-y-2">
+                      <div>
                         <label className="block text-[10px] font-medium text-gray-400 mb-1">Abertura</label>
                         <input
                           type="time"
@@ -224,8 +238,7 @@ export default function OperatingHoursConfig({
                           aria-label={`${meta.label} abre`}
                         />
                       </div>
-                      <span className="text-gray-500 font-bold pt-4">→</span>
-                      <div className="flex-1">
+                      <div>
                         <label className="block text-[10px] font-medium text-gray-400 mb-1">Fechamento</label>
                         <input
                           type="time"
@@ -235,24 +248,28 @@ export default function OperatingHoursConfig({
                           aria-label={`${meta.label} fecha`}
                         />
                       </div>
+                      
+                      {/* Status Display */}
+                      <div className="flex items-center gap-1 pt-1">
+                        <Clock className="size-3 text-gray-400" />
+                        <span className="text-[10px] font-semibold text-gray-300">
+                          {formatRange(s)}
+                        </span>
+                        {parseInt(s.close.slice(0, 2)) < parseInt(s.open.slice(0, 2)) && s.close !== "00:00" && (
+                          <span className="text-[9px] text-cyan-400 bg-cyan-500/10 px-1 py-0.5 rounded">+1 dia</span>
+                        )}
+                        {s.close === "00:00" && parseInt(s.open.slice(0, 2)) >= 12 && (
+                          <span className="text-[9px] text-purple-400 bg-purple-500/10 px-1 py-0.5 rounded">vira madrugada</span>
+                        )}
+                      </div>
                     </div>
-                    {parseInt(s.close.slice(0, 2)) < parseInt(s.open.slice(0, 2)) && s.close !== "00:00" && (
-                      <div className="mt-2 flex items-center gap-1 text-[10px] text-cyan-400">
-                        <span className="bg-cyan-500/10 px-1.5 py-0.5 rounded">+1 dia</span>
-                      </div>
-                    )}
-                    {s.close === "00:00" && parseInt(s.open.slice(0, 2)) >= 12 && (
-                      <div className="mt-2 flex items-center gap-1 text-[10px] text-purple-400">
-                        <span className="bg-purple-500/10 px-1.5 py-0.5 rounded">vira madrugada</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

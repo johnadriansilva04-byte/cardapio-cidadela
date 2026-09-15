@@ -530,7 +530,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       <div className="relative overflow-hidden">
         {/* banner */}
         <div
-          className="relative h-[200px] w-full sm:h-[250px]"
+          className="relative h-[280px] w-full sm:h-[320px]"
           style={{
             backgroundImage: restaurant.banner_url
               ? `url(${restaurant.banner_url})`

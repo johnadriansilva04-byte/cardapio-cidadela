@@ -152,8 +152,10 @@ function FinanceiroPage() {
         let q = base();
         if (since) q = q.gte("created_at", since.toISOString());
         const { data, error: err } = await q;
-        const startPrev = since ? new Date(since) : null;
-        if (startPrev) { const days = range === "7d" ? 7 : range === "30d" ? 30 : 90; startPrev.setDate(startPrev.getDate() - days); }
+        // Janela anterior com a MESMA duração da atual. Antes ela usava
+        // "N dias" enquanto a atual já incluía o dia de hoje, então o
+        // comparativo ficava inflado por um dia a mais de faturamento.
+        const startPrev = since ? new Date(2 * since.getTime() - Date.now()) : null;
         let prevData: OrderRow[] = [];
         if (startPrev && since) {
           let pq = base();

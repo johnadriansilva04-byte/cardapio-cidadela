@@ -11,6 +11,10 @@ interface PlatformState {
   // Cart (for public menu)
   cart: CartItem[];
 
+  // Slug da loja a que o carrinho pertence — o carrinho é persistido no
+  // dispositivo, então precisa saber quando o cliente trocou de restaurante.
+  restaurantSlug: string | null;
+
   // UI state
   isLoading: boolean;
 
@@ -23,6 +27,8 @@ interface PlatformState {
   updateCartQuantity: (productId: string, quantity: number, addons?: SelectedAddon[]) => void;
   clearCart: () => void;
   setLoading: (loading: boolean) => void;
+  /** Marca o carrinho como pertencente a esta loja, descartando itens de outra. */
+  syncCartRestaurant: (slug: string, restaurantId: string) => void;
 }
 
 // helpers — duas linhas são "iguais" só se tiverem mesmo produto + mesmos adicionais
@@ -44,6 +50,7 @@ export const usePlatformStore = create<PlatformState>()(
       categories: [],
       products: [],
       cart: [],
+      restaurantSlug: null,
       isLoading: false,
 
       setRestaurant: (restaurant) => set({ restaurant }),
@@ -51,6 +58,17 @@ export const usePlatformStore = create<PlatformState>()(
       setMenu: (categories, products) => set({ categories, products }),
 
       setCart: (cart) => set({ cart }),
+
+      syncCartRestaurant: (slug, restaurantId) => {
+        const { cart, restaurantSlug } = get();
+        if (restaurantSlug === slug) return;
+        // Só as linhas desta loja sobrevivem: um carrinho de outro cardápio tem
+        // product_ids e preços que não valem aqui.
+        set({
+          restaurantSlug: slug,
+          cart: cart.filter((line) => line.product.restaurant_id === restaurantId),
+        });
+      },
 
       addToCart: (product, addons = [], notes = "") => {
         const { cart } = get();
@@ -122,7 +140,9 @@ export const usePlatformStore = create<PlatformState>()(
     {
       name: "platform_cart",
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ cart: s.cart }),
+      // `restaurantSlug` acompanha o carrinho para que, ao abrir outro cardápio,
+      // a gente saiba que os itens salvos são de outra loja e possa limpar.
+      partialize: (s) => ({ cart: s.cart, restaurantSlug: s.restaurantSlug }),
     },
   ),
 );

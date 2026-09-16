@@ -178,14 +178,11 @@ function LoginPage() {
           <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-yellow-500/10">
             <AlertCircle className="size-6 text-yellow-400" />
           </div>
-          <h1 className="text-xl font-bold text-white">
-            Supabase não configurado
-          </h1>
+          <h1 className="text-xl font-bold text-white">Supabase não configurado</h1>
           <p className="mt-2 text-sm text-gray-400">
-            Configure as variáveis de ambiente{" "}
-            <code className="text-cyan-400">VITE_SUPABASE_URL</code> e{" "}
-            <code className="text-cyan-400">VITE_SUPABASE_ANON_KEY</code> nas
-            configurações do projeto.
+            A configuração do Supabase chegou com valores inválidos. Verifique se{" "}
+            <code className="text-cyan-400">VITE_SUPABASE_URL</code> aponta para o
+            projeto correto, já que um valor de placeholder desativa o login.
           </p>
           <Link
             to="/"

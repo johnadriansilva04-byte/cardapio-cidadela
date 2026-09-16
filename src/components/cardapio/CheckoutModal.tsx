@@ -72,6 +72,16 @@ export default function CheckoutModal({
   const appliedFee = isDelivery ? (inNeighborhood ? inNeighborhood.fee : deliveryFee) : 0;
   const totalWithFee = total + appliedFee;
 
+  // Aceita "50", "50,00" e "R$ 50" — sinaliza valor menor que o total em vez de
+  // mandar o troco errado para a cozinha.
+  const changeAmount = (() => {
+    const raw = form.change_for.replace(/[^\d,.]/g, "").replace(",", ".");
+    if (!raw) return null;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return parsed - totalWithFee;
+  })();
+
   function selectType(t: "entrega" | "retirada") {
     setForm((s) => ({
       ...s,
@@ -112,18 +122,25 @@ export default function CheckoutModal({
           <input
             className={field}
             placeholder="Seu nome *"
+            autoComplete="name"
             value={form.customer_name}
             onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
           />
           <input
             className={field}
             placeholder="Telefone *"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
             value={form.customer_phone}
             onChange={(e) => setForm({ ...form, customer_phone: e.target.value })}
           />
           <input
             className={field}
             placeholder="E-mail (opcional)"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
             value={form.customer_email}
             onChange={(e) => setForm({ ...form, customer_email: e.target.value })}
           />
@@ -247,12 +264,26 @@ export default function CheckoutModal({
           </div>
 
           {form.payment_method === "dinheiro" && (
-            <input
-              className={field}
-              placeholder="Troco para quanto?"
-              value={form.change_for}
-              onChange={(e) => setForm({ ...form, change_for: e.target.value })}
-            />
+            <div className="space-y-1">
+              <input
+                className={field}
+                type="text"
+                inputMode="decimal"
+                placeholder="Troco para quanto? (ex.: 50)"
+                value={form.change_for}
+                onChange={(e) => setForm({ ...form, change_for: e.target.value })}
+              />
+              {changeAmount !== null && changeAmount > 0 && (
+                <p className="text-[11px] font-semibold text-emerald-400">
+                  Troco: {brl(changeAmount)}
+                </p>
+              )}
+              {changeAmount !== null && changeAmount < 0 && (
+                <p className="text-[11px] font-semibold text-amber-400">
+                  Valor menor que o total ({brl(totalWithFee)}) — confira o valor informado.
+                </p>
+              )}
+            </div>
           )}
 
           {(appliedFee > 0 || isDelivery) && (

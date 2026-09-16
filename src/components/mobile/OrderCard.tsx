@@ -14,7 +14,7 @@ import {
 import { ExpandableSection, InfoRow } from "@/modules/ui/ExpandableSection";
 import { OrderStatusBadge } from "@/components/admin/StatusBadge";
 import {
-  NEXT_STATUS,
+  nextStatus,
   STATUS_LABELS,
   formatElapsed,
   orderTimer,
@@ -25,6 +25,7 @@ import {
   buildThermalTicket,
   buildWhatsAppMessage,
   cn,
+  paymentMethodLabel,
   printTicket,
   sendToWhatsApp,
 } from "@/lib/utils";
@@ -68,7 +69,7 @@ export function OrderCard({
   const itemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const isFinished = order.status === "delivered" || order.status === "cancelled";
-  const nextStatus = NEXT_STATUS[order.status];
+  const nextStatusValue = nextStatus(order);
   const timer = orderTimer(order.created_at, now);
 
   // Relógio próprio do card: sem ele o "tempo parado" congela no valor da montagem.
@@ -157,7 +158,10 @@ export function OrderCard({
               minute: "2-digit",
             })}
           />
-          <InfoRow label="Pagamento" value={order.payment_method || "—"} />
+          <InfoRow label="Pagamento" value={paymentMethodLabel(order.payment_method)} />
+          {order.payment_method === "dinheiro" && order.change_for && (
+            <InfoRow label="Troco para" value={order.change_for} />
+          )}
           {order.delivery_type === "entrega" && (
             <InfoRow
               label="Endereço"
@@ -214,14 +218,14 @@ export function OrderCard({
 
         {/* Ações */}
         <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-3">
-          {nextStatus && (
+          {nextStatusValue && (
             <button
               type="button"
               disabled={busy}
-              onClick={() => onAdvance(order, nextStatus)}
+              onClick={() => onAdvance(order, nextStatusValue)}
               className="min-w-[8rem] flex-1 rounded-xl bg-cyan-500 px-3 py-2.5 text-xs font-bold uppercase text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
             >
-              {STATUS_LABELS[nextStatus]}
+              {STATUS_LABELS[nextStatusValue]}
             </button>
           )}
           {!isFinished && (

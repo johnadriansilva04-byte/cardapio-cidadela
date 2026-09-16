@@ -28,6 +28,8 @@ export default function CartSheet({
   onClose: () => void;
   onCheckout: () => void;
 }) {
+  const count = lines.reduce((sum, line) => sum + line.qty, 0);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur sm:items-center sm:p-4">
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[24px] border border-white/10 bg-[#0b0b12] sm:rounded-[24px]">
@@ -37,7 +39,7 @@ export default function CartSheet({
               <ShoppingBag className="size-4" />
             </span>
             Seu pedido
-            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold text-white/80">{lines.reduce((s,l)=>s+l.qty,0)} {lines.reduce((s,l)=>s+l.qty,0)===1?"item":"itens"}</span>
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold text-white/80">{count} {count === 1 ? "item" : "itens"}</span>
           </h2>
           <button
             onClick={onClose}
@@ -130,7 +132,9 @@ export default function CartSheet({
                 style={{ borderColor: hexToRgba(accent, 0.18) }}
               >
                 <div className="flex justify-between text-xs text-gray-400">
-                  <span>Subtotal ({lines.reduce((s,l)=>s+l.qty,0)} itens)</span>
+                  <span>
+                    Subtotal ({count} {count === 1 ? "item" : "itens"})
+                  </span>
                   <span className="font-semibold text-white">{brl(subtotal)}</span>
                 </div>
                 <p className="mt-1 text-[11px] text-gray-500">Taxa de entrega calculada no próximo passo</p>

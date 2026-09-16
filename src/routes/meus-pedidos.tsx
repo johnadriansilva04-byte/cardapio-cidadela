@@ -4,7 +4,7 @@ import { ShoppingBag, PackageOpen, ExternalLink, ArrowLeft, RefreshCw, Clock } f
 import { getMyOrders, isOrderClosed, pruneClosedOrderIds, getGuestId } from "@/lib/guestOrder";
 import { subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
-import { brl, formatDate } from "@/lib/utils";
+import { brl, formatDate, paymentMethodLabel } from "@/lib/utils";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, type GuestOrderSummary } from "@/lib/types";
 
 export const Route = createFileRoute("/meus-pedidos")({
@@ -34,7 +34,6 @@ function MyOrdersPage() {
     }
   }
   const [refreshing, setRefreshing] = useState(false);
-  const subscribedRoomsRef = useRef(new Set<string>());
   const ordersRef = useRef<GuestOrderSummary[]>([]);
   ordersRef.current = orders;
 
@@ -78,32 +77,30 @@ function MyOrdersPage() {
     return () => window.removeEventListener("focus", handleFocus);
   }, [loading]);
 
-  // Tempo real: inscreve-se nos restaurantes dos pedidos (uma vez por sala)
+  // Tempo real: uma inscrição por restaurante. A dependência é a lista de
+  // restaurantes (chave estável), não o array `orders` — caso contrário cada
+  // atualização de status derrubava e reabria todos os canais.
+  const restaurantIds = [...new Set(orders.map((o) => o.restaurant_id))].filter(Boolean).sort();
+  const restaurantKey = restaurantIds.join(",");
   useEffect(() => {
-    const restaurantIds = [...new Set(orders.map((o) => o.restaurant_id))];
+    const ids = restaurantKey ? restaurantKey.split(",") : [];
     const channels: ReturnType<typeof supabase.channel>[] = [];
-    for (const rid of restaurantIds) {
-      if (subscribedRoomsRef.current.has(rid)) continue;
-      subscribedRoomsRef.current.add(rid);
-      try {
-        const ch = subscribeToOrders(rid, (_eventType, updated) => {
-          applyUpdate(updated.id, updated.status);
-        });
-        if (ch) channels.push(ch);
-      } catch {
-        /* canal individual falhou — segue */
-      }
+    for (const rid of ids) {
+      const ch = subscribeToOrders(rid, (_eventType, updated) => {
+        applyUpdate(updated.id, updated.status);
+      });
+      if (ch) channels.push(ch);
     }
     return () => {
-      channels.forEach((c) => {
+      for (const c of channels) {
         try {
           supabase.removeChannel(c);
         } catch {
-          /* ignore */
+          /* canal já encerrado */
         }
-      });
+      }
     };
-  }, [orders]);
+  }, [restaurantKey]);
 
   if (loading) {
     return (
@@ -222,7 +219,7 @@ function OrderCard({ order }: { order: GuestOrderSummary }) {
           <span className="inline-flex items-center gap-1">
             <Clock className="size-3" /> {formatDate(order.created_at)}
           </span>
-          <span className="capitalize">{order.payment_method}</span>
+          <span>{paymentMethodLabel(order.payment_method)}</span>
           <span className="uppercase">{order.delivery_type}</span>
         </div>
         <div className="flex items-center gap-2">

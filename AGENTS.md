@@ -16,8 +16,14 @@
 - `npm run build` (Vite + Nitro). `npx tsc --noEmit` for types.
 - `npm run lint` reports ~490 pre-existing errors repo-wide. Check only the
   files you touched (`npx eslint <paths>`); don't try to fix the baseline.
-- No `.env` in the repo. Authenticated screens can't be exercised locally
-  without `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
+- No `.env` in the repo. `.env.example` lists what to fill in. Vite inlines
+  the values at build time, so changing them requires a new build/deploy.
+- `client.ts` ships hardcoded production Supabase fallbacks (URL + publishable
+  key) that env vars override. This is deliberate: PR previews and Lovable
+  builds don't inherit Vercel env vars, and before the 2026-09-03 refactor a
+  fallback covered exactly that case. The key is public by design — it is
+  already in every shipped bundle, and access is constrained by the RLS
+  policies in `supabase/schema.sql`.
 
 ## Architecture notes
 
@@ -32,4 +38,25 @@
 - PWA install depends on a registered service worker. `public/sw.js` caches
   only hashed assets under `/assets/`; navigation and API responses always go
   to the network, so orders are never served from a stale cache.
+
+## Domain invariants
+
+- Supabase config resolution lives only in `src/modules/supabase/client.ts`
+  (`getSupabaseConfig` / `isSupabaseConfigured`); `auth.ts` re-exports them.
+  Don't read `import.meta.env` directly elsewhere, or the client and the login
+  gate can disagree about whether the app is configured.
+- `orders` has RLS where only the restaurant owner can SELECT. Any read-back of
+  an order by an anonymous/guest client must go through a SECURITY DEFINER RPC
+  (`get_order_tracking`, `get_orders_by_guest`, `get_order_by_idempotency_key`).
+  A plain `.from("orders").select()` from the public menu silently returns zero
+  rows, which is what made retries look like duplicates.
+- Order idempotency: the caller (public menu checkout) generates one token per
+  checkout and reuses it while the confirmation is in flight, so a retry is
+  deduped but a genuinely new identical order still creates a new row.
+- `cancelled` orders never count as revenue or as a billable ticket. That rule
+  lives in `computeMetrics`/`aggregateCustomers`/`dailyRevenue` and must stay
+  consistent with the admin financeiro numbers.
+- Order status progression lives in `src/lib/orderFlow.ts` (`nextStatusFor`).
+  Withdrawal (`retirada`) orders skip `out_for_delivery`; don't re-add
+  per-screen copies of the transition map.
 

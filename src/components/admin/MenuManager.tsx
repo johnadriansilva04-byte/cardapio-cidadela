@@ -671,14 +671,16 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                       >
                         <div className="flex items-center gap-3 p-2.5">
                           {p.image_url ? (
-                            <img
-                              src={p.image_url}
-                              alt={p.name}
-                              className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl object-cover ring-1 ring-white/10"
-                              onError={(e) => {
-                                e.currentTarget.style.opacity = "0.15";
-                              }}
-                            />
+                            <div className="aspect-square size-14 shrink-0 overflow-hidden rounded-xl ring-1 ring-white/10">
+                              <img
+                                src={p.image_url}
+                                alt={p.name}
+                                className="size-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.opacity = "0.15";
+                                }}
+                              />
+                            </div>
                           ) : (
                             <div className="grid size-14 shrink-0 place-items-center rounded-xl bg-white/[0.03] text-gray-700 ring-1 ring-white/10">
                               <ImageOff className="size-5 text-gray-600" />

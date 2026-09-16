@@ -313,9 +313,8 @@ function RestaurantesPage() {
                 }
                 onManageOrders={() =>
                   navigate({
-                    to: "/admin/restaurante/$id",
-                    params: { id: r.id },
-                    search: { tab: "pedidos" },
+                    to: "/admin/pedidos",
+                    search: { store: r.id },
                   })
                 }
                 onSettings={() =>

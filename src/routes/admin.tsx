@@ -17,6 +17,7 @@ import {
   UserRound,
   Trash2,
   ExternalLink,
+  ClipboardList,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
@@ -45,6 +46,7 @@ export const Route = createFileRoute("/admin")({
 const NAV_ITEMS = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/restaurantes", label: "Restaurantes", icon: Store },
+  { to: "/admin/pedidos", label: "Pedidos", icon: ClipboardList },
   { to: "/admin/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/admin/compartilhar", label: "Compartilhar", icon: Share2 },
   { to: "/admin/config", label: "Configurações", icon: Settings },
@@ -54,6 +56,7 @@ function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const matchRoute = useMatchRoute();
+  const navigate = useNavigate();
   const { isAuthenticated, loading, signOut, user } = useAuth();
 
   useEffect(() => {
@@ -129,9 +132,19 @@ function AdminLayout() {
                   Notification.permission === "granted"
                 ) {
                   try {
-                    new Notification("🔔 Novo pedido!", {
+                    const n = new Notification("🔔 Novo pedido!", {
                       body: `${order.customer_name} — ${order.comanda} • R$ ${Number(order.total).toFixed(2)}`,
+                      tag: `cidadela-order-${order.id}`,
                     });
+                    // Clique leva direto ao painel global de pedidos, com a loja já filtrada.
+                    n.onclick = () => {
+                      window.focus();
+                      navigate({
+                        to: "/admin/pedidos",
+                        search: { store: order.restaurant_id },
+                      });
+                      n.close();
+                    };
                   } catch {
                     /* ignore */
                   }
@@ -169,7 +182,7 @@ function AdminLayout() {
         }
       }
     };
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, navigate]);
 
   if (loading) {
     return (
@@ -284,7 +297,7 @@ function SidebarContent({
         </p>
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.to);
-          const showBadge = item.to === "/admin/restaurantes" && pendingCount > 0;
+          const showBadge = item.to === "/admin/pedidos" && pendingCount > 0;
           return (
             <Link
               key={item.to}

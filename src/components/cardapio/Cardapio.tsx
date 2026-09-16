@@ -629,11 +629,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             <div className="flex items-center gap-3">
               {/* logo */}
               {restaurant.logo_url ? (
-                <img
-                  src={restaurant.logo_url}
-                  alt={restaurant.name}
-                  className="size-12 shrink-0 rounded-xl border border-white/20 object-cover shadow-lg sm:size-14"
-                />
+                <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-xl border border-white/20 shadow-lg sm:size-14">
+                  <img
+                    src={restaurant.logo_url}
+                    alt={restaurant.name}
+                    className="size-full object-cover"
+                  />
+                </div>
               ) : (
                 <div
                   className="grid size-12 shrink-0 place-items-center rounded-xl border bg-[#0a0a12]/90 shadow-lg sm:size-14"
@@ -764,7 +766,14 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                           {qtyInCart > 0 && <span className="absolute inset-y-0 left-0 w-0.5" style={{ backgroundColor: accent }} />}
 
                           {item.image_url ? (
-                            <img src={item.image_url} alt={item.name} className="size-16 shrink-0 rounded-lg object-cover" loading="lazy" />
+                            <div className="aspect-square size-16 shrink-0 overflow-hidden rounded-lg">
+                              <img
+                                src={item.image_url}
+                                alt={item.name}
+                                className="size-full object-cover"
+                                loading="lazy"
+                              />
+                            </div>
                           ) : (
                             <div
                               className="grid size-16 shrink-0 place-items-center rounded-lg border"

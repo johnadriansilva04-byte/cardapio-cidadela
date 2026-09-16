@@ -47,12 +47,10 @@ export function ImageField({ label, value, onChange, restaurantId, kind }: Props
 
   const emptyLabel = kind === "logo" ? "Nenhuma logo ainda" : kind === "banner" ? "Nenhuma capa ainda" : "Sem imagem";
   const cta = value ? "Trocar imagem" : "Upload";
-  const previewClass =
-    kind === "logo"
-      ? "h-28 object-contain p-3 bg-white/[0.02]"
-      : kind === "banner"
-        ? "h-36 object-cover"
-        : "h-32 object-cover";
+  // Container com proporção fixa + object-fit evita que a foto estique ou achate.
+  const ratioClass =
+    kind === "logo" ? "aspect-square" : kind === "banner" ? "aspect-[21/9]" : "aspect-[4/3]";
+  const fitClass = kind === "logo" ? "object-contain p-3" : "object-cover";
 
   return (
     <div className="space-y-2">
@@ -64,12 +62,14 @@ export function ImageField({ label, value, onChange, restaurantId, kind }: Props
       <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
         {value && !previewError ? (
           <div className="relative">
-            <img
-              src={value}
-              alt={`Preview — ${label}`}
-              className={`w-full ${previewClass}`}
-              onError={() => setPreviewError(true)}
-            />
+            <div className={`w-full overflow-hidden bg-white/[0.02] ${ratioClass}`}>
+              <img
+                src={value}
+                alt={`Preview — ${label}`}
+                className={`size-full ${fitClass}`}
+                onError={() => setPreviewError(true)}
+              />
+            </div>
             <button
               type="button"
               onClick={() => {

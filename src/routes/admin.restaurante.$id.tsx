@@ -1,8 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   UtensilsCrossed,
-  ClipboardList,
   Settings2,
   Eye,
   EyeOff,
@@ -11,12 +10,12 @@ import {
   RefreshCw,
   Store,
   ArrowLeft,
-  ChevronRight,
+  ArrowRight,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
 import { MenuManager } from "@/components/admin/MenuManager";
-import { OrderManager } from "@/components/admin/OrderManager";
 import { NeighborhoodManager } from "@/components/admin/NeighborhoodManager";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
@@ -32,13 +31,17 @@ import { supabase } from "@/modules/supabase/client";
 import { getMenuWithProducts } from "@/modules/supabase/menu";
 import { toast } from "sonner";
 
+// "pedidos" segue aceito aqui apenas para redirecionar links antigos à rota global.
 const validTabs = ["cardapio", "pedidos", "config"] as const;
+type TabValue = (typeof validTabs)[number];
 
 export const Route = createFileRoute("/admin/restaurante/$id")({
   validateSearch: (search: Record<string, unknown>) => {
-    const tab = validTabs.includes(search.tab as (typeof validTabs)[number])
-      ? (search.tab as (typeof validTabs)[number])
-      : undefined;
+    const raw = search.tab;
+    const tab =
+      typeof raw === "string" && (validTabs as readonly string[]).includes(raw)
+        ? (raw as TabValue)
+        : undefined;
     return { tab };
   },
   head: ({ params }) => ({
@@ -50,6 +53,7 @@ export const Route = createFileRoute("/admin/restaurante/$id")({
 function RestaurantDetailPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -61,15 +65,20 @@ function RestaurantDetailPage() {
   const [publishConfirm, setPublishConfirm] = useState(false);
   const [tab, setTab] = useState<string>(search.tab ?? "cardapio");
   const [menuCount, setMenuCount] = useState<number | null>(null);
-  const [pendingOrders, setPendingOrders] = useState<number | null>(null);
   const retryRef = useRef(0);
 
-  // Contadores ao vivo para deixar os atalhos bem visíveis
+  // Pedidos deixaram de ser uma aba daqui e viraram a rota global /admin/pedidos.
+  useEffect(() => {
+    if (search.tab === "pedidos") {
+      navigate({ to: "/admin/pedidos", search: { store: id }, replace: true });
+    }
+  }, [search.tab, id, navigate]);
+
+  // Contador ao vivo do cardápio
   const restaurantIdForStats = restaurant?.id;
   useEffect(() => {
     let cancelled = false;
     setMenuCount(null);
-    setPendingOrders(null);
     if (!restaurantIdForStats) return;
 
     (async () => {
@@ -82,33 +91,9 @@ function RestaurantDetailPage() {
     })();
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
-    let poll: ReturnType<typeof setInterval> | null = null;
-
-    const fetchPending = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("id,status")
-          .eq("restaurant_id", restaurantIdForStats)
-          .in("status", ["received", "preparing", "ready", "out_for_delivery"]);
-        if (!cancelled && !error) setPendingOrders(data?.length ?? 0);
-      } catch {
-        /* mantém valor atual */
-      }
-    };
 
     channel = supabase
       .channel(`restaurante_stats_${restaurantIdForStats}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "orders",
-          filter: `restaurant_id=eq.${restaurantIdForStats}`,
-        },
-        () => fetchPending(),
-      )
       .on(
         "postgres_changes",
         {
@@ -124,12 +109,8 @@ function RestaurantDetailPage() {
       )
       .subscribe();
 
-    fetchPending();
-    poll = setInterval(fetchPending, 15000);
-
     return () => {
       cancelled = true;
-      if (poll) clearInterval(poll);
       try {
         supabase.removeChannel(channel!);
       } catch {
@@ -372,15 +353,9 @@ function RestaurantDetailPage() {
         </div>
       )}
 
-      <AdminModuleNav
-        tab={tab}
-        onSelect={setTab}
-        menuCount={menuCount}
-        pendingOrders={pendingOrders}
-      />
+      <AdminModuleNav tab={tab} onSelect={setTab} menuCount={menuCount} />
 
       {tab === "cardapio" && <MenuManager key={restaurant.id} restaurant={restaurant} />}
-      {tab === "pedidos" && <OrderManager key={restaurant.id} restaurant={restaurant} />}
       {tab === "config" && (
         <div className="grid items-start gap-5 lg:grid-cols-2">
           <div className="min-w-0">
@@ -419,7 +394,7 @@ function RestaurantDetailPage() {
 }
 
 const MODULES: {
-  id: "cardapio" | "pedidos" | "config";
+  id: "cardapio" | "config";
   label: string;
   description: string;
   icon: typeof UtensilsCrossed;
@@ -435,14 +410,6 @@ const MODULES: {
     chip: "bg-emerald-500 text-black",
   },
   {
-    id: "pedidos",
-    label: "Pedidos",
-    description: "Acompanhe e atualize os pedidos",
-    icon: ClipboardList,
-    accent: "from-amber-500/20 to-orange-500/5 border-amber-400/40 hover:border-amber-300/70",
-    chip: "bg-amber-500 text-black",
-  },
-  {
     id: "config",
     label: "Configurações",
     description: "Dados, entrega e bairros",
@@ -456,29 +423,21 @@ function AdminModuleNav({
   tab,
   onSelect,
   menuCount,
-  pendingOrders,
 }: {
   tab: string;
-  onSelect: (tab: "cardapio" | "pedidos" | "config") => void;
+  onSelect: (tab: "cardapio" | "config") => void;
   menuCount: number | null;
-  pendingOrders: number | null;
 }) {
   return (
     <nav className="space-y-3">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">
         Selecione a área
       </p>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         {MODULES.map((m) => {
           const active = tab === m.id;
-          const value = m.id === "cardapio" ? menuCount : m.id === "pedidos" ? pendingOrders : null;
-          const valueLabel =
-            value === null
-              ? "…"
-              : m.id === "cardapio"
-                ? `${value} item${value === 1 ? "" : "s"}`
-                : `${value} ativo${value === 1 ? "" : "s"}`;
-          const highlight = m.id === "pedidos" && (pendingOrders ?? 0) > 0;
+          const value = m.id === "cardapio" ? menuCount : null;
+          const valueLabel = value === null ? "…" : `${value} item${value === 1 ? "" : "s"}`;
           return (
             <button
               key={m.id}
@@ -498,36 +457,45 @@ function AdminModuleNav({
                 <m.icon className="size-7" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                  <span
-                    className={`text-base font-black tracking-tight text-white ${active ? "underline decoration-2 underline-offset-4" : ""}`}
-                  >
-                    {m.label}
-                  </span>
-                  {highlight && (
-                    <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[12px] font-black text-white shadow-[0_0_12px_rgba(239,68,68,0.7)]">
-                      {pendingOrders! > 99 ? "99+" : pendingOrders}
-                    </span>
-                  )}
+                <span
+                  className={`text-base font-black tracking-tight text-white ${active ? "underline decoration-2 underline-offset-4" : ""}`}
+                >
+                  {m.label}
                 </span>
                 <span className="mt-1 block text-xs leading-relaxed text-white/60">
                   {m.description}
                 </span>
-                <span className="mt-3 inline-flex items-center gap-1">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${active ? "bg-white/15 text-white" : m.chip}`}
-                  >
-                    {valueLabel}
-                  </span>
-                  <ChevronRight
-                    className={`size-4 transition-all ${active ? "text-white translate-x-0.5" : "text-white/40 group-hover:translate-x-0.5 group-hover:text-white"}`}
-                  />
+                <span
+                  className={`mt-3 inline-block rounded-full px-2.5 py-1 text-[11px] font-bold ${active ? "bg-white/15 text-white" : m.chip}`}
+                >
+                  {valueLabel}
                 </span>
               </span>
             </button>
           );
         })}
       </div>
+
+      <Link
+        to="/admin/pedidos"
+        search={{ store: undefined }}
+        className="group flex items-center gap-4 rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-500/20 to-orange-500/5 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-amber-300/70 hover:shadow-[0_10px_34px_rgba(0,0,0,0.45)]"
+      >
+        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-black/40 text-white transition-transform group-hover:scale-105">
+          <ClipboardList className="size-7" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 text-base font-black tracking-tight text-white">
+            Pedidos <ArrowRight className="size-4 text-white/50" />
+          </span>
+          <span className="mt-1 block text-xs leading-relaxed text-white/60">
+            Tela global, com os pedidos de todas as suas lojas
+          </span>
+          <span className="mt-3 inline-block rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-black">
+            Abrir painel de pedidos
+          </span>
+        </span>
+      </Link>
     </nav>
   );
 }
@@ -543,11 +511,13 @@ function RestaurantCardSummary({
     <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
       <div className="flex items-start gap-3">
         {restaurant.logo_url ? (
-          <img
-            src={restaurant.logo_url}
-            alt={restaurant.name}
-            className="size-12 rounded-xl object-cover"
-          />
+          <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-xl">
+            <img
+              src={restaurant.logo_url}
+              alt={restaurant.name}
+              className="size-full object-cover"
+            />
+          </div>
         ) : (
           <div className="grid size-12 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
             <Store className="size-5" />

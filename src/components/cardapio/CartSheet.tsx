@@ -69,7 +69,9 @@ export default function CartSheet({
                   >
                     <div className="flex items-start gap-3 p-3">
                       {line.item.image_url ? (
-                        <img src={line.item.image_url} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
+                        <div className="aspect-square size-14 shrink-0 overflow-hidden rounded-xl">
+                          <img src={line.item.image_url} alt="" className="size-full object-cover" />
+                        </div>
                       ) : (
                         <div className="grid size-14 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.03] text-gray-600">🍔</div>
                       )}

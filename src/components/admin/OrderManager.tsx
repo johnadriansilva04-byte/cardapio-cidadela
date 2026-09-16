@@ -17,6 +17,7 @@ import {
   Bike,
   History,
   ChevronDown,
+  Store,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -100,29 +101,50 @@ function periodStart(period: PeriodKey): Date | null {
   return d;
 }
 
-export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
+export function OrderManager({
+  restaurants,
+  initialStoreId,
+}: {
+  restaurants: Restaurant[];
+  initialStoreId?: string;
+}) {
+  const restaurantIds = useMemo(() => restaurants.map((r) => r.id), [restaurants]);
+  const restaurantNames = useMemo(
+    () => new Map(restaurants.map((r) => [r.id, r.name])),
+    [restaurants],
+  );
+  const multi = restaurants.length > 1;
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
+  const [storeFilter, setStoreFilter] = useState<string>(initialStoreId ?? "all");
   const [q, setQ] = useState("");
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [detail, setDetail] = useState<Order | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
+  const fetchAllOrders = useCallback(async (): Promise<Order[]> => {
+    if (restaurantIds.length === 0) return [];
+    const batches = await Promise.all(restaurantIds.map((id) => getOrdersByRestaurant(id)));
+    return batches
+      .flat()
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [restaurantIds]);
+
   const loadOrders = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getOrdersByRestaurant(restaurant.id);
-      setOrders(data);
+      setOrders(await fetchAllOrders());
     } catch (e) {
       console.error("[OrderManager] load", e);
       setError("Falha ao carregar pedidos.");
     } finally {
       setLoading(false);
     }
-  }, [restaurant.id]);
+  }, [fetchAllOrders]);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,7 +152,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
       setLoading(true);
       setError(null);
       try {
-        const data = await getOrdersByRestaurant(restaurant.id);
+        const data = await fetchAllOrders();
         if (!cancelled) setOrders(data);
       } catch (e) {
         console.error("[OrderManager] initial load", e);
@@ -142,50 +164,53 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
     return () => {
       cancelled = true;
     };
-  }, [restaurant.id]);
+  }, [fetchAllOrders]);
 
   // Realtime distinto para não colidir com o badge do layout (admin.tsx usa orders_${id})
   useEffect(() => {
-    let channel: RealtimeChannel | null = null;
+    const channels: RealtimeChannel[] = [];
     let poll: ReturnType<typeof setInterval> | null = null;
-    channel = supabase
-      .channel(`orders_pedidos_${restaurant.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "orders",
-          filter: `restaurant_id=eq.${restaurant.id}`,
-        },
-        (payload) => {
-          const eventType = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
-          const row = (payload.new ?? payload.old) as Order | undefined;
-          if (!row) return;
-          if (eventType === "INSERT") {
-            setOrders((prev) => {
-              if (prev.some((o) => o.id === row.id)) return prev;
-              return [payload.new as Order, ...prev];
-            });
-          } else if (eventType === "UPDATE") {
-            setOrders((prev) =>
-              prev.map((o) =>
-                o.id === (payload.new as Order).id
-                  ? ({ ...o, ...(payload.new as Order) } as Order)
-                  : o,
-              ),
-            );
-          } else if (eventType === "DELETE") {
-            const oldId = (payload.old as { id: string }).id;
-            setOrders((prev) => prev.filter((o) => o.id !== oldId));
-          }
-        },
-      )
-      .subscribe();
+
+    const applyInsert = (row: Order) => {
+      setOrders((prev) => {
+        if (prev.some((o) => o.id === row.id)) return prev;
+        return [row, ...prev];
+      });
+    };
+
+    for (const id of restaurantIds) {
+      const channel = supabase
+        .channel(`orders_pedidos_${id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${id}` },
+          (payload) => {
+            const eventType = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
+            const row = (payload.new ?? payload.old) as Order | undefined;
+            if (!row) return;
+            if (eventType === "INSERT") {
+              applyInsert(payload.new as Order);
+            } else if (eventType === "UPDATE") {
+              setOrders((prev) =>
+                prev.map((o) =>
+                  o.id === (payload.new as Order).id
+                    ? ({ ...o, ...(payload.new as Order) } as Order)
+                    : o,
+                ),
+              );
+            } else if (eventType === "DELETE") {
+              const oldId = (payload.old as { id: string }).id;
+              setOrders((prev) => prev.filter((o) => o.id !== oldId));
+            }
+          },
+        )
+        .subscribe();
+      channels.push(channel);
+    }
 
     poll = setInterval(() => {
       // fallback polling silencioso quando realtime falhar
-      getOrdersByRestaurant(restaurant.id)
+      fetchAllOrders()
         .then((data) => {
           // só atualiza se tamanho/status mudou para evitar piscar
           setOrders((prev) => {
@@ -200,7 +225,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
 
     return () => {
       if (poll) clearInterval(poll);
-      if (channel) {
+      for (const channel of channels) {
         try {
           supabase.removeChannel(channel);
         } catch {
@@ -208,7 +233,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         }
       }
     };
-  }, [restaurant.id]);
+  }, [restaurantIds, fetchAllOrders]);
 
   async function changeStatus(orderId: string, status: OrderStatus) {
     const ok = await updateOrderStatus(orderId, status);
@@ -246,7 +271,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         })),
         created_at: order.created_at,
       },
-      restaurant.name,
+      restaurantNames.get(order.restaurant_id) ?? "",
     );
     printTicket(ticket);
   }
@@ -269,7 +294,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         delivery_address: order.delivery_address || "",
         delivery_fee: order.delivery_fee || 0,
       },
-      restaurant.name,
+      restaurantNames.get(order.restaurant_id) ?? "",
     );
     sendToWhatsApp(phone, msg);
   }
@@ -288,6 +313,9 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
 
   const displayedOrders = useMemo(() => {
     let list = [...orders];
+    if (storeFilter !== "all") {
+      list = list.filter((o) => o.restaurant_id === storeFilter);
+    }
     const start = periodStart(period);
     if (start) {
       const ts = start.getTime();
@@ -319,7 +347,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
       });
     }
     return list;
-  }, [orders, period, q, filter]);
+  }, [orders, period, q, filter, storeFilter]);
 
   if (loading && orders.length === 0) {
     return (
@@ -380,6 +408,21 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
           />
         </div>
         <div className="flex items-center gap-2">
+          {multi && (
+            <Select value={storeFilter} onValueChange={setStoreFilter}>
+              <SelectTrigger className="h-9 w-[170px] border-white/10 bg-white/[0.04] text-xs text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="border-white/10 bg-[#1a1a22] text-white">
+                <SelectItem value="all">Todas as lojas</SelectItem>
+                {restaurants.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <Calendar className="size-3.5" /> Período
           </div>
@@ -467,6 +510,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
                         <OrderCard
                           key={order.id}
                           order={order}
+                          storeName={multi ? restaurantNames.get(order.restaurant_id) : undefined}
                           onOpen={() => setDetail(order)}
                           onAdvance={() => changeStatus(order.id, NEXT_STATUS[order.status]!)}
                           onCancel={() => requestCancel(order)}
@@ -552,6 +596,9 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
                               <OrderCard
                                 key={order.id}
                                 order={order}
+                                storeName={
+                                  multi ? restaurantNames.get(order.restaurant_id) : undefined
+                                }
                                 compact
                                 onOpen={() => setDetail(order)}
                               />
@@ -575,6 +622,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
       {/* Detalhes do pedido */}
       <OrderDetailDialog
         order={detail}
+        storeName={detail ? restaurantNames.get(detail.restaurant_id) : undefined}
         onClose={() => setDetail(null)}
         onChangeStatus={changeStatus}
         onPrint={printOrder}
@@ -586,12 +634,14 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
 
 function OrderCard({
   order,
+  storeName,
   onOpen,
   onAdvance,
   onCancel,
   compact = false,
 }: {
   order: Order;
+  storeName?: string;
   onOpen: () => void;
   onAdvance?: () => void;
   onCancel?: () => void;
@@ -613,6 +663,11 @@ function OrderCard({
             {ORDER_STATUS_LABELS[order.status]}
           </span>
         </div>
+        {storeName && (
+          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-semibold text-gray-400">
+            <Store className="size-2.5" /> {storeName}
+          </span>
+        )}
         <p className="truncate text-[11px] text-gray-400">{order.customer_name}</p>
         {!compact && order.order_items && order.order_items.length > 0 && (
           <p className="line-clamp-2 text-[10px] leading-relaxed text-gray-500">
@@ -667,12 +722,14 @@ function OrderCard({
 
 function OrderDetailDialog({
   order,
+  storeName,
   onClose,
   onChangeStatus,
   onPrint,
   onWhatsApp,
 }: {
   order: Order | null;
+  storeName?: string;
   onClose: () => void;
   onChangeStatus: (id: string, status: OrderStatus) => void;
   onPrint: (o: Order) => void;
@@ -692,7 +749,8 @@ function OrderDetailDialog({
             <OrderStatusBadge status={order.status} />
           </DialogTitle>
           <DialogDescription className="text-gray-500">
-            Pedido de {order.customer_name} • {formatDate(order.created_at)}
+            {storeName ? `${storeName} • ` : ""}Pedido de {order.customer_name} •{" "}
+            {formatDate(order.created_at)}
           </DialogDescription>
         </DialogHeader>
 
@@ -752,10 +810,14 @@ function OrderDetailDialog({
                   const notes = (item as unknown as { notes?: string }).notes ?? "";
                   const hasAddons = notes.toLowerCase().includes("adicionais:");
                   return (
-                    <div key={item.id} className="rounded-lg border border-white/[0.04] bg-black/20 px-2.5 py-2">
+                    <div
+                      key={item.id}
+                      className="rounded-lg border border-white/[0.04] bg-black/20 px-2.5 py-2"
+                    >
                       <div className="flex items-center justify-between gap-3 text-sm">
                         <span className="min-w-0 flex-1 truncate text-gray-200">
-                          <span className="font-bold text-white">{item.quantity}x</span> {item.product_name}
+                          <span className="font-bold text-white">{item.quantity}x</span>{" "}
+                          {item.product_name}
                         </span>
                         <span className="shrink-0 font-bold text-white">{brl(item.total)}</span>
                       </div>

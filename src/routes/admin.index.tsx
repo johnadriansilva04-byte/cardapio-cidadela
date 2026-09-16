@@ -489,16 +489,16 @@ function AdminDashboardOverview() {
               <div className="flex items-center gap-2">
                 {activeRestaurant ? (
                   <Link
-                    to="/admin/restaurante/$id"
-                    params={{ id: activeRestaurant.id }}
-                    search={{ tab: "pedidos" }}
+                    to="/admin/pedidos"
+                    search={{ store: activeRestaurant.id }}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
                   >
                     Ver pedidos <ArrowRight className="size-3" />
                   </Link>
                 ) : (
                   <Link
-                    to="/admin/restaurantes"
+                    to="/admin/pedidos"
+                    search={{ store: undefined }}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
                   >
                     Ver pedidos <ArrowRight className="size-3" />
@@ -571,9 +571,8 @@ function AdminDashboardOverview() {
                   }
                   onManageOrders={() =>
                     navigate({
-                      to: "/admin/restaurante/$id",
-                      params: { id: r.id },
-                      search: { tab: "pedidos" },
+                      to: "/admin/pedidos",
+                      search: { store: r.id },
                     })
                   }
                   onSettings={() =>

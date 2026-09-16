@@ -174,7 +174,7 @@ export default function AdminDashboard() {
           )}
 
           {tab === "orders" && selectedRestaurant && (
-            <OrderManager restaurant={selectedRestaurant} />
+            <OrderManager restaurants={[selectedRestaurant]} />
           )}
 
           {tab === "share" && selectedRestaurant && (
@@ -234,11 +234,13 @@ export default function AdminDashboard() {
               style={{ backgroundColor: r.primary_color + "33" }}
             >
               {r.logo_url ? (
-                <img
-                  src={r.logo_url}
-                  alt={r.name}
-                  className="size-10 rounded-lg object-cover"
-                />
+                <div className="aspect-square size-10 shrink-0 overflow-hidden rounded-lg">
+                  <img
+                    src={r.logo_url}
+                    alt={r.name}
+                    className="size-full object-cover"
+                  />
+                </div>
               ) : (
                 <Store className="size-5 text-cyan-400" />
               )}

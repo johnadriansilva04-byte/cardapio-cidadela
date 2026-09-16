@@ -73,7 +73,7 @@ export function RestaurantCardCompact({
       className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-all hover:border-cyan-500/30 hover:bg-white/[0.05] hover:shadow-[0_8px_30px_rgba(6,182,212,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40"
     >
       {/* cover */}
-      <div className="relative h-24 w-full overflow-hidden bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-transparent">
+      <div className="relative aspect-[21/9] w-full overflow-hidden bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-transparent">
         {hasImage ? (
           <img
             src={cover}
@@ -114,12 +114,12 @@ export function RestaurantCardCompact({
 
       {/* avatar overlapping - moved outside cover container */}
       <div className="relative">
-        <div className="absolute top-0 left-3 z-20 flex size-16 items-center justify-center rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
+        <div className="absolute top-0 left-3 z-20 flex size-16 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
               alt={restaurant.name}
-              className="size-16 rounded-2xl object-cover"
+              className="size-full object-cover"
               loading="lazy"
             />
           ) : (

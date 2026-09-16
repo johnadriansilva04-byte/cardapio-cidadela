@@ -197,11 +197,13 @@ export function RestaurantManager({
       {logoUrl && (
         <div className="rounded-lg border border-cyan-500/20 p-3">
           <p className="mb-2 text-[10px] text-gray-500">Preview do logo:</p>
-          <img
-            src={logoUrl}
-            alt="Logo preview"
-            className="size-16 rounded-full object-cover"
-          />
+          <div className="aspect-square size-16 overflow-hidden rounded-full">
+            <img
+              src={logoUrl}
+              alt="Logo preview"
+              className="size-full object-cover"
+            />
+          </div>
         </div>
       )}
 

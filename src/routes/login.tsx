@@ -15,7 +15,6 @@ import {
   signInWithPhone,
   signUpWithPhone,
   isSupabaseConfigured,
-  missingSupabaseEnvVars,
 } from "@/modules/supabase/auth";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -173,39 +172,17 @@ function LoginPage() {
   }
 
   if (!isSupabaseConfigured()) {
-    const missing = missingSupabaseEnvVars();
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f] px-4">
         <div className="max-w-md text-center">
           <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-yellow-500/10">
             <AlertCircle className="size-6 text-yellow-400" />
           </div>
-          <h1 className="text-xl font-bold text-white">
-            Supabase não configurado
-          </h1>
+          <h1 className="text-xl font-bold text-white">Supabase não configurado</h1>
           <p className="mt-2 text-sm text-gray-400">
-            {missing.length > 0 ? (
-              <>
-                Falta definir{" "}
-                {missing.map((name, index) => (
-                  <span key={name}>
-                    {index > 0 && " e "}
-                    <code className="text-cyan-400">{name}</code>
-                  </span>
-                ))}{" "}
-                nas configurações do projeto. Depois do ajuste, é preciso
-                refazer o deploy — os valores são embutidos no bundle durante o
-                build.
-              </>
-            ) : (
-              <>
-                As variáveis{" "}
-                <code className="text-cyan-400">VITE_SUPABASE_URL</code> e{" "}
-                <code className="text-cyan-400">VITE_SUPABASE_ANON_KEY</code>{" "}
-                estão definidas, mas com valores inválidos. Verifique se a URL
-                do projeto está correta e se a chave não é um placeholder.
-              </>
-            )}
+            A configuração do Supabase chegou com valores inválidos. Verifique se{" "}
+            <code className="text-cyan-400">VITE_SUPABASE_URL</code> aponta para o
+            projeto correto, já que um valor de placeholder desativa o login.
           </p>
           <Link
             to="/"

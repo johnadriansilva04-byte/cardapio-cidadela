@@ -1,9 +1,23 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+/**
+ * Projeto Supabase de produção do Cardápio Cidadela.
+ *
+ * A chave é uma `publishable`/anon: ela é pública por design, vai embutida no
+ * bundle de qualquer forma e todo o acesso é limitado pelas políticas de RLS
+ * de `supabase/schema.sql`. Servem de padrão para que builds que não recebem
+ * as variáveis da Vercel — previews de PR e o editor do Lovable — continuem
+ * funcionando, comportamento que existia antes da refatoração de 2026-09-03.
+ *
+ * As variáveis de ambiente, quando presentes, têm precedência.
+ */
+const FALLBACK_SUPABASE_URL = "https://wlznmlsvnlgsljanbjgy.supabase.co";
+const FALLBACK_SUPABASE_ANON_KEY = "sb_publishable_jTZswjHxeVR8hqT1t9LXDw_hxgCyLJz";
+
 let _client: SupabaseClient | null = null;
 let _clientKey = "";
 
-function getEnv(key: string): string {
+function getEnv(key: string, fallback: string): string {
   // Vite injects VITE_* via import.meta.env; SSR may also have process.env
   try {
     // @ts-ignore
@@ -20,16 +34,16 @@ function getEnv(key: string): string {
   } catch {
     /* ignore */
   }
-  return "";
+  return fallback;
 }
 
 function getSupabaseUrl(): string {
   // Um "/" final quebra a montagem das URLs /auth/v1 e /rest/v1.
-  return getEnv("VITE_SUPABASE_URL").replace(/\/+$/, "");
+  return getEnv("VITE_SUPABASE_URL", FALLBACK_SUPABASE_URL).replace(/\/+$/, "");
 }
 
 function getSupabaseAnonKey(): string {
-  return getEnv("VITE_SUPABASE_ANON_KEY");
+  return getEnv("VITE_SUPABASE_ANON_KEY", FALLBACK_SUPABASE_ANON_KEY);
 }
 
 function makeClient(url: string, key: string): SupabaseClient {
@@ -103,14 +117,6 @@ export function getSupabaseConfig(): {
 
 export function isSupabaseConfigured(): boolean {
   return getSupabaseConfig().configured;
-}
-
-/** Nomes das variáveis ausentes, para a tela de login dizer o que falta. */
-export function missingSupabaseEnvVars(): string[] {
-  const missing: string[] = [];
-  if (!getSupabaseUrl()) missing.push("VITE_SUPABASE_URL");
-  if (!getSupabaseAnonKey()) missing.push("VITE_SUPABASE_ANON_KEY");
-  return missing;
 }
 
 // Legacy types for game matchmaking

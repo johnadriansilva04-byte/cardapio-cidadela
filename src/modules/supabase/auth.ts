@@ -286,7 +286,7 @@ export function onAuthStateChange(
  * Delega para `client.ts`: o cliente e este gate precisam concordar, senão a
  * tela de login acusa "não configurado" enquanto o cliente funciona.
  */
-export { isSupabaseConfigured, missingSupabaseEnvVars } from "./client";
+export { isSupabaseConfigured } from "./client";
 
 /**
  * SQL to create the profiles table in Supabase.

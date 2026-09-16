@@ -8,14 +8,15 @@ function getEnv(key: string): string {
   try {
     // @ts-ignore
     const v = import.meta.env?.[key];
-    if (typeof v === "string" && v) return v;
+    if (typeof v === "string" && v.trim()) return v.trim();
   } catch {
     /* ignore */
   }
   try {
     // @ts-ignore
-    const v = (globalThis as unknown as { process?: { env?: Record<string, string> } })?.process?.env?.[key];
-    if (typeof v === "string" && v) return v;
+    const v = (globalThis as unknown as { process?: { env?: Record<string, string> } })?.process
+      ?.env?.[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
   } catch {
     /* ignore */
   }
@@ -23,7 +24,8 @@ function getEnv(key: string): string {
 }
 
 function getSupabaseUrl(): string {
-  return getEnv("VITE_SUPABASE_URL");
+  // Um "/" final quebra a montagem das URLs /auth/v1 e /rest/v1.
+  return getEnv("VITE_SUPABASE_URL").replace(/\/+$/, "");
 }
 
 function getSupabaseAnonKey(): string {
@@ -75,6 +77,40 @@ export const supabase = new Proxy({} as SupabaseClient, {
 
 export function isSupabasePlaceholder(): boolean {
   return !getSupabaseUrl() || !getSupabaseAnonKey();
+}
+
+/**
+ * Resolve a configuração do Supabase por um único caminho.
+ *
+ * `client.ts` e `auth.ts` já leram essas variáveis de formas diferentes no
+ * passado — o cliente aceitava `process.env` como fallback e o gate do login
+ * não — o que fazia a tela dizer "Supabase não configurado" com o cliente
+ * conectado. Manter a resolução aqui garante que os dois concordem.
+ */
+export function getSupabaseConfig(): {
+  url: string;
+  key: string;
+  configured: boolean;
+} {
+  const url = getSupabaseUrl();
+  const key = getSupabaseAnonKey();
+  return {
+    url,
+    key,
+    configured: Boolean(url && key && !url.includes("placeholder")),
+  };
+}
+
+export function isSupabaseConfigured(): boolean {
+  return getSupabaseConfig().configured;
+}
+
+/** Nomes das variáveis ausentes, para a tela de login dizer o que falta. */
+export function missingSupabaseEnvVars(): string[] {
+  const missing: string[] = [];
+  if (!getSupabaseUrl()) missing.push("VITE_SUPABASE_URL");
+  if (!getSupabaseAnonKey()) missing.push("VITE_SUPABASE_ANON_KEY");
+  return missing;
 }
 
 // Legacy types for game matchmaking

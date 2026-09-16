@@ -282,12 +282,11 @@ export function onAuthStateChange(
 
 /**
  * Check if Supabase is properly configured (URL and key are set).
+ *
+ * Delega para `client.ts`: o cliente e este gate precisam concordar, senão a
+ * tela de login acusa "não configurado" enquanto o cliente funciona.
  */
-export function isSupabaseConfigured(): boolean {
-  const url = import.meta.env?.VITE_SUPABASE_URL || "";
-  const key = import.meta.env?.VITE_SUPABASE_ANON_KEY || "";
-  return Boolean(url && key && !url.includes("placeholder"));
-}
+export { isSupabaseConfigured, missingSupabaseEnvVars } from "./client";
 
 /**
  * SQL to create the profiles table in Supabase.

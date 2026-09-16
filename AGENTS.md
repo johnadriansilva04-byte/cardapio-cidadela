@@ -17,7 +17,12 @@
 - `npm run lint` reports ~490 pre-existing errors repo-wide. Check only the
   files you touched (`npx eslint <paths>`); don't try to fix the baseline.
 - No `.env` in the repo. Authenticated screens can't be exercised locally
-  without `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
+  without `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`; `.env.example` lists
+  what to fill in. Vite inlines the values at build time, so changing them
+  requires a new build/deploy — not just an env change on the host.
+- On Vercel the two variables must be enabled for **both** Production and
+  Preview. A variable scoped to Production only leaves every PR preview
+  unconfigured, and `/login` renders "Supabase não configurado" there.
 
 ## Architecture notes
 
@@ -35,6 +40,11 @@
 
 ## Domain invariants
 
+- Supabase env resolution lives only in `src/modules/supabase/client.ts`
+  (`getSupabaseConfig` / `isSupabaseConfigured` / `missingSupabaseEnvVars`).
+  `auth.ts` re-exports them; don't read `import.meta.env` directly elsewhere, or
+  the client and the login gate can disagree about whether the app is
+  configured.
 - `orders` has RLS where only the restaurant owner can SELECT. Any read-back of
   an order by an anonymous/guest client must go through a SECURITY DEFINER RPC
   (`get_order_tracking`, `get_orders_by_guest`, `get_order_by_idempotency_key`).

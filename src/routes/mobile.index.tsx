@@ -11,6 +11,7 @@ import {
   subscribePreferences,
 } from "@/modules/mobile/preferences";
 import { useOwnerOrders } from "@/modules/mobile/useOwnerOrders";
+import { previewOrderAlert } from "@/lib/orderAlertSound";
 import { updateOrderStatus } from "@/modules/supabase/orders";
 import { brl } from "@/lib/utils";
 import type { Order, OrderStatus } from "@/lib/types";
@@ -119,6 +120,7 @@ function MobileOrdersPage() {
   function toggleSound() {
     const next = !prefs.sound;
     savePreference("sound", next);
+    if (next) previewOrderAlert();
     toast.success(next ? "Alerta sonoro ativado." : "Alerta sonoro desativado.");
   }
 

@@ -28,6 +28,7 @@ import {
   type NotificationPermissionState,
 } from "@/modules/mobile/preferences";
 import { useOwnerOrders } from "@/modules/mobile/useOwnerOrders";
+import { previewOrderAlert } from "@/lib/orderAlertSound";
 import { useWakeLock } from "@/modules/mobile/useWakeLock";
 import { isOpenNow } from "@/lib/operatingHours";
 import { usePwaInstall } from "@/modules/pwa/usePwaInstall";
@@ -156,9 +157,12 @@ function MobileConfigPage() {
           <ToggleRow
             icon={<Volume2 className="size-4" />}
             title="Alerta sonoro"
-            description="Toca o aviso grave e vibra quando um pedido novo chega."
+            description="Sirene alta, repetida duas vezes, com vibração a cada pedido novo."
             checked={prefs.sound}
-            onChange={(value) => update("sound", value)}
+            onChange={(value) => {
+              update("sound", value);
+              if (value) previewOrderAlert();
+            }}
           />
 
           <ToggleRow

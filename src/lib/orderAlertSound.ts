@@ -1,12 +1,35 @@
-// Alerta sonoro grave e ALTO para novos pedidos.
+// Alerta sonoro ALTO e insistente para novos pedidos.
 // Web Audio API — sem arquivo externo — funciona offline.
-// O AudioContext so pode iniciar depois de um gesto do usuário —
+// O AudioContext so pode iniciar depois de um gesto do usuario —
 // registramos um unlock global no primeiro pointerdown/touch/keydown.
+//
+// Cadeia de ganho pensada para o alto-falante de celular no balcao:
+// - duas rodadas completas da sirene, com pausa curta entre elas;
+// - highpass em 500Hz antes da saturacao: o speaker de celular nao reproduz
+//   grave util, entao cortar essa banda libera headroom para o que se ouve;
+// - saturacao forte (waveshaper + limiter) empurra o sinal para o teto de
+//   amplitude, maximizando o RMS — que e o que define "volume" percebido.
 
 import { loadPreferences } from "@/modules/mobile/preferences";
 
+const STEP = 0.09;
+
+// Uma rodada da sirene: 3 rajadas curtas + tom de fechamento.
+const BURST_COUNT = 3;
+const BURST_PERIOD = 1.02;
+const BURST_LENGTH = 0.82;
+const CLOSING_LENGTH = 0.5;
+const CYCLE_LENGTH = BURST_COUNT * BURST_PERIOD + CLOSING_LENGTH;
+
+// O alerta inteiro repete duas vezes, com uma pausa para o segundo chamar atencao.
+const CYCLE_COUNT = 2;
+const CYCLE_GAP = 0.6;
+const ALERT_SECONDS = CYCLE_COUNT * CYCLE_LENGTH + (CYCLE_COUNT - 1) * CYCLE_GAP;
+
 let audioCtx: AudioContext | null = null;
 let unlockRegistered = false;
+let current: { master: GainNode; oscillators: OscillatorNode[]; timer: number | null } | null =
+  null;
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -46,31 +69,129 @@ export function requestOrderNotificationPermission() {
   }
 }
 
-/** Diz se o alerta sonoro está ligado nas preferências do dispositivo. */
+/** Diz se o alerta sonoro esta ligado nas preferencias do dispositivo. */
 export function isOrderAlertEnabled(): boolean {
   return loadPreferences().sound;
 }
 
+function softClipCurve(drive: number): Float32Array<ArrayBuffer> {
+  const size = 1024;
+  const curve = new Float32Array(new ArrayBuffer(size * 4));
+  const norm = Math.tanh(drive);
+  for (let i = 0; i < size; i += 1) {
+    const x = (i / (size - 1)) * 2 - 1;
+    curve[i] = Math.tanh(drive * x) / norm;
+  }
+  return curve;
+}
+
+/** Beep de emergencia (Web Audio indisponivel), montado em memoria. */
 function fallbackBeep() {
   try {
-    const a = new Audio(
-      "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==",
-    );
-    a.volume = 1;
-    void a.play().catch(() => {});
+    const sampleRate = 8000;
+    const beepSeconds = 0.35;
+    const pauseSeconds = 0.12;
+    const repeats = 8;
+    const total = Math.round(sampleRate * (beepSeconds + pauseSeconds) * repeats);
+    const samples = new Int16Array(total);
+    for (let i = 0; i < total; i += 1) {
+      const seconds = i / sampleRate;
+      const inBeep = seconds % (beepSeconds + pauseSeconds) < beepSeconds;
+      const tone = Math.sin(2 * Math.PI * 1400 * seconds) >= 0 ? 1 : -1;
+      samples[i] = inBeep ? tone * 32000 : 0;
+    }
+    const bytes = new Uint8Array(44 + samples.length * 2);
+    const view = new DataView(bytes.buffer);
+    const writeStr = (offset: number, text: string) => {
+      for (let i = 0; i < text.length; i += 1) bytes[offset + i] = text.charCodeAt(i);
+    };
+    writeStr(0, "RIFF");
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeStr(8, "WAVEfmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, "data");
+    view.setUint32(40, samples.length * 2, true);
+    for (let i = 0; i < samples.length; i += 1) {
+      view.setInt16(44 + i * 2, samples[i], true);
+    }
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+    const audio = new Audio(`data:audio/wav;base64,${btoa(binary)}`);
+    audio.volume = 1;
+    void audio.play().catch(() => {});
   } catch {
     /* ignore */
   }
 }
 
-export function playNewOrderAlert() {
-  // Preferência por dispositivo — quem opera no balcão pode desligar o som.
-  if (!loadPreferences().sound) return;
+/** Interrompe a sirene em andamento (alertas seguidos nao se sobrepoem). */
+export function stopOrderAlert() {
+  if (!current) return;
+  const { master, oscillators, timer } = current;
+  current = null;
+  if (timer !== null) window.clearTimeout(timer);
+  try {
+    const ctx = audioCtx;
+    if (ctx) {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setValueAtTime(0.0001, ctx.currentTime);
+    }
+    for (const osc of oscillators) {
+      try {
+        osc.stop();
+      } catch {
+        /* ja parado */
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
-  // vibração em mobile
+function scheduleChirp(
+  ctx: AudioContext,
+  oscillators: OscillatorNode[],
+  target: AudioNode,
+  start: number,
+  length: number,
+  low: number,
+  high: number,
+  level: number,
+  type: OscillatorType = "sawtooth",
+) {
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.setValueAtTime(low, start);
+  for (let t = start + STEP; t < start + length; t += STEP) {
+    const index = Math.round((t - start) / STEP);
+    osc.frequency.setValueAtTime(index % 2 === 0 ? high : low, t);
+  }
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.exponentialRampToValueAtTime(level, start + 0.008);
+  g.gain.setValueAtTime(level, start + length - 0.04);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  osc.connect(g);
+  g.connect(target);
+  osc.start(start);
+  osc.stop(start + length + 0.02);
+  oscillators.push(osc);
+}
+
+export function playNewOrderAlert(options?: { force?: boolean }) {
+  // Preferencia por dispositivo — quem opera no balcao pode desligar o som.
+  if (!options?.force && !loadPreferences().sound) return;
+
+  // vibracao em mobile — acompanha as duas rodadas da sirene
   try {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate([220, 80, 220, 80, 320]);
+      navigator.vibrate([400, 90, 400, 90, 400, 250, 400, 90, 400, 90, 400, 90, 600]);
     }
   } catch {
     /* ignore */
@@ -81,68 +202,86 @@ export function playNewOrderAlert() {
     fallbackBeep();
     return;
   }
-  // Se ainda suspenso (sem gesto), tenta fallback audível
   if (ctx.state === "suspended") {
     void ctx.resume().catch(() => fallbackBeep());
-    // tenta tocar mesmo suspenso — alguns browsers ainda tocam baixo
   }
-  const t = ctx.currentTime;
+
+  stopOrderAlert();
+
+  const t = ctx.currentTime + 0.02;
 
   try {
     const master = ctx.createGain();
-    master.gain.setValueAtTime(0.0001, t);
-    master.gain.exponentialRampToValueAtTime(1.35, t + 0.02);
-    master.gain.setValueAtTime(1.35, t + 0.32);
-    master.gain.exponentialRampToValueAtTime(0.0001, t + 1.9);
-    master.connect(ctx.destination);
+    master.gain.setValueAtTime(1.2, t);
+    master.gain.setValueAtTime(1.2, t + ALERT_SECONDS - 0.08);
+    master.gain.exponentialRampToValueAtTime(0.0001, t + ALERT_SECONDS);
 
-    const lowpass = ctx.createBiquadFilter();
-    lowpass.type = "lowpass";
-    lowpass.frequency.value = 420;
-    lowpass.connect(master);
+    // Corta o grave que o speaker de celular nao reproduz: sobra headroom
+    // para a banda audivel, que passa a saturar mais alto.
+    const rumbleCut = ctx.createBiquadFilter();
+    rumbleCut.type = "highpass";
+    rumbleCut.frequency.value = 500;
+    rumbleCut.Q.value = 0.7;
 
-    // grave pulsante + camada aguda estridente pra cortar o ambiente
-    const PULSES = [
-      { at: 0, freq: 165, type: "sawtooth" as const, gain: 1.0 },
-      { at: 0.34, freq: 110, type: "sawtooth" as const, gain: 0.95 },
-      { at: 0.68, freq: 82, type: "square" as const, gain: 1.0 },
-      { at: 0.96, freq: 165, type: "square" as const, gain: 0.9 },
-    ];
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = softClipCurve(2.6);
+    shaper.oversample = "4x";
 
-    for (const pulse of PULSES) {
-      const start = t + pulse.at;
-      const osc = ctx.createOscillator();
-      osc.type = pulse.type;
-      osc.frequency.setValueAtTime(pulse.freq, start);
-      osc.frequency.exponentialRampToValueAtTime(pulse.freq * 0.55, start + 0.22);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(pulse.gain, start + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
-      osc.connect(g);
-      g.connect(lowpass);
-      osc.start(start);
-      osc.stop(start + 0.32);
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -1;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.002;
+    limiter.release.value = 0.18;
+
+    const bright = ctx.createBiquadFilter();
+    bright.type = "peaking";
+    bright.frequency.value = 2200;
+    bright.Q.value = 0.9;
+    bright.gain.value = 7;
+
+    master.connect(rumbleCut);
+    rumbleCut.connect(shaper);
+    shaper.connect(limiter);
+    limiter.connect(bright);
+    bright.connect(ctx.destination);
+
+    const oscillators: OscillatorNode[] = [];
+
+    for (let cycle = 0; cycle < CYCLE_COUNT; cycle += 1) {
+      const cycleStart = t + cycle * (CYCLE_LENGTH + CYCLE_GAP);
+
+      for (let burst = 0; burst < BURST_COUNT; burst += 1) {
+        const start = cycleStart + burst * BURST_PERIOD;
+
+        // sirene de dois tons alternados — o grosso do volume
+        scheduleChirp(ctx, oscillators, master, start, BURST_LENGTH, 1000, 1620, 1.6);
+
+        // camada uma oitava acima: junto com a saturacao, corta o ruido da cozinha
+        scheduleChirp(ctx, oscillators, master, start, BURST_LENGTH, 2000, 2400, 0.9, "square");
+      }
+
+      // tom de fechamento, garante que cada rodada "termine" audivel
+      const closingStart = cycleStart + BURST_COUNT * BURST_PERIOD;
+      scheduleChirp(ctx, oscillators, master, closingStart, CLOSING_LENGTH, 1900, 1900, 1.1);
     }
 
-    // camada aguda tipo "ding-ding" por cima (sine 880hz)
-    for (const at of [0.02, 0.36, 0.7, 0.98]) {
-      const start = t + at;
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.value = 880;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(0.55, start + 0.008);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
-      osc.connect(g);
-      g.connect(master);
-      osc.start(start);
-      osc.stop(start + 0.2);
-    }
+    const timer = window.setTimeout(
+      () => {
+        if (current?.master === master) current = null;
+      },
+      (ALERT_SECONDS + 0.3) * 1000,
+    );
+
+    current = { master, oscillators, timer };
   } catch {
     fallbackBeep();
   }
+}
+
+/** Previa do alerta, disparada pelo usuario ao ajustar as preferencias. */
+export function previewOrderAlert() {
+  playNewOrderAlert({ force: true });
 }
 
 registerUnlockOnce();

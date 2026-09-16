@@ -4,7 +4,9 @@
 // registramos um unlock global no primeiro pointerdown/touch/keydown.
 //
 // Cadeia de ganho pensada para o alto-falante de celular no balcao:
-// - duas rodadas completas da sirene, com pausa curta entre elas;
+// - tres rodadas completas da sirene, com pausa curta entre elas;
+// - rajadas longas com intervalo curto: o som fica quase continuo, e som
+//   continuo soa mais alto que bipes espacados;
 // - highpass em 500Hz antes da saturacao: o speaker de celular nao reproduz
 //   grave util, entao cortar essa banda libera headroom para o que se ouve;
 // - saturacao forte (waveshaper + limiter) empurra o sinal para o teto de
@@ -14,17 +16,24 @@ import { loadPreferences } from "@/modules/mobile/preferences";
 
 const STEP = 0.09;
 
-// Uma rodada da sirene: 3 rajadas curtas + tom de fechamento.
+// Uma rodada da sirene: rajadas longas com intervalo curto — o som fica
+// praticamente continuo, o que soa muito mais alto que bipes espaçados.
 const BURST_COUNT = 3;
-const BURST_PERIOD = 1.02;
-const BURST_LENGTH = 0.82;
-const CLOSING_LENGTH = 0.5;
+const BURST_PERIOD = 1.28;
+const BURST_LENGTH = 1.16;
+const CLOSING_LENGTH = 0.6;
 const CYCLE_LENGTH = BURST_COUNT * BURST_PERIOD + CLOSING_LENGTH;
 
-// O alerta inteiro repete duas vezes, com uma pausa para o segundo chamar atencao.
-const CYCLE_COUNT = 2;
-const CYCLE_GAP = 0.6;
+// Tres rodadas: o alerta dura o suficiente para ser notado mesmo no barulho
+// da cozinha, e nao passa tanto tempo a ponto de virar incomodo.
+const CYCLE_COUNT = 3;
+const CYCLE_GAP = 0.5;
 const ALERT_SECONDS = CYCLE_COUNT * CYCLE_LENGTH + (CYCLE_COUNT - 1) * CYCLE_GAP;
+
+// Volumes de pico. O master alto + saturação forte empurram o sinal para o
+// teto do limiter: o RMS (volume percebido) sobe junto.
+const MASTER_LEVEL = 1.8;
+const DRIVE = 4;
 
 let audioCtx: AudioContext | null = null;
 let unlockRegistered = false;
@@ -89,16 +98,18 @@ function softClipCurve(drive: number): Float32Array<ArrayBuffer> {
 function fallbackBeep() {
   try {
     const sampleRate = 8000;
-    const beepSeconds = 0.35;
-    const pauseSeconds = 0.12;
-    const repeats = 8;
+    const beepSeconds = 0.62;
+    const pauseSeconds = 0.06;
+    const repeats = 14;
     const total = Math.round(sampleRate * (beepSeconds + pauseSeconds) * repeats);
     const samples = new Int16Array(total);
     for (let i = 0; i < total; i += 1) {
       const seconds = i / sampleRate;
       const inBeep = seconds % (beepSeconds + pauseSeconds) < beepSeconds;
-      const tone = Math.sin(2 * Math.PI * 1400 * seconds) >= 0 ? 1 : -1;
-      samples[i] = inBeep ? tone * 32000 : 0;
+      // onda quadrada em 1350Hz: mais energia audivel que a senoide no speaker
+      // pequeno, e a amplitude vai ao teto do int16 para maximizar o volume.
+      const tone = Math.sin(2 * Math.PI * 1350 * seconds) >= 0 ? 1 : -1;
+      samples[i] = inBeep ? tone * 32767 : 0;
     }
     const bytes = new Uint8Array(44 + samples.length * 2);
     const view = new DataView(bytes.buffer);
@@ -188,10 +199,10 @@ export function playNewOrderAlert(options?: { force?: boolean }) {
   // Preferencia por dispositivo — quem opera no balcao pode desligar o som.
   if (!options?.force && !loadPreferences().sound) return;
 
-  // vibracao em mobile — acompanha as duas rodadas da sirene
+  // vibracao em mobile — acompanha as rodadas da sirene
   try {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate([400, 90, 400, 90, 400, 250, 400, 90, 400, 90, 400, 90, 600]);
+      navigator.vibrate([400, 90, 400, 90, 400, 250, 400, 90, 400, 90, 400, 250, 400, 90, 600]);
     }
   } catch {
     /* ignore */
@@ -202,18 +213,29 @@ export function playNewOrderAlert(options?: { force?: boolean }) {
     fallbackBeep();
     return;
   }
+
+  // O agendamento so vale depois do contexto estar rodando: se o navegador
+  // ainda bloqueia o audio, agendar agora produziria silencio.
   if (ctx.state === "suspended") {
-    void ctx.resume().catch(() => fallbackBeep());
+    ctx
+      .resume()
+      .then(() => scheduleAlert(ctx))
+      .catch(() => fallbackBeep());
+    return;
   }
 
+  scheduleAlert(ctx);
+}
+
+function scheduleAlert(ctx: AudioContext) {
   stopOrderAlert();
 
   const t = ctx.currentTime + 0.02;
 
   try {
     const master = ctx.createGain();
-    master.gain.setValueAtTime(1.2, t);
-    master.gain.setValueAtTime(1.2, t + ALERT_SECONDS - 0.08);
+    master.gain.setValueAtTime(MASTER_LEVEL, t);
+    master.gain.setValueAtTime(MASTER_LEVEL, t + ALERT_SECONDS - 0.08);
     master.gain.exponentialRampToValueAtTime(0.0001, t + ALERT_SECONDS);
 
     // Corta o grave que o speaker de celular nao reproduz: sobra headroom
@@ -224,7 +246,7 @@ export function playNewOrderAlert(options?: { force?: boolean }) {
     rumbleCut.Q.value = 0.7;
 
     const shaper = ctx.createWaveShaper();
-    shaper.curve = softClipCurve(2.6);
+    shaper.curve = softClipCurve(DRIVE);
     shaper.oversample = "4x";
 
     const limiter = ctx.createDynamicsCompressor();
@@ -255,15 +277,15 @@ export function playNewOrderAlert(options?: { force?: boolean }) {
         const start = cycleStart + burst * BURST_PERIOD;
 
         // sirene de dois tons alternados — o grosso do volume
-        scheduleChirp(ctx, oscillators, master, start, BURST_LENGTH, 1000, 1620, 1.6);
+        scheduleChirp(ctx, oscillators, master, start, BURST_LENGTH, 1000, 1620, 2.1);
 
         // camada uma oitava acima: junto com a saturacao, corta o ruido da cozinha
-        scheduleChirp(ctx, oscillators, master, start, BURST_LENGTH, 2000, 2400, 0.9, "square");
+        scheduleChirp(ctx, oscillators, master, start, BURST_LENGTH, 2000, 2400, 1.2, "square");
       }
 
       // tom de fechamento, garante que cada rodada "termine" audivel
       const closingStart = cycleStart + BURST_COUNT * BURST_PERIOD;
-      scheduleChirp(ctx, oscillators, master, closingStart, CLOSING_LENGTH, 1900, 1900, 1.1);
+      scheduleChirp(ctx, oscillators, master, closingStart, CLOSING_LENGTH, 1900, 1900, 1.5);
     }
 
     const timer = window.setTimeout(

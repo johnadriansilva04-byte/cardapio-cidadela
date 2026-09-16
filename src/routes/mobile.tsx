@@ -67,6 +67,7 @@ function MobileLayout() {
     notifyNewOrder(
       " Novo pedido!",
       `${order.customer_name} — ${order.comanda} • R$ ${Number(order.total).toFixed(2)}`,
+      () => navigate({ to: "/mobile" }),
     );
   });
 

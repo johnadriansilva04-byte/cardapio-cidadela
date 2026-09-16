@@ -91,11 +91,18 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 }
 
 /** Mostra uma notificação do sistema, respeitando a preferência e a permissão. */
-export function notifyNewOrder(title: string, body: string): boolean {
+export function notifyNewOrder(title: string, body: string, onClick?: () => void): boolean {
   if (!loadPreferences().notifications) return false;
   if (notificationPermission() !== "granted") return false;
   try {
-    new Notification(title, { body, icon: "/icon-192.png", tag: "cidadela-order" });
+    const n = new Notification(title, { body, icon: "/icon-192.png", tag: "cidadela-order" });
+    if (onClick) {
+      n.onclick = () => {
+        window.focus();
+        onClick();
+        n.close();
+      };
+    }
     return true;
   } catch {
     return false;

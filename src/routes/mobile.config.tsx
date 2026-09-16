@@ -157,7 +157,7 @@ function MobileConfigPage() {
           <ToggleRow
             icon={<Volume2 className="size-4" />}
             title="Alerta sonoro"
-            description="Sirene alta, repetida duas vezes, com vibração a cada pedido novo."
+            description="Sirene alta e insistente — três rodadas, ~14s, com vibração a cada pedido novo."
             checked={prefs.sound}
             onChange={(value) => {
               update("sound", value);

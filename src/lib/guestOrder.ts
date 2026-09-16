@@ -71,7 +71,9 @@ export function forgetOrderId(orderId: string): void {
   }
 }
 
-type OrderWithRestaurant = Order & { restaurant_name?: string };
+// O select com relação devolve `restaurants: { name }` aninhado; a API do
+// Supabase não achata para `restaurant_name`.
+type OrderWithRestaurant = Order & { restaurants?: { name?: string } | null };
 
 /**
  * Lista os pedidos do convidado atual: primeiro tenta a RPC segura por
@@ -114,7 +116,7 @@ export async function getMyOrders(): Promise<GuestOrderSummary[]> {
       results.push({
         id: row.id,
         restaurant_id: row.restaurant_id,
-        restaurant_name: row.restaurant_name ?? "",
+        restaurant_name: row.restaurants?.name ?? "",
         comanda: row.comanda,
         status: row.status,
         total: Number(row.total ?? 0),

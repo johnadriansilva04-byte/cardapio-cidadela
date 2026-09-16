@@ -4,6 +4,7 @@ import { Ban, Package, RefreshCw, Search, Volume2, VolumeX } from "lucide-react"
 import { useAuth } from "@/components/AuthProvider";
 import { OrderCard } from "@/components/mobile/OrderCard";
 import { EmptyState, InlineError } from "@/modules/ui/Feedback";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { computeMetrics, isActive } from "@/modules/mobile/orders";
 import {
   loadPreferences,
@@ -43,6 +44,17 @@ function startOfToday(): number {
   return date.getTime();
 }
 
+/**
+ * Regra de cada aba, compartilhada entre a contagem do botão e a lista filtrada —
+ * antes o número vinha das métricas e podia não bater com o que a lista mostrava
+ * (pedido cancelado contava na aba "Hoje" mas não aparecia nela).
+ */
+function matchesFilter(order: Order, filter: FilterKey, todayStart: number): boolean {
+  if (filter === "all") return true;
+  if (filter === "active") return isActive(order.status);
+  return new Date(order.created_at).getTime() >= todayStart || isActive(order.status);
+}
+
 function MobileOrdersPage() {
   const { user } = useAuth();
   const { restaurants, orders, loading, error, refresh, reloadOrders, restaurantNames } =
@@ -52,25 +64,29 @@ function MobileOrdersPage() {
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
   const [prefs, setPrefs] = useState(() => loadPreferences());
 
   useEffect(() => subscribePreferences(setPrefs), []);
 
   const metrics = useMemo(() => computeMetrics(orders, restaurantNames), [orders, restaurantNames]);
 
+  const todayStart = useMemo(() => startOfToday(), []);
+
+  const filterCounts = useMemo(
+    () => ({
+      active: orders.filter((order) => matchesFilter(order, "active", todayStart)).length,
+      today: orders.filter((order) => matchesFilter(order, "today", todayStart)).length,
+      all: orders.length,
+    }),
+    [orders, todayStart],
+  );
+
   const visibleOrders = useMemo(() => {
     const term = search.trim().toLowerCase();
-    const todayStart = startOfToday();
 
     return orders.filter((order) => {
-      if (filter === "active" && !isActive(order.status)) return false;
-      if (
-        filter === "today" &&
-        new Date(order.created_at).getTime() < todayStart &&
-        !isActive(order.status)
-      ) {
-        return false;
-      }
+      if (!matchesFilter(order, filter, todayStart)) return false;
       if (!term) return true;
       return (
         order.customer_name.toLowerCase().includes(term) ||
@@ -78,7 +94,7 @@ function MobileOrdersPage() {
         (order.customer_phone ?? "").includes(term)
       );
     });
-  }, [orders, filter, search]);
+  }, [orders, filter, search, todayStart]);
 
   const handleAdvance = useCallback(
     async (order: Order, status: OrderStatus) => {
@@ -95,20 +111,24 @@ function MobileOrdersPage() {
     [reloadOrders],
   );
 
-  const handleCancel = useCallback(
-    async (order: Order) => {
-      setBusyId(order.id);
-      const ok = await updateOrderStatus(order.id, "cancelled");
-      if (ok) {
-        toast.success(`${order.comanda} cancelado.`);
-        await reloadOrders();
-      } else {
-        toast.error("Não foi possível cancelar o pedido.");
-      }
-      setBusyId(null);
-    },
-    [reloadOrders],
-  );
+  const handleCancel = useCallback((order: Order) => {
+    setCancelTarget(order);
+  }, []);
+
+  const confirmCancel = useCallback(async () => {
+    const order = cancelTarget;
+    if (!order) return;
+    setBusyId(order.id);
+    const ok = await updateOrderStatus(order.id, "cancelled");
+    if (ok) {
+      toast.success(`${order.comanda} cancelado.`);
+      await reloadOrders();
+    } else {
+      toast.error("Não foi possível cancelar o pedido.");
+    }
+    setBusyId(null);
+    setCancelTarget(null);
+  }, [cancelTarget, reloadOrders]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -186,12 +206,7 @@ function MobileOrdersPage() {
 
         <div className="flex gap-2">
           {FILTERS.map((item) => {
-            const count =
-              item.key === "active"
-                ? metrics.activeCount
-                : item.key === "today"
-                  ? metrics.todayOrders
-                  : metrics.totalOrders;
+            const count = filterCounts[item.key];
             const isActiveFilter = filter === item.key;
             return (
               <button
@@ -276,6 +291,17 @@ function MobileOrdersPage() {
           </span>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+        title="Cancelar pedido?"
+        description={`O pedido ${cancelTarget?.comanda ?? ""} de ${cancelTarget?.customer_name ?? ""} será marcado como cancelado. Essa ação não pode ser desfeita.`}
+        confirmLabel="Cancelar pedido"
+        cancelLabel="Voltar"
+        loading={Boolean(cancelTarget) && busyId === cancelTarget?.id}
+        onConfirm={confirmCancel}
+      />
     </div>
   );
 }

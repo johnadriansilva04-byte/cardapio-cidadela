@@ -1,19 +1,60 @@
 import { supabase } from "./client";
 import type { Order, OrderStatus } from "@/lib/types";
 
+/**
+ * Chave de idempotência do pedido.
+ *
+ * Precisa ser estável para as tentativas da *mesma* confirmação (evita pedido
+ * duplicado quando a resposta falha e o cliente aperta de novo), mas diferente
+ * entre confirmações distintas — do contrário um cliente que pede o mesmo
+ * lanche duas vezes não gera o segundo pedido. Por isso o chamador gera um
+ * token novo por checkout e o reaproveita enquanto a confirmação não conclui.
+ */
 function idempotencyKey(
   restaurantId: string,
   customerPhone: string,
   items: { product_id: string; quantity: number; unit_price: number }[],
+  token?: string,
 ): string {
   const raw = [
     restaurantId,
     customerPhone,
+    token ?? "",
     ...items.map((i) => `${i.product_id}:${i.quantity}:${i.unit_price}`).sort(),
   ].join("|");
   let h = 5381;
   for (let i = 0; i < raw.length; i++) h = ((h << 5) + h) ^ raw.charCodeAt(i);
   return "idem-" + (h >>> 0).toString(16);
+}
+
+/**
+ * Busca o pedido já gravado para uma chave de idempotência.
+ *
+ * `orders` tem RLS (só o dono lê), então um `select` do cliente anônimo volta
+ * sempre vazio — inclusive no fallback do erro 23505, onde o retry legítimo
+ * acabava virando mensagem de erro. A RPC é SECURITY DEFINER e devolve apenas a
+ * linha cuja chave o próprio cliente gerou.
+ */
+async function findOrderByKey(key: string): Promise<Order | null> {
+  const { data: rpcData, error: rpcError } = await supabase.rpc("get_order_by_idempotency_key", {
+    p_key: key,
+  });
+  if (!rpcError && rpcData) {
+    const row = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as Order | undefined;
+    if (row) return row;
+  }
+  if (rpcError) {
+    console.warn(
+      "[orders] get_order_by_idempotency_key indisponível — rode supabase/schema.sql no Supabase.",
+      rpcError.message,
+    );
+  }
+  const { data } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("idempotency_key", key)
+    .maybeSingle();
+  return (data as Order | null) ?? null;
 }
 
 export async function createOrder(
@@ -35,6 +76,10 @@ export async function createOrder(
     delivery_fee: number;
     total: number;
     payment_method: string;
+    /** Texto "troco para quanto" do pagamento em dinheiro. */
+    change_for?: string;
+    /** Token por checkout: mantém a idempotência estável entre retries. */
+    idempotencyToken?: string;
   },
   items: {
     product_id: string;
@@ -45,21 +90,19 @@ export async function createOrder(
     notes?: string;
   }[],
 ): Promise<{ order: Order | null; error?: { message: string; code?: string } }> {
-  const key = idempotencyKey(restaurantId, orderData.customer_phone, items);
+  const key = idempotencyKey(
+    restaurantId,
+    orderData.customer_phone,
+    items,
+    orderData.idempotencyToken,
+  );
 
-  const { data: existing, error: lookupError } = await supabase
-    .from("orders")
-    .select("*")
-    .eq("idempotency_key", key)
-    .maybeSingle();
-
-  if (lookupError && lookupError.code !== "PGRST116") {
-    console.error("Error checking idempotency:", lookupError);
-  }
+  // Retry da mesma confirmação: devolve o pedido já criado, sem duplicar.
+  const existing = await findOrderByKey(key);
   if (existing) {
     return {
       order: {
-        ...(existing as Order),
+        ...existing,
         order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })),
       },
     };
@@ -95,6 +138,9 @@ export async function createOrder(
   if (orderData.customer_neighborhood)
     optional.customer_neighborhood = orderData.customer_neighborhood;
   if (orderData.customer_city) optional.customer_city = orderData.customer_city;
+  // Só faz sentido em dinheiro — evita gravar "troco" em pagamento PIX/cartão.
+  if (orderData.payment_method === "dinheiro" && orderData.change_for?.trim())
+    optional.change_for = orderData.change_for.trim();
 
   // Try insert, stripping any column the schema cache complains about
   let payload: Record<string, unknown> = { ...base, ...optional };
@@ -109,15 +155,11 @@ export async function createOrder(
     lastError = error as { message: string; code?: string };
     // 23505 = idempotency duplicate — fetch and return it
     if (lastError.code === "23505") {
-      const { data: dup } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("idempotency_key", key)
-        .maybeSingle();
+      const dup = await findOrderByKey(key);
       if (dup) {
         return {
           order: {
-            ...(dup as Order),
+            ...dup,
             order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })),
           },
         };
@@ -145,6 +187,9 @@ export async function createOrder(
     let hint = lastError.message;
     if (lastError.code === "42501")
       hint = "Permissão negada (RLS). Execute o schema.sql no Supabase.";
+    else if (lastError.code === "23505")
+      hint =
+        "Este pedido já foi registrado. Recarregue a página para ver a comanda antes de tentar novamente.";
     else if (/Could not find the .*column.*schema cache/i.test(lastError.message)) {
       hint = `${lastError.message} — Rode supabase/schema.sql no Supabase SQL Editor para adicionar as colunas faltantes.`;
     }
@@ -195,6 +240,9 @@ export async function createOrder(
       total: orderData.total,
       payment_method: orderData.payment_method,
       payment_status: orderData.payment_method === "pix" ? "awaiting_confirmation" : "pending",
+      change_for:
+        (payload.change_for as string) ??
+        (orderData.payment_method === "dinheiro" ? (orderData.change_for?.trim() ?? "") : ""),
       status: "received" as OrderStatus,
       idempotency_key: key,
       created_at: new Date().toISOString(),

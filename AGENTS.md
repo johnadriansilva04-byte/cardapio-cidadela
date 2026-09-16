@@ -33,3 +33,20 @@
   only hashed assets under `/assets/`; navigation and API responses always go
   to the network, so orders are never served from a stale cache.
 
+## Domain invariants
+
+- `orders` has RLS where only the restaurant owner can SELECT. Any read-back of
+  an order by an anonymous/guest client must go through a SECURITY DEFINER RPC
+  (`get_order_tracking`, `get_orders_by_guest`, `get_order_by_idempotency_key`).
+  A plain `.from("orders").select()` from the public menu silently returns zero
+  rows, which is what made retries look like duplicates.
+- Order idempotency: the caller (public menu checkout) generates one token per
+  checkout and reuses it while the confirmation is in flight, so a retry is
+  deduped but a genuinely new identical order still creates a new row.
+- `cancelled` orders never count as revenue or as a billable ticket. That rule
+  lives in `computeMetrics`/`aggregateCustomers`/`dailyRevenue` and must stay
+  consistent with the admin financeiro numbers.
+- Order status progression lives in `src/lib/orderFlow.ts` (`nextStatusFor`).
+  Withdrawal (`retirada`) orders skip `out_for_delivery`; don't re-add
+  per-screen copies of the transition map.
+

@@ -78,7 +78,8 @@ async function ensureRestaurantFromLegacyTrial(slug: string): Promise<Restaurant
 }
 
 export default function PublicMenu({ slug }: PublicMenuProps) {
-  const { cart, addToCart, removeFromCart, clearCart, setCart } = usePlatformStore();
+  const { cart, addToCart, removeFromCart, clearCart, setCart, syncCartRestaurant } =
+    usePlatformStore();
   const { user } = useAuth();
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -96,6 +97,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const submittingRef = useRef(false);
+  // Token por checkout: mantém a mesma chave de idempotência enquanto a
+  // confirmação não conclui, para um retry não virar pedido duplicado.
+  const checkoutTokenRef = useRef<string | null>(null);
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({});
   const [now, setNow] = useState(() => new Date());
   const [addonModalProduct, setAddonModalProduct] = useState<Product | null>(null);
@@ -145,13 +149,12 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     };
   }, [slug]);
 
-  const lastSlugRef = useRef(slug);
+  // O carrinho é persistido no dispositivo: ao abrir outro cardápio, itens de
+  // outra loja precisam sair antes que o cliente os envie com preços errados.
   useEffect(() => {
-    if (lastSlugRef.current !== slug) {
-      lastSlugRef.current = slug;
-      setCart([]);
-    }
-  }, [slug, setCart]);
+    if (!restaurant) return;
+    syncCartRestaurant(slug, restaurant.id);
+  }, [slug, restaurant, syncCartRestaurant]);
 
   useEffect(() => {
     if (!restaurant) return;
@@ -329,6 +332,12 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       const orderTotal = subtotal + deliveryFee;
       const guestId = getOrCreateGuestId();
       // junta observações gerais + notas de itens já no notes por item
+      if (!checkoutTokenRef.current) {
+        checkoutTokenRef.current =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
       const { order, error } = await createOrder(
         restaurant.id,
         {
@@ -348,6 +357,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           delivery_fee: deliveryFee,
           total: orderTotal,
           payment_method: form.payment_method,
+          change_for: form.payment_method === "dinheiro" ? form.change_for : "",
+          idempotencyToken: checkoutTokenRef.current,
         },
         orderItems,
       );
@@ -355,6 +366,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         setCheckoutError(error?.message || "Não foi possível concluir o pedido agora. Confira sua conexão e tente novamente.");
         return;
       }
+      checkoutTokenRef.current = null;
       rememberOrderId(order.id);
       clearCart();
       setCheckoutOpen(false);
@@ -491,6 +503,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     customer_neighborhood?: string;
     customer_city?: string;
     delivery_fee?: number;
+    change_for?: string;
   } | null;
 
   const hasAnyProducts = categories.some((cat) => products.some((p) => p.category_id === cat.id && p.available));
@@ -1017,6 +1030,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             customer_neighborhood: currentOrder.customer_neighborhood ?? "",
             customer_city: currentOrder.customer_city ?? "",
             delivery_fee: currentOrder.delivery_fee ?? 0,
+            change_for: (currentOrder.change_for as string) ?? "",
           }}
           restaurantAccent={accent}
           restaurantName={restaurant.name}

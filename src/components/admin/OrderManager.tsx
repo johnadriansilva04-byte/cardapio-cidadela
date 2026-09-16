@@ -49,6 +49,9 @@ import { getOrdersByRestaurant, updateOrderStatus } from "@/modules/supabase/ord
 import { supabase } from "@/modules/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
+import { nextStatusFor } from "@/lib/orderFlow";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { toast } from "sonner";
 
 // Colunas do Kanban — ativos em ordem de fluxo; entregues e cancelados ficam no histórico
 const KANBAN_COLUMNS: { status: OrderStatus; label: string; icon: typeof Clock }[] = [
@@ -57,15 +60,6 @@ const KANBAN_COLUMNS: { status: OrderStatus; label: string; icon: typeof Clock }
   { status: "ready", label: "Prontos", icon: CheckCircle2 },
   { status: "out_for_delivery", label: "A caminho", icon: Bike },
 ];
-
-const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
-  received: "preparing",
-  preparing: "ready",
-  ready: "out_for_delivery",
-  out_for_delivery: "delivered",
-  delivered: null,
-  cancelled: null,
-};
 
 const COLUMN_ACCENT: Record<OrderStatus, string> = {
   received: "border-sky-500/20",
@@ -109,6 +103,8 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [detail, setDetail] = useState<Order | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -212,18 +208,29 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
 
   async function changeStatus(orderId: string, status: OrderStatus) {
     const ok = await updateOrderStatus(orderId, status);
-    if (ok) {
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId ? { ...o, status, updated_at: new Date().toISOString() } : o,
-        ),
-      );
+    if (!ok) {
+      // Antes a falha era silenciosa: o cartão ficava no lugar e o operador
+      // repetia o clique sem saber que o status não foi gravado.
+      toast.error("Não foi possível atualizar o pedido. Tente novamente.");
+      return;
     }
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId ? { ...o, status, updated_at: new Date().toISOString() } : o,
+      ),
+    );
   }
 
   function requestCancel(order: Order) {
-    if (!window.confirm(`Cancelar o pedido ${order.comanda}?`)) return;
-    changeStatus(order.id, "cancelled");
+    setCancelTarget(order);
+  }
+
+  async function confirmCancel() {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    await changeStatus(cancelTarget.id, "cancelled");
+    setCancelling(false);
+    setCancelTarget(null);
   }
 
   function printOrder(order: Order) {
@@ -238,6 +245,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         total: order.total,
         delivery_fee: order.delivery_fee ?? 0,
         payment_method: order.payment_method,
+        change_for: order.change_for ?? "",
         order_items: order.order_items?.map((i) => ({
           product_name: i.product_name,
           quantity: i.quantity,
@@ -265,6 +273,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         order_items: order.order_items,
         observations: order.observations || "",
         payment_method: order.payment_method,
+        change_for: order.change_for ?? "",
         delivery_type: order.delivery_type,
         delivery_address: order.delivery_address || "",
         delivery_fee: order.delivery_fee || 0,
@@ -274,19 +283,10 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
     sendToWhatsApp(phone, msg);
   }
 
-  const statusCounts = useMemo(
-    () =>
-      orders.reduce(
-        (acc, o) => {
-          acc[o.status] = (acc[o.status] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>,
-      ),
-    [orders],
-  );
-
-  const displayedOrders = useMemo(() => {
+  // Período + busca aplicados, ainda sem o filtro de status: é a base tanto dos
+  // contadores dos atalhos quanto das colunas, para que os números exibidos
+  // batam com a lista logo abaixo deles.
+  const scopedOrders = useMemo(() => {
     let list = [...orders];
     const start = periodStart(period);
     if (start) {
@@ -303,23 +303,37 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
           o.id.toLowerCase().includes(needle),
       );
     }
-    if (filter !== "all") {
-      list = list.filter((o) => o.status === filter);
-    } else {
-      list.sort((a, b) => {
-        const priority: Record<string, number> = {
-          received: 0,
-          preparing: 1,
-          ready: 2,
-          out_for_delivery: 3,
-          delivered: 4,
-          cancelled: 5,
-        };
-        return (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
-      });
-    }
     return list;
-  }, [orders, period, q, filter]);
+  }, [orders, period, q]);
+
+  const statusCounts = useMemo(
+    () =>
+      scopedOrders.reduce(
+        (acc, o) => {
+          acc[o.status] = (acc[o.status] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
+    [scopedOrders],
+  );
+
+  const displayedOrders = useMemo(() => {
+    if (filter !== "all") {
+      return scopedOrders.filter((o) => o.status === filter);
+    }
+    return [...scopedOrders].sort((a, b) => {
+      const priority: Record<string, number> = {
+        received: 0,
+        preparing: 1,
+        ready: 2,
+        out_for_delivery: 3,
+        delivered: 4,
+        cancelled: 5,
+      };
+      return (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
+    });
+  }, [scopedOrders, filter]);
 
   if (loading && orders.length === 0) {
     return (
@@ -468,7 +482,7 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
                           key={order.id}
                           order={order}
                           onOpen={() => setDetail(order)}
-                          onAdvance={() => changeStatus(order.id, NEXT_STATUS[order.status]!)}
+                          onAdvance={() => changeStatus(order.id, nextStatusFor(order)!)}
                           onCancel={() => requestCancel(order)}
                         />
                       ))
@@ -572,11 +586,28 @@ export function OrderManager({ restaurant }: { restaurant: Restaurant }) {
         </div>
       )}
 
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+        title="Cancelar pedido"
+        description={`O pedido ${cancelTarget?.comanda ?? ""} de ${
+          cancelTarget?.customer_name ?? ""
+        } será marcado como cancelado. Essa ação não pode ser desfeita.`}
+        confirmLabel="Cancelar pedido"
+        cancelLabel="Voltar"
+        loading={cancelling}
+        onConfirm={confirmCancel}
+      />
+
       {/* Detalhes do pedido */}
       <OrderDetailDialog
         order={detail}
         onClose={() => setDetail(null)}
         onChangeStatus={changeStatus}
+        onRequestCancel={(o) => {
+          setDetail(null);
+          requestCancel(o);
+        }}
         onPrint={printOrder}
         onWhatsApp={contactWhatsApp}
       />
@@ -597,7 +628,7 @@ function OrderCard({
   onCancel?: () => void;
   compact?: boolean;
 }) {
-  const next = NEXT_STATUS[order.status];
+  const next = nextStatusFor(order);
   const nextLabel = next ? ORDER_STATUS_LABELS[next] : null;
   return (
     <div className="group rounded-xl border border-white/8 bg-white/[0.03] p-2.5 transition-all hover:border-cyan-500/30 hover:bg-white/[0.05]">
@@ -669,17 +700,19 @@ function OrderDetailDialog({
   order,
   onClose,
   onChangeStatus,
+  onRequestCancel,
   onPrint,
   onWhatsApp,
 }: {
   order: Order | null;
   onClose: () => void;
   onChangeStatus: (id: string, status: OrderStatus) => void;
+  onRequestCancel: (o: Order) => void;
   onPrint: (o: Order) => void;
   onWhatsApp: (o: Order) => void;
 }) {
   if (!order) return null;
-  const next = NEXT_STATUS[order.status];
+  const next = nextStatusFor(order);
   const hasCustomerPhone =
     Boolean(order.customer_phone) && order.customer_phone.replace(/\D/g, "").length >= 10;
 
@@ -752,10 +785,14 @@ function OrderDetailDialog({
                   const notes = (item as unknown as { notes?: string }).notes ?? "";
                   const hasAddons = notes.toLowerCase().includes("adicionais:");
                   return (
-                    <div key={item.id} className="rounded-lg border border-white/[0.04] bg-black/20 px-2.5 py-2">
+                    <div
+                      key={item.id}
+                      className="rounded-lg border border-white/[0.04] bg-black/20 px-2.5 py-2"
+                    >
                       <div className="flex items-center justify-between gap-3 text-sm">
                         <span className="min-w-0 flex-1 truncate text-gray-200">
-                          <span className="font-bold text-white">{item.quantity}x</span> {item.product_name}
+                          <span className="font-bold text-white">{item.quantity}x</span>{" "}
+                          {item.product_name}
                         </span>
                         <span className="shrink-0 font-bold text-white">{brl(item.total)}</span>
                       </div>
@@ -810,6 +847,11 @@ function OrderDetailDialog({
             <p className="mt-1 text-[11px] text-gray-500 capitalize">
               {order.payment_status?.replace(/_/g, " ")}
             </p>
+            {order.payment_method === "dinheiro" && order.change_for && (
+              <p className="mt-1 text-[11px] font-semibold text-amber-300">
+                Troco para {order.change_for}
+              </p>
+            )}
           </div>
 
           {/* Ações */}
@@ -824,7 +866,7 @@ function OrderDetailDialog({
             )}
             {order.status !== "cancelled" && order.status !== "delivered" && (
               <button
-                onClick={() => onChangeStatus(order.id, "cancelled")}
+                onClick={() => onRequestCancel(order)}
                 className="rounded-lg border border-red-500/40 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10"
               >
                 Cancelar

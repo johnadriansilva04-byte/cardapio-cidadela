@@ -158,6 +158,7 @@ export interface Order {
   total: number;
   payment_method: string;
   payment_status: string;
+  change_for?: string;
   status: OrderStatus;
   cidadela_unlocked: boolean;
   created_at: string;

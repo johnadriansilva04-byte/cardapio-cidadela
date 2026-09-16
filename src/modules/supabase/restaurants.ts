@@ -34,16 +34,8 @@ export async function getRestaurantsByOwner(ownerId: string): Promise<Restaurant
     return [];
   }
 
-  // Auto-publish any draft restaurants so the owner can see their cardápio
-  const draftOnes = (data ?? []).filter((r) => r.status === "draft");
-  for (const r of draftOnes) {
-    await supabase
-      .from("restaurants")
-      .update({ status: "published", updated_at: new Date().toISOString() })
-      .eq("id", r.id);
-    r.status = "published";
-  }
-
+  // Sem auto-publish aqui: mudar `status` ao ler transformava "Pausado" em
+  // "Publicado" a cada abertura do painel, como efeito colateral de um fetch.
   return (data ?? []) as Restaurant[];
 }
 
@@ -201,14 +193,19 @@ export async function updateRestaurant(
   if (error) {
     // Graceful fallback: se a migration de operating_hours ainda não foi rodada,
     // o campo ainda não existe no DB e o update falha. Tenta sem ele.
+    // Só vale quando operating_hours está de fato no payload — um erro de outra
+    // coluna antes abortava o update inteiro e ainda perdia este campo.
     const msg = String(error.message ?? "").toLowerCase();
     const code = String((error as unknown as { code?: string }).code ?? "");
-    const isMissingColumn =
-      msg.includes("operating_hours") || msg.includes("column") || code === "PGRST204" || code === "42703";
-    if (isMissingColumn && "operating_hours" in payload) {
+    const missingColumn = /could not find the '([^']+)' column/i.exec(msg)?.[1];
+    const isMissingOperatingHours =
+      "operating_hours" in payload &&
+      (missingColumn === "operating_hours" ||
+        ((code === "PGRST204" || code === "42703") && msg.includes("operating_hours")));
+    if (isMissingOperatingHours) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { operating_hours: _omit, ...rest } = payload;
-      console.warn("[restaurants] operating_hours column missing — retrying without it. Rode supabase_operating_hours_migration.sql", error);
+      console.warn("[restaurants] operating_hours column missing — retrying without it. Rode supabase/schema.sql", error);
       const { error: retryError } = await supabase.from("restaurants").update(rest).eq("id", id);
       if (retryError) {
         console.error("Error updating restaurant (retry):", retryError);

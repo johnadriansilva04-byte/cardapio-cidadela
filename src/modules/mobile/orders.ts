@@ -1,4 +1,5 @@
 import type { Order, OrderStatus } from "@/lib/types";
+import { nextStatusFor } from "@/lib/orderFlow";
 
 export const ACTIVE_STATUSES: OrderStatus[] = [
   "received",
@@ -18,15 +19,10 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: "Cancelado",
 };
 
-/** Próximo passo natural do fluxo, na ordem em que o operador costuma avançar. */
-export const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
-  received: "preparing",
-  preparing: "ready",
-  ready: "out_for_delivery",
-  out_for_delivery: "delivered",
-  delivered: null,
-  cancelled: null,
-};
+/** Próximo passo natural do fluxo — delega para o helper compartilhado. */
+export function nextStatus(order: Order): OrderStatus | null {
+  return nextStatusFor(order);
+}
 
 export function isActive(status: OrderStatus): boolean {
   return ACTIVE_STATUSES.includes(status);
@@ -80,11 +76,16 @@ export interface CustomerStats {
   lastOrder: string;
 }
 
-/** Agrupa pedidos por cliente (telefone quando existe, senão nome). */
+/**
+ * Agrupa pedidos por cliente (telefone quando existe, senão nome).
+ * Cancelados ficam fora: gasto e ticket médio por cliente seguem a mesma regra
+ * de faturamento do painel — cancelado não é receita.
+ */
 export function aggregateCustomers(orders: Order[]): CustomerStats[] {
   const map = new Map<string, CustomerStats>();
 
   for (const order of orders) {
+    if (order.status === "cancelled") continue;
     const key = order.customer_phone?.trim() || order.customer_name?.trim() || order.id;
     const existing = map.get(key);
     if (existing) {
@@ -128,6 +129,7 @@ function localDateKey(date: Date): string {
 /**
  * Faturamento dos últimos `days` dias, incluindo hoje.
  * Usa a data local do navegador para não jogar pedidos da noite para o dia anterior.
+ * Cancelados ficam fora — é gráfico de faturamento, não de volume.
  */
 export function dailyRevenue(orders: Order[], days = 7, now: Date = new Date()): DayRevenue[] {
   const buckets = new Map<string, number>();
@@ -139,6 +141,7 @@ export function dailyRevenue(orders: Order[], days = 7, now: Date = new Date()):
   }
 
   for (const order of orders) {
+    if (order.status === "cancelled") continue;
     const created = new Date(order.created_at);
     if (Number.isNaN(created.getTime())) continue;
     const key = localDateKey(created);
@@ -154,6 +157,7 @@ export function dailyRevenue(orders: Order[], days = 7, now: Date = new Date()):
 export interface OrderMetrics {
   totalOrders: number;
   totalRevenue: number;
+  cancelledRevenue: number;
   averageTicket: number;
   activeCount: number;
   finishedCount: number;
@@ -164,6 +168,13 @@ export interface OrderMetrics {
   topRestaurants: { name: string; orders: number; revenue: number }[];
 }
 
+/**
+ * Indicadores do período.
+ *
+ * Pedido cancelado nunca entra em faturamento nem em ticket médio — a mesma
+ * regra do painel admin (`/admin/financeiro`), para que mobile e desktop não
+ * mostrem números diferentes para a mesma loja.
+ */
 export function computeMetrics(
   orders: Order[],
   restaurantNames: Map<string, string> = new Map(),
@@ -172,6 +183,7 @@ export function computeMetrics(
   const todayKey = localDateKey(now);
 
   let totalRevenue = 0;
+  let cancelledRevenue = 0;
   let todayRevenue = 0;
   let todayOrders = 0;
   const statusCount = new Map<OrderStatus, number>();
@@ -179,16 +191,21 @@ export function computeMetrics(
 
   for (const order of orders) {
     const total = Number(order.total) || 0;
-    totalRevenue += total;
+    const isCancelled = order.status === "cancelled";
+    if (isCancelled) cancelledRevenue += total;
+    else totalRevenue += total;
 
     statusCount.set(order.status, (statusCount.get(order.status) ?? 0) + 1);
 
     const created = new Date(order.created_at);
     if (!Number.isNaN(created.getTime()) && localDateKey(created) === todayKey) {
-      todayRevenue += total;
-      todayOrders += 1;
+      if (!isCancelled) {
+        todayRevenue += total;
+        todayOrders += 1;
+      }
     }
 
+    if (isCancelled) continue;
     const entry = byRestaurant.get(order.restaurant_id) ?? { orders: 0, revenue: 0 };
     entry.orders += 1;
     entry.revenue += total;
@@ -207,13 +224,16 @@ export function computeMetrics(
     }))
     .sort((a, b) => b.revenue - a.revenue);
 
+  const billableCount = orders.length - (statusCount.get("cancelled") ?? 0);
+
   return {
     totalOrders: orders.length,
     totalRevenue,
-    averageTicket: orders.length > 0 ? totalRevenue / orders.length : 0,
+    cancelledRevenue,
+    averageTicket: billableCount > 0 ? totalRevenue / billableCount : 0,
     activeCount: orders.filter((o) => isActive(o.status)).length,
     finishedCount: orders.filter((o) => o.status === "delivered").length,
-    cancelledCount: orders.filter((o) => o.status === "cancelled").length,
+    cancelledCount: statusCount.get("cancelled") ?? 0,
     todayRevenue,
     todayOrders,
     statusDistribution,

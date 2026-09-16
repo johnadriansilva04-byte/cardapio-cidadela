@@ -1,11 +1,6 @@
 import { useEffect } from "react";
 import { CheckCircle2, MessageCircle, ExternalLink, Crown, Star } from "lucide-react";
-import { brl, buildWhatsAppMessage, sendToWhatsApp } from "@/lib/utils";
-
-function soberaniaPoints(total: number): number {
-  // 1 ponto de soberania a cada R$ 30 em compras.
-  return Math.floor(total / 30);
-}
+import { brl, buildWhatsAppMessage, sendToWhatsApp, soberaniaPoints } from "@/lib/utils";
 
 interface SuccessOrder {
   id: string;
@@ -23,6 +18,7 @@ interface SuccessOrder {
   customer_city?: string;
   delivery_fee?: number;
   subtotal?: number;
+  change_for?: string;
 }
 
 export default function SuccessModal({
@@ -100,6 +96,7 @@ export default function SuccessModal({
                     customer_neighborhood: order.customer_neighborhood ?? "",
                     customer_city: order.customer_city ?? "",
                     delivery_fee: order.delivery_fee ?? 0,
+                    change_for: order.change_for ?? "",
                   },
                   restaurantName,
                 );

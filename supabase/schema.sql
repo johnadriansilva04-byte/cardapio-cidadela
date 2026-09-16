@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS orders (
   total NUMERIC(10,2) NOT NULL DEFAULT 0,
   payment_method TEXT DEFAULT 'pix',
   payment_status TEXT DEFAULT 'pending',
+  change_for TEXT DEFAULT '',
   status order_status DEFAULT 'received',
   cidadela_unlocked BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -206,6 +207,7 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_fee NUMERIC(10,2) DEFAULT 0
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS total NUMERIC(10,2) NOT NULL DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'pix';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS change_for TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cidadela_unlocked BOOLEAN DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_orders_restaurant ON orders(restaurant_id);
@@ -332,6 +334,64 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_orders_by_guest(TEXT) TO anon, authenticated;
+
+-- Recupera o pedido já gravado para uma chave de idempotência.
+-- Necessário porque `orders` tem RLS: o cliente anônimo não consegue ler de
+-- volta o próprio pedido, então um retry legítimo (resposta perdida) batia no
+-- índice único `idx_orders_idempotency_key`, não achava a linha no fallback e
+-- mostrava "duplicado" para o cliente em vez de devolver o pedido existente.
+-- A chave é um hash que embute um token aleatório por checkout, então só quem
+-- criou o pedido a conhece.
+CREATE OR REPLACE FUNCTION public.get_order_by_idempotency_key(p_key TEXT)
+RETURNS TABLE (
+  id UUID,
+  restaurant_id UUID,
+  comanda TEXT,
+  status TEXT,
+  subtotal NUMERIC,
+  delivery_fee NUMERIC,
+  total NUMERIC,
+  payment_method TEXT,
+  payment_status TEXT,
+  change_for TEXT,
+  customer_name TEXT,
+  customer_phone TEXT,
+  customer_email TEXT,
+  delivery_type TEXT,
+  delivery_address TEXT,
+  customer_complement TEXT,
+  customer_neighborhood TEXT,
+  customer_city TEXT,
+  observations TEXT,
+  created_at TIMESTAMPTZ
+) LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT
+    o.id,
+    o.restaurant_id,
+    o.comanda,
+    o.status::text,
+    o.subtotal,
+    o.delivery_fee,
+    o.total,
+    o.payment_method,
+    o.payment_status,
+    o.change_for,
+    o.customer_name,
+    o.customer_phone,
+    o.customer_email,
+    o.delivery_type,
+    o.delivery_address,
+    o.customer_complement,
+    o.customer_neighborhood,
+    o.customer_city,
+    o.observations,
+    o.created_at
+  FROM orders o
+  WHERE o.idempotency_key = p_key
+  LIMIT 1;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_order_by_idempotency_key(TEXT) TO anon, authenticated;
 
 -- Mantém a tabela de convidados limpa: pedidos encerrados
 -- (entregue/cancelado) com mais de 24h deixam de ser listados e o

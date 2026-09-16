@@ -80,6 +80,34 @@ export function newComanda(): string {
 }
 
 /**
+ * Pontos de soberania: 1 ponto a cada R$ 30 de compra.
+ * Fica na lib para que o cardápio e o acompanhamento público mostrem o mesmo
+ * número — antes cada tela tinha a sua própria cópia da fórmula.
+ */
+export function soberaniaPoints(total: number): number {
+  if (!Number.isFinite(total) || total <= 0) return 0;
+  return Math.floor(total / 30);
+}
+
+/**
+ * Rótulo do meio de pagamento para exibição. Sem isto a tela mostrava o valor
+ * cru do banco ("cartao") — com o acento faltando e o case errado.
+ */
+export function paymentMethodLabel(method: string | undefined | null): string {
+  switch ((method ?? "").trim().toLowerCase()) {
+    case "pix":
+      return "PIX";
+    case "dinheiro":
+      return "Dinheiro";
+    case "cartao":
+    case "cartão":
+      return "Cartão";
+    default:
+      return method?.trim() || "—";
+  }
+}
+
+/**
  * Build a thermal ticket string for printing
  */
 export function buildThermalTicket(
@@ -137,7 +165,7 @@ export function buildThermalTicket(
   if (isDelivery && fee > 0) rows.push(row("TAXA ENTREGA", brl(fee)));
   rows.push(row("TOTAL", brl(order.total)));
   rows.push(
-    `PAGTO.: ${order.payment_method.toUpperCase()}${order.change_for ? ` (troco p/ ${order.change_for})` : ""}`,
+    `PAGTO.: ${paymentMethodLabel(order.payment_method).toUpperCase()}${order.change_for ? ` (troco p/ ${order.change_for})` : ""}`,
   );
   if (order.observations) rows.push(`OBS...: ${order.observations}`);
   rows.push(line, "");
@@ -275,6 +303,8 @@ export function buildWhatsAppMessage(
     customer_neighborhood?: string;
     customer_city?: string;
     delivery_fee?: number;
+    /** Texto "troco para quanto" do pagamento em dinheiro. */
+    change_for?: string;
   },
   restaurantName: string,
 ): string {
@@ -291,7 +321,7 @@ export function buildWhatsAppMessage(
     `👤 *Cliente:* ${order.customer_name}`,
     isDelivery ? "🛵 *Entrega a domicílio*" : "🏪 *Retirada no balcão*",
     ...deliveryLines,
-    `💳 ${order.payment_method.toUpperCase()}`,
+    `💳 ${paymentMethodLabel(order.payment_method)}${order.change_for ? ` (troco para ${order.change_for})` : ""}`,
     "",
     `📋 *Itens:*`,
   ];

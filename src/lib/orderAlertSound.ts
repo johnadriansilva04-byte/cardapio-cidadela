@@ -24,10 +24,9 @@ const BURST_LENGTH = 1.16;
 const CLOSING_LENGTH = 0.6;
 const CYCLE_LENGTH = BURST_COUNT * BURST_PERIOD + CLOSING_LENGTH;
 
-// Tres rodadas: o alerta dura o suficiente para ser notado mesmo no barulho
-// da cozinha, e nao passa tanto tempo a ponto de virar incomodo.
-const CYCLE_COUNT = 3;
-const CYCLE_GAP = 0.5;
+// Duas rodadas com pausa longa: soa insistenteme mas sem incomodar.
+const CYCLE_COUNT = 2;
+const CYCLE_GAP = 7;
 const ALERT_SECONDS = CYCLE_COUNT * CYCLE_LENGTH + (CYCLE_COUNT - 1) * CYCLE_GAP;
 
 // Volumes de pico. O master alto + saturação forte empurram o sinal para o

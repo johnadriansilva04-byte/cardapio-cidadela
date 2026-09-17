@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "Cardápio Cidadela",
-  "short_name": "Cidadela",
+  "short_name": "Cardápio Cidadela",
   "description": "Cardápio digital e gestão de pedidos para restaurantes: receba pedidos, acompanhe o caixa e gerencie o cardápio pelo celular.",
   "id": "/",
   "start_url": "/mobile",

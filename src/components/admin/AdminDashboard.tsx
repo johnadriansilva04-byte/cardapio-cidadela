@@ -66,7 +66,7 @@ export default function AdminDashboard() {
     }
     setCreating(true);
     const slug = await generateUniqueSlug(newName);
-    const restaurant = await createRestaurant(ownerId, newName, slug);
+    const { restaurant } = await createRestaurant(ownerId, { name: newName, slug });
     setCreating(false);
 
     if (!restaurant) {

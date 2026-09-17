@@ -1,11 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Store,
-  AlertCircle,
-  RefreshCw,
   User,
-  Pencil,
   KeyRound,
   LogOut,
   Trash2,
@@ -13,28 +10,12 @@ import {
   Smartphone,
   Save,
   Loader2,
-  Building2,
-  Store as StoreIcon,
 } from "lucide-react";
-import {
-  getRestaurantsByOwner,
-  ensureRestaurantsForUser,
-  updateRestaurant,
-} from "@/modules/supabase/restaurants";
 import { updateProfileName, updatePassword, deleteAccount } from "@/modules/supabase/auth";
 import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { InstallCard } from "@/components/pwa/InstallCard";
 import { ExpandableSection } from "@/modules/ui/ExpandableSection";
-import type { Restaurant } from "@/lib/types";
-import OperatingHoursConfig from "@/components/admin/OperatingHoursConfig";
-import {
-  DEFAULT_OPERATING_HOURS,
-  normalizeOperatingHours,
-  serializeHours,
-  type OperatingHours,
-} from "@/lib/operatingHours";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/config")({
   head: () => ({ meta: [{ title: "Configurações — Cardápio Cidadela" }] }),
@@ -45,283 +26,36 @@ const field =
   "w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30";
 
 function ConfigPage() {
-  const { user, loading: authLoading } = useAuth();
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [selectedId, setSelectedId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [whatsapp, setWhatsapp] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [pixKey, setPixKey] = useState("");
-  const [hours, setHours] = useState<OperatingHours>({ ...DEFAULT_OPERATING_HOURS });
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-
-  const retryRef = useRef(0);
-
-  // Scroll automático ao abrir com #conta (vindo do menu da conta na sidebar)
-  useEffect(() => {
-    if (window.location.hash === "#conta") {
-      requestAnimationFrame(() => {
-        document.getElementById("conta")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setLoading(false);
-      setRestaurants([]);
-      return;
-    }
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        await ensureRestaurantsForUser(user!);
-        if (cancelled) return;
-        const data = await getRestaurantsByOwner(user!.id);
-        if (cancelled) return;
-        setRestaurants(data);
-        if (data.length > 0) {
-          retryRef.current = 0;
-          const pick = data[0];
-          setSelectedId((prev) => prev || pick.id);
-          fillFields(pick);
-        } else if (retryRef.current < 3) {
-          retryRef.current++;
-          await new Promise((r) => setTimeout(r, retryRef.current * 400));
-          if (cancelled) return;
-          const retry = await getRestaurantsByOwner(user!.id);
-          if (!cancelled) {
-            setRestaurants(retry);
-            if (retry.length > 0) {
-              setSelectedId((prev) => prev || retry[0].id);
-              fillFields(retry[0]);
-            }
-          }
-        }
-      } catch (e) {
-        console.error("[config] load", e);
-        if (!cancelled) setError("Falha ao carregar restaurantes.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, authLoading]);
-
-  function fillFields(r: Restaurant) {
-    setWhatsapp(r.whatsapp ?? "");
-    setPhone(r.phone ?? "");
-    setAddress(r.address ?? "");
-    setPixKey(r.pix_key ?? "");
-    setHours(normalizeOperatingHours(r.operating_hours as unknown));
-  }
-
-  const selected = restaurants.find((r) => r.id === selectedId) ?? restaurants[0] ?? null;
-
-  async function handleSelect(id: string) {
-    setSelectedId(id);
-    const r = restaurants.find((r) => r.id === id);
-    if (r) fillFields(r);
-    setMessage("");
-  }
-
-  useEffect(() => {
-    if (!selectedId && restaurants.length > 0) {
-      setSelectedId(restaurants[0].id);
-      fillFields(restaurants[0]);
-    }
-  }, [restaurants, selectedId]);
-
-  async function save() {
-    if (!selected) return;
-    setSaving(true);
-    setMessage("");
-    const serialized = serializeHours(hours);
-    const ok = await updateRestaurant(selected.id, {
-      whatsapp,
-      phone,
-      address,
-      pix_key: pixKey,
-      operating_hours: serialized as unknown as never,
-    });
-    setSaving(false);
-    if (ok) {
-      setRestaurants((prev) =>
-        prev.map((r) =>
-          r.id === selected.id
-            ? { ...r, whatsapp, phone, address, pix_key: pixKey, operating_hours: serialized }
-            : r,
-        ),
-      );
-      setMessage("Configurações salvas com sucesso!");
-      toast.success("Configurações salvas!");
-      setTimeout(() => setMessage(""), 3000);
-    } else {
-      setMessage("Erro ao salvar. Tente novamente.");
-      toast.error("Erro ao salvar.");
-    }
-  }
-
-  if (authLoading || loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
-        <AlertCircle className="mx-auto size-8 text-red-400" />
-        <p className="mt-3 text-sm text-red-300">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
-        >
-          <RefreshCw className="size-4" /> Tentar novamente
-        </button>
-      </div>
-    );
-  }
-
-  if (restaurants.length === 0) {
-    return (
-      <div className="rounded-2xl border border-white/5 bg-white/[0.02] py-16 text-center">
-        <Store className="mx-auto size-12 text-gray-700" />
-        <p className="mt-4 text-sm text-gray-400">Crie um restaurante primeiro</p>
-      </div>
-    );
-  }
-
+  // Esta tela é da conta, não do restaurante: dados da loja (contato, endereço,
+  // PIX, horários, logo, banner) vivem no cadastro/edição do restaurante.
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Configurações</h1>
         <p className="mt-1 text-sm text-gray-500">
-          WhatsApp, telefone, endereço, chave PIX e horário de funcionamento
+          Sua conta, preferências do app e ações de segurança.
         </p>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {restaurants.map((r) => (
-          <button
-            key={r.id}
-            onClick={() => handleSelect(r.id)}
-            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-              selectedId === r.id
-                ? "bg-cyan-500 text-black"
-                : "border border-white/10 text-gray-400 hover:text-white hover:border-white/20"
-            }`}
-          >
-            {r.name}
-          </button>
-        ))}
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+        <p className="flex items-start gap-2 text-xs leading-relaxed text-gray-400">
+          <Store className="mt-0.5 size-4 shrink-0 text-gray-500" />
+          <span>
+            Procurando WhatsApp, endereço, chave PIX, taxa de entrega ou horário de funcionamento?
+            Tudo isso fica em{" "}
+            <Link
+              to="/admin/restaurantes"
+              className="font-semibold text-cyan-400 hover:text-cyan-300"
+            >
+              Restaurantes
+            </Link>
+            , dentro do cadastro de cada loja.
+          </span>
+        </p>
       </div>
 
       <InstallCard />
 
-      {selected && (
-        <ExpandableSection
-          icon={<Building2 className="size-5" />}
-          tone="cyan"
-          title="Horário de funcionamento"
-          summary="Define quando a loja aceita pedidos pelo cardápio"
-        >
-          <OperatingHoursConfig value={hours} onChange={setHours} />
-          <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-[11px] leading-relaxed text-amber-200/90">
-            Configure como <strong>17:00 — 00:00</strong> e clique em &ldquo;Aplicar em toda a
-            semana&rdquo;. Depois ajuste dias pontuais (ex: fechar domingo) sem refazer tudo.
-          </p>
-        </ExpandableSection>
-      )}
-
-      {selected && (
-        <ExpandableSection
-          icon={<StoreIcon className="size-5" />}
-          title="Dados do restaurante"
-          summary="WhatsApp, telefone, endereço e chave PIX usada no checkout"
-        >
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-400">
-                WhatsApp do restaurante
-              </label>
-              <input
-                className={field}
-                placeholder="5511999999999"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
-              />
-              <p className="mt-1 text-[10px] text-gray-600">
-                Usado para receber pedidos e compartilhar o link.
-              </p>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-400">Telefone</label>
-              <input
-                className={field}
-                placeholder="(11) 99999-9999"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-400">Endereço</label>
-              <input
-                className={field}
-                placeholder="Rua X, 123 - Bairro"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-400">
-                Chave PIX do restaurante
-              </label>
-              <input
-                className={field}
-                placeholder="CPF, telefone, e-mail ou chave aleatória"
-                value={pixKey}
-                onChange={(e) => setPixKey(e.target.value)}
-              />
-              <p className="mt-1 text-[10px] text-gray-600">
-                Exibida no QR Code ao finalizar pagamento via PIX.
-              </p>
-            </div>
-
-            {message && (
-              <p
-                className={`text-xs ${message.includes("Erro") ? "text-red-400" : "text-cyan-300"}`}
-              >
-                {message}
-              </p>
-            )}
-
-            <button
-              onClick={save}
-              disabled={saving}
-              className="w-full rounded-lg bg-cyan-500 py-2.5 text-sm font-semibold text-black hover:bg-cyan-400 disabled:opacity-50 transition-colors"
-            >
-              {saving ? "Salvando..." : "Salvar configurações"}
-            </button>
-          </div>
-        </ExpandableSection>
-      )}
-
-      {/* Mobile App Section */}
       <ExpandableSection
         icon={<Smartphone className="size-5" />}
         tone="violet"

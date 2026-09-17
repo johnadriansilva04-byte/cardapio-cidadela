@@ -4,11 +4,16 @@ import type { Order, OrderStatus } from "@/lib/types";
 function idempotencyKey(
   restaurantId: string,
   customerPhone: string,
+  comanda: string,
   items: { product_id: string; quantity: number; unit_price: number }[],
 ): string {
+  // A comanda entra na chave porque identifica a *tentativa* de pedido, não o
+  // conteúdo: sem ela, o mesmo cliente repetindo os mesmos itens ("o de sempre")
+  // caía no dedupe e a segunda compra nunca virava linha nova no banco.
   const raw = [
     restaurantId,
     customerPhone,
+    comanda,
     ...items.map((i) => `${i.product_id}:${i.quantity}:${i.unit_price}`).sort(),
   ].join("|");
   let h = 5381;
@@ -45,7 +50,7 @@ export async function createOrder(
     notes?: string;
   }[],
 ): Promise<{ order: Order | null; error?: { message: string; code?: string } }> {
-  const key = idempotencyKey(restaurantId, orderData.customer_phone, items);
+  const key = idempotencyKey(restaurantId, orderData.customer_phone, orderData.comanda, items);
 
   const { data: existing, error: lookupError } = await supabase
     .from("orders")
@@ -56,7 +61,10 @@ export async function createOrder(
   if (lookupError && lookupError.code !== "PGRST116") {
     console.error("Error checking idempotency:", lookupError);
   }
-  if (existing) {
+  // Só reaproveita um pedido ainda vivo. Se o anterior foi cancelado, a nova
+  // tentativa é uma compra nova — devolver o cancelado fazia o cliente ver
+  // "pedido enviado" sem nada chegar ao restaurante.
+  if (existing && (existing as Order).status !== "cancelled") {
     return {
       order: {
         ...(existing as Order),
@@ -112,9 +120,9 @@ export async function createOrder(
       const { data: dup } = await supabase
         .from("orders")
         .select("*")
-        .eq("idempotency_key", key)
+        .eq("idempotency_key", payload.idempotency_key as string)
         .maybeSingle();
-      if (dup) {
+      if (dup && (dup as Order).status !== "cancelled") {
         return {
           order: {
             ...(dup as Order),
@@ -122,6 +130,10 @@ export async function createOrder(
           },
         };
       }
+      // A chave pertence a um pedido cancelado: gera uma nova e insere de fato.
+      const next = { ...payload, idempotency_key: `${key}-${Date.now().toString(36)}` };
+      payload = next;
+      continue;
     }
     // Schema cache miss — remove the offending column and retry
     const m = /Could not find the '([^']+)' column/i.exec(lastError.message);
@@ -298,9 +310,13 @@ export async function getOrderHistory(
 export function subscribeToOrders(
   restaurantId: string,
   callback: (eventType: "INSERT" | "UPDATE" | "DELETE", order: Order) => void,
+  channelPrefix = "orders",
 ) {
+  // O prefixo evita colisão de nome quando duas telas escutam a mesma loja ao
+  // mesmo tempo (layout + página): o Supabase reaproveita o tópico e o
+  // `removeChannel` de uma derrubaria a outra.
   return supabase
-    .channel(`orders_${restaurantId}`)
+    .channel(`${channelPrefix}_${restaurantId}`)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${restaurantId}` },

@@ -1,6 +1,6 @@
 import { supabase } from "./client";
 import { getCurrentUser } from "./auth";
-import type { Restaurant, DeliveryNeighborhood } from "@/lib/types";
+import type { Restaurant, RestaurantStatus, DeliveryNeighborhood } from "@/lib/types";
 
 // Cache admin_trials availability per session to avoid repeated 400 errors
 let _adminTrialsAvailable: boolean | null = null;
@@ -50,37 +50,88 @@ export async function getRestaurantsByOwner(ownerId: string): Promise<Restaurant
 /**
  * Create a new restaurant
  */
+export type CreateRestaurantInput = {
+  name: string;
+  slug: string;
+  description?: string;
+  phone?: string;
+  whatsapp?: string;
+  address?: string;
+  logo_url?: string;
+  banner_url?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  status?: RestaurantStatus;
+  pix_key?: string;
+  delivery_fee?: number;
+  operating_hours?: unknown;
+};
+
+/**
+ * Cria o restaurante já completo.
+ *
+ * Recebe todos os campos do cadastro numa tacada porque o formulário é uma tela
+ * só — não existe mais o "criar e depois configurar em outra rota".
+ */
 export async function createRestaurant(
   ownerId: string,
-  name: string,
-  slug: string,
-  description?: string,
-): Promise<Restaurant | null> {
-  const { data, error } = await supabase
-    .from("restaurants")
-    .insert({
-      owner_id: ownerId,
-      name,
-      slug,
-      description: description ?? "",
-      // Nasce publicado para que o link público funcione imediatamente.
-
-      status: "published",
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error creating restaurant:", error);
-    return null;
+  input: CreateRestaurantInput,
+): Promise<{ restaurant: Restaurant | null; error?: string }> {
+  const payload: Record<string, unknown> = {
+    owner_id: ownerId,
+    name: input.name,
+    slug: input.slug,
+    description: input.description ?? "",
+    status: input.status ?? "published",
+  };
+  // Campos opcionais só entram quando preenchidos, para não sobrescrever defaults
+  // do banco nem esbarrar em coluna ausente em bancos antigos.
+  const optional: [keyof CreateRestaurantInput, string][] = [
+    ["phone", "phone"],
+    ["whatsapp", "whatsapp"],
+    ["address", "address"],
+    ["logo_url", "logo_url"],
+    ["banner_url", "banner_url"],
+    ["primary_color", "primary_color"],
+    ["secondary_color", "secondary_color"],
+    ["pix_key", "pix_key"],
+    ["delivery_fee", "delivery_fee"],
+    ["operating_hours", "operating_hours"],
+  ];
+  for (const [from, to] of optional) {
+    const v = input[from];
+    if (v !== undefined && v !== "") payload[to] = v;
   }
 
-  // Seed default categories for the new restaurant
-  if (data) {
-    await seedDefaultMenu(data.id);
+  let lastError: string | null = null;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const { data, error } = await supabase
+      .from("restaurants")
+      .insert(payload as never)
+      .select()
+      .single();
+    if (!error && data) {
+      await seedDefaultMenu((data as Restaurant).id);
+      return { restaurant: data as Restaurant };
+    }
+    lastError = error?.message ?? "Falha ao criar restaurante.";
+    // Coluna inexistente (schema antigo): remove e tenta de novo.
+    const m = /Could not find the '([^']+)' column/i.exec(lastError);
+    if (m && m[1] in payload) {
+      delete payload[m[1]];
+      continue;
+    }
+    // Slug ou nome duplicado: devolve mensagem útil em vez de sumir com o erro.
+    if ((error as { code?: string } | null)?.code === "23505") {
+      return {
+        restaurant: null,
+        error: `Já existe um restaurante com o link "${input.slug}". Escolha outro link.`,
+      };
+    }
+    return { restaurant: null, error: lastError };
   }
 
-  return data as Restaurant;
+  return { restaurant: null, error: lastError ?? "Falha ao criar restaurante." };
 }
 
 /**

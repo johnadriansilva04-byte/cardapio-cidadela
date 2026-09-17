@@ -15,6 +15,7 @@ import {
 } from "@/modules/supabase/restaurants";
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { serializeHours } from "@/lib/operatingHours";
 import type { Restaurant } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -106,58 +107,11 @@ function RestaurantesPage() {
     return r.name.toLowerCase().includes(s) || r.slug.toLowerCase().includes(s);
   });
 
-  async function handleCreate(values: RestaurantFormValues) {
-    if (!user) return;
+  async function handleCreate(values: RestaurantFormValues): Promise<Restaurant | null> {
+    if (!user) return null;
     setSubmitting(true);
     try {
-      const created = await createRestaurant(user.id, values.name, values.slug, values.description);
-      if (!created) {
-        toast.error("Erro ao criar restaurante.");
-        return;
-      }
-      const patch: Partial<Restaurant> = {};
-      if (
-        values.logo_url ||
-        values.banner_url ||
-        values.phone ||
-        values.whatsapp ||
-        values.address ||
-        values.pix_key ||
-        values.delivery_fee
-      ) {
-        const ok = await updateRestaurant(created.id, {
-          logo_url: values.logo_url,
-          banner_url: values.banner_url,
-          phone: values.phone,
-          whatsapp: values.whatsapp,
-          address: values.address,
-          pix_key: values.pix_key,
-          primary_color: values.primary_color,
-          secondary_color: values.secondary_color,
-          status: values.status,
-          delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-        });
-        if (ok)
-          Object.assign(created, {
-            logo_url: values.logo_url,
-            banner_url: values.banner_url,
-            status: values.status,
-            delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-          });
-      }
-      setRestaurants((prev) => [created, ...prev]);
-      setDialogOpen(false);
-      toast.success("Restaurante criado!");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleUpdate(values: RestaurantFormValues) {
-    if (!editing) return;
-    setSubmitting(true);
-    try {
-      const ok = await updateRestaurant(editing.id, {
+      const { restaurant: created, error: createError } = await createRestaurant(user.id, {
         name: values.name,
         slug: values.slug,
         description: values.description,
@@ -171,6 +125,40 @@ function RestaurantesPage() {
         status: values.status,
         pix_key: values.pix_key,
         delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+        operating_hours: serializeHours(values.operating_hours),
+      });
+      if (!created) {
+        toast.error(createError ?? "Erro ao criar restaurante.");
+        return null;
+      }
+      setRestaurants((prev) => [created, ...prev]);
+      toast.success("Restaurante criado e configurado!");
+      return created;
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleUpdate(values: RestaurantFormValues, patchId?: string) {
+    if (!editing && !patchId) return;
+    const targetId = patchId ?? editing!.id;
+    setSubmitting(true);
+    try {
+      const ok = await updateRestaurant(targetId, {
+        name: values.name,
+        slug: values.slug,
+        description: values.description,
+        phone: values.phone,
+        whatsapp: values.whatsapp,
+        address: values.address,
+        logo_url: values.logo_url,
+        banner_url: values.banner_url,
+        primary_color: values.primary_color,
+        secondary_color: values.secondary_color,
+        status: values.status,
+        pix_key: values.pix_key,
+        delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+        operating_hours: serializeHours(values.operating_hours),
       });
       if (!ok) {
         toast.error("Erro ao salvar.");
@@ -178,7 +166,7 @@ function RestaurantesPage() {
       }
       setRestaurants((prev) =>
         prev.map((r) =>
-          r.id === editing.id
+          r.id === targetId
             ? ({
                 ...r,
                 ...values,
@@ -188,7 +176,9 @@ function RestaurantesPage() {
         ),
       );
       setEditing(null);
-      toast.success("Restaurante atualizado!");
+      // A segunda passada (upload das imagens) é continuação do mesmo save:
+      // evita um segundo toast logo depois do "criado".
+      if (!patchId) toast.success("Restaurante atualizado!");
     } finally {
       setSubmitting(false);
     }
@@ -338,7 +328,9 @@ function RestaurantesPage() {
         }}
         restaurant={editing}
         submitting={submitting}
-        onSubmit={async (values, isEdit) => (isEdit ? handleUpdate(values) : handleCreate(values))}
+        onSubmit={async (values, isEdit, patchId) =>
+          isEdit ? handleUpdate(values, patchId) : handleCreate(values)
+        }
       />
 
       <ConfirmDialog

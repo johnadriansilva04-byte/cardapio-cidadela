@@ -35,6 +35,7 @@ import {
 } from "@/modules/supabase/restaurants";
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { serializeHours } from "@/lib/operatingHours";
 import type { OrderStatus, Restaurant } from "@/lib/types";
 import { brl } from "@/lib/utils";
 import { toast } from "sonner";
@@ -212,57 +213,45 @@ function AdminDashboardOverview() {
   const draftCount = restaurants.filter((r) => r.status === "draft").length;
   const activeRestaurant = restaurants.find((r) => r.id === activeId) ?? null;
 
-  async function handleCreate(values: RestaurantFormValues) {
-    if (!user) return;
+  async function handleCreate(values: RestaurantFormValues): Promise<Restaurant | null> {
+    if (!user) return null;
     setSubmitting(true);
     try {
-      const r = await createRestaurant(user.id, values.name, values.slug, values.description);
+      const { restaurant: r, error: createError } = await createRestaurant(user.id, {
+        name: values.name,
+        slug: values.slug,
+        description: values.description,
+        phone: values.phone,
+        whatsapp: values.whatsapp,
+        address: values.address,
+        logo_url: values.logo_url,
+        banner_url: values.banner_url,
+        primary_color: values.primary_color,
+        secondary_color: values.secondary_color,
+        status: values.status,
+        pix_key: values.pix_key,
+        delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+        operating_hours: serializeHours(values.operating_hours),
+      });
       if (!r) {
-        toast.error("Erro ao criar restaurante.");
-        return;
-      }
-      // patch extra fields if provided
-      const needsPatch =
-        values.logo_url ||
-        values.banner_url ||
-        values.phone ||
-        values.whatsapp ||
-        values.address ||
-        values.pix_key ||
-        values.primary_color !== "#06b6d4" ||
-        values.delivery_fee;
-      if (needsPatch) {
-        await updateRestaurant(r.id, {
-          logo_url: values.logo_url,
-          banner_url: values.banner_url,
-          phone: values.phone,
-          whatsapp: values.whatsapp,
-          address: values.address,
-          pix_key: values.pix_key,
-          primary_color: values.primary_color,
-          secondary_color: values.secondary_color,
-          status: values.status,
-          delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-        });
-        r.logo_url = values.logo_url;
-        r.banner_url = values.banner_url;
-        r.status = values.status;
-        r.delivery_fee = parseFloat(values.delivery_fee.replace(",", ".")) || 0;
+        toast.error(createError ?? "Erro ao criar restaurante.");
+        return null;
       }
       setRestaurants((prev) => [r, ...prev]);
       setActiveId(r.id);
-      setDialogOpen(false);
-      toast.success("Restaurante criado!");
+      toast.success("Restaurante criado e configurado!");
+      return r;
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function handleUpdate(values: RestaurantFormValues) {
-    if (!editing) return;
+  async function handleUpdate(values: RestaurantFormValues, patchId?: string) {
+    if (!editing && !patchId) return;
+    const targetId = patchId ?? editing!.id;
     setSubmitting(true);
     try {
-      const ok = await updateRestaurant(editing.id, {
+      const ok = await updateRestaurant(targetId, {
         name: values.name,
         slug: values.slug,
         description: values.description,
@@ -283,7 +272,7 @@ function AdminDashboardOverview() {
       }
       setRestaurants((prev) =>
         prev.map((r) =>
-          r.id === editing.id
+          r.id === targetId
             ? {
                 ...r,
                 ...values,
@@ -293,7 +282,9 @@ function AdminDashboardOverview() {
         ),
       );
       setEditing(null);
-      toast.success("Restaurante atualizado!");
+      // A segunda passada (upload das imagens) é continuação do mesmo save:
+      // evita um segundo toast logo depois do "criado".
+      if (!patchId) toast.success("Restaurante atualizado!");
     } finally {
       setSubmitting(false);
     }
@@ -598,9 +589,9 @@ function AdminDashboardOverview() {
         }}
         restaurant={editing}
         submitting={submitting}
-        onSubmit={async (values, isEdit) => {
-          if (isEdit) await handleUpdate(values);
-          else await handleCreate(values);
+        onSubmit={async (values, isEdit, patchId) => {
+          if (isEdit) await handleUpdate(values, patchId);
+          else return await handleCreate(values);
         }}
       />
 

@@ -92,6 +92,50 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
     );
   }, [restaurants]);
 
+  // Assina por lista de ids (string) para um refresh que recria o array de
+  // restaurantes não derrubar e recriar os canais à toa.
+  const restaurantIds = useMemo(() => restaurants.map((r) => r.id).join(","), [restaurants]);
+
+  // Tempo real: sem isto a lista só mudava no mount, então o alerta tocava mas
+  // o pedido novo só aparecia depois de recarregar a página.
+  useEffect(() => {
+    const channels: RealtimeChannel[] = [];
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+
+    for (const id of restaurantIds.split(",").filter(Boolean)) {
+      const channel = subscribeToOrders(
+        id,
+        (eventType, order) => {
+          if (eventType === "INSERT") {
+            setOrders((prev) => {
+              if (prev.some((o) => o.id === order.id)) return prev;
+              return [order, ...prev].sort(
+                (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+              );
+            });
+            return;
+          }
+          // UPDATE/DELETE em rajada: uma revalidação por lote basta.
+          if (debounce) clearTimeout(debounce);
+          debounce = setTimeout(() => void reloadOrders(), 400);
+        },
+        "mobile_orders",
+      );
+      if (channel) channels.push(channel);
+    }
+
+    return () => {
+      if (debounce) clearTimeout(debounce);
+      for (const channel of channels) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+  }, [restaurantIds, reloadOrders]);
+
   const restaurantNames = useMemo(
     () => new Map(restaurants.map((r) => [r.id, r.name])),
     [restaurants],
@@ -163,16 +207,20 @@ export function useOwnerPendingOrders(
         if (cancelled) return;
 
         for (const restaurant of rests) {
-          const channel = subscribeToOrders(restaurant.id, (eventType, order) => {
-            if (eventType === "INSERT") {
-              if (["received", "preparing", "ready", "out_for_delivery"].includes(order.status)) {
-                setPendingCount((count) => count + 1);
+          const channel = subscribeToOrders(
+            restaurant.id,
+            (eventType, order) => {
+              if (eventType === "INSERT") {
+                if (["received", "preparing", "ready", "out_for_delivery"].includes(order.status)) {
+                  setPendingCount((count) => count + 1);
+                }
+                callbackRef.current?.(order);
+                return;
               }
-              callbackRef.current?.(order);
-              return;
-            }
-            scheduleCount();
-          });
+              scheduleCount();
+            },
+            "mobile_badge",
+          );
           if (!cancelled) channels.push(channel);
         }
       } catch {

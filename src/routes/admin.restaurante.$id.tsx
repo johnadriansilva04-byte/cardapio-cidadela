@@ -23,6 +23,7 @@ import {
   updateRestaurant,
 } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
+import { serializeHours } from "@/lib/operatingHours";
 import type { Restaurant } from "@/lib/types";
 import { brl } from "@/lib/utils";
 import { supabase } from "@/modules/supabase/client";
@@ -177,6 +178,7 @@ function RestaurantDetailPage() {
         status: values.status,
         pix_key: values.pix_key,
         delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+        operating_hours: serializeHours(values.operating_hours),
       });
       if (!ok) {
         toast.error("Erro ao salvar.");

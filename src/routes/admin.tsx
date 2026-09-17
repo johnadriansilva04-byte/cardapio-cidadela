@@ -45,8 +45,8 @@ export const Route = createFileRoute("/admin")({
 
 const NAV_ITEMS = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/admin/restaurantes", label: "Restaurantes", icon: Store },
   { to: "/admin/pedidos", label: "Pedidos", icon: ClipboardList },
+  { to: "/admin/restaurantes", label: "Restaurantes", icon: Store },
   { to: "/admin/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/admin/compartilhar", label: "Compartilhar", icon: Share2 },
   { to: "/admin/config", label: "Configurações", icon: Settings },

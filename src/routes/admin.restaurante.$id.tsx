@@ -10,8 +10,6 @@ import {
   RefreshCw,
   Store,
   ArrowLeft,
-  ArrowRight,
-  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
@@ -475,27 +473,6 @@ function AdminModuleNav({
           );
         })}
       </div>
-
-      <Link
-        to="/admin/pedidos"
-        search={{ store: undefined }}
-        className="group flex items-center gap-4 rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-500/20 to-orange-500/5 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-amber-300/70 hover:shadow-[0_10px_34px_rgba(0,0,0,0.45)]"
-      >
-        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-black/40 text-white transition-transform group-hover:scale-105">
-          <ClipboardList className="size-7" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5 text-base font-black tracking-tight text-white">
-            Pedidos <ArrowRight className="size-4 text-white/50" />
-          </span>
-          <span className="mt-1 block text-xs leading-relaxed text-white/60">
-            Tela global, com os pedidos de todas as suas lojas
-          </span>
-          <span className="mt-3 inline-block rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-black">
-            Abrir painel de pedidos
-          </span>
-        </span>
-      </Link>
     </nav>
   );
 }

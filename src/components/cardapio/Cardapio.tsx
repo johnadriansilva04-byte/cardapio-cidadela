@@ -497,6 +497,25 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   return (
     <div className="min-h-screen bg-[#07070b] pb-6">
+      {/* Fixed banner background — stays in place while content scrolls over it */}
+      {restaurant.banner_url && (
+        <div
+          className="fixed inset-0 z-0"
+          style={{
+            backgroundImage: `url(${restaurant.banner_url})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+      )}
+      <div
+        className="fixed inset-0 z-0"
+        style={{
+          background: restaurant.banner_url
+            ? `linear-gradient(to bottom, rgba(7,7,11,0) 0%, rgba(7,7,11,0.6) 60%, #07070b 100%)`
+            : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
+        }}
+      />
       {/* Top utility bar — open/closed */}
       {restaurant.operating_hours && (
         <div
@@ -610,18 +629,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       </div>
 
       {/* HERO — compact */}
-      <div className="relative overflow-hidden mt-2">
-        {/* banner */}
-        <div
-          className="relative h-[280px] w-full sm:h-[320px] sticky top-0 z-0"
-          style={{
-            backgroundImage: restaurant.banner_url
-              ? `url(${restaurant.banner_url})`
-              : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
-            backgroundSize: restaurant.banner_url ? "cover" : undefined,
-            backgroundPosition: restaurant.banner_url ? "center center" : undefined,
-          }}
-        >
+      <div className="relative z-10 overflow-hidden mt-2">
+        {/* banner — transparent, background is fixed */}
+        <div className="relative h-[280px] w-full sm:h-[320px]">
           <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/80 to-black/30" />
 
           {/* compact content */}
@@ -671,7 +681,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
       {/* closed banner — quando fechado, bem bonito */}
       {!isCurrentlyOpen && (
-        <div className="mx-auto mt-2 max-w-2xl px-4">
+        <div className="relative z-10 mx-auto mt-2 max-w-2xl px-4">
           <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-amber-500/5 p-3">
             <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-amber-500/15">
               <Clock className="size-4 text-amber-300" />
@@ -725,7 +735,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </div>
       </div>
 
-      <main className="px-4 pb-28">
+      <main className="relative z-10 px-4 pb-28">
         <div className="mx-auto max-w-2xl">
           {!hasAnyProducts ? (
             <div className="py-16 text-center">

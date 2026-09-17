@@ -497,25 +497,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   return (
     <div className="min-h-screen bg-[#07070b] pb-6">
-      {/* Fixed banner background — stays in place while content scrolls over it */}
-      {restaurant.banner_url && (
-        <div
-          className="fixed inset-0 z-0"
-          style={{
-            backgroundImage: `url(${restaurant.banner_url})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
-      )}
-      <div
-        className="fixed inset-0 z-0"
-        style={{
-          background: restaurant.banner_url
-            ? `linear-gradient(to bottom, rgba(7,7,11,0) 0%, rgba(7,7,11,0.6) 60%, #07070b 100%)`
-            : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
-        }}
-      />
       {/* Top utility bar — open/closed */}
       {restaurant.operating_hours && (
         <div
@@ -546,7 +527,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       )}
 
       {/* restaurant info toggle — moved to top */}
-      <div className="mx-auto max-w-2xl px-4 mt-2">
+      <div className="relative z-10 mx-auto max-w-2xl px-4 mt-2">
         <button
           onClick={() => setInfoOpen((v) => !v)}
           className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05]"
@@ -629,9 +610,18 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       </div>
 
       {/* HERO — compact */}
-      <div className="relative z-10 overflow-hidden mt-2">
-        {/* banner — transparent, background is fixed */}
-        <div className="relative h-[280px] w-full sm:h-[320px]">
+      <div className="contents">
+        {/* banner — tamanho e posição originais; fica fixo como fundo enquanto o cardápio rola por cima */}
+        <div
+          className="sticky top-0 z-0 mt-2 h-[280px] w-full sm:h-[320px]"
+          style={{
+            backgroundImage: restaurant.banner_url
+              ? `url(${restaurant.banner_url})`
+              : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
+            backgroundSize: restaurant.banner_url ? "cover" : undefined,
+            backgroundPosition: restaurant.banner_url ? "center center" : undefined,
+          }}
+        >
           <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/80 to-black/30" />
 
           {/* compact content */}

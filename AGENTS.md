@@ -33,3 +33,25 @@
   only hashed assets under `/assets/`; navigation and API responses always go
   to the network, so orders are never served from a stale cache.
 
+## Orders, realtime and restaurant setup
+
+- `restaurants.operating_hours` is a JSONB column that may be absent on older
+  databases. `createRestaurant` / `updateRestaurant` retry without the column
+  when Postgres complains; run `supabase/supabase_operating_hours_migration.sql`
+  to add it.
+- Storage policy requires the restaurant row to exist before its logo/banner
+  can be uploaded. Creating a restaurant is therefore two steps internally:
+  insert the row, then upload and patch the image URLs. The dialog returns the
+  new id from `onSubmit` so the caller can patch it (`patchId`).
+- `createOrder` dedupes on an idempotency key that includes the `comanda` —
+  without it, the same customer reordering identical items was swallowed as a
+  duplicate and never reached the restaurant.
+- Every `subscribeToOrders` caller passes a distinct channel prefix
+  (`mobile_orders`, `mobile_badge`, `admin_alert`, `customer_list`,
+  `customer_order`). Supabase reuses channel topics by name, so sharing one
+  means a screen unmounting tears down another screen's subscription.
+- The order alert sound is synthesised with Web Audio in
+  `src/lib/orderAlertSound.ts` (no asset file), with an in-memory WAV fallback.
+  `AudioContext` starts suspended until a user gesture; the module registers a
+  global unlock on the first pointer/key/touch.
+

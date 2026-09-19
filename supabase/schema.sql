@@ -766,6 +766,18 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- PUSH: chaves VAPID nunca saem pelas policies (só service_role);
+-- subscriptions são geridas pelo próprio dono autenticado.
+ALTER TABLE push_vapid ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE push_vapid, push_subscriptions TO service_role;
+DO $$ BEGIN
+  CREATE POLICY "owner_push_subscriptions" ON push_subscriptions FOR ALL TO authenticated
+    USING (user_id = auth.uid()::text)
+    WITH CHECK (user_id = auth.uid()::text);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
 -- ============================================================
 -- CARDÁPIO PRÉ-PROGRAMADO
 -- Roda uma vez só. Se já existir, não duplica.
@@ -981,6 +993,38 @@ CREATE POLICY "Owner update restaurant-images"
 CREATE POLICY "Owner delete restaurant-images"
   ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'restaurant-images' AND public.is_owner_of_storage_path(name));
+
+-- ============================================================
+-- PUSH NOTIFICATIONS — Web Push nativo (sem Firebase, sem env vars)
+-- ============================================================
+-- push_vapid: par de chaves VAPID (RFC 8292). A Edge Function gera
+-- na primeira execução e persiste aqui; a pública é servida ao
+-- cliente para assinar as subscriptions.
+CREATE TABLE IF NOT EXISTS push_vapid (
+  id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  public_key TEXT NOT NULL,
+  private_key TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- push_subscriptions: uma linha por dispositivo inscrito.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  token TEXT NOT NULL,
+  p256dh TEXT NOT NULL DEFAULT '',
+  auth TEXT NOT NULL DEFAULT '',
+  platform TEXT DEFAULT 'web',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_push_subscriptions_token_restaurant
+  ON push_subscriptions(token, restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_restaurant
+  ON push_subscriptions(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user
+  ON push_subscriptions(user_id);
 
 -- ============================================================
 -- GRANTS — permissões explícitas para os roles do PostgREST.

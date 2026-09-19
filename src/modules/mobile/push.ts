@@ -1,54 +1,27 @@
 /**
- * Push notification subscription manager.
+ * Push notification subscription manager — Web Push nativo do navegador.
  *
- * Uses Firebase Cloud Messaging (FCM) to register the device for web push.
- * The service worker (public/sw.js) receives push events and shows system
- * notifications — even when the app is closed or the browser is minimized.
+ * Não usa Firebase nem nenhuma variável de ambiente: a chave VAPID fica
+ * no banco (settings da Edge Function) e o cliente só precisa do
+ * applicationServerKey, lido da própria subscription/endpoint público.
  *
- * Flow:
- *   1. User enables notifications in settings
- *   2. This module requests permission → gets an FCM token
- *   3. The token (device endpoint) is stored in Supabase `push_subscriptions`
- *   4. When a new order arrives, a Supabase Edge Function sends a push to
- *      all stored tokens via Firebase Admin SDK
- *   5. The service worker receives the push and shows a notification
+ * Fluxo:
+ *   1. Usuário ativa notificações (banner no /mobile ou em Config).
+ *   2. Este módulo pede permissão → gera a subscription Web Push
+ *      (endpoint + p256dh + auth) e salva em `push_subscriptions`.
+ *   3. Trigger no banco (schema.sql) chama a Edge Function a cada pedido.
+ *   4. Edge Function cifra e envia via protocolo Web Push (RFC 8291).
+ *   5. Service worker (/sw.js) mostra a notificação — mesmo com o app fechado.
  */
 
-import { initializeApp, type FirebaseApp } from "firebase/app";
-import { getMessaging, getToken, type Messaging } from "firebase/messaging";
-import { isFirebaseConfigured, firebaseConfig } from "@/lib/firebase";
 import { supabase } from "@/modules/supabase/client";
 
-let app: FirebaseApp | null = null;
-let messaging: Messaging | null = null;
-
-function getFirebaseMessaging(): Messaging | null {
-  if (messaging) return messaging;
-  if (!isFirebaseConfigured()) return null;
+/** Chave pública VAPID lida da Edge Function (mesma do lado servidor). */
+export async function fetchVapidPublicKey(): Promise<string | null> {
   try {
-    app = initializeApp(firebaseConfig);
-    messaging = getMessaging(app);
-    return messaging;
-  } catch (e) {
-    console.warn("[push] Firebase init failed", e);
-    return null;
-  }
-}
-
-/** VAPID key for web push (from Firebase Console → Cloud Messaging → Web push) */
-const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string;
-
-/**
- * Returns the registered service worker (/sw.js) so FCM binds the token to it.
- * Without this, getToken() tries to register firebase-messaging-sw.js which
- * doesn't exist in this project and subscription fails silently.
- */
-async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
-  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return null;
-  try {
-    // Wait briefly for the SW to register (registerServiceWorker registers on window load).
-    const registration = await navigator.serviceWorker.ready;
-    return registration;
+    const { data, error } = await supabase.functions.invoke("push-vapid-key");
+    if (error || !data?.publicKey) return null;
+    return data.publicKey as string;
   } catch {
     return null;
   }
@@ -56,55 +29,54 @@ async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration
 
 /**
  * Subscribe the current device for push notifications.
- * Returns the FCM token on success, null on failure.
+ * Returns the endpoint URL on success, null on failure.
  */
 export async function subscribePush(): Promise<string | null> {
-  const mg = getFirebaseMessaging();
-  if (!mg) {
-    console.warn("[push] Firebase Messaging not available");
-    return null;
-  }
-  if (!VAPID_KEY) {
-    console.warn("[push] VITE_FIREBASE_VAPID_KEY not set");
-    return null;
-  }
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
+  if (!("PushManager" in window)) return null;
 
   try {
-    const serviceWorkerRegistration = await getServiceWorkerRegistration();
-    const token = await getToken(mg, {
-      vapidKey: VAPID_KEY,
-      ...(serviceWorkerRegistration ? { serviceWorkerRegistration } : {}),
-    });
-    if (token) {
-      await saveTokenToSupabase(token);
-      return token;
+    const registration = await navigator.serviceWorker.ready;
+    const vapidPublicKey = await fetchVapidPublicKey();
+    if (!vapidPublicKey) {
+      console.warn("[push] chave VAPID indisponível (Edge Function push-vapid-key)");
+      return null;
     }
-    return null;
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+    }
+
+    await saveSubscriptionToSupabase(subscription);
+    return subscription.endpoint;
   } catch (e) {
-    console.error("[push] getToken failed", e);
+    console.error("[push] subscribe failed", e);
     return null;
   }
 }
 
 /**
  * Check if there's already an active push subscription.
- * Returns the existing token if the service worker has one.
  */
-export async function getExistingToken(): Promise<string | null> {
-  const mg = getFirebaseMessaging();
-  if (!mg) return null;
-
+export async function getExistingSubscription(): Promise<PushSubscription | null> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   try {
-    const token = await getToken(mg);
-    return token || null;
+    const registration = await navigator.serviceWorker.ready;
+    return await registration.pushManager.getSubscription();
   } catch {
     return null;
   }
 }
 
-/** Store the FCM token in Supabase so the Edge Function can send to it. */
-async function saveTokenToSupabase(token: string): Promise<void> {
+/** Store the subscription in Supabase so the Edge Function can send to it. */
+async function saveSubscriptionToSupabase(subscription: PushSubscription): Promise<void> {
   try {
+    const json = subscription.toJSON();
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -118,6 +90,9 @@ async function saveTokenToSupabase(token: string): Promise<void> {
 
     if (!restaurants || restaurants.length === 0) return;
 
+    const token = json.endpoint ?? "";
+    const keys = (json.keys ?? {}) as { p256dh?: string; auth?: string };
+
     // Upsert subscription for each restaurant
     for (const r of restaurants) {
       await supabase.from("push_subscriptions").upsert(
@@ -125,26 +100,25 @@ async function saveTokenToSupabase(token: string): Promise<void> {
           restaurant_id: r.id,
           user_id: user.id,
           token,
+          p256dh: keys.p256dh ?? "",
+          auth: keys.auth ?? "",
           platform: detectPlatform(),
-          created_at: new Date().toISOString(),
         },
         { onConflict: "token,restaurant_id" },
       );
     }
   } catch (e) {
-    console.error("[push] saveToken failed", e);
+    console.error("[push] saveSubscription failed", e);
   }
 }
 
 /** Remove the current device's push subscription. */
 export async function unsubscribePush(): Promise<void> {
   try {
-    const mg = getFirebaseMessaging();
-    if (mg) {
-      const token = await getToken(mg);
-      if (token) {
-        await supabase.from("push_subscriptions").delete().eq("token", token);
-      }
+    const subscription = await getExistingSubscription();
+    if (subscription) {
+      await supabase.from("push_subscriptions").delete().eq("token", subscription.endpoint);
+      await subscription.unsubscribe();
     }
   } catch (e) {
     console.error("[push] unsubscribe failed", e);
@@ -157,4 +131,15 @@ function detectPlatform(): string {
   if (/Android/i.test(ua)) return "android";
   if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
   return "web";
+}
+
+/** RFC 8292: applicationServerKey chega em base64url. */
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const buffer = new ArrayBuffer(raw.length);
+  const output = new Uint8Array(buffer);
+  for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+  return output;
 }

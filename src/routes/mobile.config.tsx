@@ -27,8 +27,7 @@ import {
   type MobilePreferences,
   type NotificationPermissionState,
 } from "@/modules/mobile/preferences";
-import { subscribePush, unsubscribePush, getExistingToken } from "@/modules/mobile/push";
-import { isFirebaseConfigured } from "@/lib/firebase";
+import { subscribePush, unsubscribePush, getExistingSubscription } from "@/modules/mobile/push";
 import { useOwnerOrders } from "@/modules/mobile/useOwnerOrders";
 import { previewOrderAlert } from "@/lib/orderAlertSound";
 import { useWakeLock } from "@/modules/mobile/useWakeLock";
@@ -65,7 +64,6 @@ function MobileConfigPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
-  const firebaseReady = isFirebaseConfigured();
 
   const { isStandalone } = usePwaInstall();
   const wakeLock = useWakeLock(prefs.keepAwake && !loading);
@@ -75,9 +73,8 @@ function MobileConfigPage() {
 
   // Check if push is already subscribed
   useEffect(() => {
-    if (!firebaseReady) return;
-    getExistingToken().then((token) => setPushEnabled(Boolean(token)));
-  }, [firebaseReady]);
+    getExistingSubscription().then((sub) => setPushEnabled(Boolean(sub)));
+  }, []);
 
   const displayName =
     (user?.user_metadata?.name as string | undefined) || profile?.name || user?.email || "Operador";
@@ -103,10 +100,6 @@ function MobileConfigPage() {
   }
 
   async function handleTogglePush(next: boolean) {
-    if (!firebaseReady) {
-      toast.error("Firebase não configurado. Adicione as chaves VITE_FIREBASE_* no .env.");
-      return;
-    }
     setPushLoading(true);
     if (next) {
       // Request notification permission first
@@ -117,14 +110,14 @@ function MobileConfigPage() {
         toast.error("Permissão de notificação negada.");
         return;
       }
-      const token = await subscribePush();
+      const endpoint = await subscribePush();
       setPushLoading(false);
-      if (token) {
+      if (endpoint) {
         setPushEnabled(true);
         update("notifications", true);
         toast.success("Notificações push ativadas! Você receberá alertas mesmo com o app fechado.");
       } else {
-        toast.error("Falha ao ativar push. Verifique a configuração do Firebase.");
+        toast.error("Falha ao ativar o push neste dispositivo.");
       }
     } else {
       await unsubscribePush();
@@ -226,10 +219,10 @@ function MobileConfigPage() {
           <ToggleRow
             icon={<BellRing className="size-4" />}
             title="Push (app fechado)"
-            description="Receba notificações mesmo com o app fechado ou navegador minimizado. Requer Firebase configurado."
+            description="Receba notificações mesmo com o app fechado ou navegador minimizado."
             checked={pushEnabled}
             onChange={handleTogglePush}
-            hint={!firebaseReady ? "Configure VITE_FIREBASE_* no .env para ativar." : undefined}
+            hint="Receba o alerta mesmo com o app fechado."
           />
 
           <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">

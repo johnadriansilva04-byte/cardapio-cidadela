@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bell, BellOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { isFirebaseConfigured } from "@/lib/firebase";
 import { subscribePush } from "@/modules/mobile/push";
 import { requestNotificationPermission } from "@/modules/mobile/preferences";
 
@@ -9,7 +8,7 @@ import { requestNotificationPermission } from "@/modules/mobile/preferences";
  * Banner de ativação de push em um toque.
  *
  * Aparece no app mobile enquanto as notificações não estiverem permitidas.
- * Um toque pede permissão, gera o token FCM e o salva no Supabase —
+ * Um toque pede permissão e registra o dispositivo em `push_subscriptions` —
  * é isso que faz o celular tocar mesmo com o app fechado.
  */
 
@@ -33,7 +32,6 @@ export function PushBanner() {
 
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (!isFirebaseConfigured()) return;
     if (readDismissed()) return;
 
     if (Notification.permission === "granted") return; // já ativo
@@ -53,10 +51,6 @@ export function PushBanner() {
   }
 
   async function activate() {
-    if (!isFirebaseConfigured()) {
-      toast.error("Push não configurado: adicione as chaves VITE_FIREBASE_* no ambiente.");
-      return;
-    }
     setLoading(true);
     const permission = await requestNotificationPermission();
     if (permission !== "granted") {
@@ -67,9 +61,9 @@ export function PushBanner() {
       }
       return;
     }
-    const token = await subscribePush();
+    const endpoint = await subscribePush();
     setLoading(false);
-    if (token) {
+    if (endpoint) {
       setVisible(false);
       toast.success("Alertas ativados! Você será avisado mesmo com o app fechado.");
     } else {

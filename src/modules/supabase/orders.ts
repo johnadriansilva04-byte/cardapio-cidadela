@@ -184,6 +184,24 @@ export async function createOrder(
     note: "Pedido criado",
   });
 
+  // Fire-and-forget: acorda o celular do dono mesmo com o app fechado.
+  // A Edge Function gera/chama as chaves VAPID dela mesma — nada para configurar.
+  void supabase.functions
+    .invoke("notify-new-order", {
+      body: {
+        id: orderId,
+        restaurant_id: restaurantId,
+        customer_name: orderData.customer_name,
+        comanda: orderData.comanda,
+        total: orderData.total,
+        delivery_type: orderData.delivery_type,
+        items: items.map((i) => ({ product_name: i.product_name, quantity: i.quantity })),
+      },
+    })
+    .catch(() => {
+      /* push é best-effort: falha não afeta o pedido */
+    });
+
   return {
     order: {
       id: orderId,

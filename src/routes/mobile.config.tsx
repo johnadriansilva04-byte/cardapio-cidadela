@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { InstallCard } from "@/components/pwa/InstallCard";
+import { AnalyticsConsentCard } from "@/components/analytics/AnalyticsConsentCard";
 import { ExpandableSection, InfoRow } from "@/modules/ui/ExpandableSection";
 import {
   loadPreferences,
@@ -363,6 +364,9 @@ function MobileConfigPage() {
           </button>
         </div>
       </ExpandableSection>
+
+      {/* Estatísticas de uso (consentimento por dispositivo) */}
+      <AnalyticsConsentCard />
 
       {/* Sobre */}
       <ExpandableSection

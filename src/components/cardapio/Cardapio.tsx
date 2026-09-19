@@ -39,6 +39,7 @@ import type { CheckoutForm } from "./CheckoutModal";
 import PaymentScreen from "./PaymentScreen";
 import SuccessModal from "./SuccessModal";
 import ProductAddonsModal from "./ProductAddonsModal";
+import { ReviewsSection } from "@/components/reviews/ReviewsSection";
 import {
   normalizeOperatingHours,
   isOpenNow,
@@ -976,6 +977,15 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               );
             })
           )}
+        </div>
+
+        {/* Avaliações — some sozinha se a migração ainda não foi aplicada */}
+        <div className="mx-auto mt-4 max-w-2xl px-4">
+          <ReviewsSection
+            restaurantId={restaurant.id}
+            accent={accent}
+            customerName={currentOrder?.customer_name}
+          />
         </div>
       </main>
 

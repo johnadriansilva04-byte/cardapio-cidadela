@@ -16,6 +16,7 @@ import {
 } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
+import { generateSlug } from "@/lib/utils";
 import { RestaurantManager } from "./RestaurantManager";
 import { MenuManager } from "./MenuManager";
 import { OrderManager } from "./OrderManager";
@@ -279,16 +280,7 @@ export default function AdminDashboard() {
             value={newName}
             onChange={(e) => {
               setNewName(e.target.value);
-              // Auto-generate slug preview
-              const slug = e.target.value
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .toLowerCase()
-                .replace(/[^a-z0-9\s-]/g, "")
-                .replace(/\s+/g, "-")
-                .replace(/-+/g, "-")
-                .replace(/^-|-$/g, "");
-              setSlugPreview(slug);
+              setSlugPreview(generateSlug(e.target.value));
             }}
           />
           {slugPreview && (

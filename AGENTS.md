@@ -14,8 +14,15 @@
 ## Build & verification
 
 - `npm run build` (Vite + Nitro). `npx tsc --noEmit` for types.
+- `npm run test` (Vitest, jsdom). Config in `vitest.config.ts`, setup in
+  `src/test/setup.ts`; `@` maps to `src/`. Component tests use
+  `@testing-library/react` + `@testing-library/user-event`.
 - `npm run lint` reports ~490 pre-existing errors repo-wide. Check only the
   files you touched (`npx eslint <paths>`); don't try to fix the baseline.
+  `AdminDashboard.tsx` is unformatted upstream — its prettier errors predate any
+  change, so don't "fix" them while touching the file.
+- Import from the barrel when one exists (`@/modules/analytics`,
+  `@/modules/mobile/orders`) instead of deep paths.
 - No `.env` in the repo. Authenticated screens can't be exercised locally
   without `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
 
@@ -54,4 +61,20 @@
   `src/lib/orderAlertSound.ts` (no asset file), with an in-memory WAV fallback.
   `AudioContext` starts suspended until a user gesture; the module registers a
   global unlock on the first pointer/key/touch.
+
+## Analytics and reviews (new modules)
+
+- `src/modules/analytics/` is provider-agnostic: it batches events and only
+  sends when `VITE_ANALYTICS_ENDPOINT` is set. Consent is per device in
+  localStorage and honours Do Not Track; `AnalyticsConsentCard` exposes the
+  toggle in mobile settings. Never send PII — only counts and event names.
+- Image optimization is opt-in per component: `optimizedImageUrl` rewrites
+  Supabase Storage `/object/` URLs to `/render/image/` with transform params.
+  Supabase image transforms are a paid feature, so `SmartImage` retries the
+  original URL on `error` before giving up. Any other host is passed through.
+- `src/modules/supabase/reviews.ts` treats a missing `reviews` table as "feature
+  off" and surfaces `unavailable` instead of throwing, so the menu renders
+  untouched until `supabase/supabase_reviews_migration.sql` is applied. The
+  migration grants INSERT to `anon` deliberately (anonymous orders), which is
+  why `submitReview` re-validates locally via `@/lib/reviews`.
 

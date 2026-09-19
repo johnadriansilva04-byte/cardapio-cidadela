@@ -440,6 +440,58 @@ export function OrderManager({
         </div>
       </div>
 
+      {/* Filtros rápidos adicionais */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setPeriod("today")}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            period === "today"
+              ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
+              : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10"
+          }`}
+        >
+          Hoje
+        </button>
+        <button
+          onClick={() => setPeriod("7d")}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            period === "7d"
+              ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
+              : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10"
+          }`}
+        >
+          7 dias
+        </button>
+        <button
+          onClick={() => setPeriod("30d")}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            period === "30d"
+              ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
+              : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10"
+          }`}
+        >
+          30 dias
+        </button>
+        <button
+          onClick={() => setFilter("all")}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            filter === "all"
+              ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
+              : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10"
+          }`}
+        >
+          Todos os status
+        </button>
+        {q && (
+          <button
+            onClick={() => setQ("")}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25"
+          >
+            Limpar busca
+          </button>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
         <button
           onClick={loadOrders}

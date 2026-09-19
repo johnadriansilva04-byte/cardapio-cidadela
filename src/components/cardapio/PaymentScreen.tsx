@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy, Check, X, QrCode, Smartphone } from "lucide-react";
+import { Copy, Check, X, QrCode, Smartphone, Clock, AlertCircle } from "lucide-react";
 import type { Order } from "@/lib/types";
 import { brl, hexToRgba, buildPixPayload } from "@/lib/utils";
 
@@ -22,6 +22,7 @@ export default function PaymentScreen({
 }) {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutos em segundos
   const isPix = order.payment_method === "pix";
 
   // Payload EMV "Copia e Cola" — o que o app do banco realmente lê.
@@ -35,6 +36,32 @@ export default function PaymentScreen({
       })
     : "";
   const qrData = payload || pixKey;
+
+  // Countdown timer para expiração do QR Code (5 minutos)
+  useEffect(() => {
+    if (!isPix) return;
+    
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isPix]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const isExpiringSoon = timeLeft > 0 && timeLeft <= 60;
+  const isExpired = timeLeft === 0;
 
   useEffect(() => {
     if (isPix) return;
@@ -87,11 +114,30 @@ export default function PaymentScreen({
               {brl(order.total)}
             </p>
             <p className="mt-0.5 text-xs text-gray-500">Comanda {order.comanda}</p>
+            
+            {isPix && (
+              <div className={`mt-3 flex items-center justify-center gap-1.5 text-xs font-semibold ${
+                isExpired ? 'text-red-400' : isExpiringSoon ? 'text-amber-400' : 'text-gray-400'
+              }`}>
+                <Clock className="size-3.5" />
+                {isExpired ? 'QR Code expirado' : `Expira em ${formatTime(timeLeft)}`}
+              </div>
+            )}
           </div>
 
           <div className="mt-4 grid place-items-center">
-            {qrData ? (
-              <div className="rounded-2xl bg-white p-2.5">
+            {isExpired ? (
+              <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-6 text-center">
+                <AlertCircle className="mx-auto size-8 text-red-400" />
+                <p className="mt-2 text-xs font-semibold text-red-300">
+                  QR Code expirado
+                </p>
+                <p className="mt-1 text-[11px] text-red-200/70">
+                  Solicite um novo QR Code ao restaurante ou entre em contato pelo WhatsApp.
+                </p>
+              </div>
+            ) : qrData ? (
+              <div className={`rounded-2xl bg-white p-2.5 transition-opacity ${isExpiringSoon ? 'animate-pulse' : ''}`}>
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=${encodeURIComponent(qrData)}`}
                   alt="QR Code PIX para pagamento do pedido"
@@ -179,14 +225,14 @@ export default function PaymentScreen({
         <div className="shrink-0 border-t border-white/[0.07] p-5">
           <button
             onClick={confirm}
-            disabled={loading}
+            disabled={loading || isExpired}
             className="w-full rounded-full py-3.5 text-sm font-black text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             style={{
-              backgroundColor: accent,
-              boxShadow: `0 6px 24px ${hexToRgba(accent, 0.45)}`,
+              backgroundColor: isExpired ? '#6b7280' : accent,
+              boxShadow: isExpired ? 'none' : `0 6px 24px ${hexToRgba(accent, 0.45)}`,
             }}
           >
-            {loading ? "Confirmando..." : "Já paguei"}
+            {isExpired ? 'Gerar novo QR Code' : loading ? "Confirmando..." : "Já paguei"}
           </button>
         </div>
       </div>

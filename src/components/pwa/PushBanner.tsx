@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import { Bell, BellOff, Loader2, Info, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { subscribePush } from "@/modules/mobile/push";
 import { requestNotificationPermission } from "@/modules/mobile/preferences";
@@ -29,6 +29,7 @@ export function PushBanner() {
   const [visible, setVisible] = useState(false);
   const [denied, setDenied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -69,6 +70,10 @@ export function PushBanner() {
     } else {
       toast.error("Não foi possível ativar os alertas neste dispositivo.");
     }
+  }
+
+  function toggleDetails() {
+    setShowDetails(!showDetails);
   }
 
   if (!visible) return null;
@@ -120,6 +125,41 @@ export function PushBanner() {
           ✕
         </button>
       </div>
+
+      {/* Informações detalhadas */}
+      {showDetails && (
+        <div className="mt-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+          <div className="flex items-start gap-2">
+            <Info className="size-4 shrink-0 text-cyan-400 mt-0.5" />
+            <div className="flex-1 space-y-2 text-xs text-gray-400">
+              <p className="font-semibold text-gray-300">Como funcionam os alertas:</p>
+              <ul className="space-y-1 list-disc list-inside">
+                <li>Seu celular tocará mesmo com o app fechado</li>
+                <li>Você verá o valor e cliente do novo pedido</li>
+                <li>Funciona via notificações nativas do sistema</li>
+                <li>Sem custos adicionais ou configuração complexa</li>
+              </ul>
+              {denied && (
+                <p className="mt-2 text-amber-300">
+                  <BellOff className="inline size-3 mr-1" />
+                  Para reativar: configureções do navegador → notificações → permita
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Botão para mostrar detalhes */}
+      {!showDetails && (
+        <button
+          type="button"
+          onClick={toggleDetails}
+          className="mt-2 flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 transition-colors"
+        >
+          Saiba mais sobre os alertas <ChevronDown className="size-3" />
+        </button>
+      )}
     </div>
   );
 }

@@ -1031,11 +1031,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                   ? `Restaurante fechado agora — abre ${nextOpen.label.toLowerCase()} às ${nextOpen.time}. Tente novamente na abertura.`
                   : "Restaurante fechado no momento. Tente novamente mais tarde.",
               );
+              setCartOpen(false);
+              setCheckoutOpen(true);
             } else {
               setCheckoutError("");
+              setCartOpen(false);
+              setCheckoutOpen(true);
             }
-            setCartOpen(false);
-            setCheckoutOpen(true);
           }}
         />
       )}

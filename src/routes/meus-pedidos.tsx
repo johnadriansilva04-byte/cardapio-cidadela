@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ShoppingBag, PackageOpen, ExternalLink, ArrowLeft, RefreshCw, Clock } from "lucide-react";
 import { getMyOrders, isOrderClosed, pruneClosedOrderIds, getGuestId } from "@/lib/guestOrder";
+import { getCustomerOrders } from "@/modules/supabase/customer";
+import { useAuth } from "@/components/AuthProvider";
 import { subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import { brl, formatDate } from "@/lib/utils";
@@ -22,6 +24,7 @@ function MyOrdersPage() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<GuestOrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   // Slug do restaurante de onde o cliente voltou (ex.: /cardapio/meu-restaurante)
   const from = search.from;
@@ -44,30 +47,25 @@ function MyOrdersPage() {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
   }
 
-  async function load(refresh = false) {
-    if (refresh) setRefreshing(true);
-    const list = await getMyOrders();
-    if (refresh) setRefreshing(false);
-    // Poda local: pedidos entregues/cancelados somem após alguns dias
-    pruneClosedOrderIds(list);
-    setOrders(list);
-    if (!refresh) setLoading(false);
-  }
+  const load = useCallback(
+    async (refresh = false) => {
+      if (refresh) setRefreshing(true);
+      // Com conta, o histórico vem da conta (vale em qualquer aparelho).
+      // Como convidado, continua vindo do guest id deste navegador.
+      const list = await getCustomerOrders(user?.id);
+      if (refresh) setRefreshing(false);
+      // Poda local: pedidos entregues/cancelados somem após alguns dias
+      pruneClosedOrderIds(list);
+      setOrders(list);
+      if (!refresh) setLoading(false);
+    },
+    [user?.id],
+  );
 
   // Carrega lista inicial
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      const list = await getMyOrders();
-      if (!alive) return;
-      pruneClosedOrderIds(list);
-      setOrders(list);
-      setLoading(false);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+    void load();
+  }, [load]);
 
   // Pull-to-refresh manual
   useEffect(() => {
@@ -76,7 +74,7 @@ function MyOrdersPage() {
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [loading]);
+  }, [loading, load]);
 
   // Tempo real: inscreve-se nos restaurantes dos pedidos (uma vez por sala)
   useEffect(() => {
@@ -116,7 +114,9 @@ function MyOrdersPage() {
     );
   }
 
-  if (!getGuestId()) {
+  // Sem conta e sem guest id este navegador não tem de onde tirar histórico.
+  // (Depois do login o guest id é limpo — o histórico passa a vir da conta.)
+  if (!user && !getGuestId()) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black px-6">
         <div className="max-w-sm text-center">

@@ -15,7 +15,7 @@ import {
   Info,
   Sparkles,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
 import { getRestaurantBySlug, getNeighborhoods } from "@/modules/supabase/restaurants";
 import { getMenuWithProducts, getAddonsByRestaurant } from "@/modules/supabase/menu";
@@ -39,6 +39,10 @@ import type { CheckoutForm } from "./CheckoutModal";
 import PaymentScreen from "./PaymentScreen";
 import SuccessModal from "./SuccessModal";
 import ProductAddonsModal from "./ProductAddonsModal";
+import CustomerBottomNav, { type CustomerTab } from "./CustomerBottomNav";
+import CustomerProfileSheet from "@/components/customer/CustomerProfileSheet";
+import { useScrollSpy } from "@/hooks/useScrollSpy";
+import { useActiveOrderCount } from "@/modules/customer/useActiveOrderCount";
 import { ReviewsSection } from "@/components/reviews/ReviewsSection";
 import { CidadelaBadge } from "./CidadelaBadge";
 import {
@@ -88,8 +92,10 @@ async function ensureRestaurantFromLegacyTrial(slug: string): Promise<Restaurant
 }
 
 export default function PublicMenu({ slug }: PublicMenuProps) {
-  const { cart, addToCart, removeFromCart, clearCart, setCart } = usePlatformStore();
+  const { cart, addToCart, removeFromCart, clearCart, setCart, discardCartIfForeign } =
+    usePlatformStore();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -99,6 +105,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeCat, setActiveCat] = useState("");
+  const [activeTab, setActiveTab] = useState<CustomerTab>("inicio");
+  const [profileOpen, setProfileOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<Record<string, unknown> | null>(null);
@@ -158,15 +166,18 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     };
   }, [slug]);
 
-  const lastSlugRef = useRef(slug);
-  useEffect(() => {
-    if (lastSlugRef.current !== slug) {
-      lastSlugRef.current = slug;
-      setCart([]);
-    }
-  }, [slug, setCart]);
-
   const restaurantId = restaurant?.id;
+
+  // Descarta o carrinho ao abrir o cardápio de outro restaurante. Antes isto era
+  // um ref de slug em memória, que nascia já preenchido num carregamento direto
+  // (link novo, PWA reaberto) — o carrinho do restaurante anterior sobrevivia e
+  // podia ser enviado junto com os produtos errados. Agora a comparação é pelo
+  // id do restaurante que realmente é dono das linhas, persistido junto delas.
+  useEffect(() => {
+    if (!restaurantId) return;
+    discardCartIfForeign(restaurantId);
+  }, [restaurantId, discardCartIfForeign]);
+
   useEffect(() => {
     if (!restaurantId) return;
     const rid: string = restaurantId;
@@ -317,6 +328,20 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     sectionsRef.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  /** Navegação da barra fixa do cardápio público. */
+  function handleTab(tab: CustomerTab) {
+    if (tab === "pedidos") {
+      navigate({ to: "/meus-pedidos", search: { from: slug } });
+      return;
+    }
+    setActiveTab(tab);
+    if (tab === "inicio") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setProfileOpen(true);
+  }
+
   function handleAddonConfirm(selected: SelectedAddon[], notes: string) {
     if (!addonModalProduct) return;
 
@@ -455,6 +480,26 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     return getTodaySchedule(restaurant.operating_hours as unknown as never, now);
   }, [restaurant?.operating_hours, now]);
 
+  // Categorias que realmente aparecem na página — seções vazias não existem
+  // no DOM, e observá-las deixaria o destaque preso na categoria errada.
+  const visibleCatIds = useMemo(
+    () =>
+      categories
+        .filter((cat) => products.some((p) => p.category_id === cat.id && p.available))
+        .map((cat) => cat.id),
+    [categories, products],
+  );
+
+  // Mantém o menu superior aceso conforme a rolagem, e não só no clique.
+  useScrollSpy({
+    ids: visibleCatIds,
+    onChange: setActiveCat,
+    enabled: !loading && visibleCatIds.length > 0,
+  });
+
+  // Badge da barra inferior: pedidos do cliente ainda em andamento.
+  const activeOrderCount = useActiveOrderCount();
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#07070b]">
@@ -584,7 +629,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const hasHours = Boolean(restaurant.operating_hours);
 
   return (
-    <div className="min-h-screen bg-[#07070b] pb-6">
+    <div className="min-h-screen bg-[#07070b] pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
       {/* HERO — banner fixo com identidade da loja */}
       <div className="relative">
         <div
@@ -825,6 +870,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               return (
                 <section
                   key={cat.id}
+                  id={`cat-${cat.id}`}
                   ref={(el) => {
                     sectionsRef.current[cat.id] = el;
                   }}
@@ -993,9 +1039,12 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </div>
       </main>
 
-      {/* Barra flutuante do carrinho */}
+      {/* Barra flutuante do carrinho — fica acima da barra de navegação fixa */}
       {count > 0 && !cartOpen && !checkoutOpen && !pendingOrder && !successOrder && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[#0a0a0f]/95 px-4 py-3 backdrop-blur-xl supports-[backdrop-filter]:bg-[#0a0a0f]/80">
+        <div
+          className="fixed inset-x-0 z-30 border-t border-white/10 bg-[#0a0a0f]/95 px-4 py-3 backdrop-blur-xl supports-[backdrop-filter]:bg-[#0a0a0f]/80"
+          style={{ bottom: "calc(56px + env(safe-area-inset-bottom, 0px))" }}
+        >
           <div className="mx-auto flex max-w-2xl items-center gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span
@@ -1138,19 +1187,26 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         />
       )}
 
-      {/* Meus pedidos — discreto, só quando carrinho vazio */}
-      {count === 0 && (
-        <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2">
-          <Link
-            to="/meus-pedidos"
-            search={{ from: slug }}
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/50 px-4 py-2.5 text-xs font-semibold text-white/90 shadow-lg backdrop-blur transition-all hover:border-white/30 hover:bg-black/70"
-            aria-label="Meus pedidos"
-          >
-            <ShoppingBag className="size-4" /> Meus pedidos
-          </Link>
-        </div>
+      {/* Meus pedidos e perfil agora vivem na barra fixa inferior. */}
+      {profileOpen && (
+        <CustomerProfileSheet
+          accent={accent}
+          slug={slug}
+          onClose={() => setProfileOpen(false)}
+          onOpenOrders={() => {
+            setProfileOpen(false);
+            navigate({ to: "/meus-pedidos", search: { from: slug } });
+          }}
+        />
       )}
+
+      <CustomerBottomNav
+        active={activeTab}
+        accent={accent}
+        pendingCount={activeOrderCount}
+        isAuthenticated={Boolean(user)}
+        onNavigate={handleTab}
+      />
     </div>
   );
 }

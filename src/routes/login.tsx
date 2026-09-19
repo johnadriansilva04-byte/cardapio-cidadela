@@ -17,6 +17,7 @@ import {
   isSupabaseConfigured,
 } from "@/modules/supabase/auth";
 import { useAuth } from "@/components/AuthProvider";
+import { claimGuestData } from "@/modules/supabase/customer";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -122,6 +123,8 @@ function LoginPage() {
         }
 
         if (session) {
+          // Traz para a conta o que foi feito como convidado neste aparelho.
+          await claimGuestData();
           navigate({ to: returnTo as "/", replace: true });
         }
       } else {
@@ -161,6 +164,8 @@ function LoginPage() {
             return;
           }
 
+          // Traz para a conta o que foi feito como convidado neste aparelho.
+          await claimGuestData();
           navigate({ to: returnTo as "/", replace: true });
         }
       }

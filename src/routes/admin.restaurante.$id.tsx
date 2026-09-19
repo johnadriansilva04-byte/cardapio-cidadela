@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
 import { MenuManager } from "@/components/admin/MenuManager";
 import { NeighborhoodManager } from "@/components/admin/NeighborhoodManager";
+import { PromotionsManager } from "@/components/admin/PromotionsManager";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
 import {
@@ -358,8 +359,9 @@ function RestaurantDetailPage() {
       {tab === "cardapio" && <MenuManager key={restaurant.id} restaurant={restaurant} />}
       {tab === "config" && (
         <div className="grid items-start gap-5 lg:grid-cols-2">
-          <div className="min-w-0">
+          <div className="min-w-0 space-y-5">
             <RestaurantCardSummary restaurant={restaurant} onEdit={() => setEditOpen(true)} />
+            <PromotionsManager restaurant={restaurant} />
           </div>
           <div className="min-w-0">
             <NeighborhoodManager restaurant={restaurant} />

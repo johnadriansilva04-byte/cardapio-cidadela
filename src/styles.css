@@ -265,3 +265,17 @@
 @utility text-modern-deep { color: var(--modern-deep); }
 @utility text-future { color: var(--future); }
 @utility text-future-deep { color: var(--future-deep); }
+
+/* Acessibilidade: quem pediu menos movimento no sistema não deve receber
+   pulsos, brilhos e transições animadas. Reduzimos a duração a quase zero em
+   vez de desligar as animações, para que os estados finais continuem corretos. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

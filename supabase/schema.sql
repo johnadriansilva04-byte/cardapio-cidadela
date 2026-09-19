@@ -768,15 +768,8 @@ END $$;
 
 -- PUSH: chaves VAPID nunca saem pelas policies (só service_role);
 -- subscriptions são geridas pelo próprio dono autenticado.
-ALTER TABLE push_vapid ENABLE ROW LEVEL SECURITY;
-ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
-GRANT ALL ON TABLE push_vapid, push_subscriptions TO service_role;
-DO $$ BEGIN
-  CREATE POLICY "owner_push_subscriptions" ON push_subscriptions FOR ALL TO authenticated
-    USING (user_id = auth.uid()::text)
-    WITH CHECK (user_id = auth.uid()::text);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Nota: As tabelas push_vapid e push_subscriptions são criadas mais abaixo
+-- e as configurações de RLS são aplicadas após a criação.
 
 -- ============================================================
 -- CARDÁPIO PRÉ-PROGRAMADO
@@ -1025,6 +1018,17 @@ CREATE INDEX IF NOT EXISTS idx_push_subscriptions_restaurant
   ON push_subscriptions(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user
   ON push_subscriptions(user_id);
+
+-- Configurações de RLS para as tabelas push
+ALTER TABLE push_vapid ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE push_vapid, push_subscriptions TO service_role;
+DO $$ BEGIN
+  CREATE POLICY "owner_push_subscriptions" ON push_subscriptions FOR ALL TO authenticated
+    USING (user_id = auth.uid()::text)
+    WITH CHECK (user_id = auth.uid()::text);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================================
 -- GRANTS — permissões explícitas para os roles do PostgREST.

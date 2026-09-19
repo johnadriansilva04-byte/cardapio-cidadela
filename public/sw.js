@@ -21,7 +21,9 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((key) => !key.startsWith(VERSION)).map((key) => caches.delete(key)));
+      await Promise.all(
+        keys.filter((key) => !key.startsWith(VERSION)).map((key) => caches.delete(key)),
+      );
       await self.clients.claim();
     })(),
   );
@@ -62,7 +64,20 @@ self.addEventListener("push", (event) => {
   if (event.data) {
     try {
       const payload = event.data.json();
-      data = { ...data, ...payload };
+      // FCM HTTP v1 delivers { message: { notification, data } } — older
+      // code merged the envelope directly and lost title/body.
+      const message = payload.message || payload;
+      const notification = message.notification || {};
+      const msgData = message.data || {};
+
+      data = {
+        ...data,
+        title: notification.title || msgData.title || data.title,
+        body: notification.body || msgData.body || data.body,
+        url: msgData.url || data.url,
+        orderId: msgData.orderId,
+        tag: msgData.tag,
+      };
     } catch {
       // If the push data isn't JSON, use it as the body
       data.body = event.data.text();
@@ -118,22 +133,19 @@ self.addEventListener("message", (event) => {
     const notification = payload.notification || {};
     const data = payload.data || {};
 
-    self.registration.showNotification(
-      notification.title || "Cardápio Cidadela",
-      {
-        body: notification.body || "Novo pedido recebido!",
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        vibrate: [200, 100, 200, 100, 200],
-        tag: data.tag || "cidadela-order",
-        renotify: true,
-        requireInteraction: true,
-        data: { url: data.url || "/mobile", orderId: data.orderId },
-        actions: [
-          { action: "open", title: "Ver pedido" },
-          { action: "dismiss", title: "Dispensar" },
-        ],
-      },
-    );
+    self.registration.showNotification(notification.title || "Cardápio Cidadela", {
+      body: notification.body || "Novo pedido recebido!",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      vibrate: [200, 100, 200, 100, 200],
+      tag: data.tag || "cidadela-order",
+      renotify: true,
+      requireInteraction: true,
+      data: { url: data.url || "/mobile", orderId: data.orderId },
+      actions: [
+        { action: "open", title: "Ver pedido" },
+        { action: "dismiss", title: "Dispensar" },
+      ],
+    });
   }
 });

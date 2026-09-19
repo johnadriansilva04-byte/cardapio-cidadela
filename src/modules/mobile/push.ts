@@ -15,11 +15,7 @@
  */
 
 import { initializeApp, type FirebaseApp } from "firebase/app";
-import {
-  getMessaging,
-  getToken,
-  type Messaging,
-} from "firebase/messaging";
+import { getMessaging, getToken, type Messaging } from "firebase/messaging";
 import { isFirebaseConfigured, firebaseConfig } from "@/lib/firebase";
 import { supabase } from "@/modules/supabase/client";
 
@@ -43,6 +39,22 @@ function getFirebaseMessaging(): Messaging | null {
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string;
 
 /**
+ * Returns the registered service worker (/sw.js) so FCM binds the token to it.
+ * Without this, getToken() tries to register firebase-messaging-sw.js which
+ * doesn't exist in this project and subscription fails silently.
+ */
+async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return null;
+  try {
+    // Wait briefly for the SW to register (registerServiceWorker registers on window load).
+    const registration = await navigator.serviceWorker.ready;
+    return registration;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Subscribe the current device for push notifications.
  * Returns the FCM token on success, null on failure.
  */
@@ -58,7 +70,11 @@ export async function subscribePush(): Promise<string | null> {
   }
 
   try {
-    const token = await getToken(mg, { vapidKey: VAPID_KEY });
+    const serviceWorkerRegistration = await getServiceWorkerRegistration();
+    const token = await getToken(mg, {
+      vapidKey: VAPID_KEY,
+      ...(serviceWorkerRegistration ? { serviceWorkerRegistration } : {}),
+    });
     if (token) {
       await saveTokenToSupabase(token);
       return token;
@@ -127,10 +143,7 @@ export async function unsubscribePush(): Promise<void> {
     if (mg) {
       const token = await getToken(mg);
       if (token) {
-        await supabase
-          .from("push_subscriptions")
-          .delete()
-          .eq("token", token);
+        await supabase.from("push_subscriptions").delete().eq("token", token);
       }
     }
   } catch (e) {

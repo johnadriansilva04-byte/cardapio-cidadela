@@ -17,6 +17,7 @@ import { useOwnerPendingOrders } from "@/modules/mobile/useOwnerOrders";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
 import { notifyNewOrder } from "@/modules/mobile/preferences";
 import { InstallCard } from "@/components/pwa/InstallCard";
+import { PushBanner } from "@/components/pwa/PushBanner";
 import { cn } from "@/lib/utils";
 import { signOut as supabaseSignOut } from "@/modules/supabase/auth";
 
@@ -190,6 +191,8 @@ function MobileLayout() {
             )}
           </div>
         </header>
+
+        <PushBanner />
 
         <InstallCard variant="banner" />
 

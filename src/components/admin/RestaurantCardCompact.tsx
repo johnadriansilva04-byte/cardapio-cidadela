@@ -112,9 +112,10 @@ export function RestaurantCardCompact({
         </div>
       </div>
 
-      {/* avatar overlapping - moved outside cover container */}
-      <div className="relative">
-        <div className="absolute top-0 left-3 z-20 flex size-16 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
+      {/* avatar overlapping cover edge — outside the cover's overflow-hidden box
+          so it isn't clipped, but pulled up so it never covers the name */}
+      <div className="relative h-0">
+        <div className="absolute -top-8 left-3 z-20 flex size-16 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
@@ -129,8 +130,8 @@ export function RestaurantCardCompact({
       </div>
 
       {/* ─── CONTENT ─── */}
-      <div className="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-8 relative">
-        {/* Item count - top right */}
+      <div className="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-12 relative">
+        {/* Item count - top right, beside the avatar */}
         {menuItemCount !== null && (
           <p className="absolute top-4 right-0 inline-flex items-center gap-1 text-[11px] text-gray-500">
             <LayoutGrid className="size-3" /> {menuItemCount} item{menuItemCount === 1 ? "" : "s"} no cardápio

@@ -40,6 +40,7 @@ import PaymentScreen from "./PaymentScreen";
 import SuccessModal from "./SuccessModal";
 import ProductAddonsModal from "./ProductAddonsModal";
 import { ReviewsSection } from "@/components/reviews/ReviewsSection";
+import { CidadelaBadge } from "./CidadelaBadge";
 import {
   normalizeOperatingHours,
   isOpenNow,
@@ -597,6 +598,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/60 to-black/10" />
+
+          {/* Selo da Cidadela — canto superior direito, acompanha a cor do restaurante */}
+          <CidadelaBadge accent={accent} className="absolute right-3 top-3 z-10" />
 
           <div className="absolute inset-x-0 bottom-0">
             <div className="mx-auto max-w-2xl px-4 pb-4">

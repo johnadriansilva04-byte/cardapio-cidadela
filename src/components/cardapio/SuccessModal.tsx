@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { CheckCircle2, MessageCircle, ExternalLink, Crown, Star } from "lucide-react";
+import { CheckCircle2, MessageCircle, Eye, Star } from "lucide-react";
 import { brl, buildWhatsAppMessage, sendToWhatsApp } from "@/lib/utils";
 
 function soberaniaPoints(total: number): number {
@@ -50,39 +50,58 @@ export default function SuccessModal({
     }
   }, [order]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0b0b12] p-6 text-center shadow-2xl">
-        <CheckCircle2 className="mx-auto size-14 text-green-400" />
-        <h2 className="mt-3 text-xl font-black text-white">Pedido confirmado!</h2>
-        <p className="mt-1 text-sm text-gray-400">
-          Comanda {order.comanda} • {brl(order.total)}
-        </p>
+  const isDelivery = order.delivery_type === "entrega";
+  const points = soberaniaPoints(order.total);
 
-        {soberaniaPoints(order.total) > 0 && (
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/85 backdrop-blur sm:items-center sm:p-4">
+      <div className="w-full max-w-md rounded-t-[24px] border border-white/10 bg-[#0b0b12] p-6 shadow-2xl sm:rounded-[24px]">
+        <div className="text-center">
           <div
-            className="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold"
+            className="mx-auto grid size-14 place-items-center rounded-full"
             style={{
-              borderColor: `${restaurantAccent}66`,
+              backgroundColor: `${restaurantAccent}1a`,
+              border: `1px solid ${restaurantAccent}55`,
+            }}
+          >
+            <CheckCircle2 className="size-7" style={{ color: restaurantAccent }} />
+          </div>
+          <h2 className="mt-3 text-xl font-black tracking-tight text-white">Pedido confirmado!</h2>
+          <p className="mt-1 text-sm text-gray-400">
+            Comanda <span className="font-bold text-gray-200">{order.comanda}</span> •{" "}
+            {brl(order.total)}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-gray-500">
+            {isDelivery
+              ? "A cozinha já recebeu seu pedido. Você pode acompanhar cada etapa em tempo real."
+              : "A cozinha já recebeu seu pedido. Avisaremos quando estiver pronto para retirada."}
+          </p>
+        </div>
+
+        {points > 0 && (
+          <div
+            className="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold"
+            style={{
               backgroundColor: `${restaurantAccent}12`,
               color: restaurantAccent,
             }}
           >
-            <Star className="size-3.5 fill-current" />+{soberaniaPoints(order.total)} pontos de
-            soberania
+            <Star className="size-3.5 fill-current" />+{points} pontos de soberania
           </div>
         )}
 
         <div className="mt-5 space-y-2">
-          {/* Order tracking button */}
           <a
             href={`/pedido/${order.id}`}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] py-3 text-sm font-semibold text-white transition-colors hover:bg-white/[0.08]"
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-black text-white shadow-lg transition-all hover:brightness-110"
+            style={{
+              backgroundColor: restaurantAccent,
+              boxShadow: `0 6px 20px ${restaurantAccent}55`,
+            }}
           >
-            <ExternalLink className="size-4" /> Acompanhar pedido em tempo real
+            <Eye className="size-4" /> Acompanhar pedido
           </a>
 
-          {/* WhatsApp button */}
           {restaurantWhatsapp && (
             <button
               onClick={() => {
@@ -107,31 +126,15 @@ export default function SuccessModal({
               }}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-500/40 bg-green-500/5 py-3 text-sm font-semibold text-green-400 transition-colors hover:bg-green-500/10"
             >
-              <MessageCircle className="size-4" /> Enviar pedido no WhatsApp
+              <MessageCircle className="size-4" /> Enviar cópia no WhatsApp
             </button>
           )}
 
-          {/* Cidadela CTA */}
-          <a
-            href="https://pracinha.online"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold transition-colors hover:brightness-125"
-            style={{
-              borderColor: `${restaurantAccent}88`,
-              backgroundColor: `${restaurantAccent}14`,
-              color: restaurantAccent,
-            }}
-          >
-            <Crown className="size-4" /> Conheça a Cidadela
-          </a>
-
-          {/* Close button */}
           <button
             onClick={onClose}
-            className="w-full rounded-xl bg-gray-800 py-3 text-sm font-bold text-white transition-colors hover:bg-gray-700"
+            className="w-full rounded-xl py-3 text-sm font-bold text-gray-400 transition-colors hover:text-white"
           >
-            Fechar
+            Voltar ao cardápio
           </button>
         </div>
       </div>

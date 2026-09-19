@@ -24,7 +24,15 @@ import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
 import { brl, hexToRgba, newComanda } from "@/lib/utils";
 import { getOrCreateGuestId, rememberOrderId } from "@/lib/guestOrder";
-import type { Product, Category, Restaurant, Order, DeliveryNeighborhood, RestaurantAddon, ProductAddon, SelectedAddon } from "@/lib/types";
+import type {
+  Product,
+  Category,
+  Restaurant,
+  Order,
+  DeliveryNeighborhood,
+  ProductAddon,
+  SelectedAddon,
+} from "@/lib/types";
 import CartSheet from "./CartSheet";
 import CheckoutModal from "./CheckoutModal";
 import type { CheckoutForm } from "./CheckoutModal";
@@ -125,7 +133,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         }
         setRestaurant(r);
         const { categories: cats, products: prods } = await getMenuWithProducts(r.id);
-        const [nbrs, pas] = await Promise.all([getNeighborhoods(r.id), getAddonsByRestaurant(r.id)]);
+        const [nbrs, pas] = await Promise.all([
+          getNeighborhoods(r.id),
+          getAddonsByRestaurant(r.id),
+        ]);
         if (!alive) return;
         setCategories(cats);
         setProducts(prods);
@@ -153,16 +164,17 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     }
   }, [slug, setCart]);
 
+  const restaurantId = restaurant?.id;
   useEffect(() => {
-    if (!restaurant) return;
-    const restaurantId = restaurant.id;
+    if (!restaurantId) return;
+    const rid: string = restaurantId;
     let alive = true;
 
     async function refreshMenu() {
       if (!alive) return;
       try {
-        const { categories: cats, products: prods } = await getMenuWithProducts(restaurantId);
-        const pas = await getAddonsByRestaurant(restaurantId);
+        const { categories: cats, products: prods } = await getMenuWithProducts(rid);
+        const pas = await getAddonsByRestaurant(rid);
         if (!alive) return;
         setCategories(cats);
         setProducts(prods);
@@ -184,23 +196,48 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
     const channel = supabase
       .channel(`public-menu-${restaurantId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "categories", filter: `restaurant_id=eq.${restaurantId}` }, refreshMenu)
-      .on("postgres_changes", { event: "*", schema: "public", table: "products", filter: `restaurant_id=eq.${restaurantId}` }, refreshMenu)
-      .on("postgres_changes", { event: "*", schema: "public", table: "product_addons", filter: `restaurant_id=eq.${restaurantId}` }, refreshMenu)
-      .on("postgres_changes", { event: "*", schema: "public", table: "restaurants", filter: `id=eq.${restaurantId}` }, refreshRestaurant)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "categories",
+          filter: `restaurant_id=eq.${rid}`,
+        },
+        refreshMenu,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "products",
+          filter: `restaurant_id=eq.${rid}`,
+        },
+        refreshMenu,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "product_addons",
+          filter: `restaurant_id=eq.${rid}`,
+        },
+        refreshMenu,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "restaurants", filter: `id=eq.${rid}` },
+        refreshRestaurant,
+      )
       .subscribe();
-
-    const interval = setInterval(() => {
-      refreshMenu();
-      refreshRestaurant();
-    }, 30_000);
 
     return () => {
       alive = false;
-      clearInterval(interval);
       supabase.removeChannel(channel);
     };
-  }, [restaurant?.id, slug]);
+  }, [restaurantId, slug]);
 
   const addonsByProduct = useMemo(() => {
     const m = new Map<string, ProductAddon[]>();
@@ -208,8 +245,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       if (!m.has(a.product_id)) m.set(a.product_id, []);
       m.get(a.product_id)!.push(a);
     }
-    // ensure sorted
-    for (const [k, v] of m) m.set(k, [...v].sort((a,b)=>a.sort_order-b.sort_order));
+    for (const [k, v] of m)
+      m.set(
+        k,
+        [...v].sort((a, b) => a.sort_order - b.sort_order),
+      );
     return m;
   }, [productAddons]);
 
@@ -240,12 +280,20 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const count = lines.reduce((s, l) => s + l.qty, 0);
   const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
 
-  const handleRemove = useCallback((productId: string, addons?: SelectedAddon[]) => removeFromCart(productId, addons), [removeFromCart]);
+  const handleRemove = useCallback(
+    (productId: string, addons?: SelectedAddon[]) => removeFromCart(productId, addons),
+    [removeFromCart],
+  );
 
-  // Adicionais específicos do produto têm prioridade; sem eles, valem os globais.
+  // Adicionais do produto = específicos do produto + globais (dedup por nome;
+  // o específico vence quando o nome coincide). Antes era um "OU": um único
+  // adicional específico antigo escondia todos os globais do produto.
   function addonsForProduct(productId: string): ProductAddon[] {
     const specific = addonsByProduct.get(productId) ?? [];
-    return specific.length > 0 ? specific : globalAddons;
+    if (specific.length === 0) return globalAddons;
+    const names = new Set(specific.map((a) => a.name.trim().toLowerCase()));
+    const extras = globalAddons.filter((a) => !names.has(a.name.trim().toLowerCase()));
+    return [...specific, ...extras];
   }
 
   function openAddonModal(product: Product, cartIndex?: number) {
@@ -293,7 +341,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   async function handleCheckout(form: CheckoutForm) {
     if (!restaurant) return;
-    if (restaurant.operating_hours && !isOpenNow(restaurant.operating_hours as unknown as never, new Date())) {
+    if (
+      restaurant.operating_hours &&
+      !isOpenNow(restaurant.operating_hours as unknown as never, new Date())
+    ) {
       const nxt = getNextOpenInfo(restaurant.operating_hours as unknown as never, new Date());
       setCheckoutError(
         nxt
@@ -311,7 +362,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         const addonsLabel = l.addons.length ? ` (+ ${l.addons.map((a) => a.name).join(", ")})` : "";
         const notesParts: string[] = [];
         if (l.addons.length) {
-          notesParts.push(`Adicionais: ${l.addons.map((a) => `${a.name} (+${brl(Number(a.price))})`).join(", ")}`);
+          notesParts.push(
+            `Adicionais: ${l.addons.map((a) => `${a.name} (+${brl(Number(a.price))})`).join(", ")}`,
+          );
         }
         if (l.notes) notesParts.push(l.notes);
         return {
@@ -325,7 +378,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       });
       const comanda = newComanda();
       const deliveryFee =
-        form.delivery_type === "entrega" ? Number(form.delivery_fee ?? restaurant.delivery_fee ?? 0) : 0;
+        form.delivery_type === "entrega"
+          ? Number(form.delivery_fee ?? restaurant.delivery_fee ?? 0)
+          : 0;
       const orderTotal = subtotal + deliveryFee;
       const guestId = getOrCreateGuestId();
       // junta observações gerais + notas de itens já no notes por item
@@ -352,7 +407,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         orderItems,
       );
       if (!order) {
-        setCheckoutError(error?.message || "Não foi possível concluir o pedido agora. Confira sua conexão e tente novamente.");
+        setCheckoutError(
+          error?.message ||
+            "Não foi possível concluir o pedido agora. Confira sua conexão e tente novamente.",
+        );
         return;
       }
       rememberOrderId(order.id);
@@ -372,7 +430,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   }
 
   useEffect(() => {
-    document.title = restaurant ? `${restaurant.name} — Cardápio Digital` : "Cardápio Digital — Cardápio Cidadela";
+    document.title = restaurant
+      ? `${restaurant.name} — Cardápio Digital`
+      : "Cardápio Digital — Cardápio Cidadela";
   }, [restaurant]);
 
   const accent = restaurant?.primary_color || "#06b6d4";
@@ -397,7 +457,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#07070b]">
         <div className="text-center">
-          <div className="mx-auto size-10 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: `${accentSoft}`, borderTopColor: accent }} />
+          <div
+            className="mx-auto size-10 animate-spin rounded-full border-2 border-t-transparent"
+            style={{ borderColor: accentSoft, borderTopColor: accent }}
+          />
           <p className="mt-4 text-sm text-gray-400">Carregando cardápio...</p>
         </div>
       </div>
@@ -413,7 +476,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           </div>
           <h1 className="text-xl font-bold text-white">Falha ao carregar</h1>
           <p className="mt-2 text-sm leading-relaxed text-gray-400">{loadError}</p>
-          <button onClick={() => window.location.reload()} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500">
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500"
+          >
             Tentar novamente
           </button>
         </div>
@@ -429,11 +495,16 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             <UtensilsCrossed className="size-7 text-gray-500" />
           </div>
           <h1 className="text-xl font-bold text-white">Cardápio não encontrado</h1>
-          <p className="mt-2 text-sm leading-relaxed text-gray-400">O cardápio que você procura não existe ou o link está incorreto.</p>
+          <p className="mt-2 text-sm leading-relaxed text-gray-400">
+            O cardápio que você procura não existe ou o link está incorreto.
+          </p>
           <div className="mt-2 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2">
             <p className="font-mono text-xs text-gray-500">/{slug}</p>
           </div>
-          <Link to="/" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500">
+          <Link
+            to="/"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500"
+          >
             <Home className="size-4" /> Voltar ao início
           </Link>
         </div>
@@ -449,8 +520,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             <ChefHat className="size-7 text-gray-500" />
           </div>
           <h1 className="text-xl font-bold text-white">{restaurant.name}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-gray-400">Este cardápio ainda não foi publicado.</p>
-          <Link to="/" className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-gray-300 hover:bg-white/5">
+          <p className="mt-2 text-sm leading-relaxed text-gray-400">
+            Este cardápio ainda não foi publicado.
+          </p>
+          <Link
+            to="/"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-gray-300 hover:bg-white/5"
+          >
             <Home className="size-4" /> Página inicial
           </Link>
         </div>
@@ -466,9 +542,14 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             <Clock className="size-7 text-gray-500" />
           </div>
           <h1 className="text-xl font-bold text-white">{restaurant.name}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-gray-400">Cardápio temporariamente indisponível.</p>
+          <p className="mt-2 text-sm leading-relaxed text-gray-400">
+            Cardápio temporariamente indisponível.
+          </p>
           <p className="mt-1 text-xs text-gray-500">Tente novamente mais tarde.</p>
-          <a href={`/cardapio/${restaurant.slug}`} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500">
+          <a
+            href={`/cardapio/${restaurant.slug}`}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500"
+          >
             Tentar novamente
           </a>
         </div>
@@ -493,77 +574,150 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     delivery_fee?: number;
   } | null;
 
-  const hasAnyProducts = categories.some((cat) => products.some((p) => p.category_id === cat.id && p.available));
+  const hasAnyProducts = categories.some((cat) =>
+    products.some((p) => p.category_id === cat.id && p.available),
+  );
+
+  const hasContact = Boolean(restaurant.phone || restaurant.whatsapp || restaurant.address);
+  const hasHours = Boolean(restaurant.operating_hours);
 
   return (
     <div className="min-h-screen bg-[#07070b] pb-6">
-      {/* Top utility bar — open/closed */}
-      {restaurant.operating_hours && (
+      {/* HERO — banner fixo com identidade da loja */}
+      <div className="relative">
         <div
-          className={`sticky top-0 z-30 border-b backdrop-blur-xl ${
-            isCurrentlyOpen ? "border-emerald-500/20 bg-emerald-600/10" : "border-amber-500/20 bg-amber-500/10"
-          }`}
+          className="relative h-52 w-full sm:h-64"
+          style={{
+            backgroundImage: restaurant.banner_url
+              ? `url(${restaurant.banner_url})`
+              : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
+            backgroundSize: restaurant.banner_url ? "cover" : undefined,
+            backgroundPosition: restaurant.banner_url ? "center center" : undefined,
+          }}
         >
-          <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-2.5">
-            <span className="flex items-center gap-2 text-xs font-bold">
-              <span className={`size-2 animate-pulse rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-amber-400"}`} />
-              <span className={isCurrentlyOpen ? "text-emerald-300" : "text-amber-300"}>
-                {isCurrentlyOpen ? "Aberto agora" : "Fechado agora"}
-              </span>
-              <span className="hidden font-normal text-white/60 sm:inline">—</span>
-              <span className="hidden text-xs font-normal text-white/70 sm:inline">
-                {todayHours?.schedule.closed ? "hoje fechado" : todayHours ? `${todayHours.schedule.open} — ${todayHours.schedule.close}` : ""}
-              </span>
-            </span>
-            <span className="shrink-0 text-[11px] font-medium text-white/70">
-              {isCurrentlyOpen ? (
-                todayHours && !todayHours.schedule.closed ? `fecha às ${todayHours.schedule.close}` : null
-              ) : nextOpen ? (
-                <>abre {nextOpen.label.toLowerCase()} às {nextOpen.time}</>
-              ) : null}
-            </span>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/60 to-black/10" />
+
+          <div className="absolute inset-x-0 bottom-0">
+            <div className="mx-auto max-w-2xl px-4 pb-4">
+              <div className="flex items-end gap-3">
+                {restaurant.logo_url ? (
+                  <div
+                    className="aspect-square size-16 shrink-0 overflow-hidden rounded-2xl border-2 shadow-lg sm:size-20"
+                    style={{ borderColor: hexToRgba(accent, 0.5) }}
+                  >
+                    <img
+                      src={restaurant.logo_url}
+                      alt={restaurant.name}
+                      className="size-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="grid size-16 shrink-0 place-items-center rounded-2xl border-2 bg-[#0a0a12]/90 shadow-lg sm:size-20"
+                    style={{ borderColor: hexToRgba(accent, 0.5) }}
+                  >
+                    <UtensilsCrossed className="size-7" style={{ color: accent }} />
+                  </div>
+                )}
+
+                <div className="min-w-0 flex-1 pb-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="min-w-0 truncate text-xl font-black tracking-tight text-white sm:text-2xl">
+                      {restaurant.name}
+                    </h1>
+                    {restaurant.operating_hours && (
+                      <span
+                        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold backdrop-blur-md ${
+                          isCurrentlyOpen
+                            ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
+                            : "border-amber-500/30 bg-amber-500/15 text-amber-300"
+                        }`}
+                      >
+                        <span
+                          className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-amber-400"}`}
+                        />
+                        {isCurrentlyOpen ? "Aberto" : "Fechado"}
+                      </span>
+                    )}
+                  </div>
+                  {restaurant.description && (
+                    <p className="mt-0.5 line-clamp-1 text-xs text-gray-400">
+                      {restaurant.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Aviso de fechado — único aviso, só aparece quando fechado */}
+      {!isCurrentlyOpen && (
+        <div className="mx-auto mt-3 max-w-2xl px-4">
+          <div className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-3.5 py-2.5">
+            <Clock className="size-4 shrink-0 text-amber-300" />
+            <p className="min-w-0 flex-1 text-xs leading-relaxed text-amber-100/80">
+              {nextOpen ? (
+                <>
+                  Abre <strong className="text-amber-200">{nextOpen.label.toLowerCase()}</strong> às{" "}
+                  <strong className="text-amber-200">{nextOpen.time}</strong>
+                  {todayHours && !todayHours.schedule.closed
+                    ? ` — hoje fecha às ${todayHours.schedule.close}`
+                    : ""}
+                  .
+                </>
+              ) : (
+                <>Hoje não há atendimento. Volte em breve!</>
+              )}
+            </p>
           </div>
         </div>
       )}
 
-      {/* restaurant info toggle — moved to top */}
-      <div className="relative z-10 mx-auto max-w-2xl px-4 mt-2">
-        <button
-          onClick={() => setInfoOpen((v) => !v)}
-          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05]"
-        >
-          <span className="flex items-center gap-2 text-xs font-semibold text-gray-400">
-            <Info className="size-3.5" />
-            Informações do restaurante
-          </span>
-          {infoOpen ? <ChevronUp className="size-4 text-gray-500" /> : <ChevronDown className="size-4 text-gray-500" />}
-        </button>
+      {/* Info da loja (horários + contato) — recolhida por padrão */}
+      {(hasHours || hasContact) && (
+        <div className="mx-auto mt-3 max-w-2xl px-4">
+          <button
+            onClick={() => setInfoOpen((v) => !v)}
+            className="flex w-full items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05]"
+          >
+            <span className="flex items-center gap-2 text-xs font-semibold text-gray-400">
+              <Info className="size-3.5" />
+              Horários e contato
+            </span>
+            {infoOpen ? (
+              <ChevronUp className="size-4 text-gray-500" />
+            ) : (
+              <ChevronDown className="size-4 text-gray-500" />
+            )}
+          </button>
 
-        {infoOpen && (
-          <div className="mt-2 overflow-hidden rounded-xl border border-white/10 bg-[#0f0f17]">
-            <div className="p-4 space-y-3">
-              {/* hours */}
-              {restaurant.operating_hours && (
+          {infoOpen && (
+            <div className="mt-2 space-y-4 rounded-xl border border-white/[0.07] bg-[#0f0f17] p-4">
+              {hasHours && restaurant.operating_hours && (
                 <div>
-                  <p className="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-2">
+                  <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-400">
                     <Clock className="size-3.5" style={{ color: accent }} />
                     Horário de funcionamento
                   </p>
                   <div className="space-y-1">
                     {DAY_ORDER.map((k) => {
-                      const hours = restaurant.operating_hours ? normalizeOperatingHours(restaurant.operating_hours as unknown) : null;
+                      const hours = normalizeOperatingHours(restaurant.operating_hours as unknown);
                       if (!hours) return null;
                       const s = hours[k];
                       const isToday = DAY_LABEL[k].dow === now.getDay();
                       return (
                         <div
                           key={k}
-                          className={`flex items-center justify-between text-xs ${isToday ? "bg-white/[0.04] rounded px-2 py-1" : ""}`}
+                          className={`flex items-center justify-between rounded px-2 py-1 text-xs ${isToday ? "bg-white/[0.05]" : ""}`}
                         >
-                          <span className={`${isToday ? "font-bold text-white" : "text-gray-400"}`}>
+                          <span className={isToday ? "font-bold text-white" : "text-gray-400"}>
                             {DAY_LABEL[k].label}
                           </span>
-                          <span className={`font-semibold ${s.closed ? "text-gray-500" : isToday ? "text-white" : "text-gray-300"}`}>
+                          <span
+                            className={`font-semibold ${s.closed ? "text-gray-600" : "text-gray-300"}`}
+                          >
                             {formatRange(s)}
                           </span>
                         </div>
@@ -573,13 +727,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                 </div>
               )}
 
-              {/* contact */}
-              {(restaurant.phone || restaurant.whatsapp || restaurant.address) && (
-                <div className="pt-2 border-t border-white/5">
-                  <p className="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-2">
-                    <Phone className="size-3.5" />
-                    Contato
-                  </p>
+              {hasContact && (
+                <div className={hasHours ? "border-t border-white/5 pt-3" : ""}>
                   <div className="space-y-1.5">
                     {restaurant.whatsapp && (
                       <a
@@ -592,110 +741,29 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                       </a>
                     )}
                     {restaurant.phone && (
-                      <p className="flex items-center gap-2 text-xs text-gray-300">
+                      <a
+                        href={`tel:${restaurant.phone.replace(/\D/g, "")}`}
+                        className="flex items-center gap-2 text-xs text-gray-300 hover:text-white"
+                      >
                         <Phone className="size-3.5" /> {restaurant.phone}
-                      </p>
+                      </a>
                     )}
                     {restaurant.address && (
-                      <p className="flex items-center gap-2 text-xs text-gray-300">
-                        <MapPin className="size-3.5" /> {restaurant.address}
+                      <p className="flex items-start gap-2 text-xs text-gray-300">
+                        <MapPin className="mt-0.5 size-3.5 shrink-0" /> {restaurant.address}
                       </p>
                     )}
                   </div>
                 </div>
               )}
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* HERO — compact */}
-      <div className="contents">
-        {/* banner — tamanho e posição originais; fica fixo como fundo enquanto o cardápio rola por cima */}
-        <div
-          className="sticky top-0 z-0 mt-2 h-[280px] w-full sm:h-[320px]"
-          style={{
-            backgroundImage: restaurant.banner_url
-              ? `url(${restaurant.banner_url})`
-              : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
-            backgroundSize: restaurant.banner_url ? "cover" : undefined,
-            backgroundPosition: restaurant.banner_url ? "center center" : undefined,
-          }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/80 to-black/30" />
-
-          {/* compact content */}
-          <div className="absolute inset-0 flex items-center px-4">
-            <div className="flex items-center gap-3">
-              {/* logo */}
-              {restaurant.logo_url ? (
-                <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-xl border border-white/20 shadow-lg sm:size-14">
-                  <img
-                    src={restaurant.logo_url}
-                    alt={restaurant.name}
-                    className="size-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div
-                  className="grid size-12 shrink-0 place-items-center rounded-xl border bg-[#0a0a12]/90 shadow-lg sm:size-14"
-                  style={{ borderColor: hexToRgba(accent, 0.4) }}
-                >
-                  <UtensilsCrossed className="size-5" style={{ color: accent }} />
-                </div>
-              )}
-
-              <div className="min-w-0">
-                <h1 className="truncate text-lg font-black tracking-tight text-white sm:text-xl">
-                  {restaurant.name}
-                </h1>
-                <div className="mt-1 flex items-center gap-2">
-                  {restaurant.operating_hours && (
-                    <div
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold backdrop-blur-md ${
-                        isCurrentlyOpen
-                          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
-                          : "border-red-500/30 bg-red-500/10 text-red-300"
-                      }`}
-                    >
-                      <span className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-red-400"}`} />
-                      {isCurrentlyOpen ? "Aberto" : "Fechado"}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* closed banner — quando fechado, bem bonito */}
-      {!isCurrentlyOpen && (
-        <div className="relative z-10 mx-auto mt-2 max-w-2xl px-4">
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-amber-500/5 p-3">
-            <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-amber-500/15">
-              <Clock className="size-4 text-amber-300" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-amber-200">Restaurante fechado agora</p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-amber-100/70">
-                {nextOpen ? (
-                  <>
-                    Abre <strong className="text-amber-200">{nextOpen.label.toLowerCase()}</strong> às{" "}
-                    <strong className="text-amber-200">{nextOpen.time}</strong>.
-                  </>
-                ) : (
-                  <>Hoje não há atendimento. Volte em breve!</>
-                )}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* categories — sticky */}
-      <div className="sticky top-[41px] z-20 mt-2 border-y border-white/5 bg-[#07070b]/80 backdrop-blur-xl sm:top-[37px]">
-        <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* Categorias — sticky */}
+      <div className="sticky top-0 z-20 mt-3 border-y border-white/5 bg-[#07070b]/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {categories.map((c) => {
             const catProducts = products.filter((p) => p.category_id === c.id && p.available);
             const isActive = activeCat === c.id;
@@ -703,29 +771,36 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               <button
                 key={c.id}
                 onClick={() => scrollToCat(c.id)}
-                className={`group relative shrink-0 rounded-full px-4 py-2.5 text-xs font-bold tracking-wide transition-all ${
-                  isActive ? "text-white shadow-lg" : "border border-white/10 bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-gray-200"
+                className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-bold tracking-wide transition-all ${
+                  isActive
+                    ? "text-white shadow-lg"
+                    : "border border-white/10 bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-gray-200"
                 }`}
                 style={
                   isActive
-                    ? { backgroundColor: accent, boxShadow: `0 8px 24px ${hexToRgba(accent, 0.35)}`, borderColor: accent }
+                    ? {
+                        backgroundColor: accent,
+                        boxShadow: `0 4px 16px ${hexToRgba(accent, 0.35)}`,
+                      }
                     : undefined
                 }
               >
-                {c.name}{" "}
+                {c.name}
                 <span
-                  className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] ${isActive ? "bg-white/20 text-white" : "bg-white/10 text-gray-500 group-hover:text-gray-300"}`}
+                  className={`ml-1.5 text-[10px] font-semibold ${isActive ? "text-white/70" : "text-gray-600"}`}
                 >
                   {catProducts.length}
                 </span>
               </button>
             );
           })}
-          {categories.length === 0 && <span className="py-2 text-xs text-gray-600">Sem categorias</span>}
+          {categories.length === 0 && (
+            <span className="py-2 text-xs text-gray-600">Sem categorias</span>
+          )}
         </div>
       </div>
 
-      <main className="relative z-10 px-4 pb-28">
+      <main className="relative z-10 px-4 pb-32">
         <div className="mx-auto max-w-2xl">
           {!hasAnyProducts ? (
             <div className="py-16 text-center">
@@ -733,7 +808,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                 <ShoppingBag className="size-6 text-gray-500" />
               </div>
               <h2 className="text-base font-semibold text-white">Cardápio em breve</h2>
-              <p className="mx-auto mt-2 max-w-xs text-sm text-gray-400">Este estabelecimento ainda não publicou seus itens. Volte em instantes!</p>
+              <p className="mx-auto mt-2 max-w-xs text-sm text-gray-400">
+                Este estabelecimento ainda não publicou seus itens. Volte em instantes!
+              </p>
             </div>
           ) : (
             categories.map((cat) => {
@@ -741,32 +818,55 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               if (catProducts.length === 0) return null;
 
               return (
-                <section key={cat.id} ref={(el) => { sectionsRef.current[cat.id] = el; }} className="scroll-mt-20 pt-2">
-                  <div className="mb-3 flex items-center gap-3">
-                    <span className="h-px flex-1" style={{ backgroundColor: hexToRgba(accent, 0.18) }} />
-                    <h2 className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-white">
+                <section
+                  key={cat.id}
+                  ref={(el) => {
+                    sectionsRef.current[cat.id] = el;
+                  }}
+                  className="scroll-mt-16 pt-4"
+                >
+                  <div className="mb-2.5 flex items-center gap-3">
+                    <span
+                      className="h-px flex-1"
+                      style={{ backgroundColor: hexToRgba(accent, 0.18) }}
+                    />
+                    <h2 className="text-xs font-black uppercase tracking-[0.18em] text-white">
                       {cat.name}
                     </h2>
-                    <span className="h-px flex-1" style={{ backgroundColor: hexToRgba(accent, 0.18) }} />
+                    <span
+                      className="h-px flex-1"
+                      style={{ backgroundColor: hexToRgba(accent, 0.18) }}
+                    />
                   </div>
 
                   <div className="grid gap-2">
                     {catProducts.map((item) => {
                       const availableAddons = addonsForProduct(item.id).filter((a) => a.available);
                       const hasAddons = availableAddons.length > 0;
-                      const qtyInCart = cart.filter((ci) => ci.product.id === item.id).reduce((s, ci) => s + ci.quantity, 0);
+                      const qtyInCart = cart
+                        .filter((ci) => ci.product.id === item.id)
+                        .reduce((s, ci) => s + ci.quantity, 0);
                       const canOrder = isCurrentlyOpen;
 
                       return (
                         <div
                           key={item.id}
-                          className="group relative flex gap-3 overflow-hidden rounded-xl border bg-[#0f0f17] p-2.5 transition-all hover:shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
-                          style={{ borderColor: qtyInCart ? hexToRgba(accent, 0.35) : "rgba(255,255,255,0.07)" }}
+                          className="relative flex gap-3 rounded-xl border bg-[#0f0f17] p-3 transition-all hover:border-white/[0.14] hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+                          style={{
+                            borderColor: qtyInCart
+                              ? hexToRgba(accent, 0.35)
+                              : "rgba(255,255,255,0.07)",
+                          }}
                         >
-                          {qtyInCart > 0 && <span className="absolute inset-y-0 left-0 w-0.5" style={{ backgroundColor: accent }} />}
+                          {qtyInCart > 0 && (
+                            <span
+                              className="absolute inset-y-0 left-0 w-0.5 rounded-l-xl"
+                              style={{ backgroundColor: accent }}
+                            />
+                          )}
 
                           {item.image_url ? (
-                            <div className="aspect-square size-16 shrink-0 overflow-hidden rounded-lg">
+                            <div className="aspect-square size-[68px] shrink-0 overflow-hidden rounded-lg">
                               <img
                                 src={item.image_url}
                                 alt={item.name}
@@ -776,51 +876,71 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                             </div>
                           ) : (
                             <div
-                              className="grid size-16 shrink-0 place-items-center rounded-lg border"
-                              style={{ borderColor: hexToRgba(accent, 0.22), backgroundColor: hexToRgba(accent, 0.07) }}
+                              className="grid size-[68px] shrink-0 place-items-center rounded-lg border"
+                              style={{
+                                borderColor: hexToRgba(accent, 0.22),
+                                backgroundColor: hexToRgba(accent, 0.07),
+                              }}
                             >
                               <UtensilsCrossed className="size-5" style={{ color: accent }} />
                             </div>
                           )}
 
-                          <div className="min-w-0 flex-1 py-0.5">
-                            <p className="line-clamp-1 text-sm font-bold leading-tight text-white">{item.name}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold leading-tight text-white">
+                              {item.name}
+                            </p>
                             {item.description && (
-                              <p className="mt-0.5 line-clamp-1 text-[11px] leading-relaxed text-gray-400">{item.description}</p>
+                              <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-500">
+                                {item.description}
+                              </p>
                             )}
-                            <div className="mt-1.5 flex items-center gap-2">
+                            <div className="mt-1.5 flex items-center justify-between gap-2">
                               <p className="text-sm font-black" style={{ color: accent }}>
                                 {brl(item.price)}
                               </p>
-                              {hasAddons && (
-                                <span className="text-[10px] text-violet-300">
-                                  + adicionais
-                                </span>
-                              )}
-                              {!canOrder && (
-                                <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">fechado</span>
-                              )}
-                            </div>
-                          </div>
 
-                          <div className="flex shrink-0 flex-col justify-center gap-1.5">
-                            {item.available ? (
-                              hasAddons ? (
-                                <>
-                                  {qtyInCart > 0 ? (
-                                    <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-2">
+                                {hasAddons && (
+                                  <button
+                                    onClick={() =>
+                                      canOrder &&
+                                      openAddonModal(
+                                        item,
+                                        qtyInCart > 0
+                                          ? cart.findIndex((ci) => ci.product.id === item.id)
+                                          : undefined,
+                                      )
+                                    }
+                                    disabled={!canOrder}
+                                    title={
+                                      !canOrder ? "Restaurante fechado" : "Escolher adicionais"
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-[10px] font-bold text-violet-300 transition-colors hover:border-violet-400/60 hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <Sparkles className="size-3" /> adicionais
+                                  </button>
+                                )}
+
+                                {item.available && canOrder ? (
+                                  qtyInCart > 0 ? (
+                                    <div
+                                      className="flex items-center gap-1 rounded-full p-0.5"
+                                      style={{ backgroundColor: hexToRgba(accent, 0.15) }}
+                                    >
                                       <button
                                         onClick={() => handleRemove(item.id)}
-                                        className="grid size-7 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
+                                        className="grid size-6 place-items-center rounded-full text-white/80 hover:bg-black/40 hover:text-white"
                                         aria-label={`Remover ${item.name}`}
                                       >
                                         <Minus className="size-3" />
                                       </button>
-                                      <span className="w-5 text-center text-xs font-black text-white">{qtyInCart}</span>
+                                      <span className="w-5 text-center text-xs font-black text-white">
+                                        {qtyInCart}
+                                      </span>
                                       <button
                                         onClick={() => handleAddSimple(item)}
-                                        disabled={!canOrder}
-                                        className="grid size-7 place-items-center rounded-full text-white transition-colors hover:brightness-110 disabled:opacity-40"
+                                        className="grid size-6 place-items-center rounded-full text-white transition-colors hover:brightness-110"
                                         style={{ backgroundColor: accent }}
                                         aria-label={`Adicionar ${item.name}`}
                                       >
@@ -829,71 +949,24 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                     </div>
                                   ) : (
                                     <button
-                                      onClick={() => canOrder && handleAddSimple(item)}
-                                      disabled={!canOrder}
-                                      title={!canOrder ? "Restaurante fechado" : "Adicionar ao pedido"}
-                                      className={`inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${canOrder ? "hover:shadow-lg hover:brightness-110" : ""}`}
+                                      onClick={() => handleAddSimple(item)}
+                                      className="grid size-8 place-items-center rounded-full text-white transition-all hover:brightness-110 active:scale-95"
                                       style={{
-                                        borderColor: hexToRgba(accent, canOrder ? 0.5 : 0.2),
-                                        color: canOrder ? "#fff" : "#6b7280",
-                                        backgroundColor: canOrder ? accent : hexToRgba(accent, 0.04),
-                                        boxShadow: canOrder ? `0 4px 12px ${hexToRgba(accent, 0.35)}` : undefined,
+                                        backgroundColor: accent,
+                                        boxShadow: `0 2px 10px ${hexToRgba(accent, 0.4)}`,
                                       }}
+                                      aria-label={`Adicionar ${item.name}`}
                                     >
-                                      <Plus className="size-3" /> Add
+                                      <Plus className="size-4" />
                                     </button>
-                                  )}
-                                  <button
-                                    onClick={() =>
-                                      canOrder &&
-                                      openAddonModal(item, qtyInCart > 0 ? cart.findIndex((ci) => ci.product.id === item.id) : undefined)
-                                    }
-                                    disabled={!canOrder}
-                                    title={!canOrder ? "Restaurante fechado" : "Escolher adicionais"}
-                                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-violet-500/40 bg-violet-500/10 px-2 py-1 text-[10px] font-bold text-violet-300 transition-colors hover:border-violet-400/70 hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    <Sparkles className="size-3" /> + adicionais
-                                  </button>
-                                </>
-                              ) : qtyInCart > 0 ? (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => handleRemove(item.id)}
-                                    className="grid size-7 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
-                                    aria-label={`Remover ${item.name}`}
-                                  >
-                                    <Minus className="size-3" />
-                                  </button>
-                                  <span className="w-5 text-center text-xs font-black text-white">{qtyInCart}</span>
-                                  <button
-                                    onClick={() => handleAddSimple(item)}
-                                    disabled={!canOrder}
-                                    className="grid size-7 place-items-center rounded-full text-white transition-colors hover:brightness-110 disabled:opacity-40"
-                                    style={{ backgroundColor: accent }}
-                                    aria-label={`Adicionar ${item.name}`}
-                                  >
-                                    <Plus className="size-3" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => canOrder && handleAddSimple(item)}
-                                  disabled={!canOrder}
-                                  title={!canOrder ? "Restaurante fechado" : "Adicionar ao pedido"}
-                                  className={`inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-black uppercase tracking-wide transition-all active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${canOrder ? "hover:shadow-lg hover:brightness-110" : ""}`}
-                                  style={{
-                                    borderColor: hexToRgba(accent, canOrder ? 0.5 : 0.2),
-                                    color: canOrder ? "#fff" : "#6b7280",
-                                    backgroundColor: canOrder ? accent : hexToRgba(accent, 0.04),
-                                    boxShadow: canOrder ? `0 4px 12px ${hexToRgba(accent, 0.35)}` : undefined,
-                                  }}
-                                >
-                                  <Plus className="size-3" /> Add
-                                </button>
-                              )
-                            ) : (
-                              <span className="rounded-full bg-white/5 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-gray-500">Indisponível</span>
-                            )}
+                                  )
+                                ) : (
+                                  <span className="rounded-full bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">
+                                    {!canOrder ? "Fechado" : "Indisponível"}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       );
@@ -906,32 +979,35 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </div>
       </main>
 
-      {/* Floating cart bar — premium */}
+      {/* Barra flutuante do carrinho */}
       {count > 0 && !cartOpen && !checkoutOpen && !pendingOrder && !successOrder && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[#0a0a0f]/95 px-4 py-3 backdrop-blur-xl supports-[backdrop-filter]:bg-[#0a0a0f]/80">
           <div className="mx-auto flex max-w-2xl items-center gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-xl text-xs font-black text-white shadow-md" style={{ backgroundColor: accent }}>
+              <span
+                className="grid size-9 shrink-0 place-items-center rounded-xl text-xs font-black text-white shadow-md"
+                style={{ backgroundColor: accent }}
+              >
                 {count}
               </span>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white">{count === 1 ? "1 item" : `${count} itens`} • {brl(subtotal)}</p>
-                <p className="text-[11px] text-gray-400">Toque para revisar seu pedido</p>
+                <p className="truncate text-xs font-bold text-white">{brl(subtotal)}</p>
+                <p className="text-[11px] text-gray-400">
+                  {count === 1 ? "1 item" : `${count} itens`} • sem taxa ainda
+                </p>
               </div>
             </div>
             <button
               onClick={() => setCartOpen(true)}
               className="shrink-0 rounded-full px-6 py-3 text-sm font-black text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
-              style={{ backgroundColor: accent, boxShadow: `0 8px 24px ${hexToRgba(accent, 0.45)}` }}
+              style={{
+                backgroundColor: accent,
+                boxShadow: `0 8px 24px ${hexToRgba(accent, 0.45)}`,
+              }}
             >
               Ver pedido
             </button>
           </div>
-          {!isCurrentlyOpen && (
-            <p className="mx-auto mt-2 max-w-2xl text-center text-[11px] font-medium text-amber-300">
-              Restaurante fechado — você pode montar o carrinho, mas o envio será liberado na abertura.
-            </p>
-          )}
         </div>
       )}
 
@@ -942,6 +1018,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           accent={accent}
           onInc={(item, addons) => addToCart(item, addons)}
           onDec={(item, addons) => removeFromCart(item.id, addons)}
+          onEditAddons={(idx) => {
+            const line = cart[idx];
+            if (!line) return;
+            openAddonModal(line.product, idx);
+          }}
           onClose={() => setCartOpen(false)}
           onCheckout={() => {
             if (!isCurrentlyOpen) {
@@ -968,7 +1049,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           submitting={submitting}
           serverError={
             checkoutError ||
-            (!isCurrentlyOpen ? (nextOpen ? `Restaurante fechado — abre ${nextOpen.label.toLowerCase()} às ${nextOpen.time}.` : "Restaurante fechado no momento.") : "")
+            (!isCurrentlyOpen
+              ? nextOpen
+                ? `Restaurante fechado — abre ${nextOpen.label.toLowerCase()} às ${nextOpen.time}.`
+                : "Restaurante fechado no momento."
+              : "")
           }
           deliveryFee={Number(restaurant.delivery_fee ?? 0) || 0}
           neighborhoods={neighborhoods}
@@ -977,20 +1062,21 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         />
       )}
 
-      {addonModalProduct && (() => {
-        const list = addonsForProduct(addonModalProduct.id);
-        const editingItem = editingCartItemIndex !== null ? cart[editingCartItemIndex] : null;
-        return (
-          <ProductAddonsModal
-            product={addonModalProduct}
-            addons={list}
-            initialSelected={editingItem?.addons?.map((a) => a.addon_id) ?? []}
-            accent={accent}
-            onClose={() => setAddonModalProduct(null)}
-            onConfirm={handleAddonConfirm}
-          />
-        );
-      })()}
+      {addonModalProduct &&
+        (() => {
+          const list = addonsForProduct(addonModalProduct.id);
+          const editingItem = editingCartItemIndex !== null ? cart[editingCartItemIndex] : null;
+          return (
+            <ProductAddonsModal
+              product={addonModalProduct}
+              addons={list}
+              initialSelected={editingItem?.addons?.map((a) => a.addon_id) ?? []}
+              accent={accent}
+              onClose={() => setAddonModalProduct(null)}
+              onConfirm={handleAddonConfirm}
+            />
+          );
+        })()}
 
       {pendingOrder && (
         <PaymentScreen
@@ -1017,7 +1103,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             total: currentOrder.total,
             customer_name: currentOrder.customer_name,
             customer_phone: currentOrder.customer_phone,
-            items: (currentOrder.items as { product_name: string; quantity: number; total: number }[]) ?? [],
+            items:
+              (currentOrder.items as { product_name: string; quantity: number; total: number }[]) ??
+              [],
             observations: currentOrder.observations,
             payment_method: currentOrder.payment_method,
             delivery_type: currentOrder.delivery_type,
@@ -1034,13 +1122,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         />
       )}
 
-      {/* Fixed bottom button - Meus pedidos */}
+      {/* Meus pedidos — discreto, só quando carrinho vazio */}
       {count === 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+        <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2">
           <Link
             to="/meus-pedidos"
             search={{ from: slug }}
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/50 px-4 py-2.5 text-xs font-semibold text-white/90 backdrop-blur transition-all hover:border-white/30 hover:bg-black/70 shadow-lg"
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/50 px-4 py-2.5 text-xs font-semibold text-white/90 shadow-lg backdrop-blur transition-all hover:border-white/30 hover:bg-black/70"
             aria-label="Meus pedidos"
           >
             <ShoppingBag className="size-4" /> Meus pedidos

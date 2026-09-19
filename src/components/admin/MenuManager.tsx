@@ -7,16 +7,11 @@ import {
   X,
   ArrowUp,
   ArrowDown,
-  GripVertical,
   AlertCircle,
   Eye,
   EyeOff,
-  Loader2,
   UtensilsCrossed,
-  ImageOff,
   Sparkles,
-  Layers3,
-  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,15 +39,12 @@ import {
   deleteProductAddon,
 } from "@/modules/supabase/menu";
 import { updateRestaurant } from "@/modules/supabase/restaurants";
-import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
 import { toast } from "sonner";
 
 const field =
   "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20";
 
 export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
-  const [pubStatus, setPubStatus] = useState<Restaurant["status"]>(restaurant.status);
-  const [publishing, setPublishing] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [addons, setAddons] = useState<ProductAddon[]>([]);
@@ -72,10 +64,15 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   const [editProd, setEditProd] = useState({ name: "", description: "", price: "", image_url: "" });
   const [prodToDelete, setProdToDelete] = useState<Product | null>(null);
 
-  // adicionais - disabled for now, use global addons only
-  const [newAddon, setNewAddon] = useState<{ name: string; price: string }>({ name: "", price: "" });
+  const [newAddon, setNewAddon] = useState<{ name: string; price: string }>({
+    name: "",
+    price: "",
+  });
   const [editingAddonId, setEditingAddonId] = useState<string | null>(null);
-  const [editAddon, setEditAddon] = useState<{ name: string; price: string }>({ name: "", price: "" });
+  const [editAddon, setEditAddon] = useState<{ name: string; price: string }>({
+    name: "",
+    price: "",
+  });
   const [addonToDelete, setAddonToDelete] = useState<ProductAddon | null>(null);
 
   useEffect(() => {
@@ -94,23 +91,6 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
     setProducts(prods);
     setAddons(ads);
     setLoading(false);
-  }
-
-  async function togglePublish() {
-    const next = pubStatus === "published" ? "paused" : "published";
-    setPublishing(true);
-    const ok = await updateRestaurant(restaurant.id, { status: next });
-    setPublishing(false);
-    if (!ok) {
-      toast.error("Falha ao alterar publicação do cardápio.");
-      return;
-    }
-    setPubStatus(next);
-    toast.success(
-      next === "published"
-        ? "Cardápio publicado! Já aparece no link público."
-        : "Cardápio despublicado (status: pausado).",
-    );
   }
 
   async function addCategory() {
@@ -284,7 +264,7 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
     setProdToDelete(null);
   }
 
-  // ====== ADDONS ======
+  // ====== ADDONS GLOBAIS ======
   async function handleCreateGlobalAddon() {
     if (!newAddon.name.trim() || !newAddon.price) {
       toast.error("Preencha nome e preço do adicional");
@@ -302,12 +282,14 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
       price,
     });
     if (!created) {
-      toast.error("Erro ao criar adicional — verifique se o supabase/schema.sql foi executado no Supabase.");
+      toast.error(
+        "Erro ao criar adicional — verifique se o supabase/schema.sql foi executado no Supabase.",
+      );
       return;
     }
     setAddons((prev) => [...prev, created]);
     setNewAddon({ name: "", price: "" });
-    toast.success(`Adicional global "${created.name}" adicionado!`);
+    toast.success(`Adicional "${created.name}" adicionado!`);
   }
 
   async function handleUpdateAddon(id: string) {
@@ -321,7 +303,9 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
       toast.error("Falha ao salvar adicional");
       return;
     }
-    setAddons((prev) => prev.map((a) => (a.id === id ? { ...a, name: editAddon.name.trim(), price } : a)));
+    setAddons((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, name: editAddon.name.trim(), price } : a)),
+    );
     setEditingAddonId(null);
     toast.success("Adicional atualizado!");
   }
@@ -351,86 +335,17 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   }
 
   const sorted = [...categories].sort((a, b) => a.sort_order - b.sort_order);
+  const activeCount = products.filter((p) => p.available).length;
 
   return (
-    <div className="space-y-5">
-      {/* Status de publicação do cardápio */}
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-br from-white/[0.04] via-transparent to-transparent p-5">
-        <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="flex flex-wrap items-center gap-4">
-          <span
-            className={`grid size-11 shrink-0 place-items-center rounded-xl ring-1 ${
-              pubStatus === "published"
-                ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/20"
-                : "bg-amber-500/15 text-amber-300 ring-amber-500/20"
-            }`}
-          >
-            <UtensilsCrossed className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <p className="text-base font-bold text-white">{restaurant.name}</p>
-              <RestaurantStatusBadge status={pubStatus} />
-            </div>
-            <p className="mt-1 text-xs leading-relaxed text-gray-500">
-              {pubStatus === "published" ? (
-                <>
-                  Publicado — acessível em{" "}
-                  <span className="font-mono text-gray-400">/cardapio/{restaurant.slug}</span>
-                </>
-              ) : (
-                "Não publicado — os clientes não veem este cardápio."
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <a
-              href={`/cardapio/${restaurant.slug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white"
-            >
-              <Eye className="size-3.5" /> Ver público
-            </a>
-            <Button
-              onClick={togglePublish}
-              disabled={publishing}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-xs font-bold ${
-                pubStatus === "published"
-                  ? "bg-amber-500 text-black hover:bg-amber-400"
-                  : "bg-emerald-500 text-white hover:bg-emerald-400"
-              }`}
-            >
-              {publishing ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : pubStatus === "published" ? (
-                <EyeOff className="size-3.5" />
-              ) : (
-                <Eye className="size-3.5" />
-              )}
-              {pubStatus === "published" ? "Despublicar" : "Publicar"}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Nova categoria */}
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <span className="grid size-7 place-items-center rounded-lg bg-cyan-500/15 text-cyan-300">
-            <Plus className="size-4" />
-          </span>
-          <div>
-            <p className="text-sm font-bold text-white">Nova categoria</p>
-            <p className="text-xs text-gray-500">
-              Agrupe seus produtos (ex.: Lanches, Bebidas, Sobremesas)
-            </p>
-          </div>
-        </div>
+    <div className="space-y-4">
+      {/* Nova categoria — sempre visível, forma direta */}
+      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+        <p className="mb-2 text-xs font-semibold text-gray-300">Nova categoria</p>
         <div className="flex gap-2">
           <Input
             className={field + " flex-1"}
-            placeholder="Nome da categoria"
+            placeholder="Ex.: Lanches, Bebidas, Sobremesas"
             value={newCatName}
             onChange={(e) => setNewCatName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addCategory()}
@@ -445,28 +360,10 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
         </div>
       </div>
 
-      {/* Estatísticas rápidas */}
-      {sorted.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Categorias" value={String(sorted.length)} />
-          <StatCard label="Produtos" value={String(products.length)} />
-          <StatCard
-            label="Ativos"
-            value={String(products.filter((p) => p.available).length)}
-            accent={products.filter((p) => p.available).length > 0}
-          />
-          <StatCard
-            label="Adicionais"
-            value={String(addons.length)}
-            accent={addons.length > 0}
-          />
-        </div>
-      )}
-
       {sorted.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.01] py-16 text-center">
           <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-white/[0.04] text-gray-600">
-            <AlertCircle className="size-5" />
+            <UtensilsCrossed className="size-5" />
           </div>
           <p className="mt-4 text-sm font-semibold text-gray-400">Nenhuma categoria ainda</p>
           <p className="mt-1 text-xs text-gray-600">
@@ -474,252 +371,249 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
           </p>
         </div>
       ) : (
-        <div className="grid items-start gap-4 xl:grid-cols-2">
-          {sorted.map((cat, catIndex) => {
-            const catProducts = products
-              .filter((p) => p.category_id === cat.id)
-              .sort((a, b) => a.sort_order - b.sort_order);
-            const isAdding = openAddFor === cat.id;
-            const isEditing = editingCatId === cat.id;
-            const form = prodForms[cat.id];
-            const catActive = catProducts.filter((p) => p.available).length;
+        <>
+          {/* Resumo em linha — discreto */}
+          <p className="text-xs text-gray-600">
+            {sorted.length} categoria{sorted.length === 1 ? "" : "s"} • {products.length} produto
+            {products.length === 1 ? "" : "s"} ({activeCount} ativo{activeCount === 1 ? "" : "s"})
+            {addons.filter((a) => !a.product_id).length > 0 &&
+              ` • ${addons.filter((a) => !a.product_id).length} adicional${addons.filter((a) => !a.product_id).length === 1 ? "" : "is"}`}
+          </p>
 
-            return (
-              <div
-                key={cat.id}
-                className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0e0e15] transition-colors hover:border-white/[0.12]"
-              >
-                <div className="flex items-center gap-2 border-b border-white/[0.05] bg-white/[0.02] px-4 py-3">
-                  <GripVertical className="size-4 shrink-0 text-gray-700" />
-                  {isEditing ? (
-                    <div className="flex flex-1 items-center gap-2">
-                      <Input
-                        className={field + " flex-1"}
-                        value={editCatName}
-                        onChange={(e) => setEditCatName(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && saveCategory(cat.id)}
-                        autoFocus
-                      />
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => saveCategory(cat.id)}
-                        className="size-8 shrink-0 text-emerald-400 hover:bg-emerald-500/15"
-                      >
-                        <Check className="size-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setEditingCatId(null)}
-                        className="size-8 shrink-0 text-gray-400 hover:bg-white/10"
-                      >
-                        <X className="size-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <h3 className="min-w-0 flex-1 truncate text-sm font-bold uppercase tracking-wide text-white">
-                        {cat.name}
-                      </h3>
-                      <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-bold text-gray-300">
-                        {catProducts.length} {catProducts.length === 1 ? "item" : "itens"}
-                      </span>
-                      {catActive < catProducts.length && (
-                        <span className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-300">
-                          {catActive}/{catProducts.length} ativos
+          <div className="grid items-start gap-4 xl:grid-cols-2">
+            {sorted.map((cat, catIndex) => {
+              const catProducts = products
+                .filter((p) => p.category_id === cat.id)
+                .sort((a, b) => a.sort_order - b.sort_order);
+              const isAdding = openAddFor === cat.id;
+              const isEditing = editingCatId === cat.id;
+              const form = prodForms[cat.id];
+              const catActive = catProducts.filter((p) => p.available).length;
+
+              return (
+                <div
+                  key={cat.id}
+                  className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0e0e15]"
+                >
+                  <div className="flex items-center gap-2 border-b border-white/[0.05] bg-white/[0.02] px-4 py-3">
+                    {isEditing ? (
+                      <div className="flex flex-1 items-center gap-2">
+                        <Input
+                          className={field + " flex-1"}
+                          value={editCatName}
+                          onChange={(e) => setEditCatName(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && saveCategory(cat.id)}
+                          autoFocus
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => saveCategory(cat.id)}
+                          className="size-8 shrink-0 text-emerald-400 hover:bg-emerald-500/15"
+                        >
+                          <Check className="size-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setEditingCatId(null)}
+                          className="size-8 shrink-0 text-gray-400 hover:bg-white/10"
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <h3 className="min-w-0 flex-1 truncate text-sm font-bold uppercase tracking-wide text-white">
+                          {cat.name}
+                        </h3>
+                        <span className="shrink-0 text-[11px] font-medium text-gray-600">
+                          {catProducts.length === 0
+                            ? "vazio"
+                            : catActive === catProducts.length
+                              ? `${catProducts.length} ${catProducts.length === 1 ? "item" : "itens"}`
+                              : `${catActive}/${catProducts.length} ativos`}
                         </span>
-                      )}
-                      <div className="flex shrink-0 items-center gap-0.5">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => moveCategory(cat.id, "up")}
-                          disabled={catIndex === 0}
-                          title="Mover para cima"
-                          className="size-7 text-gray-500 hover:text-white disabled:opacity-30"
-                        >
-                          <ArrowUp className="size-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => moveCategory(cat.id, "down")}
-                          disabled={catIndex === sorted.length - 1}
-                          title="Mover para baixo"
-                          className="size-7 text-gray-500 hover:text-white disabled:opacity-30"
-                        >
-                          <ArrowDown className="size-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setEditingCatId(cat.id);
-                            setEditCatName(cat.name);
-                          }}
-                          title="Renomear categoria"
-                          className="size-7 text-gray-500 hover:text-white"
-                        >
-                          <Pencil className="size-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => setCatToDelete(cat)}
-                          title="Excluir categoria"
-                          className="size-7 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
-                        >
-                          <Trash2 className="size-3" />
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => moveCategory(cat.id, "up")}
+                            disabled={catIndex === 0}
+                            title="Mover para cima"
+                            className="size-7 text-gray-600 hover:text-white disabled:opacity-30"
+                          >
+                            <ArrowUp className="size-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => moveCategory(cat.id, "down")}
+                            disabled={catIndex === sorted.length - 1}
+                            title="Mover para baixo"
+                            className="size-7 text-gray-600 hover:text-white disabled:opacity-30"
+                          >
+                            <ArrowDown className="size-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingCatId(cat.id);
+                              setEditCatName(cat.name);
+                            }}
+                            title="Renomear categoria"
+                            className="size-7 text-gray-600 hover:text-white"
+                          >
+                            <Pencil className="size-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setCatToDelete(cat)}
+                            title="Excluir categoria"
+                            className="size-7 text-gray-600 hover:bg-red-500/15 hover:text-red-400"
+                          >
+                            <Trash2 className="size-3" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
 
-                <div className="space-y-2 p-3">
-                  {catProducts.length === 0 && !isAdding && (
-                    <div className="grid place-items-center py-8 text-center">
-                      <div className="grid size-10 place-items-center rounded-xl bg-white/[0.03] text-gray-700">
-                        <AlertCircle className="size-4" />
-                      </div>
-                      <p className="mt-2 text-xs text-gray-600">Nenhum produto nesta categoria.</p>
-                    </div>
-                  )}
+                  <div className="space-y-2 p-3">
+                    {catProducts.length === 0 && !isAdding && (
+                      <p className="py-6 text-center text-xs text-gray-600">
+                        Nenhum produto nesta categoria.
+                      </p>
+                    )}
 
-                  {catProducts.map((p, prodIndex) => {
-                    const isProdEditing = editingProdId === p.id;
-                    if (isProdEditing) {
+                    {catProducts.map((p, prodIndex) => {
+                      const isProdEditing = editingProdId === p.id;
+                      if (isProdEditing) {
+                        return (
+                          <div
+                            key={p.id}
+                            className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">
+                                Editando produto
+                              </p>
+                              <button
+                                onClick={() => setEditingProdId(null)}
+                                className="rounded-full p-1 text-gray-500 hover:bg-white/5 hover:text-white"
+                              >
+                                <X className="size-3.5" />
+                              </button>
+                            </div>
+                            <Input
+                              className={field}
+                              value={editProd.name}
+                              onChange={(e) => setEditProd({ ...editProd, name: e.target.value })}
+                              placeholder="Nome do produto *"
+                            />
+                            <Textarea
+                              className={field + " min-h-[60px]"}
+                              value={editProd.description}
+                              onChange={(e) =>
+                                setEditProd({ ...editProd, description: e.target.value })
+                              }
+                              placeholder="Descrição (opcional)"
+                              rows={2}
+                            />
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs text-gray-400">Preço (R$) *</Label>
+                                <Input
+                                  className={field}
+                                  value={editProd.price}
+                                  onChange={(e) =>
+                                    setEditProd({ ...editProd, price: e.target.value })
+                                  }
+                                  placeholder="19,90"
+                                  inputMode="decimal"
+                                />
+                              </div>
+                              <ImageField
+                                label="Foto do produto"
+                                value={editProd.image_url}
+                                onChange={(v) => setEditProd({ ...editProd, image_url: v })}
+                                restaurantId={restaurant.id}
+                                kind="product"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => saveProduct(p.id)}
+                                className="flex-1 bg-emerald-500 text-white hover:bg-emerald-400"
+                              >
+                                Salvar alterações
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => setEditingProdId(null)}
+                                className="flex-1 border-white/10 bg-white/[0.04] text-gray-300"
+                              >
+                                Cancelar
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
                       return (
                         <div
                           key={p.id}
-                          className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-3"
+                          className={`rounded-xl border transition-colors ${
+                            p.available
+                              ? "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]"
+                              : "border-amber-500/15 bg-amber-500/[0.03] opacity-80 hover:opacity-100"
+                          }`}
                         >
-                          <div className="flex items-center gap-2">
-                            <p className="flex-1 text-xs font-semibold uppercase tracking-wider text-cyan-300">
-                              Editando produto
-                            </p>
-                            <button
-                              onClick={() => setEditingProdId(null)}
-                              className="rounded-full p-1 text-gray-500 hover:bg-white/5 hover:text-white"
-                            >
-                              <X className="size-3.5" />
-                            </button>
-                          </div>
-                          <Input
-                            className={field}
-                            value={editProd.name}
-                            onChange={(e) => setEditProd({ ...editProd, name: e.target.value })}
-                            placeholder="Nome do produto *"
-                          />
-                          <Textarea
-                            className={field + " min-h-[60px]"}
-                            value={editProd.description}
-                            onChange={(e) =>
-                              setEditProd({ ...editProd, description: e.target.value })
-                            }
-                            placeholder="Descrição (opcional)"
-                            rows={2}
-                          />
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="space-y-1.5">
-                              <Label className="text-xs text-gray-400">Preço (R$) *</Label>
-                              <Input
-                                className={field}
-                                value={editProd.price}
-                                onChange={(e) =>
-                                  setEditProd({ ...editProd, price: e.target.value })
-                                }
-                                placeholder="19,90"
-                                inputMode="decimal"
-                              />
-                            </div>
-                        <ImageField
-                          label="Foto do produto"
-                          value={editProd.image_url}
-                          onChange={(v) => setEditProd({ ...editProd, image_url: v })}
-                          restaurantId={restaurant.id}
-                          kind="product"
-                        />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => saveProduct(p.id)}
-                              className="flex-1 bg-emerald-500 text-white hover:bg-emerald-400"
-                            >
-                              Salvar alterações
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => setEditingProdId(null)}
-                              className="flex-1 border-white/10 bg-white/[0.04] text-gray-300"
-                            >
-                              Cancelar
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div
-                        key={p.id}
-                        className={`group rounded-xl border transition-all ${
-                          p.available
-                            ? "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.14] hover:bg-white/[0.04]"
-                            : "border-amber-500/15 bg-amber-500/[0.03] opacity-80 hover:opacity-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 p-2.5">
-                          {p.image_url ? (
-                            <div className="aspect-square size-14 shrink-0 overflow-hidden rounded-xl ring-1 ring-white/10">
-                              <img
-                                src={p.image_url}
-                                alt={p.name}
-                                className="size-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.opacity = "0.15";
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            <div className="grid size-14 shrink-0 place-items-center rounded-xl bg-white/[0.03] text-gray-700 ring-1 ring-white/10">
-                              <ImageOff className="size-5 text-gray-600" />
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-white">{p.name}</p>
-                            {p.description && (
-                              <p className="truncate text-xs text-gray-500">{p.description}</p>
+                          <div className="flex items-center gap-3 p-2.5">
+                            {p.image_url ? (
+                              <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-white/10">
+                                <img
+                                  src={p.image_url}
+                                  alt={p.name}
+                                  className="size-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.opacity = "0.15";
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-white/[0.03] text-gray-700 ring-1 ring-white/10">
+                                <UtensilsCrossed className="size-4 text-gray-600" />
+                              </div>
                             )}
-                            <div className="mt-1 flex flex-wrap items-center gap-2">
-                              <p className="text-sm font-black text-cyan-300">{brl(p.price)}</p>
-                              {!p.available && (
-                                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
-                                  Pausado
-                                </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-white">{p.name}</p>
+                              {p.description && (
+                                <p className="truncate text-xs text-gray-600">{p.description}</p>
                               )}
-
+                              <p className="mt-0.5 text-sm font-black text-cyan-300">
+                                {brl(p.price)}
+                              </p>
                             </div>
-                          </div>
 
-                          <div className="flex shrink-0 flex-col items-end gap-1.5">
-                            <button
-                              onClick={() => toggleAvailability(p.id, !p.available)}
-                              title={p.available ? "Pausar produto" : "Ativar produto"}
-                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide transition-colors ${
-                                p.available
-                                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
-                                  : "border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
-                              }`}
-                            >
-                              {p.available ? (
-                                <Eye className="size-2.5" />
-                              ) : (
-                                <EyeOff className="size-2.5" />
-                              )}
-                              {p.available ? "Ativo" : "Pausado"}
-                            </button>
-                            <div className="flex items-center gap-0.5">
+                            <div className="flex shrink-0 items-center gap-1">
+                              <button
+                                onClick={() => toggleAvailability(p.id, !p.available)}
+                                title={p.available ? "Pausar produto" : "Ativar produto"}
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-wide transition-colors ${
+                                  p.available
+                                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                                    : "border-amber-500/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                                }`}
+                              >
+                                {p.available ? (
+                                  <Eye className="size-2.5" />
+                                ) : (
+                                  <EyeOff className="size-2.5" />
+                                )}
+                                {p.available ? "Ativo" : "Pausado"}
+                              </button>
                               <Button
                                 size="icon"
                                 variant="ghost"
@@ -769,181 +663,223 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
 
-                  {isAdding ? (
-                    <div className="space-y-3 rounded-xl border border-dashed border-cyan-500/30 bg-cyan-500/[0.04] p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">
-                        Novo produto em {cat.name}
-                      </p>
-                      <Input
-                        className={field}
-                        placeholder="Nome do produto *"
-                        value={form?.name ?? ""}
-                        onChange={(e) => updateProdForm(cat.id, "name", e.target.value)}
-                        autoFocus
-                      />
-                      <Textarea
-                        className={field + " min-h-[60px]"}
-                        placeholder="Descrição (opcional)"
-                        value={form?.desc ?? ""}
-                        onChange={(e) => updateProdForm(cat.id, "desc", e.target.value)}
-                        rows={2}
-                      />
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-gray-400">Preço (R$) *</Label>
-                          <Input
-                            className={field}
-                            placeholder="19,90"
-                            inputMode="decimal"
-                            value={form?.price ?? ""}
-                            onChange={(e) => updateProdForm(cat.id, "price", e.target.value)}
+                    {isAdding ? (
+                      <div className="space-y-3 rounded-xl border border-dashed border-cyan-500/30 bg-cyan-500/[0.04] p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">
+                          Novo produto em {cat.name}
+                        </p>
+                        <Input
+                          className={field}
+                          placeholder="Nome do produto *"
+                          value={form?.name ?? ""}
+                          onChange={(e) => updateProdForm(cat.id, "name", e.target.value)}
+                          autoFocus
+                        />
+                        <Textarea
+                          className={field + " min-h-[60px]"}
+                          placeholder="Descrição (opcional)"
+                          value={form?.desc ?? ""}
+                          onChange={(e) => updateProdForm(cat.id, "desc", e.target.value)}
+                          rows={2}
+                        />
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-gray-400">Preço (R$) *</Label>
+                            <Input
+                              className={field}
+                              placeholder="19,90"
+                              inputMode="decimal"
+                              value={form?.price ?? ""}
+                              onChange={(e) => updateProdForm(cat.id, "price", e.target.value)}
+                            />
+                          </div>
+                          <ImageField
+                            label="Foto do produto"
+                            value={form?.imageUrl ?? ""}
+                            onChange={(v) => updateProdForm(cat.id, "imageUrl", v)}
+                            restaurantId={restaurant.id}
+                            kind="product"
                           />
                         </div>
-                        <ImageField
-                          label="Foto do produto"
-                          value={form?.imageUrl ?? ""}
-                          onChange={(v) => updateProdForm(cat.id, "imageUrl", v)}
-                          restaurantId={restaurant.id}
-                          kind="product"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => addProduct(cat.id)}
-                          disabled={!form?.name.trim() || !form?.price}
-                          className="flex-1 bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-40"
-                        >
-                          <Plus className="size-3.5" /> Adicionar produto
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setOpenAddFor(null)}
-                          className="border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]"
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => openAddForm(cat.id)}
-                      className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/10 py-2.5 text-xs font-semibold text-gray-500 transition-colors hover:border-cyan-500/40 hover:bg-cyan-500/5 hover:text-cyan-300"
-                    >
-                      <Plus className="size-3.5" /> Adicionar produto
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Adicionais Globais como categoria na grid */}
-          <div
-            className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0e0e15] transition-colors hover:border-white/[0.12]"
-          >
-            <div className="flex items-center gap-2 border-b border-white/[0.05] bg-white/[0.02] px-4 py-3">
-              <Sparkles className="size-4 shrink-0 text-violet-400" />
-              <h3 className="min-w-0 flex-1 truncate text-sm font-bold uppercase tracking-wide text-white">
-                Adicionais Globais
-              </h3>
-              <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-bold text-gray-300">
-                {addons.filter(a => !a.product_id).length} itens
-              </span>
-            </div>
-
-            <div className="space-y-2 p-3">
-              {addons.filter(a => !a.product_id).length === 0 ? (
-                <div className="grid place-items-center py-8 text-center">
-                  <div className="grid size-10 place-items-center rounded-xl bg-white/[0.03] text-gray-700">
-                    <Sparkles className="size-4" />
-                  </div>
-                  <p className="mt-2 text-xs text-gray-600">Nenhum adicional global configurado.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {addons
-                    .filter(a => !a.product_id)
-                    .sort((a, b) => a.sort_order - b.sort_order)
-                    .map((a) => (
-                      <div
-                        key={a.id}
-                        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
-                          a.available
-                            ? "border-white/[0.06] bg-white/[0.03]"
-                            : "border-amber-500/15 bg-amber-500/[0.04] opacity-70"
-                        }`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-white">{a.name}</p>
-                          <p className="text-xs font-bold text-violet-300">+ {brl(Number(a.price))}</p>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => addProduct(cat.id)}
+                            disabled={!form?.name.trim() || !form?.price}
+                            className="flex-1 bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-40"
+                          >
+                            <Plus className="size-3.5" /> Adicionar produto
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setOpenAddFor(null)}
+                            className="border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]"
+                          >
+                            Cancelar
+                          </Button>
                         </div>
-                        <button
-                          onClick={() => handleToggleAddon(a.id, !a.available)}
-                          title={a.available ? "Desativar" : "Ativar"}
-                          className={`size-7 rounded-full transition-colors ${
-                            a.available
-                              ? "bg-emerald-500 text-white hover:bg-emerald-400"
-                              : "bg-amber-500 text-white hover:bg-amber-400"
-                          }`}
-                        >
-                          {a.available ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
-                        </button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setEditingAddonId(a.id);
-                            setEditAddon({ name: a.name, price: String(a.price) });
-                          }}
-                          className="size-7 text-gray-500 hover:text-white"
-                        >
-                          <Pencil className="size-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => setAddonToDelete(a)}
-                          className="size-7 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
-                        >
-                          <Trash2 className="size-3" />
-                        </Button>
                       </div>
-                    ))}
+                    ) : (
+                      <button
+                        onClick={() => openAddForm(cat.id)}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/10 py-2.5 text-xs font-semibold text-gray-500 transition-colors hover:border-cyan-500/40 hover:bg-cyan-500/5 hover:text-cyan-300"
+                      >
+                        <Plus className="size-3.5" /> Adicionar produto
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
-              
-              <div className="mt-3 flex gap-2">
-                <Input
-                  placeholder="Nome do adicional (ex: Ovo)"
-                  value={newAddon.name}
-                  onChange={(e) => setNewAddon({ ...newAddon, name: e.target.value })}
-                  className="flex-1"
-                />
-                <div className="flex w-24 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2">
-                  <DollarSign className="size-3.5 shrink-0 text-gray-500" />
-                  <input
-                    className="w-full bg-transparent py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none"
+              );
+            })}
+
+            {/* Adicionais Globais */}
+            <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0e0e15]">
+              <div className="flex items-center gap-2 border-b border-white/[0.05] bg-white/[0.02] px-4 py-3">
+                <Sparkles className="size-3.5 shrink-0 text-violet-400" />
+                <h3 className="min-w-0 flex-1 truncate text-sm font-bold uppercase tracking-wide text-white">
+                  Adicionais
+                </h3>
+                <span className="shrink-0 text-[11px] font-medium text-gray-600">
+                  {addons.filter((a) => !a.product_id).length === 0
+                    ? "nenhum"
+                    : `${addons.filter((a) => !a.product_id).length} cadastrado${addons.filter((a) => !a.product_id).length === 1 ? "" : "s"}`}
+                </span>
+              </div>
+
+              <div className="space-y-2 p-3">
+                {addons.filter((a) => !a.product_id).length === 0 ? (
+                  <p className="py-4 text-center text-xs text-gray-600">
+                    Ofereça extras como "Ovo", "Bacon extra" — aparecem em todos os produtos.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {addons
+                      .filter((a) => !a.product_id)
+                      .sort((a, b) => a.sort_order - b.sort_order)
+                      .map((a) =>
+                        editingAddonId === a.id ? (
+                          <div
+                            key={a.id}
+                            className="flex items-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/[0.04] px-3 py-2"
+                          >
+                            <Input
+                              value={editAddon.name}
+                              onChange={(e) => setEditAddon({ ...editAddon, name: e.target.value })}
+                              className="h-8 flex-1 border-white/10 bg-white/[0.05] text-xs text-white"
+                            />
+                            <Input
+                              value={editAddon.price}
+                              onChange={(e) =>
+                                setEditAddon({ ...editAddon, price: e.target.value })
+                              }
+                              className="h-8 w-20 border-white/10 bg-white/[0.05] text-xs text-white"
+                              inputMode="decimal"
+                            />
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleUpdateAddon(a.id)}
+                              className="size-7 shrink-0 text-emerald-400 hover:bg-emerald-500/15"
+                            >
+                              <Check className="size-3.5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setEditingAddonId(null)}
+                              className="size-7 shrink-0 text-gray-400 hover:bg-white/10"
+                            >
+                              <X className="size-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div
+                            key={a.id}
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${
+                              a.available
+                                ? "border-white/[0.06] bg-white/[0.03]"
+                                : "border-amber-500/15 bg-amber-500/[0.04] opacity-70"
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-white">{a.name}</p>
+                              <p className="text-xs font-bold text-violet-300">
+                                + {brl(Number(a.price))}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleToggleAddon(a.id, !a.available)}
+                              title={a.available ? "Desativar" : "Ativar"}
+                              className={`grid size-7 place-items-center rounded-full transition-colors ${
+                                a.available
+                                  ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                                  : "bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+                              }`}
+                            >
+                              {a.available ? (
+                                <Eye className="size-3" />
+                              ) : (
+                                <EyeOff className="size-3" />
+                              )}
+                            </button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingAddonId(a.id);
+                                setEditAddon({ name: a.name, price: String(a.price) });
+                              }}
+                              title="Editar adicional"
+                              className="size-7 text-gray-500 hover:text-white"
+                            >
+                              <Pencil className="size-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setAddonToDelete(a)}
+                              title="Excluir adicional"
+                              className="size-7 text-gray-500 hover:bg-red-500/15 hover:text-red-400"
+                            >
+                              <Trash2 className="size-3" />
+                            </Button>
+                          </div>
+                        ),
+                      )}
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                  <Input
+                    placeholder="Nome (ex: Ovo)"
+                    value={newAddon.name}
+                    onChange={(e) => setNewAddon({ ...newAddon, name: e.target.value })}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateGlobalAddon()}
+                    className="h-9 flex-1 border-white/10 bg-white/[0.04] text-xs text-white placeholder:text-gray-600"
+                  />
+                  <Input
+                    placeholder="3,00"
                     value={newAddon.price}
                     onChange={(e) => setNewAddon({ ...newAddon, price: e.target.value })}
-                    placeholder="3,00"
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateGlobalAddon()}
+                    className="h-9 w-24 border-white/10 bg-white/[0.04] text-xs text-white placeholder:text-gray-600"
                     inputMode="decimal"
                   />
+                  <Button
+                    size="sm"
+                    onClick={handleCreateGlobalAddon}
+                    disabled={!newAddon.name.trim() || !newAddon.price}
+                    className="h-9 shrink-0 bg-violet-500 text-white hover:bg-violet-400 disabled:opacity-40"
+                  >
+                    <Plus className="size-3.5" /> Adicionar
+                  </Button>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={handleCreateGlobalAddon}
-                  className="bg-violet-500 text-white hover:bg-violet-400"
-                >
-                  <Plus className="size-3.5" /> Adicionar
-                </Button>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       <ConfirmDialog
@@ -970,29 +906,12 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
         open={Boolean(addonToDelete)}
         onOpenChange={(o) => !o && setAddonToDelete(null)}
         title="Excluir adicional?"
-        description={addonToDelete ? `"${addonToDelete.name}" será removido globalmente de todos os lanches.` : ""}
+        description={
+          addonToDelete ? `"${addonToDelete.name}" será removido de todos os produtos.` : ""
+        }
         confirmLabel="Excluir"
         onConfirm={handleDeleteAddon}
       />
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">{label}</p>
-      <p className={`mt-1 text-xl font-black ${accent ? "text-emerald-300" : "text-white"}`}>
-        {value}
-      </p>
     </div>
   );
 }

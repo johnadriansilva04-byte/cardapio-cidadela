@@ -7,6 +7,7 @@ export interface Promotion {
   description: string;
   kind: "points_multiplier" | "bonus_points" | "reward" | "discount";
   value: number;
+  starts_at: string | null;
   ends_at: string | null;
 }
 

@@ -21,6 +21,8 @@ interface DraftPromotion {
   description: string;
   kind: Promotion["kind"];
   value: string;
+  starts_at?: string;
+  ends_at?: string;
 }
 
 const emptyDraft: DraftPromotion = {
@@ -28,6 +30,8 @@ const emptyDraft: DraftPromotion = {
   description: "",
   kind: "reward",
   value: "",
+  starts_at: "",
+  ends_at: "",
 };
 
 /**
@@ -67,6 +71,12 @@ export function PromotionsManager({ restaurant }: { restaurant: Restaurant }) {
       return;
     }
 
+    // Validar datas se fornecidas
+    if (draft.starts_at && draft.ends_at && new Date(draft.starts_at) >= new Date(draft.ends_at)) {
+      toast.error("A data de início deve ser anterior à data de término.");
+      return;
+    }
+
     setSaving(true);
     const saved = await savePromotion(restaurant.id, {
       id: draft.id,
@@ -74,6 +84,9 @@ export function PromotionsManager({ restaurant }: { restaurant: Restaurant }) {
       description: draft.description,
       kind: draft.kind,
       value,
+      active: true,
+      starts_at: draft.starts_at || null,
+      ends_at: draft.ends_at || null,
     });
     setSaving(false);
 
@@ -172,6 +185,29 @@ export function PromotionsManager({ restaurant }: { restaurant: Restaurant }) {
             />
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="promo-starts">Início (opcional)</Label>
+              <Input
+                id="promo-starts"
+                type="datetime-local"
+                className={field}
+                value={draft.starts_at}
+                onChange={(e) => setDraft({ ...draft, starts_at: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="promo-ends">Término (opcional)</Label>
+              <Input
+                id="promo-ends"
+                type="datetime-local"
+                className={field}
+                value={draft.ends_at}
+                onChange={(e) => setDraft({ ...draft, ends_at: e.target.value })}
+              />
+            </div>
+          </div>
+
           <p className="text-[11px] text-gray-500">
             Como o cliente vê:{" "}
             {describePromotion({
@@ -180,7 +216,8 @@ export function PromotionsManager({ restaurant }: { restaurant: Restaurant }) {
               description: draft.description,
               kind: draft.kind,
               value: Number(draft.value.replace(",", ".")) || 0,
-              ends_at: null,
+              starts_at: draft.starts_at || null,
+              ends_at: draft.ends_at || null,
             })}
           </p>
 
@@ -221,6 +258,12 @@ export function PromotionsManager({ restaurant }: { restaurant: Restaurant }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-white">{promo.title}</p>
                 <p className="text-[11px] text-gray-500">{describePromotion(promo)}</p>
+                {promo.starts_at && new Date(promo.starts_at) > new Date() && (
+                  <p className="text-[10px] text-cyan-400">Agendada para {new Date(promo.starts_at).toLocaleDateString('pt-BR')}</p>
+                )}
+                {promo.ends_at && new Date(promo.ends_at) < new Date() && (
+                  <p className="text-[10px] text-red-400">Expirou em {new Date(promo.ends_at).toLocaleDateString('pt-BR')}</p>
+                )}
               </div>
               <button
                 onClick={() =>
@@ -230,6 +273,8 @@ export function PromotionsManager({ restaurant }: { restaurant: Restaurant }) {
                     description: promo.description,
                     kind: promo.kind,
                     value: String(promo.value),
+                    starts_at: promo.starts_at ? new Date(promo.starts_at).toISOString().slice(0, 16) : "",
+                    ends_at: promo.ends_at ? new Date(promo.ends_at).toISOString().slice(0, 16) : "",
                   })
                 }
                 aria-label={`Editar ${promo.title}`}

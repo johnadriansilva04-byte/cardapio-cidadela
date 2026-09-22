@@ -6,7 +6,7 @@ export async function getPromotions(restaurantId: string): Promise<Promotion[]> 
   try {
     const { data, error } = await supabase
       .from("promotions")
-      .select("id, title, description, kind, value, active, sort_order, ends_at")
+      .select("id, title, description, kind, value, active, sort_order, starts_at, ends_at")
       .eq("restaurant_id", restaurantId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false });
@@ -32,6 +32,7 @@ export async function savePromotion(
     kind: Promotion["kind"];
     value: number;
     active?: boolean;
+    starts_at?: string | null;
     ends_at?: string | null;
   },
 ): Promise<Promotion | null> {
@@ -42,6 +43,7 @@ export async function savePromotion(
     kind: input.kind,
     value: input.value,
     active: input.active ?? true,
+    starts_at: input.starts_at ?? null,
     ends_at: input.ends_at ?? null,
   };
 

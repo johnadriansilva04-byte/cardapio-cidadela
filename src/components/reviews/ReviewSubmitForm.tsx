@@ -72,7 +72,7 @@ export function ReviewSubmitForm({
           type="button"
           onClick={handleSubmit}
           disabled={submitting || rating === 0}
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition-all hover:brightness-110 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ backgroundColor: accent }}
         >
           {submitting ? (

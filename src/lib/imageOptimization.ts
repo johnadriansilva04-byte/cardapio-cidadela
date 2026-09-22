@@ -15,6 +15,8 @@ export interface ImageTransformOptions {
   quality?: number;
   /** `cover` recorta para preencher; `contain` preserva a imagem inteira. */
   resize?: "cover" | "contain" | "fill";
+  /** Formato de saída: 'webp', 'jpeg', 'png' (quando suportado pelo Supabase). */
+  format?: 'webp' | 'jpeg' | 'png';
 }
 
 const MIN_QUALITY = 20;
@@ -48,7 +50,7 @@ export function isSupabaseStorageUrl(url: string): boolean {
 export function optimizedImageUrl(url: string, options: ImageTransformOptions = {}): string {
   if (!url || !isSupabaseStorageUrl(url)) return url;
 
-  const { width, height, quality, resize = "cover" } = options;
+  const { width, height, quality, resize = "cover", format } = options;
   if (!width && !height) return url;
 
   try {
@@ -58,6 +60,7 @@ export function optimizedImageUrl(url: string, options: ImageTransformOptions = 
     if (height) parsed.searchParams.set("height", String(Math.round(height)));
     parsed.searchParams.set("quality", String(clampQuality(quality)));
     parsed.searchParams.set("resize", resize);
+    if (format) parsed.searchParams.set("format", format);
     return parsed.toString();
   } catch {
     return url;

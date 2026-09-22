@@ -15,6 +15,8 @@ export interface SmartImageProps {
   /** Placeholder mostrado enquanto a imagem carrega. */
   fallback?: React.ReactNode;
   eager?: boolean;
+  /** Formato alternativo para fallback (ex: 'jpeg', 'png'). */
+  fallbackFormat?: 'jpeg' | 'png';
 }
 
 /**
@@ -36,23 +38,47 @@ export function SmartImage({
   imgClassName,
   fallback,
   eager = false,
+  fallbackFormat = 'jpeg',
 }: SmartImageProps) {
-  const optimized = optimizedImageUrl(src, { width, height, quality, resize });
+  const optimized = optimizedImageUrl(src, { width, height, quality, resize, format: 'webp' });
   const [currentSrc, setCurrentSrc] = useState(optimized);
   const [failed, setFailed] = useState(false);
+  const [loading, setLoading] = useState(!eager);
+  const [triedOriginal, setTriedOriginal] = useState(false);
+  const [triedFallback, setTriedFallback] = useState(false);
 
   useEffect(() => {
     setCurrentSrc(optimized);
     setFailed(false);
-  }, [optimized]);
+    setLoading(!eager);
+    setTriedOriginal(false);
+    setTriedFallback(false);
+  }, [optimized, eager]);
 
   function handleError() {
-    // Só tenta a original se ainda não estivermos nela.
-    if (currentSrc !== src) {
+    // Tenta a versão original se ainda não tentou
+    if (!triedOriginal && currentSrc !== src) {
       setCurrentSrc(src);
+      setTriedOriginal(true);
       return;
     }
+
+    // Tenta fallback format se ainda não tentou
+    if (!triedFallback && fallbackFormat) {
+      const fallbackUrl = optimizedImageUrl(src, { width, height, quality, resize, format: fallbackFormat });
+      if (fallbackUrl !== currentSrc) {
+        setCurrentSrc(fallbackUrl);
+        setTriedFallback(true);
+        return;
+      }
+    }
+
     setFailed(true);
+    setLoading(false);
+  }
+
+  function handleLoad() {
+    setLoading(false);
   }
 
   if (failed) {
@@ -68,7 +94,8 @@ export function SmartImage({
       loading={eager ? "eager" : "lazy"}
       decoding="async"
       onError={handleError}
-      className={cn(imgClassName ?? className)}
+      onLoad={handleLoad}
+      className={cn(imgClassName ?? className, loading && "opacity-0", !loading && "opacity-100 transition-opacity duration-300")}
     />
   );
 }

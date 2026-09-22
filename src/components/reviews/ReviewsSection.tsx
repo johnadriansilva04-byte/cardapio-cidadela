@@ -4,6 +4,7 @@ import { ExpandableSection } from "@/modules/ui/ExpandableSection";
 import { useRestaurantReviews } from "@/modules/reviews/useRestaurantReviews";
 import { ReviewList } from "./ReviewList";
 import { ReviewSubmitForm } from "./ReviewSubmitForm";
+import { ReviewSkeleton } from "@/components/ui/skeleton";
 
 export interface ReviewsSectionProps {
   restaurantId: string;
@@ -42,7 +43,10 @@ export function ReviewsSection({
     >
       <div className="space-y-4">
         {loading ? (
-          <p className="text-xs text-gray-500">Carregando avaliações…</p>
+          <div className="space-y-3">
+            <ReviewSkeleton />
+            <ReviewSkeleton />
+          </div>
         ) : (
           <ReviewList reviews={reviews} accent={accent} />
         )}

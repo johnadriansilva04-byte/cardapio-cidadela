@@ -32,6 +32,7 @@ import {
 import { describePromotion, isRedeemable, type Promotion } from "@/lib/loyalty";
 import { brl, formatDate } from "@/lib/utils";
 import { ORDER_STATUS_LABELS } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CustomerProfileSheetProps {
   accent: string;
@@ -58,6 +59,7 @@ export default function CustomerProfileSheet({
     useCustomerProfile();
 
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [promotionsLoading, setPromotionsLoading] = useState(true);
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
@@ -75,9 +77,13 @@ export default function CustomerProfileSheet({
 
   useEffect(() => {
     let alive = true;
+    setPromotionsLoading(true);
     void (async () => {
       const list = await getRestaurantPromotions(slug);
-      if (alive) setPromotions(list);
+      if (alive) {
+        setPromotions(list);
+        setPromotionsLoading(false);
+      }
     })();
     return () => {
       alive = false;
@@ -280,7 +286,25 @@ export default function CustomerProfileSheet({
           </p>
 
           {/* Promoções do restaurante */}
-          {promotions.length > 0 && (
+          {promotionsLoading ? (
+            <section className="mt-5">
+              <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-400">
+                <Sparkles className="size-3.5" style={{ color: accent }} />
+                Promoções de {slug}
+              </h3>
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton variant="text" className="h-4 w-3/4" />
+                      <Skeleton variant="text" className="h-3 w-1/2" />
+                    </div>
+                    <Skeleton variant="circular" width="36px" height="36px" />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : promotions.length > 0 ? (
             <section className="mt-5">
               <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-400">
                 <Sparkles className="size-3.5" style={{ color: accent }} />
@@ -318,7 +342,7 @@ export default function CustomerProfileSheet({
                 ))}
               </div>
             </section>
-          )}
+          ) : null}
 
           {/* Último pedido */}
           {orders[0] && (

@@ -16,10 +16,9 @@ export function SharePanel({ restaurant }: { restaurant: Restaurant }) {
   const publicPath = `/cardapio/${restaurant.slug}`;
 
   const publicUrl = useMemo(() => {
-    if (typeof window !== "undefined" && window.location.origin) {
-      return `${window.location.origin}${publicPath}`;
-    }
-    return publicPath;
+    // URL fixo correto em vez de usar window.location.origin
+    const baseUrl = "https://cardapio-cidadela.vercel.app";
+    return `${baseUrl}${publicPath}`;
   }, [publicPath]);
 
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;

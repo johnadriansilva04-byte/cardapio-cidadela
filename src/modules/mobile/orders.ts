@@ -38,11 +38,8 @@ export function isFinished(status: OrderStatus): boolean {
 
 /** Link público de acompanhamento enviado ao cliente. */
 export function trackingUrl(orderId: string): string {
-  const path = `/pedido/${orderId}`;
-  if (typeof window !== "undefined" && window.location.origin) {
-    return `${window.location.origin}${path}`;
-  }
-  return path;
+  const baseUrl = "https://cardapio-cidadela.vercel.app";
+  return `${baseUrl}/pedido/${orderId}`;
 }
 
 export interface OrderTimerState {

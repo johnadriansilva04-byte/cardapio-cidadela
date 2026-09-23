@@ -94,9 +94,7 @@ export function RestaurantManager({
             />
           </div>
           <p className="mt-1 text-[10px] text-cyan-400">
-            {typeof window !== "undefined"
-              ? `${window.location.origin}/cardapio/${slug}`
-              : `/cardapio/${slug}`}
+            {`https://cardapio-cidadela.vercel.app/cardapio/${slug}`}
           </p>
         </div>
 

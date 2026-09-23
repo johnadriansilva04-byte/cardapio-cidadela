@@ -287,9 +287,7 @@ export default function AdminDashboard() {
             <div className="mt-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-2">
               <p className="text-[10px] text-gray-500">URL do cardápio:</p>
               <p className="text-xs text-cyan-300">
-                {typeof window !== "undefined"
-                  ? `${window.location.origin}/cardapio/${slugPreview}`
-                  : `/cardapio/${slugPreview}`}
+                {`https://cardapio-cidadela.vercel.app/cardapio/${slugPreview}`}
               </p>
             </div>
           )}

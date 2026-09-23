@@ -308,23 +308,15 @@ export default function AdminModal({ onClose }: { onClose: () => void }) {
                   <p className="mb-2 text-xs text-gray-400">Seu link personalizado:</p>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 text-xs text-cyan-300 break-all">
-                      {typeof window !== "undefined"
-                        ? restaurantSlug
-                          ? `${window.location.origin}/cardapio/${restaurantSlug}`
-                          : `${window.location.origin}/?store_id=${trial.store_id}`
-                        : restaurantSlug
-                          ? `/cardapio/${restaurantSlug}`
-                          : `/?store_id=${trial.store_id}`}
+                      {restaurantSlug
+                        ? `https://cardapio-cidadela.vercel.app/cardapio/${restaurantSlug}`
+                        : `https://cardapio-cidadela.vercel.app/?store_id=${trial.store_id}`}
                     </code>
                     <button
                       onClick={() => {
-                        const url = typeof window !== "undefined"
-                          ? restaurantSlug
-                            ? `${window.location.origin}/cardapio/${restaurantSlug}`
-                            : `${window.location.origin}/?store_id=${trial.store_id}`
-                          : restaurantSlug
-                            ? `/cardapio/${restaurantSlug}`
-                            : `/?store_id=${trial.store_id}`;
+                        const url = restaurantSlug
+                          ? `https://cardapio-cidadela.vercel.app/cardapio/${restaurantSlug}`
+                          : `https://cardapio-cidadela.vercel.app/?store_id=${trial.store_id}`
                         navigator.clipboard.writeText(url);
                         setMessage("Link copiado!");
                       }}

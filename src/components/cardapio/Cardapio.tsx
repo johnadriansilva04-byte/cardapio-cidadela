@@ -630,10 +630,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   return (
     <div className="min-h-screen bg-[#07070b] pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
-      {/* HERO — banner fixo com identidade da loja */}
-      <div className="relative">
+      {/* HERO — banner fixo como pano de fundo enquanto o cardápio rola por cima */}
+      <div className="contents">
         <div
-          className="relative h-52 w-full sm:h-64"
+          className="sticky top-0 z-0 mt-2 h-[280px] w-full sm:h-[320px]"
           style={{
             backgroundImage: restaurant.banner_url
               ? `url(${restaurant.banner_url})`
@@ -642,58 +642,53 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             backgroundPosition: restaurant.banner_url ? "center center" : undefined,
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/60 to-black/10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/80 to-black/30" />
 
           {/* Selo da Cidadela — canto superior direito, acompanha a cor do restaurante */}
           <CidadelaBadge accent={accent} className="absolute right-3 top-3 z-10" />
 
-          <div className="absolute inset-x-0 bottom-0">
-            <div className="mx-auto max-w-2xl px-4 pb-4">
-              <div className="flex items-end gap-3">
-                {restaurant.logo_url ? (
-                  <div
-                    className="aspect-square size-16 shrink-0 overflow-hidden rounded-2xl border-2 shadow-lg sm:size-20"
-                    style={{ borderColor: hexToRgba(accent, 0.5) }}
-                  >
-                    <img
-                      src={restaurant.logo_url}
-                      alt={restaurant.name}
-                      className="size-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className="grid size-16 shrink-0 place-items-center rounded-2xl border-2 bg-[#0a0a12]/90 shadow-lg sm:size-20"
-                    style={{ borderColor: hexToRgba(accent, 0.5) }}
-                  >
-                    <UtensilsCrossed className="size-7" style={{ color: accent }} />
-                  </div>
-                )}
+          <div className="absolute inset-0 flex items-center px-4">
+            <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
+              {restaurant.logo_url ? (
+                <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-xl border border-white/20 shadow-lg sm:size-14">
+                  <img
+                    src={restaurant.logo_url}
+                    alt={restaurant.name}
+                    className="size-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div
+                  className="grid size-12 shrink-0 place-items-center rounded-xl border bg-[#0a0a12]/90 shadow-lg sm:size-14"
+                  style={{ borderColor: hexToRgba(accent, 0.4) }}
+                >
+                  <UtensilsCrossed className="size-5" style={{ color: accent }} />
+                </div>
+              )}
 
-                <div className="min-w-0 flex-1 pb-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="min-w-0 truncate text-xl font-black tracking-tight text-white sm:text-2xl">
-                      {restaurant.name}
-                    </h1>
-                    {restaurant.operating_hours && (
+              <div className="min-w-0 flex-1">
+                <h1 className="truncate text-lg font-black tracking-tight text-white sm:text-xl">
+                  {restaurant.name}
+                </h1>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {restaurant.operating_hours && (
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold backdrop-blur-md ${
+                        isCurrentlyOpen
+                          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
+                          : "border-red-500/30 bg-red-500/10 text-red-300"
+                      }`}
+                    >
                       <span
-                        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold backdrop-blur-md ${
-                          isCurrentlyOpen
-                            ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
-                            : "border-amber-500/30 bg-amber-500/15 text-amber-300"
-                        }`}
-                      >
-                        <span
-                          className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-amber-400"}`}
-                        />
-                        {isCurrentlyOpen ? "Aberto" : "Fechado"}
-                      </span>
-                    )}
-                  </div>
+                        className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-red-400"}`}
+                      />
+                      {isCurrentlyOpen ? "Aberto" : "Fechado"}
+                    </div>
+                  )}
                   {restaurant.description && (
-                    <p className="mt-0.5 line-clamp-1 text-xs text-gray-400">
+                    <span className="line-clamp-1 text-xs text-gray-400">
                       {restaurant.description}
-                    </p>
+                    </span>
                   )}
                 </div>
               </div>
@@ -704,7 +699,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
       {/* Aviso de fechado — único aviso, só aparece quando fechado */}
       {!isCurrentlyOpen && (
-        <div className="mx-auto mt-3 max-w-2xl px-4">
+        <div className="relative z-10 mx-auto mt-3 max-w-2xl px-4">
           <div className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-3.5 py-2.5">
             <Clock className="size-4 shrink-0 text-amber-300" />
             <p className="min-w-0 flex-1 text-xs leading-relaxed text-amber-100/80">
@@ -727,7 +722,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
       {/* Info da loja (horários + contato) — recolhida por padrão */}
       {(hasHours || hasContact) && (
-        <div className="mx-auto mt-3 max-w-2xl px-4">
+        <div className="relative z-10 mx-auto mt-3 max-w-2xl px-4">
           <button
             onClick={() => setInfoOpen((v) => !v)}
             className="flex w-full items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05]"

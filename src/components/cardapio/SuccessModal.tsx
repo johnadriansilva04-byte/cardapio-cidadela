@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { CheckCircle2, MessageCircle, Eye, Star } from "lucide-react";
-import { brl, buildWhatsAppMessage, sendToWhatsApp } from "@/lib/utils";
+import { brl, sendToWhatsApp } from "@/lib/utils";
 
 function soberaniaPoints(total: number): number {
   // 1 ponto de soberania a cada R$ 30 em compras.
@@ -105,28 +105,12 @@ export default function SuccessModal({
           {restaurantWhatsapp && (
             <button
               onClick={() => {
-                const msg = buildWhatsAppMessage(
-                  {
-                    comanda: order.comanda,
-                    customer_name: order.customer_name,
-                    total: order.total,
-                    order_items: order.items,
-                    observations: order.observations,
-                    payment_method: order.payment_method,
-                    delivery_type: order.delivery_type,
-                    delivery_address: order.delivery_address ?? "",
-                    customer_complement: order.customer_complement ?? "",
-                    customer_neighborhood: order.customer_neighborhood ?? "",
-                    customer_city: order.customer_city ?? "",
-                    delivery_fee: order.delivery_fee ?? 0,
-                  },
-                  restaurantName,
-                );
+                const msg = `Olá! Acabei de fazer o pedido ${order.comanda} no ${restaurantName}.`;
                 sendToWhatsApp(restaurantWhatsapp, msg);
               }}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-500/40 bg-green-500/5 py-3 text-sm font-semibold text-green-400 transition-colors hover:bg-green-500/10"
             >
-              <MessageCircle className="size-4" /> Enviar cópia no WhatsApp
+              <MessageCircle className="size-4" /> Falar com o restaurante
             </button>
           )}
 

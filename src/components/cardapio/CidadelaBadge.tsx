@@ -1,99 +1,91 @@
 import { hexToRgba } from "@/lib/utils";
 
+/** Luminância relativa (0 = preto, 1 = branco) — decide claro/escuro pelo accent. */
+function luminance(hex: string): number {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return 0;
+  let h = m[1];
+  if (h.length === 3)
+    h = h
+      .split("")
+      .map((c) => c + c)
+      .join("");
+  const channel = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const r = channel(parseInt(h.slice(0, 2), 16));
+  const g = channel(parseInt(h.slice(2, 4), 16));
+  const b = channel(parseInt(h.slice(4, 6), 16));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
 /**
- * Selo circular "Conheça a Cidadela" — grafite/piche com neon.
+ * Selo circular "Conheça a Cidadela" — fundo grafite com borda neon.
  *
- * Todas as cores derivam de `accent` (a cor escolhida pelo restaurante), então
- * o selo acompanha a identidade de cada cardápio sem ajustes manuais.
+ * O círculo mantém a identidade (neon + cadeado) sem competir com a capa: o
+ * interior é grafite escuro, a borda usa um azul ciano discreto e as letras
+ * derivam de `accent`. Quando `theme` não é informado, ele é deduzido da
+ * luminância do accent — cardápio claro (accent claro) usa letras escuras,
+ * cardápio escuro usa as cores do tema, mantendo a legibilidade nos dois casos.
  */
 export function CidadelaBadge({
   accent,
   href = "https://pracinha.online",
+  theme,
   className = "",
 }: {
   accent: string;
   href?: string;
+  /** Tema do cardápio; se omitido, é deduzido do accent. */
+  theme?: "light" | "dark";
   className?: string;
 }) {
+  const isLight = theme ? theme === "light" : luminance(accent) > 0.6;
+  // Neon discreto e fixo: o accent pode ser amarelo/vivo, então a borda usa o
+  // azul da identidade Cidadela para não ficar chamativa.
+  const neon = "#22d3ee";
+  const face = isLight ? "#e5e7eb" : "#1c1c24";
+  const label = isLight ? "#0b0b12" : accent;
+
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Conheça a Cidadela"
-      className={`group relative flex size-20 shrink-0 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95 sm:size-24 ${className}`}
+      className={`group relative flex size-14 shrink-0 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95 sm:size-16 ${className}`}
       style={{
-        background: `radial-gradient(ellipse at 30% 30%, ${hexToRgba(accent, 0.8)} 0%, #07070b 75%)`,
-        border: `2.5px solid ${accent}`,
-        boxShadow: `0 0 18px ${hexToRgba(accent, 0.6)}, 0 0 40px ${hexToRgba(accent, 0.25)}, 0 4px 20px rgba(0,0,0,0.6)`,
+        background: face,
+        border: `2px solid ${neon}`,
+        boxShadow: `0 0 12px ${hexToRgba(neon, 0.35)}, 0 4px 16px rgba(0,0,0,0.5)`,
       }}
     >
-      {/* anel externo pulsante */}
-      <span
-        className="pointer-events-none absolute size-full animate-pulse rounded-full opacity-60"
-        style={{ border: `2px solid ${hexToRgba(accent, 0.4)}`, filter: "blur(1px)" }}
-      />
-      {/* preenchimento interno */}
-      <span
-        className="absolute size-full rounded-full"
-        style={{
-          background: `radial-gradient(ellipse at 30% 30%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%)`,
-        }}
-      />
-      {/* textura de spray */}
-      <span
-        className="pointer-events-none absolute inset-1 rounded-full opacity-[0.08]"
-        style={{
-          background: `radial-gradient(circle at 25% 65%, ${accent} 1px, transparent 1px), radial-gradient(circle at 75% 45%, ${accent} 1px, transparent 1px), radial-gradient(circle at 50% 85%, ${accent} 0.8px, transparent 0.8px)`,
-        }}
-      />
-
-      <span className="relative flex flex-col items-center justify-center px-2 text-center">
+      <span className="relative flex flex-col items-center justify-center px-1.5 text-center">
         <span
-          className="font-black leading-none tracking-[0.08em]"
-          style={{
-            fontFamily: "'Permanent Marker','Rock Salt',cursive",
-            fontSize: "11px",
-            color: accent,
-            textShadow: `0 0 6px ${hexToRgba(accent, 0.9)}, 0 0 18px ${hexToRgba(accent, 0.5)}`,
-            transform: "rotate(-3deg)",
-          }}
+          className="text-[8px] font-black leading-none tracking-[0.14em]"
+          style={{ color: label, opacity: 0.75 }}
         >
           CONHEÇA
         </span>
         <span
-          className="font-black leading-none tracking-[0.12em]"
-          style={{
-            fontFamily: "'Permanent Marker','Rock Salt',cursive",
-            fontSize: "13px",
-            color: accent,
-            textShadow: `0 0 8px ${hexToRgba(accent, 0.9)}, 0 0 18px ${hexToRgba(accent, 0.45)}, 1px 1px 0 rgba(0,0,0,0.8)`,
-            transform: "rotate(-3deg)",
-          }}
+          className="mt-0.5 text-[10px] font-black leading-none tracking-[0.1em]"
+          style={{ color: label }}
         >
-          A CIDADELA
+          CIDADELA
         </span>
-        <span className="mt-0.5 flex items-center gap-1 opacity-90">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={accent}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="size-3.5"
-            style={{ filter: `drop-shadow(0 0 4px ${hexToRgba(accent, 0.8)})` }}
-          >
-            <rect x="5" y="11" width="14" height="10" rx="2" />
-            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-          </svg>
-          <span
-            className="text-[7px] font-bold tracking-[0.2em] opacity-70"
-            style={{ color: accent }}
-          >
-            PRACINHA
-          </span>
-        </span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={neon}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="mt-1 size-3"
+        >
+          <rect x="5" y="11" width="14" height="10" rx="2" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
       </span>
     </a>
   );

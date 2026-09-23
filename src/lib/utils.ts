@@ -319,6 +319,8 @@ export function buildWhatsAppMessage(
  * Open WhatsApp with order message
  */
 export function sendToWhatsApp(whatsappNumber: string, message: string) {
-  const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+  // wa.me exige só dígitos; números salvos como "(11) 99999-9999" quebravam o link.
+  const digits = whatsappNumber.replace(/\D/g, "");
+  const url = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
   window.open(url, "_blank");
 }

@@ -245,16 +245,45 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
   return data as Order;
 }
 
+function toNumber(value: unknown, fallback = 0): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/**
+ * A view pública `order_tracking` (e a RPC `get_order_tracking`) só devolvem
+ * id, restaurant_id, comanda, status, total, observations, created_at e
+ * order_items. A tela de acompanhamento, porém, formata `subtotal` e lê
+ * `delivery_fee`/`delivery_type`/`payment_method` — sem esta normalização o
+ * `brl(undefined)` estourava um TypeError e a página caía no erro genérico.
+ */
+export function normalizeTrackingOrder(raw: Order): Order {
+  const total = toNumber(raw.total);
+  const deliveryFee = toNumber(raw.delivery_fee);
+  const subtotal = toNumber(raw.subtotal, Math.max(total - deliveryFee, 0));
+  return {
+    ...raw,
+    total,
+    delivery_fee: deliveryFee,
+    subtotal,
+    delivery_type: raw.delivery_type || "retirada",
+    payment_method: raw.payment_method || "",
+    observations: raw.observations ?? "",
+    order_items: raw.order_items ?? [],
+  };
+}
+
 export async function getOrderTrackingPublic(orderId: string): Promise<Order | null> {
   const { data: viaRpc } = await supabase.rpc("get_order_tracking", { p_oid: orderId });
-  if (Array.isArray(viaRpc) && viaRpc.length === 1) return viaRpc[0] as Order;
+  if (Array.isArray(viaRpc) && viaRpc.length === 1)
+    return normalizeTrackingOrder(viaRpc[0] as Order);
   const { data, error } = await supabase
     .from("order_tracking")
     .select("*")
     .eq("id", orderId)
     .maybeSingle();
   if (error || !data) return null;
-  return data as Order;
+  return normalizeTrackingOrder(data as Order);
 }
 
 export async function getOrdersByRestaurant(

@@ -248,13 +248,20 @@ CREATE TABLE IF NOT EXISTS order_status_history (
 CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON order_status_history(order_id);
 -- View pública de tracking do pedido (SEM dados pessoais — só status/valores/itens)
 -- Qualquer um que saiba o order id pode acompanha-lo; nada de nome/telefone/endereço vaza.
+-- O DROP é necessário porque CREATE OR REPLACE VIEW não aceita reordenar/adicionar
+-- colunas no meio; os GRANTs SELECT mais abaixo reaplicam as permissões.
+DROP VIEW IF EXISTS order_tracking;
 CREATE OR REPLACE VIEW order_tracking AS
 SELECT
   o.id,
   o.restaurant_id,
   o.comanda,
   o.status,
+  o.subtotal,
+  o.delivery_fee,
   o.total,
+  o.delivery_type,
+  o.payment_method,
   o.observations,
   o.created_at,
   COALESCE(
@@ -266,13 +273,20 @@ FROM orders o;
 -- A view acima lê de orders, que tem RLS ativa. Sem esta função
 -- SECURITY DEFINER, cliente anônimo recebe 0 linhas e a página
 -- /pedido/<id> diz "Pedido não encontrado" mesmo com pedido criado.
+-- O DROP é necessário porque CREATE OR REPLACE FUNCTION não aceita mudar o
+-- RETURNS TABLE (novas colunas de subtotal/entrega/pagamento).
+DROP FUNCTION IF EXISTS public.get_order_tracking(UUID);
 CREATE OR REPLACE FUNCTION public.get_order_tracking(p_oid UUID)
 RETURNS TABLE (
   id UUID,
   restaurant_id UUID,
   comanda TEXT,
   status TEXT,
+  subtotal NUMERIC,
+  delivery_fee NUMERIC,
   total NUMERIC,
+  delivery_type TEXT,
+  payment_method TEXT,
   observations TEXT,
   created_at TIMESTAMPTZ,
   order_items JSON
@@ -284,7 +298,11 @@ BEGIN
     o.restaurant_id,
     o.comanda,
     o.status::text,
+    o.subtotal,
+    o.delivery_fee,
     o.total,
+    o.delivery_type,
+    o.payment_method,
     o.observations,
     o.created_at,
     COALESCE(

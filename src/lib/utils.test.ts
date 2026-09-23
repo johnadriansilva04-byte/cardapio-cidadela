@@ -7,6 +7,7 @@ import {
   formatDeliveryAddress,
   generateSlug,
   hexToRgba,
+  sendToWhatsApp,
   statusLabel,
 } from "@/lib/utils";
 
@@ -167,5 +168,22 @@ describe("buildWhatsAppMessage", () => {
     const msg = buildWhatsAppMessage({ ...order, delivery_type: "retirada" }, "Loja A");
     expect(msg).toContain("Retirada no balcão");
     expect(msg).not.toContain("Taxa de entrega");
+  });
+});
+
+describe("sendToWhatsApp", () => {
+  it("remove formatação do número antes de montar o link wa.me", () => {
+    const opened: string[] = [];
+    const original = window.open;
+    window.open = ((url: string) => {
+      opened.push(url);
+      return null;
+    }) as typeof window.open;
+
+    sendToWhatsApp("(11) 99999-9999", "Olá!");
+    window.open = original;
+
+    expect(opened[0]).toContain("https://wa.me/11999999999?");
+    expect(opened[0]).toContain(encodeURIComponent("Olá!"));
   });
 });

@@ -78,3 +78,20 @@
   migration grants INSERT to `anon` deliberately (anonymous orders), which is
   why `submitReview` re-validates locally via `@/lib/reviews`.
 
+## Public tracking and menu layout
+
+- `order_tracking` / `get_order_tracking` are deliberately narrow (no PII), and
+  `normalizeTrackingOrder` in `src/modules/supabase/orders.ts` fills the fields
+  the tracking page formats (`subtotal`, `delivery_fee`, `delivery_type`,
+  `payment_method`). Adding a `brl(order.<field>)` on that page without adding
+  the field to the view/RPC crashes the whole route — the page has no error
+  boundary, so it falls through to the generic "Algo deu errado".
+- Changing a view's column list or a function's `RETURNS TABLE` needs a `DROP`
+  first; `CREATE OR REPLACE` rejects both. The tracking view/function are
+  dropped and recreated in `schema.sql` (grants are re-applied further down).
+- The public menu hero is `sticky top-0 z-0` inside a `contents` wrapper, with
+  the content on `relative z-10`, so the products scroll over a fixed banner.
+  Keep the sticky/z-index pairing when touching that block.
+- `sendToWhatsApp` strips non-digits from the number — wa.me rejects formatted
+  phone numbers.
+

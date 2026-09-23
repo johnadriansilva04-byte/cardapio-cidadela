@@ -72,8 +72,8 @@ export function RestaurantCardCompact({
       }}
       className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-all hover:border-cyan-500/30 hover:bg-white/[0.05] hover:shadow-[0_8px_30px_rgba(6,182,212,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40"
     >
-      {/* cover */}
-      <div className="relative aspect-[21/9] w-full overflow-hidden bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-transparent">
+      {/* cover — altura original (h-36) para a imagem não ficar espremida */}
+      <div className="relative h-36 w-full overflow-hidden bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-transparent">
         {hasImage ? (
           <img
             src={cover}
@@ -94,11 +94,11 @@ export function RestaurantCardCompact({
             </div>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <div className="absolute left-2 top-2">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+        <div className="absolute left-2.5 top-2.5">
           <RestaurantStatusBadge status={restaurant.status} />
         </div>
-        <div className="absolute right-2 top-2 flex gap-1">
+        <div className="absolute right-2.5 top-2.5 flex gap-1">
           <a
             href={`/cardapio/${restaurant.slug}`}
             target="_blank"
@@ -110,12 +110,9 @@ export function RestaurantCardCompact({
             <ExternalLink className="size-3.5" />
           </a>
         </div>
-      </div>
 
-      {/* avatar overlapping cover edge — outside the cover's overflow-hidden box
-          so it isn't clipped, but pulled up so it never covers the name */}
-      <div className="relative h-0">
-        <div className="absolute -top-8 left-3 z-20 flex size-16 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
+        {/* logo sobreposta à borda inferior da capa, como no layout original */}
+        <div className="absolute -bottom-7 left-4 z-20 flex size-14 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
@@ -124,13 +121,15 @@ export function RestaurantCardCompact({
               loading="lazy"
             />
           ) : (
-            <span className="text-sm font-black text-white/70">{initials(restaurant.name) || "•"}</span>
+            <span className="text-sm font-black text-white/70">
+              {initials(restaurant.name) || "•"}
+            </span>
           )}
         </div>
       </div>
 
       {/* ─── CONTENT ─── */}
-      <div className="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-12 relative">
+      <div className="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-8 relative">
         {/* Item count - top right, beside the avatar */}
         {menuItemCount !== null && (
           <p className="absolute top-4 right-0 inline-flex items-center gap-1 text-[11px] text-gray-500">

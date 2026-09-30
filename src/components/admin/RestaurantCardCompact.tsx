@@ -58,6 +58,9 @@ export function RestaurantCardCompact({
   const isPublished = restaurant.status === "published";
   const cover = restaurant.banner_url || restaurant.logo_url || "";
   const hasImage = Boolean(cover);
+  // Sem banner, a capa é a própria logo (quadrada): object-contain mostra a
+  // imagem inteira sem cortar; com banner de verdade, object-cover preenche.
+  const coverIsLogo = !restaurant.banner_url && Boolean(restaurant.logo_url);
 
   return (
     <div
@@ -78,7 +81,9 @@ export function RestaurantCardCompact({
           <img
             src={cover}
             alt={restaurant.name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className={`h-full w-full transition-transform duration-300 group-hover:scale-105 ${
+              coverIsLogo ? "object-contain p-2" : "object-cover"
+            }`}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = "none";
             }}
@@ -94,7 +99,9 @@ export function RestaurantCardCompact({
             </div>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+        {/* Véu de legibilidade só na metade de baixo — a logo-avatar no canto
+            fica limpa, sem o manto escuro por cima da foto. */}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
         <div className="absolute left-2.5 top-2.5">
           <RestaurantStatusBadge status={restaurant.status} />
         </div>

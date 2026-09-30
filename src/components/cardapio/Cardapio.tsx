@@ -501,27 +501,16 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const activeOrderCount = useActiveOrderCount();
 
   if (loading) {
-    // Esqueleto shimmer: mesma silhueta do cardápio real, sem "pulo" de layout.
+    // Carregamento enxuto: spinner discreto — sem manto cinza sobre a área da
+    // capa, que já aparece com o banner real assim que o dado chega.
     return (
-      <div className="min-h-screen bg-[#07070b] pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
-        <div className="skeleton mx-auto mt-2 h-[280px] w-full sm:h-[320px]" />
-        <div className="mx-auto mt-4 max-w-2xl px-4">
-          <div className="skeleton h-10 w-full rounded-full" />
-          <div className="mt-4 grid gap-2">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="flex gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3"
-              >
-                <div className="skeleton size-[68px] shrink-0 rounded-lg" />
-                <div className="flex-1 space-y-2 py-1">
-                  <div className="skeleton h-4 w-2/3 rounded" />
-                  <div className="skeleton h-3 w-1/2 rounded" />
-                  <div className="skeleton h-4 w-1/3 rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="flex min-h-screen items-center justify-center bg-[#07070b]">
+        <div className="text-center">
+          <div
+            className="mx-auto size-10 animate-spin rounded-full border-2 border-t-transparent"
+            style={{ borderColor: accentSoft, borderTopColor: accent }}
+          />
+          <p className="mt-4 text-sm text-gray-400">Carregando cardápio...</p>
         </div>
       </div>
     );
@@ -655,7 +644,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             backgroundPosition: restaurant.banner_url ? "center center" : undefined,
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/80 to-black/30" />
+          {/* Véu de legibilidade concentrado na base (onde o conteúdo rola por
+              cima) — a capa e a foto do restaurante ficam visíveis no topo/meio
+              em vez de afogadas num manto escuro de 80%. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/35 to-black/10" />
 
           {/* Selo da Cidadela — canto superior direito, acompanha a cor do restaurante */}
           <CidadelaBadge accent={accent} className="absolute right-3 top-3 z-10" />

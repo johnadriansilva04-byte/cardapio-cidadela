@@ -110,7 +110,14 @@ export default function PaymentScreen({
 
         <div className="flex-1 overflow-y-auto p-5">
           <div className="text-center">
-            <p className="text-3xl font-black" style={{ color: accent }}>
+            <p
+              className="text-3xl font-black tabular-nums"
+              style={{
+                color: accent,
+                transition: "transform 0.3s ease, filter 0.3s ease",
+                filter: isExpiringSoon ? "drop-shadow(0 0 12px rgba(245,158,11,0.35))" : undefined,
+              }}
+            >
               {brl(order.total)}
             </p>
             <p className="mt-0.5 text-xs text-gray-500">Comanda {order.comanda}</p>
@@ -125,7 +132,14 @@ export default function PaymentScreen({
             )}
           </div>
 
-          <div className="mt-4 grid place-items-center">
+          <div className="relative mt-4 grid place-items-center">
+            {/* Anel pulsante em volta do QR — vida durante a espera */}
+            {!isExpired && qrData && (
+              <span
+                className="animate-pulse-ring pointer-events-none absolute size-[230px] rounded-2xl"
+                aria-hidden="true"
+              />
+            )}
             {isExpired ? (
               <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-6 text-center">
                 <AlertCircle className="mx-auto size-8 text-red-400" />

@@ -7,8 +7,6 @@ import {
   Zap,
   Shield,
   ChevronRight,
-  Star,
-  Users,
   Menu,
   X,
 } from "lucide-react";
@@ -125,7 +123,7 @@ function LandingPage() {
               </span>
             </div>
 
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+            <h1 className="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
               Cardápios digitais que{" "}
               <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
                 encantam
@@ -134,7 +132,7 @@ function LandingPage() {
               seus clientes
             </h1>
 
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-400">
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-300">
               Crie um cardápio profissional com URL personalizada, gerencie pedidos
               em tempo real e surpreenda seus clientes com uma experiência mobile premium.
             </p>
@@ -161,30 +159,21 @@ function LandingPage() {
               </a>
             </div>
 
-            {/* Social proof */}
-            <div className="mt-16 flex flex-col items-center gap-6 sm:flex-row sm:justify-center">
-              <div className="flex items-center gap-2">
-                <div className="flex -space-x-2">
-                  {[0, 1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="size-8 rounded-full border-2 border-black bg-gradient-to-br from-cyan-400 to-blue-600"
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-gray-400">
-                  <strong className="text-white">200+</strong> restaurantes ativos
+            {/* Prova real, sem números inventados: recursos que já funcionam hoje */}
+            <div className="mt-14 flex flex-wrap items-center justify-center gap-2">
+              {[
+                { icon: QrCode, label: "URL própria por restaurante" },
+                { icon: Zap, label: "Pedidos em tempo real" },
+                { icon: Smartphone, label: "PIX e mobile-first" },
+              ].map((f) => (
+                <span
+                  key={f.label}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-gray-300"
+                >
+                  <f.icon className="size-3.5 text-cyan-400" />
+                  {f.label}
                 </span>
-              </div>
-              <div className="flex items-center gap-1">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <Star
-                    key={i}
-                    className="size-4 fill-yellow-400 text-yellow-400"
-                  />
-                ))}
-                <span className="ml-1 text-sm text-gray-400">4.9 / 5.0</span>
-              </div>
+              ))}
             </div>
           </div>
         </div>

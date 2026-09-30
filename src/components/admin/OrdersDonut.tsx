@@ -39,9 +39,7 @@ export function OrdersDonut({
   if (totalOrders === 0) {
     return (
       <div className="flex h-[220px] items-center justify-center rounded-xl border border-white/10 bg-white/[0.02] px-4 text-center">
-        <p className="text-sm text-gray-500">
-          Sem pedidos ainda — o gráfico aparece assim que cair o primeiro.
-        </p>
+        <p className="text-sm font-medium text-gray-400">Sem pedidos no período</p>
       </div>
     );
   }
@@ -75,6 +73,10 @@ export function OrdersDonut({
                   color: "#fff",
                   fontSize: 12,
                 }}
+                // recharts pinta item/label no default #666 — invisível sobre
+                // o fundo escuro do tooltip. Força branco em alto contraste.
+                itemStyle={{ color: "#FFFFFF" }}
+                labelStyle={{ color: "#FFFFFF", fontWeight: 700 }}
                 formatter={(value: unknown, _name: unknown, props: unknown) => {
                   const v = Number(value ?? 0);
                   const key = (props as { payload?: { key?: OrderStatus } } | undefined)?.payload

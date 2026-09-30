@@ -91,17 +91,17 @@ export function FinanceSummary({ metrics }: { metrics: FinanceMetrics; subtitle?
       {cards.map((c) => {
         const toneClasses =
           c.tone === "cyan"
-            ? "bg-cyan-500/15 text-cyan-300"
+            ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-[0_0_14px_rgba(6,182,212,0.16)]"
             : c.tone === "violet"
-              ? "bg-violet-500/15 text-violet-300"
+              ? "bg-violet-500/15 text-violet-300 border border-violet-500/30 shadow-[0_0_14px_rgba(139,92,246,0.16)]"
               : c.tone === "emerald"
-                ? "bg-emerald-500/15 text-emerald-300"
-                : "bg-red-500/15 text-red-300";
+                ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_14px_rgba(16,185,129,0.16)]"
+                : "bg-red-500/15 text-red-300 border border-red-500/30 shadow-[0_0_14px_rgba(239,68,68,0.14)]";
 
         return (
           <div
             key={c.label}
-            className="relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] p-3.5 sm:p-4"
+            className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-3.5 transition-colors hover:border-white/[0.16] sm:p-4"
           >
             <div className="flex items-start justify-between gap-1.5">
               <div className={`grid size-7 shrink-0 place-items-center rounded-lg ${toneClasses}`}>
@@ -110,10 +110,10 @@ export function FinanceSummary({ metrics }: { metrics: FinanceMetrics; subtitle?
               <HelpTip text={c.tip} />
             </div>
             <div className="mt-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{c.label}</p>
-              <p className="mt-0.5 text-lg font-black leading-tight text-white sm:text-xl">{c.value}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{c.label}</p>
+              <p className="mt-0.5 text-xl font-black leading-tight text-white sm:text-2xl">{c.value}</p>
             </div>
-            <p className="mt-1 text-[11px] text-gray-500">{c.sub}</p>
+            <p className="mt-1 text-[11px] font-medium text-gray-400">{c.sub}</p>
           </div>
         );
       })}

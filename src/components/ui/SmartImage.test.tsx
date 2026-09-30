@@ -33,9 +33,12 @@ describe("SmartImage", () => {
   it("mostra o fallback quando até a URL original falha", async () => {
     render(<SmartImage src={STORAGE_URL} alt="Foto" width={100} fallback={<span>vazio</span>} />);
     const img = screen.getByAltText("Foto");
+    // Cadeia de retry do componente: original → transformada jpeg → fallback.
     fireEvent.error(img);
     const retried = await screen.findByAltText("Foto");
     fireEvent.error(retried);
+    const jpeg = await screen.findByAltText("Foto");
+    fireEvent.error(jpeg);
 
     expect(await screen.findByText("vazio")).toBeInTheDocument();
   });

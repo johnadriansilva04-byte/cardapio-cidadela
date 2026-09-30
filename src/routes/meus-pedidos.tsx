@@ -104,11 +104,20 @@ function MyOrdersPage() {
   }, [orders]);
 
   if (loading) {
+    // Esqueleto shimmer na silhueta da lista de pedidos.
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <div className="text-center">
-          <div className="mx-auto size-10 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-          <p className="mt-4 text-sm text-gray-400">Carregando seus pedidos...</p>
+      <div className="min-h-screen bg-black px-4 py-6">
+        <div className="mx-auto max-w-2xl">
+          <div className="skeleton mb-6 h-9 w-48 rounded-lg" />
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
+                <div className="skeleton h-4 w-2/3 rounded" />
+                <div className="skeleton mt-2 h-3 w-1/3 rounded" />
+                <div className="skeleton mt-3 h-3 w-1/2 rounded" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -178,8 +187,14 @@ function MyOrdersPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {orders.map((o) => (
-              <OrderCard key={o.id} order={o} />
+            {orders.map((o, i) => (
+              <div
+                key={o.id}
+                className="animate-slide-up"
+                style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
+              >
+                <OrderCard order={o} />
+              </div>
             ))}
           </div>
         )}

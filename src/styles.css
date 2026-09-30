@@ -203,6 +203,91 @@
 }
 
 /* ============================================================
+   Sistema de movimento "vivo" — micro-interações do produto
+   (pop, slide, shake, ring, shimmer, confete, flutuação)
+   ============================================================ */
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shake-x {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-3px); }
+  40%, 60% { transform: translateX(3px); }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.45); }
+  70% { box-shadow: 0 0 0 12px rgba(34, 211, 238, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+}
+
+@keyframes shimmer-x {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate3d(var(--cx, 0), 320px, 0) rotate(720deg); opacity: 0; }
+}
+
+@keyframes float-tilt {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-10px) rotate(4deg); }
+}
+
+@utility animate-pop-in {
+  animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@utility animate-slide-up {
+  animation: slide-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility animate-shake {
+  animation: shake-x 0.5s ease both;
+}
+
+@utility animate-pulse-ring {
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+@utility animate-float-tilt {
+  animation: float-tilt 6s ease-in-out infinite;
+}
+
+/* Brilho de carregamento em forma de esqueleto (shimmer) */
+@utility skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-x 1.4s linear infinite;
+}
+
+/* Partícula de confete — cor/tamanho/deriva via inline style */
+@utility confetti-piece {
+  position: absolute;
+  top: -14px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confetti-fall 1.6s ease-in forwards;
+}
+
+/* ============================================================
    Cidadela era utilities (preserved for TemporalLobby)
    ============================================================ */
 

@@ -268,11 +268,9 @@ function RestaurantesPage() {
             <p className="mt-3 text-sm font-semibold text-white">
               {restaurants.length === 0 ? "Nenhum restaurante ainda" : "Nenhum resultado"}
             </p>
-            <p className="mt-1 text-xs text-gray-500">
-              {restaurants.length === 0
-                ? 'Clique em "Novo restaurante" para começar.'
-                : "Tente outro termo de busca."}
-            </p>
+            {restaurants.length > 0 && (
+              <p className="mt-1 text-xs text-gray-500">Tente outro termo de busca.</p>
+            )}
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

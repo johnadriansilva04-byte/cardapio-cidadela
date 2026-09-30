@@ -81,6 +81,14 @@ const tooltipStyle = {
   fontSize: 12,
 };
 
+// recharts pinta item/label no default #666 — invisível sobre o fundo escuro
+// do tooltip. O objeto base já leva branco forçado em alto contraste.
+const tooltipHighContrast = {
+  ...tooltipStyle,
+  itemStyle: { color: "#FFFFFF" },
+  labelStyle: { color: "#FFFFFF", fontWeight: 700 },
+};
+
 function rangeStart(range: RangeKey): Date | null {
   if (range === "all") return null;
   const d = new Date();
@@ -349,7 +357,7 @@ function FinanceiroPage() {
                       <Pie data={daily} dataKey="revenue" nameKey="day" innerRadius={50} outerRadius={80} paddingAngle={2} stroke="rgba(255,255,255,0.08)" startAngle={90} endAngle={-270}>
                         {daily.map((_, i) => <Cell key={i} fill={RESTAURANT_COLORS[i % RESTAURANT_COLORS.length]} />)}
                       </Pie>
-                      <RTooltip contentStyle={tooltipStyle} formatter={(v: number) => [brl(Number(v)), "Faturamento"]} />
+                      <RTooltip {...tooltipHighContrast} formatter={(v: number) => [brl(Number(v)), "Faturamento"]} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : dailyChartType === "bar" ? (
@@ -358,7 +366,7 @@ function FinanceiroPage() {
                       <CartesianGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
                       <XAxis dataKey="day" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => brl(v)} width={64} />
-                      <RTooltip contentStyle={tooltipStyle} formatter={(v: number) => [brl(Number(v)), "Faturamento"]} />
+                      <RTooltip {...tooltipHighContrast} formatter={(v: number) => [brl(Number(v)), "Faturamento"]} />
                       <Bar dataKey="revenue" fill="#06b6d4" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -368,7 +376,7 @@ function FinanceiroPage() {
                       <CartesianGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
                       <XAxis dataKey="day" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => brl(v)} width={64} />
-                      <RTooltip contentStyle={tooltipStyle} formatter={(v: number) => [brl(Number(v)), "Faturamento"]} />
+                      <RTooltip {...tooltipHighContrast} formatter={(v: number) => [brl(Number(v)), "Faturamento"]} />
                       <Line type="monotone" dataKey="revenue" stroke="#06b6d4" strokeWidth={2.5} dot={{ r: 3, stroke: "#06b6d4", fill: "#0a0a0f" }} activeDot={{ r: 5 }} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -411,7 +419,7 @@ function FinanceiroPage() {
                           <Pie data={perRestaurant} dataKey="revenue" nameKey="name" innerRadius={52} outerRadius={80} paddingAngle={3} stroke="rgba(255,255,255,0.08)" startAngle={90} endAngle={-270}>
                             {perRestaurant.map((_, i) => <Cell key={i} fill={RESTAURANT_COLORS[i % RESTAURANT_COLORS.length]} />)}
                           </Pie>
-                          <RTooltip contentStyle={tooltipStyle} formatter={(v: number, _n: string, p: { payload?: { name?: string } }) => [brl(Number(v)), p?.payload?.name ?? ""]} />
+                          <RTooltip {...tooltipHighContrast} formatter={(v: number, _n: string, p: { payload?: { name?: string } }) => [brl(Number(v)), p?.payload?.name ?? ""]} />
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
@@ -436,7 +444,7 @@ function FinanceiroPage() {
                       <CartesianGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
                       <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} interval={0} angle={-12} dy={10} height={40} />
                       <YAxis tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => brl(v)} width={64} />
-                      <RTooltip contentStyle={tooltipStyle} formatter={(v: number) => [brl(Number(v)), "Faturamento"]} />
+                      <RTooltip {...tooltipHighContrast} formatter={(v: number) => [brl(Number(v)), "Faturamento"]} />
                       <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
                         {perRestaurant.map((_, i) => <Cell key={i} fill={RESTAURANT_COLORS[i % RESTAURANT_COLORS.length]} />)}
                       </Bar>

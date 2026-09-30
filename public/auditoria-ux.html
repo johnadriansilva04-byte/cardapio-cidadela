@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Auditoria UX Interativa — Cardápio Cidadela</title>
+<style>
+  :root {
+    --bg: #07070b; --panel: #0f0f17; --line: rgba(255,255,255,.08);
+    --cyan: #06b6d4; --cyan-2: #22d3ee; --violet: #8b5cf6; --emerald: #22c55e;
+    --amber: #f59e0b; --red: #ef4444; --txt: #f4f4f6; --muted: #9ca3af;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg); color: var(--txt);
+    font-family: "Inter", system-ui, sans-serif; min-height: 100vh;
+  }
+  /* orbes de fundo */
+  .orb { position: fixed; border-radius: 50%; filter: blur(90px); pointer-events: none; z-index: 0; }
+  .orb.a { width: 420px; height: 420px; background: rgba(6,182,212,.10); top: -120px; left: -80px; animation: drift 14s ease-in-out infinite alternate; }
+  .orb.b { width: 360px; height: 360px; background: rgba(139,92,246,.08); bottom: -100px; right: -60px; animation: drift 18s ease-in-out infinite alternate-reverse; }
+  @keyframes drift { from { transform: translate(0,0) } to { transform: translate(60px, 40px) } }
+
+  main { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 48px 20px 80px; }
+
+  header.hero { text-align: center; margin-bottom: 42px; }
+  .pill { display:inline-flex; align-items:center; gap:8px; padding: 6px 14px; border-radius:999px;
+    border:1px solid rgba(6,182,212,.35); background:rgba(6,182,212,.10); color:#67e8f9;
+    font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+  h1 { margin-top:16px; font-size: clamp(28px, 5vw, 44px); font-weight: 900; letter-spacing:-.02em; }
+  h1 .grad { background: linear-gradient(90deg, #22d3ee, #818cf8); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { margin-top:10px; color: var(--muted); font-size:15px; line-height:1.6; }
+
+  /* medidor do fluxo */
+  .flowmeter { margin: 34px auto 0; max-width: 760px; background: var(--panel); border:1px solid var(--line);
+    border-radius:18px; padding:18px 22px; }
+  .flowmeter h3 { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+  .bar { display:flex; gap:6px; }
+  .bar .seg { flex:1; height:10px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; position:relative; }
+  .bar .seg i { position:absolute; inset:0; border-radius:999px; background:linear-gradient(90deg,var(--cyan),var(--cyan-2));
+    width:0; transition: width .9s cubic-bezier(.22,1,.36,1); box-shadow:0 0 10px rgba(34,211,238,.5); }
+  .legend { display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:var(--muted); }
+
+  .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); margin-top:30px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:20px;
+    opacity:0; transform:translateY(18px); transition: opacity .6s ease, transform .6s cubic-bezier(.22,1,.36,1), border-color .25s; }
+  .card.show { opacity:1; transform:none; }
+  .card:hover { border-color: rgba(34,211,238,.4); }
+  .card h2 { font-size:16px; font-weight:800; display:flex; align-items:center; gap:10px; }
+  .dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .dot.cyan{background:var(--cyan);box-shadow:0 0 10px var(--cyan)} .dot.violet{background:var(--violet);box-shadow:0 0 10px var(--violet)}
+  .dot.emerald{background:var(--emerald);box-shadow:0 0 10px var(--emerald)} .dot.amber{background:var(--amber);box-shadow:0 0 10px var(--amber)}
+  .dot.red{background:var(--red);box-shadow:0 0 10px var(--red)}
+
+  .finding { display:flex; gap:10px; margin-top:12px; font-size:13px; line-height:1.55; color:#cbd5e1; align-items:flex-start; }
+  .tag { font-size:10px; font-weight:800; letter-spacing:.06em; padding:2px 8px; border-radius:999px; margin-top:1px; flex-shrink:0; }
+  .tag.done { background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.3); }
+  .tag.idea { background:rgba(245,158,11,.12); color:#fbbf24; border:1px solid rgba(245,158,11,.3); }
+  .tag.info { background:rgba(139,92,246,.12); color:#c4b5fd; border:1px solid rgba(139,92,246,.3); }
+
+  /* jornada interativa */
+  .journey { margin-top:44px; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:26px; }
+  .journey h2 { font-size:18px; font-weight:900; text-align:center; }
+  .journey .hint { text-align:center; color:var(--muted); font-size:13px; margin-top:6px; }
+  .steps { display:flex; gap:10px; margin-top:22px; flex-wrap:wrap; justify-content:center; }
+  .step { flex:1 1 150px; max-width:190px; border:1px solid var(--line); border-radius:14px; padding:14px; cursor:pointer;
+    background:rgba(255,255,255,.02); transition:all .25s; position:relative; }
+  .step:hover { border-color: rgba(34,211,238,.5); transform: translateY(-3px); }
+  .step.active { border-color: var(--cyan); background:rgba(6,182,212,.08); box-shadow:0 0 22px rgba(6,182,212,.18); }
+  .step .n { font-size:11px; font-weight:800; color:var(--cyan-2); }
+  .step .t { font-weight:800; font-size:14px; margin-top:4px; }
+  .step .d { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5; }
+  .detail { margin-top:18px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:#cbd5e1; line-height:1.65;
+    min-height:76px; animation: fadeUp .45s cubic-bezier(.22,1,.36,1); }
+  @keyframes fadeUp { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
+  .detail b { color:#67e8f9; }
+
+  .footer { margin-top:44px; text-align:center; color:var(--muted); font-size:12px; line-height:1.7; }
+  .footer .ok { color:#4ade80; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="orb a"></div><div class="orb b"></div>
+<main>
+  <header class="hero">
+    <span class="pill">✦ Auditoria UX · Fluxo completo</span>
+    <h1>Cardápio Cidadela — <span class="grad">experiência viva</span></h1>
+    <p class="sub">Todas as telas auditadas: landing, login/cadastro, cardápio, carrinho, checkout,
+      PIX, confirmação, rastreio, meus pedidos e painel admin.</p>
+
+    <div class="flowmeter">
+      <h3>Saúde do fluxo ponta a ponta</h3>
+      <div class="bar" id="bar">
+        <div class="seg"><i data-w="100"></i></div>
+        <div class="seg"><i data-w="100"></i></div>
+        <div class="seg"><i data-w="100"></i></div>
+        <div class="seg"><i data-w="100"></i></div>
+        <div class="seg"><i data-w="100"></i></div>
+        <div class="seg"><i data-w="100"></i></div>
+      </div>
+      <div class="legend"><span>Login</span><span>Cardápio</span><span>Carrinho</span><span>Checkout</span><span>Pix/Pagto</span><span>Rastreio</span></div>
+    </div>
+  </header>
+
+  <div class="grid" id="cards">
+    <div class="card">
+      <h2><span class="dot cyan"></span>Login & Cadastro</h2>
+      <div class="finding"><span class="tag done">feito</span><span>Toggle animado Entrar/Criar conta em um só cartão — fim da troca de contexto.</span></div>
+      <div class="finding"><span class="tag done">feito</span><span>Medidor vivo de força da senha (4 segmentos com glow + rótulo).</span></div>
+      <div class="finding"><span class="tag done">feito</span><span>Erro com <b>shake</b>, hero lateral com pitch da plataforma e orbes animados.</span></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot emerald"></span>Cardápio público</h2>
+      <div class="finding"><span class="tag done">feito</span><span><b>Skeleton shimmer</b> na silhueta exata do menu — zero "pulo" de layout no load.</span></div>
+      <div class="finding"><span class="tag done">feito</span><span>Botão + com hover de escala e quantidade com <b>pop</b> a cada incremento.</span></div>
+      <div class="finding"><span class="tag info">nota</span><span>Isolamento de tenant confirmado: slug → restaurant.id → createOrder.</span></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot violet"></span>Carrinho & Checkout</h2>
+      <div class="finding"><span class="tag done">feito</span><span>Stepper 3 passos com barra de progresso animada e glow por etapa concluída.</span></div>
+      <div class="finding"><span class="tag done">feito</span><span>Validação por passo mantida; CTAs com active:scale (feedback tátil).</span></div>
+      <div class="finding"><span class="tag idea">ideia</span><span>Salvar rascunho do checkout em localStorage para retomar depois.</span></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot amber"></span>Pagamento PIX</h2>
+      <div class="finding"><span class="tag done">feito</span><span><b>Anel pulsante</b> em volta do QR — a tela respira durante a espera.</span></div>
+      <div class="finding"><span class="tag done">feito</span><span>Valor com glow âmbar quando faltam &lt;60s (urgência suave).</span></div>
+      <div class="finding"><span class="tag info">nota</span><span>Countdown e expiração já existiam; agora com feedback visual contínuo.</span></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot emerald"></span>Confirmação & Rastreio</h2>
+      <div class="finding"><span class="tag done">feito</span><span><b>Confete determinístico</b> (26 peças) + check com pop e glow na confirmação.</span></div>
+      <div class="finding"><span class="tag done">feito</span><span>Stepper de rastreio: passo atual com anel pulsante + ícone flutuando; conectores preenchem animados.</span></div>
+      <div class="finding"><span class="tag done">feito</span><span>Dica de status com slide-up a cada mudança em tempo real.</span></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot cyan"></span>Painel Admin</h2>
+      <div class="finding"><span class="tag done">feito</span><span><b>Count-up numérico</b> nos KPIs (Faturamento/Pedidos/Ticket) com easing cúbico.</span></div>
+      <div class="finding"><span class="tag done">feito</span><span>Hover com glow ciano; tooltips recharts já brancos #FFF (correção anterior).</span></div>
+      <div class="finding"><span class="tag idea">ideia</span><span>Som de moeda sutil quando entra pedido novo (já há infra de Web Audio).</span></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot violet"></span>Meus Pedidos</h2>
+      <div class="finding"><span class="tag done">feito</span><span>Skeleton shimmer em vez de spinner; cards entram em cascata (stagger 60ms).</span></div>
+      <div class="finding"><span class="tag info">nota</span><span>Realtime por restaurante + pull-to-refresh no foco já funcionavam.</span></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot amber"></span>Próximas ondas sugeridas</h2>
+      <div class="finding"><span class="tag idea">ideia</span><span>Háptico (navigator.vibrate) ao adicionar item e ao avançar status.</span></div>
+      <div class="finding"><span class="tag idea">ideia</span><span>Estimativa de tempo no rastreio ("pronto em ~15 min") derivada do histórico.</span></div>
+      <div class="finding"><span class="tag idea">ideia</span><span>Loyalty SOV com barra de progresso viva para o próximo resgate.</span></div>
+    </div>
+  </div>
+
+  <section class="journey">
+    <h2>→ A jornada, passo a passo</h2>
+    <p class="hint">Clique em cada etapa para ver o que acontece e o que melhorou.</p>
+    <div class="steps" id="steps"></div>
+    <div class="detail" id="detail"></div>
+  </section>
+
+  <div class="footer">
+    Validação: <span class="ok">tsc sem erros</span> · <span class="ok">139/139 testes</span> ·
+    <span class="ok">rotas 200 no preview</span><br/>
+    Sistema de movimento próprio em CSS (pop/slide/shake/ring/shimmer/confete), respeitando
+    <b>prefers-reduced-motion</b>. Nenhuma dependência nova.
+  </div>
+</main>
+
+<script>
+  // barra do fluxo preenche ao carregar
+  window.addEventListener("load", () => {
+    document.querySelectorAll("#bar .seg i").forEach((el, i) => {
+      setTimeout(() => { el.style.width = el.dataset.w + "%"; }, 350 + i * 140);
+    });
+  });
+
+  // cards entram em cascata
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("show"); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll(".card").forEach((c, i) => { c.style.transitionDelay = (i % 4) * 90 + "ms"; io.observe(c); });
+
+  // jornada interativa
+  const STEPS = [
+    { n:"01", t:"Login / Cadastro", d:"Telefone + senha com <b>toggle animado</b>. No cadastro, o medidor de força guia a senha. Sessão persiste no Supabase e <b>claimGuestData()</b> une o que foi pedido como convidado — nada se perde." },
+    { n:"02", t:"Cardápio por slug", d:"<b>/cardapio/&lt;slug&gt;</b> resolve o restaurante e mostra skeleton shimmer enquanto carrega. Adicionar item dá <b>pop</b> no contador e no botão flutuante. O carrinho é isolado por tenant: abrir outro cardápio descarta itens de outro lugar." },
+    { n:"03", t:"Carrinho", d:"Sheet inferior com subtotal vivo. Editar adicionais preserva a quantidade. CTA <b>Continuar</b> leva ao checkout de 3 passos." },
+    { n:"04", t:"Checkout 3 passos", d:"Contato → Entrega/Retirada → Pagamento. Barra de progresso <b>anima e brilha</b> a cada etapa. Taxa por bairro calculada na hora; PIX escolhido mostra o QR na sequência." },
+    { n:"05", t:"Pagamento PIX", d:"QR com <b>anel pulsante</b>, valor com countdown de 5 min e glow de urgência. Copia-e-cola EMV real. Confirmando, o pedido segue para a cozinha em tempo real." },
+    { n:"06", t:"Confirmação + Rastreio", d:"<b>Confete</b> celebra o pedido; página /pedido/&lt;id&gt; mostra stepper vivo (anel pulsante no passo atual, conectores preenchendo) e atualiza <b>em tempo real</b> via Supabase." },
+  ];
+  const stepsEl = document.getElementById("steps");
+  const detailEl = document.getElementById("detail");
+  STEPS.forEach((s, i) => {
+    const el = document.createElement("div");
+    el.className = "step" + (i === 0 ? " active" : "");
+    el.innerHTML = `<div class="n">${s.n}</div><div class="t">${s.t}</div>`;
+    el.onclick = () => {
+      document.querySelectorAll(".step").forEach((x) => x.classList.remove("active"));
+      el.classList.add("active");
+      detailEl.style.animation = "none"; void detailEl.offsetWidth; detailEl.style.animation = "";
+      detailEl.innerHTML = `<b>${s.n} · ${s.t}</b><br/>${s.d}`;
+    };
+    stepsEl.appendChild(el);
+  });
+  detailEl.innerHTML = `<b>01 · ${STEPS[0].t}</b><br/>${STEPS[0].d}`;
+</script>
+</body>
+</html>

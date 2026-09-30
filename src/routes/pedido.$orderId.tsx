@@ -186,7 +186,14 @@ function OrderTrackingPage() {
           <h1 className="mt-1 text-2xl font-black tracking-tight text-white">
             {ORDER_STATUS_LABELS[order.status] ?? order.status}
           </h1>
-          {hint && !isCanceled && <p className="mt-1.5 text-sm text-gray-400">{hint}</p>}
+          {hint && !isCanceled && (
+            <p
+              key={order.status}
+              className="mt-1.5 animate-slide-up text-sm text-gray-400"
+            >
+              {hint}
+            </p>
+          )}
           {isCanceled && <p className="mt-1.5 text-sm text-red-300/80">{STEP_HINTS.cancelled}</p>}
         </header>
 
@@ -202,18 +209,20 @@ function OrderTrackingPage() {
                   <div key={step.status} className="flex flex-1 items-center last:flex-none">
                     <div className="flex flex-col items-center gap-1.5">
                       <span
-                        className={`grid size-9 place-items-center rounded-full border transition-colors ${
+                        className={`grid size-9 place-items-center rounded-full border transition-all ${
                           done
                             ? "border-cyan-500/60 bg-cyan-500/20 text-cyan-300"
                             : current
-                              ? "border-cyan-400 bg-cyan-500 text-white"
+                              ? "animate-pulse-ring border-cyan-400 bg-cyan-500 text-white"
                               : "border-white/10 bg-white/[0.03] text-gray-600"
                         }`}
                       >
                         {done ? (
                           <Check className="size-4" />
                         ) : (
-                          <Icon className={`size-4 ${current ? "" : ""}`} />
+                          <Icon
+                            className={`size-4 ${current ? "animate-float" : ""}`}
+                          />
                         )}
                       </span>
                       <span
@@ -225,11 +234,15 @@ function OrderTrackingPage() {
                       </span>
                     </div>
                     {idx < STATUS_STEPS.length - 1 && (
-                      <span
-                        className={`mx-1.5 mb-5 h-0.5 flex-1 rounded-full transition-colors ${
-                          done ? "bg-cyan-500/70" : "bg-white/[0.07]"
-                        }`}
-                      />
+                      <span className="mx-1.5 mb-5 h-0.5 flex-1 overflow-hidden rounded-full bg-white/[0.07]">
+                        <span
+                          className="block h-full rounded-full bg-cyan-500/70 transition-all duration-700 ease-out"
+                          style={{
+                            width: done ? "100%" : "0%",
+                            boxShadow: done ? "0 0 8px rgba(34,211,238,0.5)" : undefined,
+                          }}
+                        />
+                      </span>
                     )}
                   </div>
                 );

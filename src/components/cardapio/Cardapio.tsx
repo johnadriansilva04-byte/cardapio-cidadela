@@ -501,14 +501,27 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const activeOrderCount = useActiveOrderCount();
 
   if (loading) {
+    // Esqueleto shimmer: mesma silhueta do cardápio real, sem "pulo" de layout.
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#07070b]">
-        <div className="text-center">
-          <div
-            className="mx-auto size-10 animate-spin rounded-full border-2 border-t-transparent"
-            style={{ borderColor: accentSoft, borderTopColor: accent }}
-          />
-          <p className="mt-4 text-sm text-gray-400">Carregando cardápio...</p>
+      <div className="min-h-screen bg-[#07070b] pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
+        <div className="skeleton mx-auto mt-2 h-[280px] w-full sm:h-[320px]" />
+        <div className="mx-auto mt-4 max-w-2xl px-4">
+          <div className="skeleton h-10 w-full rounded-full" />
+          <div className="mt-4 grid gap-2">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="flex gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3"
+              >
+                <div className="skeleton size-[68px] shrink-0 rounded-lg" />
+                <div className="flex-1 space-y-2 py-1">
+                  <div className="skeleton h-4 w-2/3 rounded" />
+                  <div className="skeleton h-3 w-1/2 rounded" />
+                  <div className="skeleton h-4 w-1/3 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -971,7 +984,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                 {item.available && canOrder ? (
                                   qtyInCart > 0 ? (
                                     <div
-                                      className="flex items-center gap-1 rounded-full p-0.5"
+                                      className="flex animate-pop-in items-center gap-1 rounded-full p-0.5"
                                       style={{ backgroundColor: hexToRgba(accent, 0.15) }}
                                     >
                                       <button
@@ -981,7 +994,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                       >
                                         <Minus className="size-3" />
                                       </button>
-                                      <span className="w-5 text-center text-xs font-black text-white">
+                                      <span
+                                        key={qtyInCart}
+                                        className="w-5 animate-pop-in text-center text-xs font-black text-white"
+                                      >
                                         {qtyInCart}
                                       </span>
                                       <button
@@ -996,7 +1012,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                   ) : (
                                     <button
                                       onClick={() => handleAddSimple(item)}
-                                      className="grid size-8 place-items-center rounded-full text-white transition-all hover:brightness-110 active:scale-95"
+                                      className="grid size-8 place-items-center rounded-full text-white transition-all hover:scale-110 hover:brightness-110 active:scale-95"
                                       style={{
                                         backgroundColor: accent,
                                         boxShadow: `0 2px 10px ${hexToRgba(accent, 0.4)}`,
@@ -1057,7 +1073,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             </div>
             <button
               onClick={() => setCartOpen(true)}
-              className="shrink-0 rounded-full px-6 py-3 text-sm font-black text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
+              className="shrink-0 animate-pop-in rounded-full px-6 py-3 text-sm font-black text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
               style={{
                 backgroundColor: accent,
                 boxShadow: `0 8px 24px ${hexToRgba(accent, 0.45)}`,

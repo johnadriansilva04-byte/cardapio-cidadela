@@ -186,16 +186,19 @@ export default function CheckoutModal({
               const Icon = s.icon;
               return (
                 <div key={s.n} className="flex flex-1 items-center last:flex-none">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`grid size-6 place-items-center rounded-full border text-[10px] font-black transition-colors ${
+                  <div className="flex items-center gap-1.5">                      <span
+                      className={`grid size-6 place-items-center rounded-full border text-[10px] font-black transition-all ${
                         done
                           ? "border-transparent text-white"
                           : active
-                            ? "border-transparent text-white"
+                            ? "border-transparent text-white animate-pop-in"
                             : "border-white/15 bg-white/[0.04] text-gray-500"
                       }`}
-                      style={done || active ? { backgroundColor: accent } : undefined}
+                      style={
+                        done || active
+                          ? { backgroundColor: accent, boxShadow: `0 0 14px ${hexToRgba(accent, 0.5)}` }
+                          : undefined
+                      }
                     >
                       <Icon className="size-3" />
                     </span>
@@ -209,9 +212,18 @@ export default function CheckoutModal({
                   </div>
                   {i < STEPS.length - 1 && (
                     <span
-                      className="mx-2 h-0.5 flex-1 rounded-full"
-                      style={{ backgroundColor: step > s.n ? accent : "rgba(255,255,255,0.08)" }}
-                    />
+                      className="mx-2 h-0.5 flex-1 overflow-hidden rounded-full"
+                      style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                    >
+                      <span
+                        className="block h-full rounded-full transition-all duration-500 ease-out"
+                        style={{
+                          width: step > s.n ? "100%" : "0%",
+                          backgroundColor: accent,
+                          boxShadow: step > s.n ? `0 0 8px ${hexToRgba(accent, 0.6)}` : undefined,
+                        }}
+                      />
+                    </span>
                   )}
                 </div>
               );

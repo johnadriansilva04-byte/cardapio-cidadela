@@ -404,8 +404,17 @@ export function OrderManager({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar por comanda, nome ou telefone…"
-            className="border-white/10 bg-white/[0.03] pl-9 text-white placeholder:text-gray-600"
+            className="border-white/10 bg-white/[0.03] pl-9 pr-8 text-white placeholder:text-gray-600"
           />
+          {q && (
+            <button
+              onClick={() => setQ("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 transition-colors hover:text-white"
+              aria-label="Limpar busca"
+            >
+              <XCircle className="size-4" />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {multi && (
@@ -438,58 +447,6 @@ export function OrderManager({
             </SelectContent>
           </Select>
         </div>
-      </div>
-
-      {/* Filtros rápidos adicionais */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setPeriod("today")}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-            period === "today"
-              ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
-              : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10"
-          }`}
-        >
-          Hoje
-        </button>
-        <button
-          onClick={() => setPeriod("7d")}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-            period === "7d"
-              ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
-              : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10"
-          }`}
-        >
-          7 dias
-        </button>
-        <button
-          onClick={() => setPeriod("30d")}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-            period === "30d"
-              ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
-              : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10"
-          }`}
-        >
-          30 dias
-        </button>
-        <button
-          onClick={() => setFilter("all")}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-            filter === "all"
-              ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
-              : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10"
-          }`}
-        >
-          Todos os status
-        </button>
-        {q && (
-          <button
-            onClick={() => setQ("")}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25"
-          >
-            Limpar busca
-          </button>
-        )}
       </div>
 
       <div className="flex items-center justify-between">
@@ -794,7 +751,7 @@ function OrderDetailDialog({
 
   return (
     <Dialog open={Boolean(order)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto border-white/10 bg-[#0f0f14] text-white sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto border-white/10 bg-[#0f0f14] text-white sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <span className="font-mono text-lg">{order.comanda}</span>
@@ -806,7 +763,9 @@ function OrderDetailDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-2">
+          {/* Coluna esquerda: cliente e entrega */}
+          <div className="space-y-3">
           {/* Cliente */}
           <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
             <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
@@ -850,7 +809,10 @@ function OrderDetailDialog({
               <p className="text-sm text-white">Retirada no balcão</p>
             )}
           </div>
+          </div>
 
+          {/* Coluna direita: itens e pagamento */}
+          <div className="space-y-3">
           {/* Itens */}
           <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
             <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
@@ -925,9 +887,10 @@ function OrderDetailDialog({
               {order.payment_status?.replace(/_/g, " ")}
             </p>
           </div>
+          </div>
 
           {/* Ações */}
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2 pt-1 md:col-span-2">
             {next && (
               <button
                 onClick={() => onChangeStatus(order.id, next)}

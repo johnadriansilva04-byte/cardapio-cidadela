@@ -346,10 +346,6 @@ function AdminDashboardOverview() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-white">Dashboard</h1>
-          <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-gray-500">
-            Visão geral do seu negócio — restaurantes, pedidos e faturamento calculados a partir dos
-            pedidos registrados.
-          </p>
         </div>
         <Button
           onClick={() => {
@@ -471,10 +467,9 @@ function AdminDashboardOverview() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-bold tracking-tight text-white">Pedidos por status</h2>
-                <p className="text-[11px] text-gray-500">
+                <p className="text-[11px] font-medium text-gray-400">
                   {activeRestaurant?.name ?? "Todos os restaurantes"} •{" "}
-                  {range === "all" ? "todo o período" : `últimos ${range.replace("d", "")} dias`} •{" "}
-                  faturamento calculado pelos pedidos não cancelados
+                  {range === "all" ? "todo o período" : `últimos ${range.replace("d", "")} dias`}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -523,9 +518,6 @@ function AdminDashboardOverview() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold tracking-tight text-white">Seus restaurantes</h2>
-                <p className="text-[11px] text-gray-500">
-                  Clique em um card para abrir a gestão completa
-                </p>
               </div>
               <Link
                 to="/admin/restaurantes"
@@ -612,11 +604,27 @@ function AdminDashboardOverview() {
 }
 
 const KPI_TONES: Record<string, string> = {
-  cyan: "bg-cyan-500/15 text-cyan-300",
-  amber: "bg-amber-500/15 text-amber-300",
-  emerald: "bg-emerald-500/15 text-emerald-300",
-  violet: "bg-violet-500/15 text-violet-300",
+  cyan: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30 shadow-[0_0_18px_rgba(6,182,212,0.18)]",
+  amber: "bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-[0_0_18px_rgba(245,158,11,0.16)]",
+  emerald: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-[0_0_18px_rgba(16,185,129,0.16)]",
+  violet: "bg-violet-500/15 text-violet-300 border-violet-500/30 shadow-[0_0_18px_rgba(139,92,246,0.18)]",
 };
+
+/** Interpola numericamente o valor dentro de um texto (ex.: "R$ 1.234,56" → 900..1234.56). */
+function parseKpiValue(value: string): { prefix: string; num: number; suffix: string } | null {
+  const m = value.match(/^(.*?)([\d.,]+)(.*)$/);
+  if (!m) return null;
+  const num = Number(m[2].replace(/\./g, "").replace(",", "."));
+  if (!isFinite(num)) return null;
+  return { prefix: m[1], num, suffix: m[3] };
+}
+
+function formatKpiNumber(n: number): string {
+  const int = Math.floor(n);
+  const dec = n - int;
+  const intStr = int.toLocaleString("pt-BR");
+  return dec > 0.004 ? intStr + "," + Math.round(dec * 100).toString().padStart(2, "0") : intStr;
+}
 
 function KpiCard({
   icon: Icon,
@@ -631,20 +639,53 @@ function KpiCard({
   value: string;
   hint: string;
 }) {
+  // Count-up vivo: anima de 0 até o valor na montagem (e re-anima se mudar).
+  const target = useMemo(() => parseKpiValue(value), [value]);
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    if (!target) return;
+    if (target.num === display) return;
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) {
+      setDisplay(target.num);
+      return;
+    }
+    const start = performance.now();
+    const from = 0;
+    const duration = 700;
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.min((t - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+      setDisplay(from + (target.num - from) * eased);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.num]);
+
+  const shown = target ? `${target.prefix}${formatKpiNumber(display)}${target.suffix}` : value;
+
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+    <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-4 transition-all hover:border-white/[0.16] hover:shadow-[0_0_24px_rgba(6,182,212,0.08)]">
       <div className="flex items-center gap-3">
-        <div className={`grid size-10 shrink-0 place-items-center rounded-xl ${KPI_TONES[tone]}`}>
+        <div className={`grid size-10 shrink-0 place-items-center rounded-xl border ${KPI_TONES[tone]}`}>
           <Icon className="size-[18px]" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+          <p className="truncate text-[10px] font-bold uppercase tracking-widest text-gray-400">
             {label}
           </p>
-          <p className="mt-0.5 truncate text-lg font-black text-white">{value}</p>
+          <p className="mt-0.5 truncate text-xl font-black leading-tight text-white tabular-nums sm:text-2xl">
+            {shown}
+          </p>
         </div>
       </div>
-      {hint && <p className="mt-2.5 truncate text-[11px] text-gray-500">{hint}</p>}
+      {hint && <p className="mt-2.5 truncate text-[11px] font-medium text-gray-400">{hint}</p>}
     </div>
   );
 }

@@ -47,14 +47,17 @@ describe("RestaurantCardCompact", () => {
     expect(screen.getByText("1 item no cardápio")).toBeInTheDocument();
   });
 
-  it("a logo fica sobreposta à borda inferior da capa", () => {
+  it("a logo fica sobreposta à borda inferior da capa, sem ser cortada", () => {
     renderCard();
     const logo = screen.getAllByAltText("Dona da Pensão")[1];
     const avatar = logo.parentElement as HTMLElement;
     // sobe sobre a borda inferior da capa
-    expect(avatar.className).toContain("-bottom-7");
+    expect(avatar.className).toContain("-top-8");
     // e fica acima dos elementos da capa no empilhamento
     expect(avatar.className).toContain("z-20");
+    // vive fora da capa (que tem overflow-hidden), então nunca é cortado
+    const cover = screen.getAllByAltText("Dona da Pensão")[0].parentElement as HTMLElement;
+    expect(cover.contains(avatar)).toBe(false);
   });
 
   it("mantém a altura original da capa e o recuo do conteúdo", () => {
@@ -63,8 +66,8 @@ describe("RestaurantCardCompact", () => {
     expect(cover.className).toContain("h-36");
     const avatar = screen.getAllByAltText("Dona da Pensão")[1].parentElement as HTMLElement;
     const content = avatar.parentElement?.nextElementSibling as HTMLElement;
-    // a logo tem 56px (size-14) e sobe 28px; o conteúdo precisa de padding >= 28px
-    expect(content.className).toContain("pt-8");
+    // a logo tem 64px (size-16) e sobe 32px; o conteúdo precisa de padding >= 32px
+    expect(content.className).toContain("pt-9");
   });
 
   it("usa as iniciais quando não há logo", () => {

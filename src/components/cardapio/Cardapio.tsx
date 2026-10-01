@@ -644,19 +644,15 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             backgroundPosition: restaurant.banner_url ? "center center" : undefined,
           }}
         >
-          {/* Véu de legibilidade concentrado na base (onde o conteúdo rola por
-              cima) — a capa e a foto do restaurante ficam visíveis no topo/meio
-              em vez de afogadas num manto escuro de 80%. */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/35 to-black/10" />
+          {/* Véu de legibilidade concentrado na base (onde o painel de vidro
+              se apoia) — o topo e o meio da capa ficam livres para a arte. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/40 via-40% to-transparent" />
 
-          {/* Selo da Cidadela — canto superior direito, acompanha a cor do restaurante */}
-          <CidadelaBadge accent={accent} className="absolute right-3 top-3 z-10" />
-
-          <div className="absolute inset-0 flex items-center px-4">
-            <div className="mx-auto w-full max-w-2xl">
-              {/* Painel de vidro: nome/logo legíveis sem um manto escuro sobre
-                  a foto inteira — a capa continua visível ao redor. */}
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#07070b]/55 p-3 backdrop-blur-md">
+          {/* Painel de vidro: nome/status/slogan ancorados na base, sem cobrir
+              o centro da arte. Em telas pequenas sobe um pouco para não dividir
+              espaço com a barra inferior. */}
+          <div className="absolute inset-x-0 bottom-0 z-10 flex items-end px-4 pb-4 sm:pb-5">
+            <div className="mx-auto flex w-full max-w-2xl items-center gap-3 rounded-2xl border border-white/10 bg-[#07070b]/35 p-3 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur-md">
               {restaurant.logo_url ? (
                 <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-xl border border-white/20 shadow-lg sm:size-14">
                   <img
@@ -681,7 +677,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   {restaurant.operating_hours && (
                     <div
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold backdrop-blur-md ${
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
                         isCurrentlyOpen
                           ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
                           : "border-red-500/30 bg-red-500/10 text-red-300"
@@ -694,15 +690,17 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                     </div>
                   )}
                   {restaurant.description && (
-                    <span className="line-clamp-1 text-xs text-gray-400">
+                    <span className="line-clamp-1 text-xs text-gray-300/90">
                       {restaurant.description}
                     </span>
                   )}
                 </div>
               </div>
-              </div>
             </div>
           </div>
+
+          {/* Selo da Cidadela — canto superior direito, sobre a arte */}
+          <CidadelaBadge accent={accent} className="absolute right-3 top-3 z-10" />
         </div>
       </div>
 
@@ -947,7 +945,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                               {item.name}
                             </p>
                             {item.description && (
-                              <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-500">
+                              <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-400">
                                 {item.description}
                               </p>
                             )}

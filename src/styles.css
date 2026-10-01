@@ -344,6 +344,82 @@
 }
 
 /* ============================================================
+   Selo "Conheça a Cidadela" — presença viva e discreta
+   (respiração neon + anel em expansão + brilho no hover)
+   ============================================================ */
+
+@keyframes cidadela-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 10px rgba(34, 211, 238, 0.24),
+      0 2px 12px rgba(0, 0, 0, 0.42);
+  }
+  50% {
+    box-shadow:
+      0 0 20px rgba(34, 211, 238, 0.46),
+      0 2px 16px rgba(0, 0, 0, 0.48);
+  }
+}
+
+@keyframes cidadela-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes cidadela-sheen {
+  from {
+    transform: translateX(-140%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
+
+.cidadela-seal {
+  animation: cidadela-breathe 3.6s ease-in-out infinite;
+}
+
+.cidadela-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(34, 211, 238, 0.5);
+  animation: cidadela-ring 3s ease-out infinite;
+  pointer-events: none;
+}
+
+.cidadela-sheen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.cidadela-sheen::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+}
+
+.cidadela-seal:hover .cidadela-sheen::after {
+  animation: cidadela-sheen 1.1s ease;
+}
+
+/* ============================================================
    Cidadela era utilities (preserved for TemporalLobby)
    ============================================================ */
 

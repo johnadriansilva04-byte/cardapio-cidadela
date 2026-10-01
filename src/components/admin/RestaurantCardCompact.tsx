@@ -73,7 +73,7 @@ export function RestaurantCardCompact({
           onOpen();
         }
       }}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-all hover:border-cyan-500/30 hover:bg-white/[0.05] hover:shadow-[0_8px_30px_rgba(6,182,212,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40"
+      className="card-lift group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] hover:border-cyan-500/30 hover:bg-white/[0.05] hover:shadow-[0_8px_30px_rgba(6,182,212,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40"
     >
       {/* cover — altura original (h-36) para a imagem não ficar espremida.
           Quando a capa é a própria logo, fundo neutro escuro: sem gradiente
@@ -128,8 +128,13 @@ export function RestaurantCardCompact({
           </a>
         </div>
 
-        {/* logo sobreposta à borda inferior da capa, como no layout original */}
-        <div className="absolute -bottom-7 left-4 z-20 flex size-14 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
+        {/* logo sobreposta à borda inferior da capa, como no layout original.
+            A capa tem overflow-hidden, então a logo vive fora dela: assim o
+            avatar nunca é cortado nem escondido pela capa. */}
+      </div>
+
+      <div className="relative h-0">
+        <div className="absolute -top-8 left-4 z-20 flex size-16 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
@@ -138,7 +143,7 @@ export function RestaurantCardCompact({
               loading="lazy"
             />
           ) : (
-            <span className="text-sm font-black text-white/70">
+            <span className="text-base font-black text-white/70">
               {initials(restaurant.name) || "•"}
             </span>
           )}
@@ -146,28 +151,33 @@ export function RestaurantCardCompact({
       </div>
 
       {/* ─── CONTENT ─── */}
-      <div className="flex flex-1 flex-col gap-1.5 px-3.5 pb-3 pt-8 relative">
-        {/* Item count - top right, beside the avatar */}
-        {menuItemCount !== null && (
-          <p className="absolute top-4 right-0 inline-flex items-center gap-1 text-[11px] text-gray-500">
-            <LayoutGrid className="size-3" /> {menuItemCount} item{menuItemCount === 1 ? "" : "s"} no cardápio
-          </p>
-        )}
-
-        {/* Name + chevron - centered */}
-        <div className="flex items-center justify-center gap-2">
-          <h3 className="min-w-0 truncate text-sm font-bold leading-snug text-white group-hover:text-cyan-300 transition-colors text-center">
+      <div className="flex flex-1 flex-col gap-1 px-4 pb-3.5 pt-9">
+        {/* Nome do restaurante: elemento principal do card */}
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="min-w-0 truncate text-[15px] font-bold leading-tight text-white transition-colors group-hover:text-cyan-300">
             {restaurant.name}
           </h3>
           <ChevronRight className="size-4 shrink-0 text-gray-600 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-400" />
         </div>
 
-        {/* Description - middle right */}
+        {/* Slogan/descrição logo abaixo do nome, com respiro */}
         {restaurant.description ? (
-          <p className="line-clamp-1 text-[11px] leading-relaxed text-gray-400 text-right -mt-1">
+          <p className="line-clamp-2 text-xs leading-relaxed text-gray-400">
             {restaurant.description}
           </p>
-        ) : null}
+        ) : (
+          <p className="truncate font-mono text-[11px] text-gray-600">
+            /cardapio/{restaurant.slug}
+          </p>
+        )}
+
+        {/* Contagem de itens: discreta, sem competir com o nome */}
+        {menuItemCount !== null && (
+          <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-gray-500">
+            <LayoutGrid className="size-3" /> {menuItemCount} item{menuItemCount === 1 ? "" : "s"}{" "}
+            no cardápio
+          </p>
+        )}
 
         {/* Action shortcuts */}
         <div className="mt-0.5 grid grid-cols-3 gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -242,13 +252,19 @@ export function RestaurantCardCompact({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="border-white/10 bg-[#1a1a22] text-gray-200">
-              <DropdownMenuItem onClick={onEdit} className="gap-2 focus:bg-white/10 focus:text-white">
+              <DropdownMenuItem
+                onClick={onEdit}
+                className="gap-2 focus:bg-white/10 focus:text-white"
+              >
                 <Pencil className="size-3.5" /> Editar dados
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="gap-2 focus:bg-white/10 focus:text-white">
                 <Link to="/admin/compartilhar">Compartilhar</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDelete} className="gap-2 text-red-300 focus:bg-red-500/15 focus:text-red-200">
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="gap-2 text-red-300 focus:bg-red-500/15 focus:text-red-200"
+              >
                 <Trash2 className="size-3.5" /> Excluir
               </DropdownMenuItem>
             </DropdownMenuContent>

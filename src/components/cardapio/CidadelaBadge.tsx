@@ -1,5 +1,3 @@
-import { hexToRgba } from "@/lib/utils";
-
 /** Luminância relativa (0 = preto, 1 = branco) — decide claro/escuro pelo accent. */
 function luminance(hex: string): number {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
@@ -21,13 +19,15 @@ function luminance(hex: string): number {
 }
 
 /**
- * Selo circular "Conheça a Cidadela" — discreto, translúcido, sem competir
- * com a capa do restaurante.
+ * Selo circular "Conheça a Cidadela" — presença viva, porém discreta.
  *
- * Mantém a identidade (borda neon azul fixa + cadeado) mas com cara de selo:
- * pequeno, fundo escuro semitransparente com blur, glow suave. O tema das
- * letras continua deduzido da luminância do accent (claro → letras escuras,
- * escuro → cor do accent), e a borda nunca usa o accent (pode ser vivo).
+ * Mantém a identidade (borda neon azul + cadeado) com cara de selo: fundo
+ * translúcido com blur e glow suave. Ganha vida com uma pulsação de brilho,
+ * um anel em expansão e uma varredura de luz no hover — movimento contínuo
+ * de baixa intensidade, para chamar atenção sem virar propaganda.
+ *
+ * O tema das letras continua deduzido da luminância do accent (claro → letras
+ * escuras, escuro → cor do accent), e a borda nunca usa o accent (pode ser vivo).
  */
 export function CidadelaBadge({
   accent,
@@ -54,22 +54,23 @@ export function CidadelaBadge({
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Conheça a Cidadela"
-      className={`group relative flex size-11 shrink-0 items-center justify-center rounded-full backdrop-blur-sm transition-transform hover:scale-105 active:scale-95 sm:size-12 ${className}`}
+      className={`cidadela-seal group relative flex size-12 shrink-0 items-center justify-center rounded-full backdrop-blur-sm transition-transform hover:scale-105 active:scale-95 sm:size-14 ${className}`}
       style={{
         background: face,
         border: `1.5px solid ${neon}`,
-        boxShadow: `0 0 8px ${hexToRgba(neon, 0.22)}, 0 2px 10px rgba(0,0,0,0.4)`,
       }}
     >
+      <span aria-hidden className="cidadela-ring" />
+      <span aria-hidden className="cidadela-sheen" />
       <span className="relative flex flex-col items-center justify-center px-1 text-center">
         <span
-          className="text-[6.5px] font-black leading-none tracking-[0.12em]"
-          style={{ color: label, opacity: 0.65 }}
+          className="text-[7px] font-black leading-none tracking-[0.12em]"
+          style={{ color: label, opacity: 0.7 }}
         >
           CONHEÇA
         </span>
         <span
-          className="mt-0.5 text-[8.5px] font-black leading-none tracking-[0.08em]"
+          className="mt-0.5 text-[9.5px] font-black leading-none tracking-[0.08em]"
           style={{ color: label }}
         >
           CIDADELA
@@ -81,7 +82,7 @@ export function CidadelaBadge({
           strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="mt-0.5 size-2.5"
+          className="mt-0.5 size-3"
         >
           <rect x="5" y="11" width="14" height="10" rx="2" />
           <path d="M8 11V7a4 4 0 0 1 8 0v4" />

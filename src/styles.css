@@ -374,6 +374,17 @@
   }
 }
 
+/* Giro sutil do matiz: mantém o selo ciano, apenas respirando entre tons. */
+@keyframes cidadela-hue {
+  0%,
+  100% {
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    filter: hue-rotate(22deg);
+  }
+}
+
 @keyframes cidadela-ring {
   0% {
     transform: scale(1);
@@ -402,7 +413,10 @@
 }
 
 .cidadela-seal {
-  animation: cidadela-breathe 3.4s ease-in-out infinite;
+  /* Borda viva: leve giro do matiz neon, sem sair do ciano da identidade. */
+  animation:
+    cidadela-breathe 3.4s ease-in-out infinite,
+    cidadela-hue 9s linear infinite;
 }
 
 /* Halo neon difuso atrás do selo — o "vivo" que dá presença sem peso. */
@@ -414,6 +428,20 @@
   animation: cidadela-halo 3.4s ease-in-out infinite;
   pointer-events: none;
   z-index: -1;
+}
+
+/* Núcleo radial: dá profundidade de selo (não é um disco chapado). */
+.cidadela-core {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 50% 32%,
+    rgba(34, 211, 238, 0.18) 0%,
+    rgba(34, 211, 238, 0.06) 42%,
+    transparent 68%
+  );
+  pointer-events: none;
 }
 
 .cidadela-ring {

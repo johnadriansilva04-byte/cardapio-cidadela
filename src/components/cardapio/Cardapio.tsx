@@ -634,6 +634,14 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     <div className="min-h-screen bg-[#07070b] pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
       {/* HERO — banner fixo como pano de fundo enquanto o cardápio rola por cima */}
       <div className="contents">
+        {/* Selo da Cidadela — persistente no canto superior direito. Fica fora da
+            capa de propósito: a capa tem z-0 (contexto de empilhamento próprio),
+            então nenhum z-index dentro dela superaria a barra de categorias
+            (z-20). Como irmão sticky, o selo fica acima da barra quando ela gruda. */}
+        <div className="pointer-events-none sticky top-0 z-30 h-0">
+          <CidadelaBadge accent={accent} className="pointer-events-auto absolute right-4 top-3" />
+        </div>
+
         <div className="sticky top-0 z-0 mt-2 h-[280px] w-full overflow-hidden bg-[#07070b] sm:h-[320px]">
           {restaurant.banner_url ? (
             <>
@@ -641,7 +649,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                   laterais/verticais, evitando faixas vazias. */}
               <div
                 aria-hidden
-                className="absolute inset-0 scale-110 opacity-50 blur-2xl"
+                className="pointer-events-none absolute inset-0 scale-110 opacity-50 blur-2xl"
                 style={{
                   backgroundImage: `url(${restaurant.banner_url})`,
                   backgroundSize: "cover",
@@ -651,7 +659,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               {/* Arte de capa inteira e nítida: "contain" mostra a imagem
                   completa, sem cortar o nome/ilustração que vem nela. */}
               <div
-                className="absolute inset-0"
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
                 style={{
                   backgroundImage: `url(${restaurant.banner_url})`,
                   backgroundSize: "contain",
@@ -662,7 +671,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             </>
           ) : (
             <div
-              className="absolute inset-0"
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
               style={{
                 background: `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
               }}
@@ -671,10 +681,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
           {/* Véu discreto só na base, para o painel de vidro ter contraste sem
               escurecer a arte. */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/20 via-25% to-transparent" />
-
-          {/* Selo da Cidadela — canto superior direito, sobre a arte */}
-          <CidadelaBadge accent={accent} className="absolute right-3 top-3 z-10" />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/20 via-25% to-transparent"
+          />
         </div>
       </div>
 

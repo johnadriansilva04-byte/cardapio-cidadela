@@ -99,6 +99,15 @@
   except the Cidadela seal (top-right); the identity block — avatar, name,
   status and slogan — lives in flow below the hero, avatar beside the text,
   so it never hides the art.
+- The Cidadela seal is a `sticky top-0 z-30` sibling *before* the hero, not a
+  child of it. The hero is `z-0`, which creates its own stacking context, so
+  nothing inside it can outrank the sticky category bar (`z-20`) — as a child
+  the seal was painted over by that bar when it stuck. The wrapper is
+  `pointer-events-none` with the badge `pointer-events-auto` so the empty
+  strip never blocks taps on the art. `CidadelaBadge` drops its own `relative`
+  when the caller passes a positioning class: `.relative` is emitted after
+  `.absolute`, so both together made the badge ignore `absolute` and overflow
+  the right edge.
 - `RestaurantCardCompact` (admin list) applies the same idea to its cover: a
   `blur-xl` copy of the banner fills the frame while the sharp copy uses
   `object-contain`, so a 21:9 art — and any name baked into it — is never

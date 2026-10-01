@@ -673,64 +673,61 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               escurecer a arte. */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/20 via-25% to-transparent" />
 
-          {/* Painel de vidro mínimo: só a foto de perfil, ancorado no canto
-              inferior esquerdo. O nome já vem na arte de capa — aqui nada
-              compete com ela. */}
-          <div className="absolute bottom-0 left-0 z-10 px-3 pb-3 sm:px-4 sm:pb-4">
-            <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-[#07070b]/40 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
-              {restaurant.logo_url ? (
-                <div className="aspect-square size-11 shrink-0 overflow-hidden rounded-lg border border-white/20 shadow-lg sm:size-12">
-                  <img
-                    src={restaurant.logo_url}
-                    alt={restaurant.name}
-                    className="size-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div
-                  className="grid size-11 shrink-0 place-items-center rounded-lg border bg-[#0a0a12]/90 shadow-lg sm:size-12"
-                  style={{ borderColor: hexToRgba(accent, 0.4) }}
-                >
-                  <UtensilsCrossed className="size-4" style={{ color: accent }} />
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Selo da Cidadela — canto superior direito, sobre a arte */}
           <CidadelaBadge accent={accent} className="absolute right-3 top-3 z-10" />
         </div>
       </div>
 
       {/* Identidade da loja — em fluxo, abaixo da capa, para não tampar a arte.
-          Nome é o elemento principal; status e slogan vêm logo abaixo. */}
+          Avatar e texto ficam juntos; o nome é o elemento principal. */}
       <div className="relative z-10 mx-auto mt-3 max-w-2xl px-4">
-        <h1 className="text-lg font-black tracking-tight text-white sm:text-xl">
-          {restaurant.name}
-        </h1>
-        {(restaurant.operating_hours || restaurant.description) && (
-          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            {restaurant.operating_hours && (
-              <div
-                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
-                  isCurrentlyOpen
-                    ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
-                    : "border-red-500/30 bg-red-500/10 text-red-300"
-                }`}
-              >
-                <span
-                  className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-red-400"}`}
-                />
-                {isCurrentlyOpen ? "Aberto" : "Fechado"}
+        <div className="flex items-start gap-3">
+          {restaurant.logo_url ? (
+            <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-xl border border-white/15 shadow-lg sm:size-14">
+              <img
+                src={restaurant.logo_url}
+                alt={restaurant.name}
+                className="size-full object-cover"
+              />
+            </div>
+          ) : (
+            <div
+              className="grid size-12 shrink-0 place-items-center rounded-xl border bg-[#0a0a12]/90 shadow-lg sm:size-14"
+              style={{ borderColor: hexToRgba(accent, 0.4) }}
+            >
+              <UtensilsCrossed className="size-5" style={{ color: accent }} />
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg font-black tracking-tight text-white sm:text-xl">
+              {restaurant.name}
+            </h1>
+            {(restaurant.operating_hours || restaurant.description) && (
+              <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                {restaurant.operating_hours && (
+                  <div
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                      isCurrentlyOpen
+                        ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
+                        : "border-red-500/30 bg-red-500/10 text-red-300"
+                    }`}
+                  >
+                    <span
+                      className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-red-400"}`}
+                    />
+                    {isCurrentlyOpen ? "Aberto" : "Fechado"}
+                  </div>
+                )}
+                {restaurant.description && (
+                  <p className="min-w-0 flex-1 line-clamp-2 text-xs leading-relaxed text-gray-400">
+                    {restaurant.description}
+                  </p>
+                )}
               </div>
             )}
-            {restaurant.description && (
-              <p className="min-w-0 flex-1 line-clamp-2 text-xs leading-relaxed text-gray-400">
-                {restaurant.description}
-              </p>
-            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Aviso de fechado — único aviso, só aparece quando fechado */}

@@ -103,7 +103,10 @@
   `blur-xl` copy of the banner fills the frame while the sharp copy uses
   `object-contain`, so a 21:9 art — and any name baked into it — is never
   cropped by the card's shorter aspect. A logo used as fallback cover stays
-  `object-contain`.
+  `object-contain`. The profile block is centred: the avatar uses
+  `left-1/2 -translate-x-1/2` over the cover's bottom edge, and name,
+  description and item count are centred under it — the name is a direct child
+  of the centred column (no side chevron, which would offset it).
 - The admin Configurações page is account-only: store fields (WhatsApp, PIX,
   hours) link out to `/admin/restaurantes` via a compact shortcut grid. The PWA
   `InstallCard` keeps its manual steps collapsed behind "Como instalar" so the

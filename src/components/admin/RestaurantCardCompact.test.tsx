@@ -55,9 +55,26 @@ describe("RestaurantCardCompact", () => {
     expect(avatar.className).toContain("-top-8");
     // e fica acima dos elementos da capa no empilhamento
     expect(avatar.className).toContain("z-20");
+    // centralizado no card, junto com o nome
+    expect(avatar.className).toContain("left-1/2");
+    expect(avatar.className).toContain("-translate-x-1/2");
     // vive fora da capa (que tem overflow-hidden), então nunca é cortado
     const cover = screen.getAllByAltText("Dona da Pensão")[0].parentElement as HTMLElement;
     expect(cover.contains(avatar)).toBe(false);
+  });
+
+  it("centraliza nome, descrição e contagem junto do avatar", () => {
+    renderCard();
+    const logo = screen.getAllByAltText("Dona da Pensão")[1];
+    const content = (logo.parentElement as HTMLElement).parentElement
+      ?.nextElementSibling as HTMLElement;
+    expect(content.className).toContain("items-center");
+    const heading = screen.getByRole("heading", { name: "Dona da Pensão" });
+    // o nome é filho direto do bloco centralizado, sem seta lateral
+    expect(heading.parentElement).toBe(content);
+    expect(screen.getByText("Os melhores lanches, entrega rápida.").className).toContain(
+      "text-center",
+    );
   });
 
   it("mantém a altura original da capa e o recuo do conteúdo", () => {

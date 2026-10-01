@@ -9,7 +9,6 @@ import {
   ClipboardList,
   Settings2,
   LayoutGrid,
-  ChevronRight,
   ChevronDown,
   UtensilsCrossed,
 } from "lucide-react";
@@ -153,7 +152,7 @@ export function RestaurantCardCompact({
       </div>
 
       <div className="relative h-0">
-        <div className="absolute -top-8 left-4 z-20 flex size-16 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
+        <div className="absolute -top-8 left-1/2 z-20 flex size-16 -translate-x-1/2 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
@@ -170,18 +169,15 @@ export function RestaurantCardCompact({
       </div>
 
       {/* ─── CONTENT ─── */}
-      <div className="flex flex-1 flex-col gap-1 px-4 pb-3.5 pt-9">
-        {/* Nome do restaurante: elemento principal do card */}
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="min-w-0 truncate text-[15px] font-bold leading-tight text-white transition-colors group-hover:text-cyan-300">
-            {restaurant.name}
-          </h3>
-          <ChevronRight className="size-4 shrink-0 text-gray-600 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-400" />
-        </div>
+      <div className="flex flex-1 flex-col items-center gap-1 px-4 pb-3.5 pt-9">
+        {/* Nome do restaurante: elemento principal do card, centralizado */}
+        <h3 className="max-w-full truncate text-[15px] font-bold leading-tight text-white transition-colors group-hover:text-cyan-300">
+          {restaurant.name}
+        </h3>
 
         {/* Slogan/descrição logo abaixo do nome, com respiro */}
         {restaurant.description ? (
-          <p className="line-clamp-2 text-xs leading-relaxed text-gray-400">
+          <p className="line-clamp-2 text-center text-xs leading-relaxed text-gray-400">
             {restaurant.description}
           </p>
         ) : (
@@ -192,14 +188,17 @@ export function RestaurantCardCompact({
 
         {/* Contagem de itens: discreta, sem competir com o nome */}
         {menuItemCount !== null && (
-          <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-gray-500">
+          <p className="mt-0.5 flex items-center justify-center gap-1 text-[11px] text-gray-500">
             <LayoutGrid className="size-3" /> {menuItemCount} item{menuItemCount === 1 ? "" : "s"}{" "}
             no cardápio
           </p>
         )}
 
         {/* Action shortcuts */}
-        <div className="mt-0.5 grid grid-cols-3 gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="mt-0.5 grid w-full grid-cols-3 gap-1.5"
+          onClick={(e) => e.stopPropagation()}
+        >
           {onManageMenu && (
             <Button
               size="sm"
@@ -233,7 +232,7 @@ export function RestaurantCardCompact({
 
         {/* Publish toggle + more actions */}
         <div
-          className="mt-1 flex items-center gap-1.5 border-t border-white/5 pt-2"
+          className="mt-1 flex w-full items-center gap-1.5 border-t border-white/5 pt-2"
           onClick={(e) => e.stopPropagation()}
         >
           <Button

@@ -634,27 +634,52 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     <div className="min-h-screen bg-[#07070b] pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
       {/* HERO — banner fixo como pano de fundo enquanto o cardápio rola por cima */}
       <div className="contents">
-        <div
-          className="sticky top-0 z-0 mt-2 h-[280px] w-full sm:h-[320px]"
-          style={{
-            backgroundImage: restaurant.banner_url
-              ? `url(${restaurant.banner_url})`
-              : `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
-            backgroundSize: restaurant.banner_url ? "cover" : undefined,
-            backgroundPosition: restaurant.banner_url ? "center center" : undefined,
-          }}
-        >
-          {/* Véu de legibilidade concentrado na base (onde o painel de vidro
-              se apoia) — o topo e o meio da capa ficam livres para a arte. */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/40 via-40% to-transparent" />
+        <div className="sticky top-0 z-0 mt-2 h-[280px] w-full overflow-hidden bg-[#07070b] sm:h-[320px]">
+          {restaurant.banner_url ? (
+            <>
+              {/* Preenchimento ambiente: a mesma arte desfocada cobre as sobras
+                  laterais/verticais, evitando faixas vazias. */}
+              <div
+                aria-hidden
+                className="absolute inset-0 scale-110 opacity-50 blur-2xl"
+                style={{
+                  backgroundImage: `url(${restaurant.banner_url})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              />
+              {/* Arte de capa inteira e nítida: "contain" mostra a imagem
+                  completa, sem cortar o nome/ilustração que vem nela. */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `url(${restaurant.banner_url})`,
+                  backgroundSize: "contain",
+                  backgroundPosition: "center center",
+                  backgroundRepeat: "no-repeat",
+                }}
+              />
+            </>
+          ) : (
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
+              }}
+            />
+          )}
 
-          {/* Painel de vidro: nome/status/slogan ancorados na base, sem cobrir
-              o centro da arte. Em telas pequenas sobe um pouco para não dividir
-              espaço com a barra inferior. */}
-          <div className="absolute inset-x-0 bottom-0 z-10 flex items-end px-4 pb-4 sm:pb-5">
-            <div className="mx-auto flex w-full max-w-2xl items-center gap-3 rounded-2xl border border-white/10 bg-[#07070b]/35 p-3 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur-md">
+          {/* Véu discreto só na base, para o painel de vidro ter contraste sem
+              escurecer a arte. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#07070b] via-[#07070b]/20 via-25% to-transparent" />
+
+          {/* Painel de vidro mínimo: só a foto de perfil, ancorado no canto
+              inferior esquerdo. O nome já vem na arte de capa — aqui nada
+              compete com ela. */}
+          <div className="absolute bottom-0 left-0 z-10 px-3 pb-3 sm:px-4 sm:pb-4">
+            <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-[#07070b]/40 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
               {restaurant.logo_url ? (
-                <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-xl border border-white/20 shadow-lg sm:size-14">
+                <div className="aspect-square size-11 shrink-0 overflow-hidden rounded-lg border border-white/20 shadow-lg sm:size-12">
                   <img
                     src={restaurant.logo_url}
                     alt={restaurant.name}
@@ -663,45 +688,49 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                 </div>
               ) : (
                 <div
-                  className="grid size-12 shrink-0 place-items-center rounded-xl border bg-[#0a0a12]/90 shadow-lg sm:size-14"
+                  className="grid size-11 shrink-0 place-items-center rounded-lg border bg-[#0a0a12]/90 shadow-lg sm:size-12"
                   style={{ borderColor: hexToRgba(accent, 0.4) }}
                 >
-                  <UtensilsCrossed className="size-5" style={{ color: accent }} />
+                  <UtensilsCrossed className="size-4" style={{ color: accent }} />
                 </div>
               )}
-
-              <div className="min-w-0 flex-1">
-                <h1 className="truncate text-lg font-black tracking-tight text-white sm:text-xl">
-                  {restaurant.name}
-                </h1>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  {restaurant.operating_hours && (
-                    <div
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
-                        isCurrentlyOpen
-                          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
-                          : "border-red-500/30 bg-red-500/10 text-red-300"
-                      }`}
-                    >
-                      <span
-                        className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-red-400"}`}
-                      />
-                      {isCurrentlyOpen ? "Aberto" : "Fechado"}
-                    </div>
-                  )}
-                  {restaurant.description && (
-                    <span className="line-clamp-1 text-xs text-gray-300/90">
-                      {restaurant.description}
-                    </span>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
 
           {/* Selo da Cidadela — canto superior direito, sobre a arte */}
           <CidadelaBadge accent={accent} className="absolute right-3 top-3 z-10" />
         </div>
+      </div>
+
+      {/* Identidade da loja — em fluxo, abaixo da capa, para não tampar a arte.
+          Nome é o elemento principal; status e slogan vêm logo abaixo. */}
+      <div className="relative z-10 mx-auto mt-3 max-w-2xl px-4">
+        <h1 className="text-lg font-black tracking-tight text-white sm:text-xl">
+          {restaurant.name}
+        </h1>
+        {(restaurant.operating_hours || restaurant.description) && (
+          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            {restaurant.operating_hours && (
+              <div
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                  isCurrentlyOpen
+                    ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
+                    : "border-red-500/30 bg-red-500/10 text-red-300"
+                }`}
+              >
+                <span
+                  className={`size-1.5 rounded-full ${isCurrentlyOpen ? "bg-emerald-400" : "bg-red-400"}`}
+                />
+                {isCurrentlyOpen ? "Aberto" : "Fechado"}
+              </div>
+            )}
+            {restaurant.description && (
+              <p className="min-w-0 flex-1 line-clamp-2 text-xs leading-relaxed text-gray-400">
+                {restaurant.description}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Aviso de fechado — único aviso, só aparece quando fechado */}

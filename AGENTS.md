@@ -91,9 +91,12 @@
   dropped and recreated in `schema.sql` (grants are re-applied further down).
 - The public menu hero is `sticky top-0 z-0` inside a `contents` wrapper, with
   the content on `relative z-10`, so the products scroll over a fixed banner.
-  Keep the sticky/z-index pairing when touching that block. The identity panel
-  (avatar + name + status + slogan) is glass and anchored to the hero's base so
-  the cover art stays the protagonist; the Cidadela seal sits top-right.
+  Keep the sticky/z-index pairing when touching that block. With a real banner
+  the art is layered twice: a `blur-2xl scale-110` copy fills the frame
+  (`cover`) while the sharp copy uses `background-size: contain` so the whole
+  artwork — including any name baked into it — is never cropped; the hero is
+  `overflow-hidden` so the blur can't bleed out. The glass chip over the cover
+  holds the avatar only; name, status and slogan sit in a flow block below
+  the hero so they never cover the art. The Cidadela seal sits top-right.
 - `sendToWhatsApp` strips non-digits from the number — wa.me rejects formatted
   phone numbers.
-

@@ -99,5 +99,14 @@
   except the Cidadela seal (top-right); the identity block — avatar, name,
   status and slogan — lives in flow below the hero, avatar beside the text,
   so it never hides the art.
+- `RestaurantCardCompact` (admin list) applies the same idea to its cover: a
+  `blur-xl` copy of the banner fills the frame while the sharp copy uses
+  `object-contain`, so a 21:9 art — and any name baked into it — is never
+  cropped by the card's shorter aspect. A logo used as fallback cover stays
+  `object-contain`.
+- The admin Configurações page is account-only: store fields (WhatsApp, PIX,
+  hours) link out to `/admin/restaurantes` via a compact shortcut grid. The PWA
+  `InstallCard` keeps its manual steps collapsed behind "Como instalar" so the
+  page stays quiet.
 - `sendToWhatsApp` strips non-digits from the number — wa.me rejects formatted
   phone numbers.

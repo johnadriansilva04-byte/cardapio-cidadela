@@ -97,11 +97,11 @@ export function InstallCard({ variant = "card", className }: InstallCardProps) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/[0.08] to-violet-500/[0.04] p-4",
+        "overflow-hidden rounded-2xl border border-cyan-500/20 bg-white/[0.02]",
         className,
       )}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3 p-3.5">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/15">
           <MonitorSmartphone className="size-5 text-cyan-300" />
         </span>
@@ -109,43 +109,42 @@ export function InstallCard({ variant = "card", className }: InstallCardProps) {
           <p className="text-sm font-bold text-cyan-200">
             {status === "done" ? "Instalação iniciada" : "Instalar aplicativo"}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-gray-400">
+          <p className="truncate text-xs text-gray-400">
             {canPrompt
-              ? "Adicione à tela inicial para abrir em tela cheia e receber pedidos com alerta."
-              : "Seu navegador não oferece instalação automática — siga os passos abaixo."}
+              ? "Tela cheia e alerta sonoro de novos pedidos"
+              : "Passos rápidos para adicionar à tela inicial"}
           </p>
         </div>
-      </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
         {canPrompt ? (
           <button
             type="button"
             onClick={handleInstall}
             disabled={status === "working"}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-bold text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-cyan-500 px-3.5 py-2 text-xs font-bold text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
           >
             {status === "working" ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-3.5 animate-spin" />
             ) : (
-              <Download className="size-4" />
+              <Download className="size-3.5" />
             )}
-            {status === "working" ? "Instalando…" : "Instalar agora"}
+            {status === "working" ? "Instalando…" : "Instalar"}
           </button>
         ) : (
           <button
             type="button"
             onClick={() => setShowSteps((open) => !open)}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-500/15 px-4 py-2.5 text-sm font-bold text-cyan-200 transition-colors hover:bg-cyan-500/25"
+            aria-expanded={showSteps}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-cyan-500/15 px-3.5 py-2 text-xs font-bold text-cyan-200 transition-colors hover:bg-cyan-500/25"
           >
-            <Share className="size-4" />
-            {showSteps ? "Ocultar passos" : "Como instalar"}
+            <Share className="size-3.5" />
+            {showSteps ? "Ocultar" : "Como instalar"}
           </button>
         )}
       </div>
 
-      {(showSteps || !canPrompt) && (
-        <ol className="mt-3 space-y-2">
+      {showSteps && !canPrompt && (
+        <ol className="space-y-2 border-t border-white/[0.06] px-4 py-3">
           {instructions.map((step, index) => (
             <li key={step} className="flex gap-2.5 text-xs leading-relaxed text-gray-300">
               <span className="grid size-5 shrink-0 place-items-center rounded-full bg-white/[0.06] text-[10px] font-bold text-cyan-300">
@@ -161,7 +160,7 @@ export function InstallCard({ variant = "card", className }: InstallCardProps) {
         <button
           type="button"
           onClick={reset}
-          className="mt-3 text-[11px] font-medium text-cyan-300/80 underline-offset-2 hover:underline"
+          className="border-t border-white/[0.06] px-4 py-2 text-[11px] font-medium text-cyan-300/80 hover:underline"
         >
           Quero ver o convite de novo
         </button>

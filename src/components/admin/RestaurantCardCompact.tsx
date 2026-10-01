@@ -86,16 +86,40 @@ export function RestaurantCardCompact({
         }`}
       >
         {hasImage ? (
-          <img
-            src={cover}
-            alt={restaurant.name}
-            className={`h-full w-full transition-transform duration-300 group-hover:scale-105 ${
-              coverIsLogo ? "object-contain p-2" : "object-cover"
-            }`}
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
+          coverIsLogo ? (
+            <img
+              src={cover}
+              alt={restaurant.name}
+              className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <>
+              {/* Preenchimento: o mesmo banner desfocado cobre as sobras,
+                  evitando faixas vazias nas laterais. */}
+              <img
+                src={cover}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+              {/* Banner inteiro e nítido: "contain" mostra a arte completa,
+                  sem cortar o nome embutido nela. */}
+              <img
+                src={cover}
+                alt={restaurant.name}
+                className="relative h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            </>
+          )
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <div className="flex size-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
@@ -106,11 +130,6 @@ export function RestaurantCardCompact({
               )}
             </div>
           </div>
-        )}
-        {/* Véu de legibilidade só quando há banner de verdade (há texto sobre
-            a foto). Sendo a logo a capa, nada de véu por cima dela. */}
-        {!coverIsLogo && (
-          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
         )}
         <div className="absolute left-2.5 top-2.5">
           <RestaurantStatusBadge status={restaurant.status} />

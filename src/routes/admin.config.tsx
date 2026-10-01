@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import {
   Store,
   User,
@@ -8,8 +8,10 @@ import {
   Trash2,
   UserRound,
   Smartphone,
+  Share2,
   Save,
   Loader2,
+  ArrowRight,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -17,7 +19,6 @@ import { updateProfileName, updatePassword, deleteAccount } from "@/modules/supa
 import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { InstallCard } from "@/components/pwa/InstallCard";
-import { ExpandableSection } from "@/modules/ui/ExpandableSection";
 
 export const Route = createFileRoute("/admin/config")({
   head: () => ({ meta: [{ title: "Configurações — Cardápio Cidadela" }] }),
@@ -27,54 +28,81 @@ export const Route = createFileRoute("/admin/config")({
 const field =
   "w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30";
 
+/** Atalho compacto e quadrado — navega sem ocupar a tela. */
+function Shortcut({
+  to,
+  icon,
+  title,
+  hint,
+  tone,
+}: {
+  to: string;
+  icon: ReactNode;
+  title: string;
+  hint: string;
+  tone: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="group flex aspect-square flex-col justify-between rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 transition-colors hover:border-cyan-500/25 hover:bg-white/[0.045]"
+    >
+      <span className={`grid size-9 place-items-center rounded-xl ${tone}`}>{icon}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-xs font-bold text-white">{title}</span>
+        <span className="block truncate text-[10px] text-gray-500">{hint}</span>
+      </span>
+    </Link>
+  );
+}
+
 function ConfigPage() {
   // Esta tela é da conta, não do restaurante: dados da loja (contato, endereço,
   // PIX, horários, logo, banner) vivem no cadastro/edição do restaurante.
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-5">
       <div>
         <h1 className="text-2xl font-black tracking-tight text-white">Configurações</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Sua conta, preferências do app e ações de segurança.
-        </p>
+        <p className="mt-1 text-sm text-gray-500">Sua conta, preferências do app e segurança.</p>
       </div>
 
-      <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
-        <p className="flex items-start gap-2 text-xs leading-relaxed text-gray-400">
-          <Store className="mt-0.5 size-4 shrink-0 text-gray-500" />
-          <span>
-            WhatsApp, endereço, chave PIX, taxa de entrega e horários ficam em{" "}
-            <Link
-              to="/admin/restaurantes"
-              className="font-semibold text-cyan-400 hover:text-cyan-300"
-            >
-              Restaurantes
-            </Link>
-            , no cadastro de cada loja.
-          </span>
-        </p>
+      <div className="grid grid-cols-3 gap-2.5">
+        <Shortcut
+          to="/admin/restaurantes"
+          icon={<Store className="size-4.5 text-cyan-300" />}
+          title="Restaurantes"
+          hint="Contato e PIX"
+          tone="bg-cyan-500/15"
+        />
+        <Shortcut
+          to="/admin/compartilhar"
+          icon={<Share2 className="size-4.5 text-violet-300" />}
+          title="Compartilhar"
+          hint="Link e QR"
+          tone="bg-violet-500/15"
+        />
+        <Shortcut
+          to="/mobile"
+          icon={<Smartphone className="size-4.5 text-emerald-300" />}
+          title="Gestão mobile"
+          hint="Modo balcão"
+          tone="bg-emerald-500/15"
+        />
       </div>
+
+      <Link
+        to="/admin/restaurantes"
+        className="group flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-2.5 transition-colors hover:border-cyan-500/25 hover:bg-white/[0.04]"
+      >
+        <Store className="size-4 shrink-0 text-gray-500" />
+        <span className="min-w-0 flex-1 text-xs leading-relaxed text-gray-400">
+          WhatsApp, endereço, PIX, taxa e horários ficam em{" "}
+          <strong className="font-semibold text-gray-300">Restaurantes</strong>
+        </span>
+        <ArrowRight className="size-4 shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5 group-hover:text-cyan-400" />
+      </Link>
 
       <InstallCard />
-
-      <ExpandableSection
-        icon={<Smartphone className="size-5" />}
-        tone="violet"
-        title="Gestão pelo celular"
-        summary="Formato compacto de pedidos, feito para usar no balcão"
-      >
-        <p className="text-xs leading-relaxed text-gray-400">
-          A versão mobile mostra os pedidos com resumo recolhido, avança o status em um toque e
-          transforma sua tela em um painel de operação.
-        </p>
-        <Link
-          to="/mobile"
-          className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-semibold text-gray-200 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          <Smartphone className="size-3.5" />
-          <span>Abrir gestão mobile</span>
-        </Link>
-      </ExpandableSection>
 
       <AccountSection />
     </div>
@@ -150,7 +178,7 @@ function AccountSection() {
   }
 
   return (
-    <div id="conta" className="max-w-lg scroll-mt-6 space-y-4">
+    <div id="conta" className="scroll-mt-6 space-y-4">
       <div>
         <h2 className="text-lg font-bold text-white">Minha conta</h2>
         <p className="mt-0.5 text-sm text-gray-500">
@@ -159,7 +187,7 @@ function AccountSection() {
       </div>
 
       {/* Dados */}
-      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+      <section className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
         <p className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500">
           <User className="size-3.5" /> Dados da conta
         </p>
@@ -192,7 +220,7 @@ function AccountSection() {
       </section>
 
       {/* Senha */}
-      <section className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
+      <section className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
         <p className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500">
           <KeyRound className="size-3.5" /> Alterar senha
         </p>
@@ -245,7 +273,7 @@ function AccountSection() {
       </section>
 
       {/* Ações */}
-      <section className="rounded-2xl border border-red-500/10 bg-red-500/[0.02] p-5">
+      <section className="rounded-xl border border-red-500/10 bg-red-500/[0.02] p-4">
         <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-red-400/80">
           <UserRound className="size-3.5" /> Ações da conta
         </p>

@@ -31,6 +31,22 @@
 - Mobile app lives under `/mobile` (routes `mobile.tsx` layout +
   `mobile.index|dashboard|clientes|config`). Shared logic is in
   `src/modules/mobile/`, UI primitives in `src/modules/ui/`.
+- `src/modules/mobile/store-context.tsx` wraps every mobile tab with a single
+  `useOwnerOrders` load (restaurants, orders, realtime) plus the derived
+  `primary` store and `openNow`. Tabs must read it via `useMobileStore()`
+  instead of calling `useOwnerOrders` themselves — otherwise each tab repeats
+  the queries and the shared header can't show the store status.
+- Page chrome is shared, not per-tab: `PageHeader` (+ `StoreStatusBadge`) in
+  `src/modules/ui/PageHeader.tsx`, and `LoadingState` / `EmptyState` /
+  `InlineError` in `src/modules/ui/Feedback.tsx`. `AppLayout` already applies
+  the page padding (`p-4 lg:p-6`), so route bodies use `space-y-*` only —
+  adding another `p-4` doubles the mobile gutter.
+- `StatTile` and the admin `KpiCard` animate their number via
+  `useCountUp` (`src/hooks/useCountUp.ts`), which passes non-numeric text
+  through untouched and honours `prefers-reduced-motion`.
+- The mobile alerts banner (`src/components/mobile/AlertsBanner.tsx`) merges
+  the old push + install prompts into one row and hides itself once
+  notifications are granted and the app is installed.
 - `src/routeTree.gen.ts` is generated. Adding a route requires regenerating it
   (dev server / build does this), otherwise the route silently doesn't exist.
 - Per-device preferences (sound, notifications, wake lock, compact cards) live

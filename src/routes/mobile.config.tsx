@@ -29,7 +29,9 @@ import {
   type NotificationPermissionState,
 } from "@/modules/mobile/preferences";
 import { subscribePush, unsubscribePush, getExistingSubscription } from "@/modules/mobile/push";
-import { useOwnerOrders } from "@/modules/mobile/useOwnerOrders";
+import { useMobileStore } from "@/modules/mobile/store-context";
+import { PageHeader } from "@/modules/ui/PageHeader";
+import { LoadingState } from "@/modules/ui/Feedback";
 import { previewOrderAlert } from "@/lib/orderAlertSound";
 import { useWakeLock } from "@/modules/mobile/useWakeLock";
 import { isOpenNow } from "@/lib/operatingHours";
@@ -57,7 +59,7 @@ const APP_VERSION = "1.1";
 function MobileConfigPage() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const { restaurants, orders, loading, refresh } = useOwnerOrders(user?.id);
+  const { restaurants, orders, loading, refresh } = useMobileStore();
 
   const [prefs, setPrefs] = useState<MobilePreferences>(() => loadPreferences());
   const [permission, setPermission] = useState<NotificationPermissionState>("default");
@@ -141,12 +143,7 @@ function MobileConfigPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center p-4">
-        <RefreshCw className="size-7 animate-spin text-cyan-400" />
-        <p className="mt-3 text-sm text-gray-400">Carregando configurações…</p>
-      </div>
-    );
+    return <LoadingState label="Carregando configurações…" className="h-full" />;
   }
 
   const storeStatus =
@@ -171,13 +168,8 @@ function MobileConfigPage() {
           : "Ainda não pedidas";
 
   return (
-    <div className="space-y-4 p-4">
-      <div>
-        <h1 className="text-lg font-bold text-white">Configurações</h1>
-        <p className="text-xs text-gray-400">
-          {displayName} · {storeStatus}
-        </p>
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Configurações" subtitle={`${displayName} · ${storeStatus}`} />
 
       {/* Instalação */}
       <InstallCard />

@@ -1,22 +1,15 @@
-import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ComponentType } from "react";
-import { Home, Users, TrendingUp, Settings, LogOut, Package } from "lucide-react";
+import { Home, Users, TrendingUp, Settings, LogOut, Package, Menu } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useOwnerPendingOrders } from "@/modules/mobile/useOwnerOrders";
+import { MobileStoreProvider, useMobileStore } from "@/modules/mobile/store-context";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
 import { notifyNewOrder } from "@/modules/mobile/preferences";
-import { InstallCard } from "@/components/pwa/InstallCard";
-import { PushBanner } from "@/components/pwa/PushBanner";
-import { cn } from "@/lib/utils";
+import { AlertsBanner } from "@/components/mobile/AlertsBanner";
+import { StoreStatusBadge } from "@/modules/ui/PageHeader";
 import { signOut as supabaseSignOut } from "@/modules/supabase/auth";
-import {
-  AppLayout,
-  AppSidebar,
-  AppHeader,
-  BrandHeader,
-  BottomNav,
-  Badge,
-} from "@/components/shared";
+import { AppLayout, AppSidebar, BrandHeader, BottomNav, Badge } from "@/components/shared";
 
 export const Route = createFileRoute("/mobile")({
   head: () => ({
@@ -46,9 +39,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 function MobileLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isAuthenticated, loading, user } = useAuth();
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -60,7 +51,22 @@ function MobileLayout() {
     requestOrderNotificationPermission();
   }, []);
 
-  const pendingCount = useOwnerPendingOrders(user?.id, (order) => {
+  if (!isAuthenticated) return null;
+
+  return (
+    <MobileStoreProvider userId={user?.id}>
+      <MobileShell loading={loading} userId={user?.id} />
+    </MobileStoreProvider>
+  );
+}
+
+function MobileShell({ loading, userId }: { loading: boolean; userId: string | undefined }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
+  const matchRoute = useMatchRoute();
+  const { primary, openNow } = useMobileStore();
+
+  const pendingCount = useOwnerPendingOrders(userId, (order) => {
     playNewOrderAlert();
     notifyNewOrder(
       " Novo pedido!",
@@ -74,7 +80,7 @@ function MobileLayout() {
     navigate({ to: "/login", replace: true });
   }
 
-  if (!isAuthenticated) return null;
+  const onConfig = Boolean(matchRoute({ to: "/mobile/config" }));
 
   const bottomNavItems = NAV_ITEMS.map((item) => ({
     id: item.to,
@@ -102,9 +108,7 @@ function MobileLayout() {
           >
             <item.icon className="size-4 shrink-0" />
             <span className="flex-1">{item.label}</span>
-            {item.to === "/mobile" && pendingCount > 0 && (
-              <Badge count={pendingCount} />
-            )}
+            {item.to === "/mobile" && pendingCount > 0 && <Badge count={pendingCount} />}
           </Link>
         ))}
 
@@ -130,25 +134,42 @@ function MobileLayout() {
     </AppSidebar>
   );
 
+  // Cabeçalho único do app: menu, loja atual e pedidos em andamento. Cada aba
+  // traz o próprio título logo abaixo — antes cada tela repetia o cabeçalho
+  // inteiro com espaçamentos diferentes.
   const header = (
-    <AppHeader
-      showMenu
-      onMenuClick={() => setSidebarOpen(true)}
-      rightContent={
-        pendingCount > 0 && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-300">
-            <span className="size-1.5 animate-pulse rounded-full bg-red-400" />
-            {pendingCount} em andamento
-          </span>
-        )
-      }
-    />
+    <header className="flex items-center gap-3 border-b border-white/[0.06] bg-[#0a0a0f]/85 px-4 py-3 backdrop-blur">
+      <button
+        type="button"
+        onClick={() => setSidebarOpen(true)}
+        aria-label="Abrir menu"
+        className="grid size-9 shrink-0 place-items-center rounded-lg text-gray-400 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
+      >
+        <Menu className="size-5" />
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-white">
+          {primary?.name ?? "Cardápio Cidadela"}
+        </p>
+        {primary && <StoreStatusBadge open={openNow} className="mt-0.5 px-2 py-0 text-[10px]" />}
+      </div>
+
+      {pendingCount > 0 && (
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-300">
+          <span className="size-1.5 animate-pulse rounded-full bg-red-400" />
+          {pendingCount} em andamento
+        </span>
+      )}
+    </header>
   );
 
   return (
     <AppLayout loading={loading} sidebar={sidebar} header={header} className="pb-20 lg:pb-0">
-      <PushBanner />
-      <InstallCard variant="banner" />
+      {/* Preparo dos alertas só onde ainda falta um passo; some sozinho quando
+          já está tudo ativo e não reaparece em Configurações, que tem a versão
+          completa do convite. */}
+      {!onConfig && <AlertsBanner className="mx-4 mt-3" />}
       <Outlet />
       <BottomNav items={bottomNavItems} activeId="/mobile" />
     </AppLayout>

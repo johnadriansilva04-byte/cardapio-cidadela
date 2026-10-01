@@ -1,11 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { Store, AlertCircle, RefreshCw } from "lucide-react";
-import {
-  getRestaurantsByOwner,
-  ensureRestaurantsForUser,
-} from "@/modules/supabase/restaurants";
+import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { SharePanel } from "@/components/admin/SharePanel";
+import { PageHeader } from "@/modules/ui/PageHeader";
+import { EmptyState, LoadingState } from "@/modules/ui/Feedback";
 import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 
@@ -75,11 +74,7 @@ function CompartilharPage() {
   const selected = restaurants.find((r) => r.id === selectedId) ?? restaurants[0] ?? null;
 
   if (authLoading || loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-      </div>
-    );
+    return <LoadingState label="Carregando…" />;
   }
 
   if (error) {
@@ -99,23 +94,20 @@ function CompartilharPage() {
 
   if (restaurants.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/5 bg-white/[0.02] py-16 text-center">
-        <Store className="mx-auto size-12 text-gray-700" />
-        <p className="mt-4 text-sm text-gray-400">
-          Crie um restaurante primeiro para compartilhar
-        </p>
-      </div>
+      <EmptyState
+        icon={Store}
+        title="Crie um restaurante primeiro"
+        description="O link público, o QR Code e o compartilhamento por WhatsApp aparecem aqui assim que houver uma loja."
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Compartilhar</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Link público, QR Code e WhatsApp — pronto para enviar ao cliente
-        </p>
-      </div>
+      <PageHeader
+        title="Compartilhar"
+        subtitle="Link público, QR Code e WhatsApp — pronto para enviar ao cliente"
+      />
 
       <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {restaurants.map((r) => (

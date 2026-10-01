@@ -30,6 +30,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { FinanceSummary } from "@/components/admin/FinanceSummary";
+import { PageHeader } from "@/modules/ui/PageHeader";
+import { EmptyState, LoadingState } from "@/modules/ui/Feedback";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
@@ -244,7 +246,7 @@ function FinanceiroPage() {
   }
 
   if (authLoading || loading) {
-    return <div className="flex items-center justify-center py-20"><div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" /></div>;
+    return <LoadingState label="Carregando financeiro…" />;
   }
   if (error) {
     return (
@@ -258,12 +260,12 @@ function FinanceiroPage() {
   if (restaurants.length === 0) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-black tracking-tight text-white">Financeiro</h1>
-        <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
-          <Store className="mx-auto size-10 text-gray-700" />
-          <p className="mt-3 text-sm font-semibold text-white">Nenhum restaurante</p>
-          <p className="mt-1 text-xs text-gray-500">Crie um restaurante para ver o financeiro.</p>
-        </div>
+        <PageHeader title="Financeiro" subtitle="Resumo dos pedidos registrados." />
+        <EmptyState
+          icon={Store}
+          title="Nenhum restaurante"
+          description="Crie um restaurante para acompanhar faturamento, ticket médio e exportação."
+        />
       </div>
     );
   }
@@ -280,16 +282,19 @@ function FinanceiroPage() {
 
   return (
     <div className="space-y-5">
-      {/* ─── HEADER ─── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-white">Financeiro</h1>
-          <p className="mt-0.5 text-xs text-gray-500">Resumo dos pedidos registrados — sem integração bancária.</p>
-        </div>
-        <Button onClick={handleExportCsv} variant="outline" className="shrink-0 rounded-full border-white/10 bg-white/[0.04] text-xs font-semibold text-gray-300 hover:bg-white/[0.08] hover:text-white">
-          <Download className="size-3.5" /> Exportar CSV
-        </Button>
-      </div>
+      <PageHeader
+        title="Financeiro"
+        subtitle="Resumo dos pedidos registrados — sem integração bancária."
+        actions={
+          <Button
+            onClick={handleExportCsv}
+            variant="outline"
+            className="shrink-0 rounded-full border-white/10 bg-white/[0.04] text-xs font-semibold text-gray-300 hover:bg-white/[0.08] hover:text-white"
+          >
+            <Download className="size-3.5" /> Exportar CSV
+          </Button>
+        }
+      />
 
       {/* ─── FILTERS ─── */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">

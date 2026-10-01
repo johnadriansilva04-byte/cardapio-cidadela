@@ -35,6 +35,7 @@ import {
 } from "@/modules/supabase/restaurants";
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { PageHeader } from "@/modules/ui/PageHeader";
 import { serializeHours } from "@/lib/operatingHours";
 import type { OrderStatus, Restaurant } from "@/lib/types";
 import { brl } from "@/lib/utils";
@@ -342,21 +343,20 @@ function AdminDashboardOverview() {
 
   return (
     <div className="space-y-6">
-      {/* header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-white">Dashboard</h1>
-        </div>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setDialogOpen(true);
-          }}
-          className="shrink-0 rounded-full bg-cyan-500 px-5 text-sm font-bold text-black shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:bg-cyan-400"
-        >
-          <Plus className="size-4" /> Criar restaurante
-        </Button>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        actions={
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setDialogOpen(true);
+            }}
+            className="shrink-0 rounded-full bg-cyan-500 px-5 text-sm font-bold text-black shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:bg-cyan-400"
+          >
+            <Plus className="size-4" /> Criar restaurante
+          </Button>
+        }
+      />
 
       {/* Seletor de restaurante + período — só com restaurantes */}
       {restaurants.length > 0 && (

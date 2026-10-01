@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, type ReactNode } from "react";
 import { MapPin, MessageCircle, Phone, RefreshCw, Search, TrendingUp, Users } from "lucide-react";
-import { useAuth } from "@/components/AuthProvider";
 import { ExpandableSection, StatTile } from "@/modules/ui/ExpandableSection";
-import { EmptyState, InlineError } from "@/modules/ui/Feedback";
+import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
+import { PageHeader } from "@/modules/ui/PageHeader";
 import { aggregateCustomers } from "@/modules/mobile/orders";
-import { useOwnerOrders } from "@/modules/mobile/useOwnerOrders";
+import { useMobileStore } from "@/modules/mobile/store-context";
 import { brl, cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/mobile/clientes")({
@@ -30,8 +30,7 @@ const SORTS: { key: SortKey; label: string }[] = [
 ];
 
 function MobileCustomersPage() {
-  const { user } = useAuth();
-  const { orders, loading, error, refresh } = useOwnerOrders(user?.id);
+  const { orders, loading, error, refresh } = useMobileStore();
 
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("spent");
@@ -65,34 +64,28 @@ function MobileCustomersPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center p-4">
-        <RefreshCw className="size-7 animate-spin text-cyan-400" />
-        <p className="mt-3 text-sm text-gray-400">Carregando clientes…</p>
-      </div>
-    );
+    return <LoadingState label="Carregando clientes…" className="h-full" />;
   }
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-bold text-white">Clientes</h1>
-          <p className="text-xs text-gray-400">
-            {customers.length} cliente{customers.length === 1 ? "" : "s"}
-            {recurring > 0 && ` · ${recurring} recorrente${recurring === 1 ? "" : "s"}`}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          aria-label="Atualizar clientes"
-          className="grid size-10 place-items-center rounded-xl bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
-        >
-          <RefreshCw className={`size-5 ${refreshing && "animate-spin"}`} />
-        </button>
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Clientes"
+        subtitle={`${customers.length} cliente${customers.length === 1 ? "" : "s"}${
+          recurring > 0 ? ` · ${recurring} recorrente${recurring === 1 ? "" : "s"}` : ""
+        }`}
+        actions={
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            aria-label="Atualizar clientes"
+            className="grid size-10 place-items-center rounded-xl bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+          >
+            <RefreshCw className={`size-5 ${refreshing && "animate-spin"}`} />
+          </button>
+        }
+      />
 
       {error && <InlineError message={error} onRetry={handleRefresh} retrying={refreshing} />}
 

@@ -1,16 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Ban, Package, RefreshCw, Search, Volume2, VolumeX } from "lucide-react";
-import { useAuth } from "@/components/AuthProvider";
 import { OrderCard } from "@/components/mobile/OrderCard";
-import { EmptyState, InlineError } from "@/modules/ui/Feedback";
+import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
+import { PageHeader } from "@/modules/ui/PageHeader";
 import { computeMetrics, isActive } from "@/modules/mobile/orders";
+import { useMobileStore } from "@/modules/mobile/store-context";
 import {
   loadPreferences,
   savePreference,
   subscribePreferences,
 } from "@/modules/mobile/preferences";
-import { useOwnerOrders } from "@/modules/mobile/useOwnerOrders";
 import { previewOrderAlert } from "@/lib/orderAlertSound";
 import { updateOrderStatus } from "@/modules/supabase/orders";
 import { brl } from "@/lib/utils";
@@ -45,9 +45,8 @@ function startOfToday(): number {
 }
 
 function MobileOrdersPage() {
-  const { user } = useAuth();
   const { restaurants, orders, loading, error, refresh, reloadOrders, restaurantNames } =
-    useOwnerOrders(user?.id);
+    useMobileStore();
 
   const [filter, setFilter] = useState<FilterKey>("active");
   const [search, setSearch] = useState("");
@@ -125,51 +124,45 @@ function MobileOrdersPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center p-4">
-        <RefreshCw className="size-7 animate-spin text-cyan-400" />
-        <p className="mt-3 text-sm text-gray-400">Carregando pedidos…</p>
-      </div>
-    );
+    return <LoadingState label="Carregando pedidos…" className="h-full" />;
   }
 
   return (
-    <div className="space-y-4 p-4">
-      {/* Cabeçalho: números que o operador olha de relance */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-bold text-white">Pedidos</h1>
-          <p className="text-xs text-gray-400">
-            {metrics.activeCount > 0
-              ? `${metrics.activeCount} em andamento · ${brl(metrics.todayRevenue)} hoje`
-              : `${metrics.todayOrders} hoje · ${brl(metrics.todayRevenue)}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleSound}
-            aria-label={prefs.sound ? "Desativar alerta sonoro" : "Ativar alerta sonoro"}
-            title={prefs.sound ? "Alerta sonoro ligado" : "Alerta sonoro desligado"}
-            className={`grid size-10 place-items-center rounded-xl border transition-colors ${
-              prefs.sound
-                ? "border-cyan-500/25 bg-cyan-500/10 text-cyan-300"
-                : "border-white/10 bg-white/5 text-gray-500"
-            }`}
-          >
-            {prefs.sound ? <Volume2 className="size-5" /> : <VolumeX className="size-5" />}
-          </button>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            aria-label="Atualizar pedidos"
-            className="grid size-10 place-items-center rounded-xl bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
-          >
-            <RefreshCw className={`size-5 ${refreshing ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Pedidos"
+        subtitle={
+          metrics.activeCount > 0
+            ? `${metrics.activeCount} em andamento · ${brl(metrics.todayRevenue)} hoje`
+            : `${metrics.todayOrders} hoje · ${brl(metrics.todayRevenue)}`
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={toggleSound}
+              aria-label={prefs.sound ? "Desativar alerta sonoro" : "Ativar alerta sonoro"}
+              title={prefs.sound ? "Alerta sonoro ligado" : "Alerta sonoro desligado"}
+              className={`grid size-10 place-items-center rounded-xl border transition-colors ${
+                prefs.sound
+                  ? "border-cyan-500/25 bg-cyan-500/10 text-cyan-300"
+                  : "border-white/10 bg-white/5 text-gray-500"
+              }`}
+            >
+              {prefs.sound ? <Volume2 className="size-5" /> : <VolumeX className="size-5" />}
+            </button>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              aria-label="Atualizar pedidos"
+              className="grid size-10 place-items-center rounded-xl bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+            >
+              <RefreshCw className={`size-5 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
+          </>
+        }
+      />
 
       {error && <InlineError message={error} onRetry={handleRefresh} retrying={refreshing} />}
 

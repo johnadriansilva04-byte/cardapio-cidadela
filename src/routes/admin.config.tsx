@@ -19,6 +19,7 @@ import { updateProfileName, updatePassword, deleteAccount } from "@/modules/supa
 import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { InstallCard } from "@/components/pwa/InstallCard";
+import { PageHeader } from "@/modules/ui/PageHeader";
 
 export const Route = createFileRoute("/admin/config")({
   head: () => ({ meta: [{ title: "Configurações — Cardápio Cidadela" }] }),
@@ -61,10 +62,7 @@ function ConfigPage() {
   // PIX, horários, logo, banner) vivem no cadastro/edição do restaurante.
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-white">Configurações</h1>
-        <p className="mt-1 text-sm text-gray-500">Sua conta, preferências do app e segurança.</p>
-      </div>
+      <PageHeader title="Configurações" subtitle="Sua conta, preferências do app e segurança." />
 
       <div className="grid grid-cols-3 gap-2.5">
         <Shortcut

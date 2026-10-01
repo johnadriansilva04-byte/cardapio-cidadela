@@ -1,6 +1,7 @@
 import { useId, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCountUp } from "@/hooks/useCountUp";
 
 export type ExpandableTone = "neutral" | "cyan" | "violet" | "emerald" | "amber" | "red";
 
@@ -165,10 +166,23 @@ export interface StatTileProps {
   className?: string;
 }
 
-/** Cartão compacto de métrica — prévia de número grande + rótulo pequeno. */
+/**
+ * Cartão compacto de métrica — número grande + rótulo pequeno.
+ *
+ * O número é animado na montagem (e quando muda) para dar vida ao painel sem
+ * custo de layout; textos sem dígitos passam intactos.
+ */
 export function StatTile({ label, value, hint, icon, tone = "cyan", className }: StatTileProps) {
+  const animated = useCountUp(typeof value === "string" || typeof value === "number" ? value : "");
+  const shown = typeof value === "string" || typeof value === "number" ? animated : value;
+
   return (
-    <div className={cn("rounded-2xl border border-white/10 bg-white/[0.02] p-4", className)}>
+    <div
+      className={cn(
+        "rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-4",
+        className,
+      )}
+    >
       <div className="mb-2 flex items-center gap-2">
         {icon && (
           <span className={cn("grid size-6 place-items-center rounded-lg", TONE_ICON[tone])}>
@@ -179,7 +193,7 @@ export function StatTile({ label, value, hint, icon, tone = "cyan", className }:
           {label}
         </span>
       </div>
-      <p className="truncate text-xl font-bold text-white">{value}</p>
+      <p className="truncate text-xl font-black tabular-nums text-white">{shown}</p>
       {hint && <p className="mt-1 text-[10px] text-gray-500">{hint}</p>}
     </div>
   );

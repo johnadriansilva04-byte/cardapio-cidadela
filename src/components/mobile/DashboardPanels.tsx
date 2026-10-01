@@ -6,7 +6,7 @@ import { EmptyState } from "@/modules/ui/Feedback";
 import { STATUS_LABELS, computeMetrics, dailyRevenue } from "@/modules/mobile/orders";
 import { OrderStatusBadge } from "@/components/admin/StatusBadge";
 import type { Order, Restaurant } from "@/lib/types";
-import { brl } from "@/lib/utils";
+import { brl, cn } from "@/lib/utils";
 
 export function DashboardPanels({
   orders,
@@ -30,10 +30,14 @@ export function DashboardPanels({
   );
 
   const maxDayValue = Math.max(...week.map((day) => day.value), 1);
+  const weekTotal = week.reduce((sum, day) => sum + day.value, 0);
+  const todayKey = week[week.length - 1]?.key;
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3">
+      {/* Resumo financeiro em uma linha: os três números que o dono confere
+          primeiro, no mesmo cartão, sem precisar abrir nada. */}
+      <div className="grid grid-cols-3 gap-2">
         <StatTile
           label="Hoje"
           value={brl(metrics.todayRevenue)}
@@ -42,11 +46,18 @@ export function DashboardPanels({
           tone="cyan"
         />
         <StatTile
-          label="Ticket médio"
+          label="7 dias"
+          value={brl(weekTotal)}
+          hint="Faturamento do período"
+          icon={<Calendar className="size-3.5" />}
+          tone="violet"
+        />
+        <StatTile
+          label="Ticket"
           value={brl(metrics.averageTicket)}
           hint={`${metrics.totalOrders} no total`}
           icon={<Users className="size-3.5" />}
-          tone="violet"
+          tone="emerald"
         />
       </div>
 
@@ -54,26 +65,39 @@ export function DashboardPanels({
         icon={<Calendar className="size-5" />}
         tone="cyan"
         title="Faturamento dos últimos 7 dias"
-        summary={`${brl(week.reduce((sum, day) => sum + day.value, 0))} no período`}
+        summary={`${brl(weekTotal)} no período · melhor ${bestDay?.label}`}
         defaultOpen
       >
         <div className="space-y-2.5">
-          {week.map((day) => (
-            <div key={day.key} className="flex items-center gap-3">
-              <span className="w-10 shrink-0 text-[11px] font-semibold text-gray-500">
-                {day.label}
-              </span>
-              <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400"
-                  style={{ width: `${Math.max(2, (day.value / maxDayValue) * 100)}%` }}
-                />
+          {week.map((day) => {
+            const isToday = day.key === todayKey;
+            return (
+              <div key={day.key} className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "w-10 shrink-0 text-[11px] font-semibold",
+                    isToday ? "text-cyan-300" : "text-gray-500",
+                  )}
+                >
+                  {isToday ? "Hoje" : day.label}
+                </span>
+                <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      isToday
+                        ? "bg-gradient-to-r from-cyan-400 to-cyan-300"
+                        : "bg-gradient-to-r from-cyan-500/70 to-cyan-400/70",
+                    )}
+                    style={{ width: `${Math.max(2, (day.value / maxDayValue) * 100)}%` }}
+                  />
+                </div>
+                <span className="w-20 shrink-0 text-right text-[11px] font-bold tabular-nums text-gray-300">
+                  {brl(day.value)}
+                </span>
               </div>
-              <span className="w-20 shrink-0 text-right text-[11px] font-bold text-gray-300">
-                {brl(day.value)}
-              </span>
-            </div>
-          ))}
+            );
+          })}
           <p className="pt-1 text-[11px] text-gray-500">
             Melhor dia: {bestDay?.label} com {brl(bestDay?.value ?? 0)}.
           </p>
@@ -89,20 +113,27 @@ export function DashboardPanels({
           <p className="text-xs text-gray-500">Nenhum pedido registrado ainda.</p>
         ) : (
           <div className="space-y-2">
-            {metrics.statusDistribution.map((entry) => (
-              <div key={entry.status} className="flex items-center gap-3">
-                <OrderStatusBadge status={entry.status} size="xs" />
-                <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-                  <div
-                    className="h-full rounded-full bg-white/25"
-                    style={{ width: `${(entry.value / metrics.totalOrders) * 100}%` }}
-                  />
+            {metrics.statusDistribution.map((entry) => {
+              // Escala pelo maior grupo, não pelo total: a maior barra sempre
+              // encosta na direita e a leitura comparativa fica imediata.
+              const peak = Math.max(...metrics.statusDistribution.map((item) => item.value), 1);
+              return (
+                <div key={entry.status} className="flex items-center gap-3">
+                  <span className="w-24 shrink-0">
+                    <OrderStatusBadge status={entry.status} size="xs" />
+                  </span>
+                  <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-white/25 to-white/40"
+                      style={{ width: `${(entry.value / peak) * 100}%` }}
+                    />
+                  </div>
+                  <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums text-gray-300">
+                    {entry.value}
+                  </span>
                 </div>
-                <span className="w-8 shrink-0 text-right text-xs font-bold text-gray-300">
-                  {entry.value}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </ExpandableSection>

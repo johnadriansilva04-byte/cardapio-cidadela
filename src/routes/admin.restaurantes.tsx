@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Store, Plus, AlertCircle, RefreshCw, Search, LayoutGrid } from "lucide-react";
+import { Store, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RestaurantCardCompact } from "@/components/admin/RestaurantCardCompact";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { PageHeader } from "@/modules/ui/PageHeader";
+import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
 import {
   getRestaurantsByOwner,
   ensureRestaurantsForUser,
@@ -211,23 +213,21 @@ function RestaurantesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-white">Restaurantes</h1>
-          <p className="mt-1 text-sm leading-relaxed text-gray-500">
-            Cada restaurante tem seu link público em /cardapio/seu-slug. Gerencie tudo por aqui.
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setDialogOpen(true);
-          }}
-          className="shrink-0 rounded-full bg-cyan-500 px-5 text-sm font-bold text-black hover:bg-cyan-400"
-        >
-          <Plus className="size-4" /> Novo restaurante
-        </Button>
-      </div>
+      <PageHeader
+        title="Restaurantes"
+        subtitle="Cada restaurante tem seu link público em /cardapio/seu-slug. Gerencie tudo por aqui."
+        actions={
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setDialogOpen(true);
+            }}
+            className="shrink-0 rounded-full bg-cyan-500 px-5 text-sm font-bold text-black hover:bg-cyan-400"
+          >
+            <Plus className="size-4" /> Novo restaurante
+          </Button>
+        }
+      />
 
       <div className="flex items-center gap-2">
         <div className="relative flex-1 sm:max-w-sm">
@@ -244,34 +244,42 @@ function RestaurantesPage() {
         </span>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
-          <AlertCircle className="mx-auto size-8 text-red-400" />
-          <p className="mt-3 text-sm text-red-300">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
-          >
-            <RefreshCw className="size-4" /> Tentar novamente
-          </button>
-        </div>
-      )}
+      {error && <InlineError message={error} onRetry={() => window.location.reload()} />}
 
       {!error &&
         (authLoading || loading ? (
-          <div className="flex justify-center py-12">
-            <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-          </div>
+          <LoadingState label="Carregando restaurantes…" />
         ) : filtered.length === 0 ? (
-          <div className="rounded-2xl border border-white/5 bg-white/[0.02] py-12 text-center">
-            <Store className="mx-auto size-10 text-gray-700" />
-            <p className="mt-3 text-sm font-semibold text-white">
-              {restaurants.length === 0 ? "Nenhum restaurante ainda" : "Nenhum resultado"}
-            </p>
-            {restaurants.length > 0 && (
-              <p className="mt-1 text-xs text-gray-500">Tente outro termo de busca.</p>
-            )}
-          </div>
+          <EmptyState
+            icon={Store}
+            title={restaurants.length === 0 ? "Nenhum restaurante ainda" : "Nenhum resultado"}
+            description={
+              restaurants.length === 0
+                ? "Crie o primeiro restaurante para liberar cardápio, pedidos e o link público."
+                : "Tente outro termo de busca."
+            }
+            action={
+              restaurants.length === 0 ? (
+                <Button
+                  onClick={() => {
+                    setEditing(null);
+                    setDialogOpen(true);
+                  }}
+                  className="rounded-full bg-cyan-500 text-black hover:bg-cyan-400"
+                >
+                  <Plus className="size-4" /> Criar restaurante
+                </Button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setQ("")}
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-300 hover:bg-white/10"
+                >
+                  Limpar busca
+                </button>
+              )
+            }
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((r) => (

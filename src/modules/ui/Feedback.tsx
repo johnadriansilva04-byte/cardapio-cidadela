@@ -1,6 +1,31 @@
 import type { ComponentType, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+export interface LoadingStateProps {
+  label?: string;
+  className?: string;
+}
+
+/**
+ * Carregamento de página: o mesmo lugar, o mesmo ritmo, em todas as abas.
+ * Antes cada tela montava o próprio spinner com espaçamentos diferentes.
+ */
+export function LoadingState({ label = "Carregando…", className }: LoadingStateProps) {
+  return (
+    <div
+      className={cn("flex flex-col items-center justify-center gap-3 py-20", className)}
+      role="status"
+      aria-live="polite"
+    >
+      <span className="relative grid size-12 place-items-center">
+        <span className="absolute inset-0 animate-pulse-ring rounded-full border border-cyan-400/30" />
+        <span className="size-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+      </span>
+      <p className="text-xs font-medium text-gray-400">{label}</p>
+    </div>
+  );
+}
+
 export interface EmptyStateProps {
   icon: ComponentType<{ className?: string }>;
   title: string;

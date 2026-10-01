@@ -111,7 +111,7 @@ function LandingPage() {
         {/* Background glow */}
         <div className="absolute inset-0">
           <div className="absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
-          <div className="absolute right-0 top-1/3 h-[400px] w-[400px] rounded-full bg-purple-500/5 blur-[100px]" />
+          <div className="animate-float absolute right-0 top-1/3 h-[400px] w-[400px] rounded-full bg-purple-500/5 blur-[100px]" />
         </div>
 
         <div className="relative mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32 lg:py-40">
@@ -140,10 +140,10 @@ function LandingPage() {
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
                 to="/login"
-                className="flex items-center gap-2 rounded-xl bg-cyan-500 px-8 py-3.5 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
+                className="sheen group flex items-center gap-2 rounded-xl bg-cyan-500 px-8 py-3.5 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
               >
                 Criar meu cardápio grátis
-                <ChevronRight className="size-4" />
+                <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <a
                 href="/cardapio/cidadela"
@@ -165,10 +165,11 @@ function LandingPage() {
                 { icon: QrCode, label: "URL própria por restaurante" },
                 { icon: Zap, label: "Pedidos em tempo real" },
                 { icon: Smartphone, label: "PIX e mobile-first" },
-              ].map((f) => (
+              ].map((f, i) => (
                 <span
                   key={f.label}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-gray-300"
+                  className="animate-slide-up inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-gray-300 transition-colors hover:border-cyan-500/30 hover:text-white"
+                  style={{ animationDelay: `${300 + i * 120}ms` }}
                 >
                   <f.icon className="size-3.5 text-cyan-400" />
                   {f.label}
@@ -226,9 +227,10 @@ function LandingPage() {
             ].map((f, i) => (
               <div
                 key={i}
-                className="group rounded-2xl border border-white/5 bg-white/[0.02] p-6 transition-all hover:border-cyan-500/20 hover:bg-cyan-500/[0.03]"
+                className="card-lift group animate-slide-up rounded-2xl border border-white/5 bg-white/[0.02] p-6 hover:border-cyan-500/20 hover:bg-cyan-500/[0.03]"
+                style={{ animationDelay: `${i * 70}ms` }}
               >
-                <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-cyan-500/10">
+                <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-cyan-500/10 transition-all duration-300 group-hover:scale-110 group-hover:bg-cyan-500/20 group-hover:shadow-[0_0_18px_rgba(34,211,238,0.35)]">
                   <f.icon className="size-5 text-cyan-400" />
                 </div>
                 <h3 className="text-base font-semibold text-white">{f.title}</h3>
@@ -313,9 +315,10 @@ function LandingPage() {
           <p className="mx-auto mt-4 max-w-xl text-gray-400">
             Crie seu cardápio digital em minutos. Sem cartão de crédito, sem compromisso.
           </p>
-          <div className="mt-10">              <Link
+          <div className="mt-10">
+            <Link
               to="/login"
-              className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-10 py-4 text-base font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.4)]"
+              className="sheen inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-10 py-4 text-base font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.4)]"
             >
               Criar meu cardápio agora
               <ChevronRight className="size-5" />

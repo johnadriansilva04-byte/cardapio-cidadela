@@ -288,6 +288,62 @@
 }
 
 /* ============================================================
+   Evoluções UX v2 — micro-interações de superfície (aditivas,
+   não toca em variáveis/tokens existentes)
+   ============================================================ */
+
+@keyframes sheen-sweep {
+  from { transform: translateX(-130%) skewX(-18deg); }
+  to { transform: translateX(260%) skewX(-18deg); }
+}
+
+/* Card que levanta no hover. DONO de todas as transições do elemento:
+   não combinar com transition-* do Tailwind no mesmo nó. */
+@utility card-lift {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    background-color 0.25s ease;
+  will-change: transform;
+
+  &:hover {
+    transform: translateY(-3px);
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(0.995);
+  }
+}
+
+/* Varredura de luz no hover — sutil, uma passada por entrada do mouse. */
+@utility sheen {
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 45%;
+    background: linear-gradient(
+      100deg,
+      transparent,
+      rgba(255, 255, 255, 0.09),
+      transparent
+    );
+    transform: translateX(-130%) skewX(-18deg);
+    pointer-events: none;
+  }
+
+  &:hover::after {
+    animation: sheen-sweep 0.9s ease;
+  }
+}
+
+/* ============================================================
    Cidadela era utilities (preserved for TemporalLobby)
    ============================================================ */
 

@@ -891,7 +891,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                   </div>
 
                   <div className="grid gap-2">
-                    {catProducts.map((item) => {
+                    {catProducts.map((item, idx) => {
                       const availableAddons = addonsForProduct(item.id).filter((a) => a.available);
                       const hasAddons = availableAddons.length > 0;
                       const qtyInCart = cart
@@ -902,8 +902,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                       return (
                         <div
                           key={item.id}
-                          className="relative flex gap-3 rounded-xl border bg-[#0f0f17] p-3 transition-all hover:border-white/[0.14] hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+                          className="card-lift sheen group animate-slide-up relative flex gap-3 rounded-xl border bg-[#0f0f17] p-3 hover:border-white/[0.14] hover:shadow-[0_10px_28px_rgba(0,0,0,0.4)]"
                           style={{
+                            animationDelay: `${Math.min(idx, 8) * 40}ms`,
                             borderColor: qtyInCart
                               ? hexToRgba(accent, 0.35)
                               : "rgba(255,255,255,0.07)",
@@ -921,7 +922,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                               <img
                                 src={item.image_url}
                                 alt={item.name}
-                                className="size-full object-cover"
+                                className="size-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
                                 loading="lazy"
                               />
                             </div>

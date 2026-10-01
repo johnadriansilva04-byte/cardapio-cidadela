@@ -671,7 +671,7 @@ function KpiCard({
   const shown = target ? `${target.prefix}${formatKpiNumber(display)}${target.suffix}` : value;
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-4 transition-all hover:border-white/[0.16] hover:shadow-[0_0_24px_rgba(6,182,212,0.08)]">
+    <div className="card-lift rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-4 hover:border-white/[0.16] hover:shadow-[0_0_24px_rgba(6,182,212,0.12)]">
       <div className="flex items-center gap-3">
         <div className={`grid size-10 shrink-0 place-items-center rounded-xl border ${KPI_TONES[tone]}`}>
           <Icon className="size-[18px]" />

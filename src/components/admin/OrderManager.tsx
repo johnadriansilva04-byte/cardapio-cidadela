@@ -659,7 +659,7 @@ function OrderCard({
   const next = NEXT_STATUS[order.status];
   const nextLabel = next ? ORDER_STATUS_LABELS[next] : null;
   return (
-    <div className="group rounded-xl border border-white/8 bg-white/[0.03] p-2.5 transition-all hover:border-cyan-500/30 hover:bg-white/[0.05]">
+    <div className="card-lift group rounded-xl border border-white/8 bg-white/[0.03] p-2.5 hover:border-cyan-500/30 hover:bg-white/[0.05] hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
       <button onClick={onOpen} className="flex w-full flex-col gap-1.5 text-left">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate font-mono text-xs font-bold text-white">{order.comanda}</span>

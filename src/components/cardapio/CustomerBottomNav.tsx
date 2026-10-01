@@ -50,7 +50,14 @@ export default function CustomerBottomNav({
                 className="relative flex flex-1 flex-col items-center gap-1 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2.5 text-[10px] font-semibold transition-colors"
                 style={{ color: isActive ? accent : "#6b7280" }}
               >
-                <span className="relative">
+                {isActive && (
+                  <span
+                    key={`pill-${item.id}`}
+                    className="animate-pop-in absolute inset-x-3 top-1.5 h-9 rounded-2xl"
+                    style={{ backgroundColor: `${accent}1f` }}
+                  />
+                )}
+                <span className="relative transition-transform duration-200" style={{ transform: isActive ? "translateY(-1px) scale(1.08)" : undefined }}>
                   <item.icon className="size-5" />
                   {item.badge != null && item.badge > 0 && (
                     <Badge count={item.badge} max={9} variant="small" className="absolute -right-2.5 -top-1.5" />

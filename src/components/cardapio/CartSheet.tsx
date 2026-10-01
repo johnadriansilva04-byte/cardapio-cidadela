@@ -44,7 +44,7 @@ export default function CartSheet({
               <ShoppingBag className="size-4" />
             </span>
             Seu pedido
-            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold text-white/80">
+            <span className="animate-pop-in rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold text-white/80">
               {totalQty} {totalQty === 1 ? "item" : "itens"}
             </span>
           </h2>
@@ -75,7 +75,8 @@ export default function CartSheet({
                 return (
                   <div
                     key={`${line.item.id}-${idx}`}
-                    className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-3"
+                    className="card-lift animate-slide-up rounded-xl border border-white/[0.07] bg-white/[0.03] p-3"
+                    style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     <div className="flex items-start gap-3">
                       {line.item.image_url ? (
@@ -184,7 +185,7 @@ export default function CartSheet({
 
             <button
               onClick={onCheckout}
-              className="mt-4 w-full rounded-full py-3.5 text-sm font-black text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
+              className="sheen mt-4 w-full rounded-full py-3.5 text-sm font-black text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
               style={{
                 backgroundColor: accent,
                 boxShadow: `0 10px 28px ${hexToRgba(accent, 0.45)}`,

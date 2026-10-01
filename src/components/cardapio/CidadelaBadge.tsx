@@ -21,13 +21,13 @@ function luminance(hex: string): number {
 }
 
 /**
- * Selo circular "Conheça a Cidadela" — fundo grafite com borda neon.
+ * Selo circular "Conheça a Cidadela" — discreto, translúcido, sem competir
+ * com a capa do restaurante.
  *
- * O círculo mantém a identidade (neon + cadeado) sem competir com a capa: o
- * interior é grafite escuro, a borda usa um azul ciano discreto e as letras
- * derivam de `accent`. Quando `theme` não é informado, ele é deduzido da
- * luminância do accent — cardápio claro (accent claro) usa letras escuras,
- * cardápio escuro usa as cores do tema, mantendo a legibilidade nos dois casos.
+ * Mantém a identidade (borda neon azul fixa + cadeado) mas com cara de selo:
+ * pequeno, fundo escuro semitransparente com blur, glow suave. O tema das
+ * letras continua deduzido da luminância do accent (claro → letras escuras,
+ * escuro → cor do accent), e a borda nunca usa o accent (pode ser vivo).
  */
 export function CidadelaBadge({
   accent,
@@ -45,7 +45,7 @@ export function CidadelaBadge({
   // Neon discreto e fixo: o accent pode ser amarelo/vivo, então a borda usa o
   // azul da identidade Cidadela para não ficar chamativa.
   const neon = "#22d3ee";
-  const face = isLight ? "#e5e7eb" : "#1c1c24";
+  const face = isLight ? "rgba(229, 231, 235, 0.92)" : "rgba(28, 28, 36, 0.85)";
   const label = isLight ? "#0b0b12" : accent;
 
   return (
@@ -54,22 +54,22 @@ export function CidadelaBadge({
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Conheça a Cidadela"
-      className={`group relative flex size-14 shrink-0 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95 sm:size-16 ${className}`}
+      className={`group relative flex size-11 shrink-0 items-center justify-center rounded-full backdrop-blur-sm transition-transform hover:scale-105 active:scale-95 sm:size-12 ${className}`}
       style={{
         background: face,
-        border: `2px solid ${neon}`,
-        boxShadow: `0 0 12px ${hexToRgba(neon, 0.35)}, 0 4px 16px rgba(0,0,0,0.5)`,
+        border: `1.5px solid ${neon}`,
+        boxShadow: `0 0 8px ${hexToRgba(neon, 0.22)}, 0 2px 10px rgba(0,0,0,0.4)`,
       }}
     >
-      <span className="relative flex flex-col items-center justify-center px-1.5 text-center">
+      <span className="relative flex flex-col items-center justify-center px-1 text-center">
         <span
-          className="text-[8px] font-black leading-none tracking-[0.14em]"
-          style={{ color: label, opacity: 0.75 }}
+          className="text-[6.5px] font-black leading-none tracking-[0.12em]"
+          style={{ color: label, opacity: 0.65 }}
         >
           CONHEÇA
         </span>
         <span
-          className="mt-0.5 text-[10px] font-black leading-none tracking-[0.1em]"
+          className="mt-0.5 text-[8.5px] font-black leading-none tracking-[0.08em]"
           style={{ color: label }}
         >
           CIDADELA
@@ -78,10 +78,10 @@ export function CidadelaBadge({
           viewBox="0 0 24 24"
           fill="none"
           stroke={neon}
-          strokeWidth="2"
+          strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="mt-1 size-3"
+          className="mt-0.5 size-2.5"
         >
           <rect x="5" y="11" width="14" height="10" rx="2" />
           <path d="M8 11V7a4 4 0 0 1 8 0v4" />

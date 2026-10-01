@@ -653,7 +653,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           <CidadelaBadge accent={accent} className="absolute right-3 top-3 z-10" />
 
           <div className="absolute inset-0 flex items-center px-4">
-            <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
+            <div className="mx-auto w-full max-w-2xl">
+              {/* Painel de vidro: nome/logo legíveis sem um manto escuro sobre
+                  a foto inteira — a capa continua visível ao redor. */}
+              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#07070b]/55 p-3 backdrop-blur-md">
               {restaurant.logo_url ? (
                 <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-xl border border-white/20 shadow-lg sm:size-14">
                   <img
@@ -696,6 +699,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                     </span>
                   )}
                 </div>
+              </div>
               </div>
             </div>
           </div>

@@ -75,8 +75,16 @@ export function RestaurantCardCompact({
       }}
       className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-all hover:border-cyan-500/30 hover:bg-white/[0.05] hover:shadow-[0_8px_30px_rgba(6,182,212,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40"
     >
-      {/* cover — altura original (h-36) para a imagem não ficar espremida */}
-      <div className="relative h-36 w-full overflow-hidden bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-transparent">
+      {/* cover — altura original (h-36) para a imagem não ficar espremida.
+          Quando a capa é a própria logo, fundo neutro escuro: sem gradiente
+          colorido aparecendo atrás (o "manto") e sem véu sobre a imagem. */}
+      <div
+        className={`relative h-36 w-full overflow-hidden ${
+          coverIsLogo
+            ? "bg-[#0f0f17]"
+            : "bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-transparent"
+        }`}
+      >
         {hasImage ? (
           <img
             src={cover}
@@ -99,9 +107,11 @@ export function RestaurantCardCompact({
             </div>
           </div>
         )}
-        {/* Véu de legibilidade só na metade de baixo — a logo-avatar no canto
-            fica limpa, sem o manto escuro por cima da foto. */}
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
+        {/* Véu de legibilidade só quando há banner de verdade (há texto sobre
+            a foto). Sendo a logo a capa, nada de véu por cima dela. */}
+        {!coverIsLogo && (
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
+        )}
         <div className="absolute left-2.5 top-2.5">
           <RestaurantStatusBadge status={restaurant.status} />
         </div>

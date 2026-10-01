@@ -91,7 +91,9 @@
   dropped and recreated in `schema.sql` (grants are re-applied further down).
 - The public menu hero is `sticky top-0 z-0` inside a `contents` wrapper, with
   the content on `relative z-10`, so the products scroll over a fixed banner.
-  Keep the sticky/z-index pairing when touching that block.
+  Keep the sticky/z-index pairing when touching that block. The identity panel
+  (avatar + name + status + slogan) is glass and anchored to the hero's base so
+  the cover art stays the protagonist; the Cidadela seal sits top-right.
 - `sendToWhatsApp` strips non-digits from the number — wa.me rejects formatted
   phone numbers.
 

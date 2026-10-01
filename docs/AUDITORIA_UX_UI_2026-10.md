@@ -82,6 +82,20 @@ apenas hierarquia visual, espaçamento, estados e leitura.
       `KpiCard`, respeitando `prefers-reduced-motion`.
     - Futuro: destaque de variação (alta/queda) no próprio número.
 
+## Configurações (conta) vs. dados da loja
+
+11. **Tela de Configurações com tudo aberto.**
+    - Motivo: dados da conta, senha, ações, instalação e um aviso repetido
+      apareciam todos abertos ao mesmo tempo.
+    - Impacto: a tela virava uma parede de formulários; o usuário perdia o
+      que era conta e o que era loja.
+    - Solução: tudo em módulos expansíveis recolhidos (`ExpandableSection`),
+      com prévia curta no cabeçalho. Removido o banner redundante (o atalho
+      "Restaurantes" já leva aos dados da loja) e o texto passou a dizer
+      explicitamente que dados da loja ficam em Restaurantes → Config.
+    - O atalho "Editar dados e senha" da gestão mobile (`#conta`) abre os
+      módulos de conta por padrão.
+
 ## Verificação
 
 - `npx tsc --noEmit`, `npx vitest run` (147 testes), `npm run build` e

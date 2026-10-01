@@ -11,7 +11,7 @@ import {
   Share2,
   Save,
   Loader2,
-  ArrowRight,
+  MonitorSmartphone,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -20,6 +20,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { InstallCard } from "@/components/pwa/InstallCard";
 import { PageHeader } from "@/modules/ui/PageHeader";
+import { ExpandableSection } from "@/modules/ui/ExpandableSection";
 
 export const Route = createFileRoute("/admin/config")({
   head: () => ({ meta: [{ title: "Configurações — Cardápio Cidadela" }] }),
@@ -57,19 +58,32 @@ function Shortcut({
   );
 }
 
+/**
+ * Esta tela é da conta e do app — não do restaurante.
+ *
+ * Dados da loja (WhatsApp, endereço, PIX, taxa, horários, logo, banner) vivem
+ * no cadastro do restaurante, acessível pelo card em Restaurantes → Config.
+ * Aqui tudo fica recolhido para não poluir a tela.
+ */
 function ConfigPage() {
-  // Esta tela é da conta, não do restaurante: dados da loja (contato, endereço,
-  // PIX, horários, logo, banner) vivem no cadastro/edição do restaurante.
+  // O atalho "Editar dados e senha" da gestão mobile chega em #conta.
+  const [openAccount] = useState(
+    () => typeof window !== "undefined" && window.location.hash === "#conta",
+  );
+
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <PageHeader title="Configurações" subtitle="Sua conta, preferências do app e segurança." />
+    <div className="mx-auto max-w-2xl space-y-4">
+      <PageHeader
+        title="Configurações"
+        subtitle="Conta e preferências do app. Os dados da loja ficam em Restaurantes."
+      />
 
       <div className="grid grid-cols-3 gap-2.5">
         <Shortcut
           to="/admin/restaurantes"
           icon={<Store className="size-4.5 text-cyan-300" />}
           title="Restaurantes"
-          hint="Contato e PIX"
+          hint="Dados da loja"
           tone="bg-cyan-500/15"
         />
         <Shortcut
@@ -88,26 +102,21 @@ function ConfigPage() {
         />
       </div>
 
-      <Link
-        to="/admin/restaurantes"
-        className="group flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-2.5 transition-colors hover:border-cyan-500/25 hover:bg-white/[0.04]"
+      <ExpandableSection
+        icon={<MonitorSmartphone className="size-5" />}
+        tone="cyan"
+        title="Instalar aplicativo"
+        summary="Tela cheia e alerta sonoro de novos pedidos"
       >
-        <Store className="size-4 shrink-0 text-gray-500" />
-        <span className="min-w-0 flex-1 text-xs leading-relaxed text-gray-400">
-          WhatsApp, endereço, PIX, taxa e horários ficam em{" "}
-          <strong className="font-semibold text-gray-300">Restaurantes</strong>
-        </span>
-        <ArrowRight className="size-4 shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5 group-hover:text-cyan-400" />
-      </Link>
+        <InstallCard className="rounded-xl border-white/[0.06] bg-black/20" />
+      </ExpandableSection>
 
-      <InstallCard />
-
-      <AccountSection />
+      <AccountSection defaultOpen={openAccount} />
     </div>
   );
 }
 
-function AccountSection() {
+function AccountSection({ defaultOpen }: { defaultOpen: boolean }) {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const displayName = (user?.user_metadata?.name as string) || profile?.name || "";
@@ -177,19 +186,12 @@ function AccountSection() {
 
   return (
     <div id="conta" className="scroll-mt-6 space-y-4">
-      <div>
-        <h2 className="text-lg font-bold text-white">Minha conta</h2>
-        <p className="mt-0.5 text-sm text-gray-500">
-          Edite seus dados de acesso, altere a senha ou exclua a conta.
-        </p>
-      </div>
-
-      {/* Dados */}
-      <section className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
-        <p className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500">
-          <User className="size-3.5" /> Dados da conta
-        </p>
-
+      <ExpandableSection
+        icon={<User className="size-5" />}
+        title="Dados da conta"
+        summary={displayName || "Nome e telefone do acesso"}
+        defaultOpen={defaultOpen}
+      >
         <label className="mb-1.5 block text-xs font-medium text-gray-400">Nome</label>
         <div className="flex gap-2">
           <input
@@ -215,13 +217,14 @@ function AccountSection() {
             {nameMsg.text}
           </p>
         )}
-      </section>
+      </ExpandableSection>
 
-      {/* Senha */}
-      <section className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
-        <p className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500">
-          <KeyRound className="size-3.5" /> Alterar senha
-        </p>
+      <ExpandableSection
+        icon={<KeyRound className="size-5" />}
+        title="Alterar senha"
+        summary="Troque a senha de acesso ao painel"
+        defaultOpen={defaultOpen}
+      >
         <div className="space-y-3">
           <div>
             <label className="mb-1.5 block text-xs font-medium text-gray-400">Senha atual</label>
@@ -268,13 +271,14 @@ function AccountSection() {
         >
           {savingPwd ? "Alterando..." : "Alterar senha"}
         </button>
-      </section>
+      </ExpandableSection>
 
-      {/* Ações */}
-      <section className="rounded-xl border border-red-500/10 bg-red-500/[0.02] p-4">
-        <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-red-400/80">
-          <UserRound className="size-3.5" /> Ações da conta
-        </p>
+      <ExpandableSection
+        icon={<UserRound className="size-5" />}
+        tone="red"
+        title="Ações da conta"
+        summary="Sair ou excluir a conta"
+      >
         <div className="space-y-2">
           <button
             onClick={handleSignOut}
@@ -294,7 +298,7 @@ function AccountSection() {
             <span className="text-[11px] text-gray-600">Apaga tudo</span>
           </button>
         </div>
-      </section>
+      </ExpandableSection>
 
       <ConfirmDialog
         open={confirmDeleteOpen}

@@ -1,17 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Crown,
-  Check,
-  Copy,
-  ExternalLink,
-  Loader2,
-  RefreshCw,
-  ShieldCheck,
-  Sparkles,
-  CalendarClock,
-  Store as StoreIcon,
-} from "lucide-react";
+import { Crown, Copy, ExternalLink, Loader2, ShieldCheck, Store as StoreIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,7 +12,7 @@ import {
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { LoadingState, EmptyState, InlineError } from "@/modules/ui/Feedback";
-import { StatTile, ExpandableSection, InfoRow } from "@/modules/ui/ExpandableSection";
+import { ExpandableSection, InfoRow } from "@/modules/ui/ExpandableSection";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { normalizePhone } from "@/modules/supabase/auth";
@@ -60,6 +49,7 @@ function SubscriptionPage() {
   const [preapprovalId, setPreapprovalId] = useState<string | null>(null);
 
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [awaitingPayment, setAwaitingPayment] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -123,6 +113,31 @@ function SubscriptionPage() {
     };
   }, [activeId, loadStatus]);
 
+  // Depois de mandar o dono ao checkout, quando ele volta para esta aba o
+  // status é conferido sozinho — sem ele ter que achar o botão "Sincronizar".
+  useEffect(() => {
+    if (!awaitingPayment || !activeId || status?.isPremium) return;
+    let checking = false;
+    const check = async () => {
+      if (document.visibilityState !== "visible" || checking) return;
+      checking = true;
+      const result = await runSync();
+      checking = false;
+      if (result === "premium") {
+        setAwaitingPayment(false);
+        toast.success("Assinatura Premium ativada!");
+      }
+    };
+    document.addEventListener("visibilitychange", check);
+    const poll = window.setInterval(check, 6000);
+    return () => {
+      document.removeEventListener("visibilitychange", check);
+      window.clearInterval(poll);
+    };
+    // runSync é estável o bastante (lê activeId/session atuais) para o efeito.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awaitingPayment, activeId, status?.isPremium]);
+
   const activeRestaurant = useMemo(
     () => restaurants.find((r) => r.id === activeId) ?? null,
     [restaurants, activeId],
@@ -140,15 +155,15 @@ function SubscriptionPage() {
   function openPayment() {
     // Registra o e-mail da conta para correlacionar o webhook com o restaurante.
     if (activeId && user?.email) void registerPendingSubscription(activeId, user.email);
-    setPaymentOpen(true);
+    // Abre o checkout no mesmo gesto do clique. O modal é só fallback para
+    // quando o navegador bloqueia o popup — antes era sempre um clique extra.
+    const win = window.open(SUBSCRIPTION_LINK, "_blank", "noopener,noreferrer");
+    setAwaitingPayment(true);
+    if (!win) setPaymentOpen(true);
   }
 
-  async function syncNow() {
-    if (!activeId || !session?.access_token) {
-      toast.error("Sessão expirada. Entre novamente.");
-      return;
-    }
-    setSyncing(true);
+  async function runSync(): Promise<"premium" | "none" | "pending" | "error"> {
+    if (!activeId || !session?.access_token) return "error";
     try {
       const res = await fetch("/api/subscription/sync", {
         method: "POST",
@@ -159,19 +174,31 @@ function SubscriptionPage() {
         body: JSON.stringify({ storeId: activeId }),
       });
       const data = (await res.json().catch(() => ({}))) as { status?: string };
-      if (!res.ok) {
-        toast.error("Não foi possível sincronizar com o Mercado Pago.");
-        return;
-      }
+      if (!res.ok) return "error";
       await loadStatus(activeId);
-      if (data.status === "premium") toast.success("Assinatura Premium ativada!");
-      else if (data.status === "none") toast.message("Nenhuma assinatura encontrada ainda.");
-      else toast.message("Assinatura ainda não está ativa no Mercado Pago.");
+      if (data.status === "premium") return "premium";
+      if (data.status === "none") return "none";
+      return "pending";
     } catch {
-      toast.error("Falha de conexão ao sincronizar.");
-    } finally {
-      setSyncing(false);
+      return "error";
     }
+  }
+
+  async function syncNow() {
+    if (!activeId || !session?.access_token) {
+      toast.error("Sessão expirada. Entre novamente.");
+      return;
+    }
+    setSyncing(true);
+    const result = await runSync();
+    setSyncing(false);
+    if (result === "premium") {
+      setAwaitingPayment(false);
+      toast.success("Assinatura Premium ativada!");
+    } else if (result === "none") toast.message("Nenhuma assinatura encontrada ainda.");
+    else if (result === "pending")
+      toast.message("Assinatura ainda não está ativa no Mercado Pago.");
+    else toast.error("Não foi possível sincronizar com o Mercado Pago.");
   }
 
   async function confirmCancel() {
@@ -255,83 +282,59 @@ function SubscriptionPage() {
         </div>
       )}
 
-      {/* Status atual */}
-      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-              Status atual
-            </p>
-            <p className="mt-1 flex items-center gap-2 text-lg font-black text-white">
-              {isPremium ? (
-                <>
-                  <Sparkles className="size-5 text-amber-300" />
-                  Premium
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="size-5 text-gray-400" />
-                  Gratuito
-                </>
-              )}
-            </p>
-            {activeRestaurant && (
-              <p className="mt-0.5 text-xs text-gray-500">{activeRestaurant.name}</p>
-            )}
-          </div>
-          <span
-            className={
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold " +
-              (isPremium
-                ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
-                : "border-white/10 bg-white/[0.04] text-gray-300")
-            }
-          >
-            <span className="size-1.5 rounded-full bg-current" aria-hidden />
-            {isPremium ? "Premium ativo" : "Plano gratuito"}
-          </span>
-        </div>
+      {/* Plano + ação num único bloco: um clique até o pagamento */}
+      <section
+        className={
+          "relative overflow-hidden rounded-3xl border p-5 sm:p-6 " +
+          (isPremium
+            ? "border-amber-500/25 bg-gradient-to-b from-amber-500/[0.10] to-transparent"
+            : "border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.01]")
+        }
+      >
+        <div
+          aria-hidden
+          className={
+            "pointer-events-none absolute -right-16 -top-16 size-48 rounded-full blur-3xl " +
+            (isPremium ? "bg-amber-500/20" : "bg-cyan-500/10")
+          }
+        />
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          {isPremium ? (
-            <StatTile
-              icon={<CalendarClock className="size-3.5" />}
-              tone="amber"
-              label="Renovação"
-              value={
-                status?.premiumExpiresAt
-                  ? new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")
-                  : "—"
+        <div className="relative">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">
+              Seu plano
+            </span>
+            <span
+              className={
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold " +
+                (isPremium
+                  ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                  : "border-white/10 bg-white/[0.04] text-gray-400")
               }
-              hint="Próxima cobrança"
-            />
-          ) : (
-            <StatTile
-              icon={<ShieldCheck className="size-3.5" />}
-              tone={remaining <= 2 ? "amber" : "cyan"}
-              label="Pedidos restantes"
-              value={String(remaining)}
-              hint={`${used} de ${MONTHLY_FREE_LIMIT} usados`}
-            />
-          )}
-          <StatTile
-            icon={<Crown className="size-3.5" />}
-            tone="violet"
-            label="Plano gratuito"
-            value={`${MONTHLY_FREE_LIMIT}/mês`}
-            hint="Depois disso, assine Premium"
-          />
-        </div>
+            >
+              <span className="size-1.5 rounded-full bg-current" aria-hidden />
+              {isPremium ? "Premium ativo" : "Gratuito"}
+            </span>
+          </div>
 
-        {!isPremium && (
-          <div className="mt-4">
-            <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold text-gray-400">
-              <span>
-                {used} de {MONTHLY_FREE_LIMIT} pedidos usados este mês
-              </span>
-              <span>{remaining} restantes</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+          <p className="mt-2 flex items-center gap-2 text-2xl font-black tracking-tight text-white">
+            {isPremium ? (
+              <Crown className="size-6 shrink-0 text-amber-300" />
+            ) : (
+              <ShieldCheck className="size-6 shrink-0 text-cyan-300" />
+            )}
+            {isPremium ? "Pedidos ilimitados" : `${MONTHLY_FREE_LIMIT} pedidos/mês`}
+          </p>
+          <p className="mt-1 text-xs text-gray-400">
+            {isPremium
+              ? status?.premiumExpiresAt
+                ? `Renova em ${new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")}.`
+                : "Assinatura ativa e sem limite de pedidos."
+              : `${remaining} de ${MONTHLY_FREE_LIMIT} pedidos restantes este mês.`}
+          </p>
+
+          {!isPremium && (
+            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
               <div
                 className={
                   "h-full rounded-full transition-all " +
@@ -340,61 +343,70 @@ function SubscriptionPage() {
                 style={{ width: `${Math.min(100, (used / MONTHLY_FREE_LIMIT) * 100)}%` }}
               />
             </div>
-          </div>
-        )}
-
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-          {isPremium ? (
-            <>
-              <Button
-                onClick={() =>
-                  window.open(
-                    preapprovalId
-                      ? `https://www.mercadopago.com.br/subscriptions/${preapprovalId}`
-                      : SUBSCRIPTION_LINK,
-                    "_blank",
-                    "noopener,noreferrer",
-                  )
-                }
-                className="rounded-full bg-cyan-500 text-black hover:bg-cyan-400"
-              >
-                <ExternalLink className="size-4" /> Gerenciar assinatura
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setCancelOpen(true)}
-                className="rounded-full border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white"
-              >
-                Cancelar assinatura
-              </Button>
-            </>
-          ) : (
-            <Button
-              onClick={openPayment}
-              className="rounded-full bg-cyan-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:bg-cyan-400"
-            >
-              <Crown className="size-4" /> Assinar Premium - {PRICE_LABEL}
-            </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={syncNow}
-            disabled={syncing}
-            className="rounded-full border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white"
-          >
-            {syncing ? (
-              <Loader2 className="size-4 animate-spin" />
+
+          <div className="mt-5">
+            {isPremium ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() =>
+                    window.open(
+                      preapprovalId
+                        ? `https://www.mercadopago.com.br/subscriptions/${preapprovalId}`
+                        : SUBSCRIPTION_LINK,
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
+                  }
+                  className="rounded-full bg-white/[0.06] text-white hover:bg-white/[0.12]"
+                >
+                  <ExternalLink className="size-4" /> Gerenciar assinatura
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setCancelOpen(true)}
+                  className="rounded-full border-white/10 bg-transparent text-gray-400 hover:bg-white/[0.06] hover:text-white"
+                >
+                  Cancelar
+                </Button>
+              </div>
             ) : (
-              <RefreshCw className="size-4" />
+              <Button
+                onClick={openPayment}
+                size="lg"
+                className="w-full rounded-full bg-cyan-500 text-sm font-bold text-black shadow-[0_8px_30px_rgba(6,182,212,0.3)] transition-transform hover:scale-[1.01] hover:bg-cyan-400 sm:w-auto sm:px-8"
+              >
+                <Crown className="size-4" /> Assinar por {PRICE_LABEL}
+              </Button>
             )}
-            Sincronizar com Mercado Pago
-          </Button>
+          </div>
+
+          {awaitingPayment && !isPremium && (
+            <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.07] px-3.5 py-3">
+              <Loader2 className="size-4 shrink-0 animate-spin text-cyan-300" />
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-cyan-200">Confirmando seu pagamento…</p>
+                <p className="mt-0.5 text-[11px] text-cyan-200/70">
+                  Conclua no Mercado Pago. Assim que aprovar, liberamos sozinho — sem recarregar.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!isPremium && (
+            <p className="mt-3 text-center text-[11px] leading-relaxed text-gray-500 sm:text-left">
+              Pagou e ainda aparece como gratuito?{" "}
+              <button
+                type="button"
+                onClick={syncNow}
+                disabled={syncing}
+                className="font-semibold text-cyan-400 underline-offset-2 transition-colors hover:text-cyan-300 hover:underline disabled:opacity-50"
+              >
+                {syncing ? "Conferindo…" : "Conferir agora"}
+              </button>
+            </p>
+          )}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-gray-500">
-          Pagou e ainda aparece como gratuito? O Mercado Pago pode demorar alguns segundos para
-          avisar. Clique em <span className="font-semibold text-gray-400">Sincronizar</span> para
-          conferir na hora.
-        </p>
       </section>
 
       {/* Histórico / detalhes */}
@@ -423,53 +435,42 @@ function SubscriptionPage() {
         />
       </ExpandableSection>
 
-      {/* Modal de pagamento */}
+      {/* Fallback: só quando o navegador bloqueia a nova aba do checkout */}
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
-        <DialogContent className="border-white/10 bg-[#12121a] text-white sm:max-w-md">
+        <DialogContent className="border-white/10 bg-[#12121a] text-white sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
-              <Crown className="size-4 text-amber-300" /> Assinar Premium
+              <Crown className="size-4 text-amber-300" /> Finalizar assinatura
             </DialogTitle>
             <DialogDescription className="text-gray-400">
               {PRICE_LABEL} · pedidos ilimitados. Ativação automática após o pagamento.
             </DialogDescription>
           </DialogHeader>
 
-          <ul className="space-y-2 text-sm text-gray-300">
-            {[
-              "Pedidos ilimitados todos os meses",
-              "Ativação automática",
-              "Cancele quando quiser",
-            ].map((item) => (
-              <li key={item} className="flex items-center gap-2">
-                <Check className="size-4 shrink-0 text-emerald-400" /> {item}
-              </li>
-            ))}
-          </ul>
+          <p className="text-xs leading-relaxed text-gray-400">
+            Seu navegador bloqueou a nova aba. Use o botão abaixo para abrir o Mercado Pago, ou
+            copie o link e abra no celular.
+          </p>
 
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            <p className="break-all text-[11px] text-gray-400">{SUBSCRIPTION_LINK}</p>
-          </div>
-
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={() => {
+                window.open(SUBSCRIPTION_LINK, "_blank", "noopener,noreferrer");
+                setPaymentOpen(false);
+              }}
+              className="rounded-full bg-cyan-500 text-black hover:bg-cyan-400"
+            >
+              <ExternalLink className="size-4" /> Abrir Mercado Pago
+            </Button>
             <Button
               variant="outline"
               onClick={copyLink}
-              className="flex-1 rounded-full border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white"
+              className="rounded-full border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white"
             >
               <Copy className="size-4" /> Copiar link
             </Button>
-            <Button
-              onClick={() => window.open(SUBSCRIPTION_LINK, "_blank", "noopener,noreferrer")}
-              className="flex-1 rounded-full bg-cyan-500 text-black hover:bg-cyan-400"
-            >
-              <ExternalLink className="size-4" /> Abrir em nova aba
-            </Button>
           </div>
 
-          <p className="text-center text-[11px] leading-relaxed text-gray-500">
-            Após o pagamento, sua assinatura será ativada automaticamente.
-          </p>
           <p className="text-center text-[11px] leading-relaxed text-amber-300/80">
             Use o mesmo telefone da sua conta{accountPhone ? ` (${accountPhone})` : ""} no Mercado
             Pago para a ativação ser vinculada a este restaurante.

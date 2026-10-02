@@ -217,13 +217,22 @@
 - O link de assinatura do Mercado Pago é estático
   (`VITE_MERCADOPAGO_SUBSCRIPTION_LINK`) e não carrega `external_reference`. Por
   isso o restaurante é resolvido pelo e-mail do pagador, registrado antes do
-  checkout via `registerPendingSubscription`. O modal avisa o usuário a usar o
-  mesmo e-mail da conta.
+  checkout via `registerPendingSubscription`. O aviso orienta o usuário a usar o
+  mesmo telefone da conta (o e-mail interno é um pseudo-endereço).
 - Fallback do webhook: `POST /api/subscription/sync` (rota
   `api.subscription.sync.ts`) busca o preapproval direto na API do MP. Exige
   token de sessão e só age se o e-mail do pagador bater com o registrado na
   linha — evita ativar o Premium de terceiros. A página `/admin/assinatura`
-  expõe o botão "Sincronizar" para isso.
+  usa esse sync automaticamente: depois que o dono abre o checkout, ao voltar
+  para a aba (visibilitychange + poll de 6s) o status é conferido sozinho e o
+  Premium é liberado sem recarregar. O link "Conferir agora" é o fallback
+  manual.
+- `/admin/assinatura` é organizada em torno de UM único bloco (plano + ação):
+  o CTA "Assinar por R$ 39,90/mês" abre o Mercado Pago direto no clique. O
+  modal só aparece quando o `window.open` é barrado (popup blocker) — antes o
+  modal era um passo obrigatório. O vínculo continua por e-mail/telefone
+  (pseudo-email `telefone@menufacil.local`), por isso o aviso fala em
+  "telefone" e nunca expõe o endereço interno.
 
 ## MATA-FOME: retenção e imagens leves
 

@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { compressImageForUpload } from "@/lib/imageCompression";
 
 const BUCKET = "restaurant-images";
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -17,6 +18,8 @@ function extFromFile(file: File): string {
 /**
  * Upload autenticado para Supabase Storage (bucket `restaurant-images`).
  * - Aceita só JPG/JPEG/PNG/WebP e até 5 MB
+ * - Comprime no navegador para WebP ≤ 800x800 (qualidade 70%) antes de enviar,
+ *   então o bucket nunca guarda uma foto pesada
  * - Caminho: <restaurantId>/<kind>_<timestamp>_<rand>.<ext>
  * - Políticas RLS: só dono do restaurante (owner_id = auth.uid()) pode inserir/atualizar/excluir
  * - Leitura pública
@@ -36,13 +39,18 @@ export async function uploadRestaurantImage(
     return { url: null, error: "Salve o restaurante primeiro antes de enviar a imagem." };
   }
 
-  const ext = extFromFile(file);
+  const { file: optimized, compressed } = await compressImageForUpload(file);
+  if (compressed && !ALLOWED_MIME.has(optimized.type)) {
+    return { url: null, error: "Falha ao processar a imagem. Tente outro arquivo." };
+  }
+
+  const ext = extFromFile(optimized);
   const path = `${restaurantId}/${kind}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    contentType: file.type,
+  const { error } = await supabase.storage.from(BUCKET).upload(path, optimized, {
+    contentType: optimized.type,
     upsert: false,
-    cacheControl: "3600",
+    cacheControl: "31536000",
   });
 
   if (error) {

@@ -195,3 +195,23 @@
   token de sessão e só age se o e-mail do pagador bater com o registrado na
   linha — evita ativar o Premium de terceiros. A página `/admin/assinatura`
   expõe o botão "Sincronizar" para isso.
+
+## MATA-FOME: retenção e imagens leves
+
+- O sistema guarda só o que sustenta a operação (restaurante, cardápio,
+  contador de cota). Pedido antigo e dado de cliente final são descartáveis.
+  `supabase/supabase_retention.sql` (rodar uma vez no SQL Editor) cria
+  `cleanup_old_data(30)` + dois jobs `pg_cron`: limpeza diária (03:00 UTC) e
+  reset do contador mensal. `order_items`/`order_status_history` caem por
+  `ON DELETE CASCADE`; `admin_trials` **nunca** é apagada.
+- Toda imagem de restaurante (logo, banner e **produto**) passa por
+  `src/lib/imageCompression.ts` antes do upload, dentro de
+  `uploadRestaurantImage` — redimensiona para ≤ 800x800 e converte para WebP a
+  70%. O bucket nunca recebe Base64 nem arquivo pesado, e `cacheControl` é de 1
+  ano (o nome do arquivo carrega timestamp, então a URL é imutável). Se o
+  navegador não gerar WebP, cai para o arquivo original em vez de falhar.
+- `getMenuWithProducts` seleciona colunas explícitas (`CATEGORY_COLUMNS` /
+  `PRODUCT_COLUMNS`), sem `select("*")`: `restaurant_id` e `created_at` ficam
+  de fora porque o cardápio público não os usa — economiza KB por produto no
+  celular do cliente. Ao adicionar um campo lido no cardápio, inclua-o nessas
+  constantes ou ele virá `undefined`.

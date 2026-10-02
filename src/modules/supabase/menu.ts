@@ -1,6 +1,13 @@
 import { supabase } from "./client";
 import type { Category, Product, ProductAddon, RestaurantAddon } from "@/lib/types";
 
+// Payload enxuto: só o que o cardápio renderiza no celular do cliente.
+// `restaurant_id` e `created_at` ficam de fora de propósito — são usados só em
+// consultas admin e economizam KB por produto/por celular em cada carregamento.
+const CATEGORY_COLUMNS = "id, name, sort_order";
+const PRODUCT_COLUMNS =
+  "id, category_id, name, description, price, image_url, available, sort_order";
+
 /**
  * Get all categories for a restaurant with their products
  */
@@ -10,12 +17,12 @@ export async function getMenuWithProducts(
   const [catResult, prodResult] = await Promise.all([
     supabase
       .from("categories")
-      .select("*")
+      .select(CATEGORY_COLUMNS)
       .eq("restaurant_id", restaurantId)
       .order("sort_order", { ascending: true }),
     supabase
       .from("products")
-      .select("*")
+      .select(PRODUCT_COLUMNS)
       .eq("restaurant_id", restaurantId)
       .order("sort_order", { ascending: true }),
   ]);
@@ -46,10 +53,7 @@ export async function getCategories(restaurantId: string): Promise<Category[]> {
 /**
  * Create a category
  */
-export async function createCategory(
-  restaurantId: string,
-  name: string,
-): Promise<Category | null> {
+export async function createCategory(restaurantId: string, name: string): Promise<Category | null> {
   // Get max sort_order
   const { data: existing } = await supabase
     .from("categories")
@@ -80,14 +84,8 @@ export async function createCategory(
 /**
  * Update a category
  */
-export async function updateCategory(
-  id: string,
-  name: string,
-): Promise<boolean> {
-  const { error } = await supabase
-    .from("categories")
-    .update({ name })
-    .eq("id", id);
+export async function updateCategory(id: string, name: string): Promise<boolean> {
+  const { error } = await supabase.from("categories").update({ name }).eq("id", id);
 
   if (error) {
     console.error("Error updating category:", error);
@@ -130,14 +128,9 @@ export async function moveProductsToCategory(
 /**
  * Update sort_order for categories in batch
  */
-export async function reorderCategories(
-  ids: string[],
-): Promise<boolean> {
+export async function reorderCategories(ids: string[]): Promise<boolean> {
   const updates = ids.map((id, index) =>
-    supabase
-      .from("categories")
-      .update({ sort_order: index })
-      .eq("id", id),
+    supabase.from("categories").update({ sort_order: index }).eq("id", id),
   );
 
   const results = await Promise.all(updates);
@@ -152,14 +145,9 @@ export async function reorderCategories(
 /**
  * Update sort_order for products in batch
  */
-export async function reorderProducts(
-  ids: string[],
-): Promise<boolean> {
+export async function reorderProducts(ids: string[]): Promise<boolean> {
   const updates = ids.map((id, index) =>
-    supabase
-      .from("products")
-      .update({ sort_order: index })
-      .eq("id", id),
+    supabase.from("products").update({ sort_order: index }).eq("id", id),
   );
 
   const results = await Promise.all(updates);
@@ -174,10 +162,7 @@ export async function reorderProducts(
 /**
  * Get products for a category
  */
-export async function getProducts(
-  restaurantId: string,
-  categoryId?: string,
-): Promise<Product[]> {
+export async function getProducts(restaurantId: string, categoryId?: string): Promise<Product[]> {
   let query = supabase
     .from("products")
     .select("*")
@@ -202,11 +187,7 @@ export async function getProducts(
 export async function createProduct(
   product: Omit<Product, "id" | "created_at">,
 ): Promise<Product | null> {
-  const { data, error } = await supabase
-    .from("products")
-    .insert(product)
-    .select()
-    .single();
+  const { data, error } = await supabase.from("products").insert(product).select().single();
 
   if (error) {
     console.error("Error creating product:", error);
@@ -222,10 +203,7 @@ export async function updateProduct(
   id: string,
   updates: Partial<Omit<Product, "id" | "created_at" | "restaurant_id">>,
 ): Promise<boolean> {
-  const { error } = await supabase
-    .from("products")
-    .update(updates)
-    .eq("id", id);
+  const { error } = await supabase.from("products").update(updates).eq("id", id);
 
   if (error) {
     console.error("Error updating product:", error);
@@ -319,21 +297,17 @@ export async function deleteProductAddon(id: string): Promise<boolean> {
 }
 
 export async function reorderProductAddons(ids: string[]): Promise<boolean> {
-  const results = await Promise.all(ids.map((id, idx) => supabase.from("product_addons").update({ sort_order: idx }).eq("id", id)));
+  const results = await Promise.all(
+    ids.map((id, idx) => supabase.from("product_addons").update({ sort_order: idx }).eq("id", id)),
+  );
   return !results.some((r) => r.error);
 }
 
 /**
  * Toggle product availability
  */
-export async function toggleProductAvailability(
-  id: string,
-  available: boolean,
-): Promise<boolean> {
-  const { error } = await supabase
-    .from("products")
-    .update({ available })
-    .eq("id", id);
+export async function toggleProductAvailability(id: string, available: boolean): Promise<boolean> {
+  const { error } = await supabase.from("products").update({ available }).eq("id", id);
 
   if (error) {
     console.error("Error toggling product:", error);

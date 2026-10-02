@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, type ReactNode } from "react";
 import {
-  Store,
   User,
   KeyRound,
   LogOut,
@@ -11,14 +10,12 @@ import {
   Share2,
   Save,
   Loader2,
-  MonitorSmartphone,
   Eye,
   EyeOff,
 } from "lucide-react";
 import { updateProfileName, updatePassword, deleteAccount } from "@/modules/supabase/auth";
 import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
-import { InstallCard } from "@/components/pwa/InstallCard";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { ExpandableSection } from "@/modules/ui/ExpandableSection";
 
@@ -63,7 +60,9 @@ function Shortcut({
  *
  * Dados da loja (WhatsApp, endereço, PIX, taxa, horários, logo, banner) vivem
  * no cadastro do restaurante, acessível pelo card em Restaurantes → Config.
- * Aqui tudo fica recolhido para não poluir a tela.
+ * Aqui não repetimos um atalho para lá: a própria aba Restaurantes já é o
+ * caminho, e o subtítulo diz onde os dados ficam. A instalação do app vive na
+ * gestão mobile, junto dos alertas que ela ativa.
  */
 function ConfigPage() {
   // O atalho "Editar dados e senha" da gestão mobile chega em #conta.
@@ -73,18 +72,15 @@ function ConfigPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <PageHeader
-        title="Configurações"
-        subtitle="Conta e preferências do app. Os dados da loja ficam em Restaurantes."
-      />
+      <PageHeader title="Configurações" subtitle="Sua conta e o acesso ao painel." />
 
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5">
         <Shortcut
-          to="/admin/restaurantes"
-          icon={<Store className="size-4.5 text-cyan-300" />}
-          title="Restaurantes"
-          hint="Dados da loja"
-          tone="bg-cyan-500/15"
+          to="/mobile"
+          icon={<Smartphone className="size-4.5 text-emerald-300" />}
+          title="Gestão mobile"
+          hint="Balcão, alertas e instalação"
+          tone="bg-emerald-500/15"
         />
         <Shortcut
           to="/admin/compartilhar"
@@ -93,23 +89,7 @@ function ConfigPage() {
           hint="Link e QR"
           tone="bg-violet-500/15"
         />
-        <Shortcut
-          to="/mobile"
-          icon={<Smartphone className="size-4.5 text-emerald-300" />}
-          title="Gestão mobile"
-          hint="Modo balcão"
-          tone="bg-emerald-500/15"
-        />
       </div>
-
-      <ExpandableSection
-        icon={<MonitorSmartphone className="size-5" />}
-        tone="cyan"
-        title="Instalar aplicativo"
-        summary="Tela cheia e alerta sonoro de novos pedidos"
-      >
-        <InstallCard className="rounded-xl border-white/[0.06] bg-black/20" />
-      </ExpandableSection>
 
       <AccountSection defaultOpen={openAccount} />
     </div>

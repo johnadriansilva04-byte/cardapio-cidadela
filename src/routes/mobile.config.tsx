@@ -171,8 +171,15 @@ function MobileConfigPage() {
     <div className="space-y-4">
       <PageHeader title="Configurações" subtitle={`${displayName} · ${storeStatus}`} />
 
-      {/* Instalação */}
-      <InstallCard />
+      {/* Instalação — junto dos alertas que ela ativa (o cardápio não repete) */}
+      <ExpandableSection
+        icon={<MonitorSmartphone className="size-5" />}
+        tone="cyan"
+        title="Instalar aplicativo"
+        summary="Tela cheia e alerta sonoro de novos pedidos"
+      >
+        <InstallCard className="rounded-xl border-white/[0.06] bg-black/20" />
+      </ExpandableSection>
 
       {/* Alertas */}
       <ExpandableSection

@@ -255,11 +255,16 @@ export async function updateRestaurant(
     const msg = String(error.message ?? "").toLowerCase();
     const code = String((error as unknown as { code?: string }).code ?? "");
     const isMissingColumn =
-      msg.includes("operating_hours") || msg.includes("column") || code === "PGRST204" || code === "42703";
+      msg.includes("operating_hours") ||
+      msg.includes("column") ||
+      code === "PGRST204" ||
+      code === "42703";
     if (isMissingColumn && "operating_hours" in payload) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { operating_hours: _omit, ...rest } = payload;
-      console.warn("[restaurants] operating_hours column missing — retrying without it. Rode supabase_operating_hours_migration.sql", error);
+      console.warn(
+        "[restaurants] operating_hours column missing — retrying without it. Rode supabase_operating_hours_migration.sql",
+        error,
+      );
       const { error: retryError } = await supabase.from("restaurants").update(rest).eq("id", id);
       if (retryError) {
         console.error("Error updating restaurant (retry):", retryError);
@@ -421,8 +426,18 @@ export async function ensureRestaurantsForUser(user: {
   // Busca legacy em duas consultas com `.in()` (robusto p/ `@`, `+`, etc.)
   const baseSel = "store_id, store_name, store_slogan, pix_key, whatsapp";
   const [byEmail, byPhone] = await Promise.all([
-    supabase.from("admin_trials").select(baseSel).in("admin_email", lookups).eq("is_active", true).limit(10),
-    supabase.from("admin_trials").select(baseSel).in("admin_phone", lookups).eq("is_active", true).limit(10),
+    supabase
+      .from("admin_trials")
+      .select(baseSel)
+      .in("admin_email", lookups)
+      .eq("is_active", true)
+      .limit(10),
+    supabase
+      .from("admin_trials")
+      .select(baseSel)
+      .in("admin_phone", lookups)
+      .eq("is_active", true)
+      .limit(10),
   ]);
 
   const error = byEmail.error ?? byPhone.error;
@@ -436,7 +451,13 @@ export async function ensureRestaurantsForUser(user: {
     return;
   }
 
-  type LegacyRow = { store_id: string; store_name: string | null; store_slogan: string | null; pix_key: string | null; whatsapp: string | null };
+  type LegacyRow = {
+    store_id: string;
+    store_name: string | null;
+    store_slogan: string | null;
+    pix_key: string | null;
+    whatsapp: string | null;
+  };
   const emailRows = (byEmail.data ?? []) as LegacyRow[];
   const phoneRows = (byPhone.data ?? []) as LegacyRow[];
   const merged = new Map<string, LegacyRow>();

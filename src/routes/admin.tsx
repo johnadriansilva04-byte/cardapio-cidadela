@@ -1,14 +1,7 @@
 import { createFileRoute, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import {
-  LayoutDashboard,
-  Store,
-  Wallet,
-  Share2,
-  Settings,
-  ClipboardList,
-} from "lucide-react";
+import { LayoutDashboard, Store, Wallet, Share2, Settings, ClipboardList } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { subscribeToOrders } from "@/modules/supabase/orders";
@@ -179,8 +172,7 @@ function AdminLayout() {
     return Boolean(matchRoute({ to: itemTo as never }));
   }
 
-  const { user: authUser } = useAuth();
-  const displayName = (authUser?.user_metadata?.name as string) || authUser?.email || authUser?.phone || "";
+  const displayName = (user?.user_metadata?.name as string) || user?.email || user?.phone || "";
 
   const sidebar = (
     <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}>
@@ -207,9 +199,7 @@ function AdminLayout() {
     </AppSidebar>
   );
 
-  const header = (
-    <AppHeader showMenu onMenuClick={() => setSidebarOpen(true)} />
-  );
+  const header = <AppHeader showMenu onMenuClick={() => setSidebarOpen(true)} />;
 
   return (
     <AppLayout loading={loading} sidebar={sidebar} header={header}>

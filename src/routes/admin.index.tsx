@@ -508,7 +508,7 @@ function AdminDashboardOverview() {
               }
             >
               {subRemaining === 0
-                ? "Assine Premium para continuar recebendo pedidos."
+                ? "Assine Premium para liberar os detalhes dos pedidos."
                 : `O plano gratuito inclui ${MONTHLY_FREE_LIMIT} pedidos por mês. Assine Premium para ilimitado.`}
             </span>
           </span>
@@ -684,9 +684,12 @@ function AdminDashboardOverview() {
 
 const KPI_TONES: Record<string, string> = {
   cyan: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30 shadow-[0_0_18px_rgba(6,182,212,0.18)]",
-  amber: "bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-[0_0_18px_rgba(245,158,11,0.16)]",
-  emerald: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-[0_0_18px_rgba(16,185,129,0.16)]",
-  violet: "bg-violet-500/15 text-violet-300 border-violet-500/30 shadow-[0_0_18px_rgba(139,92,246,0.18)]",
+  amber:
+    "bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-[0_0_18px_rgba(245,158,11,0.16)]",
+  emerald:
+    "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-[0_0_18px_rgba(16,185,129,0.16)]",
+  violet:
+    "bg-violet-500/15 text-violet-300 border-violet-500/30 shadow-[0_0_18px_rgba(139,92,246,0.18)]",
 };
 
 /** Interpola numericamente o valor dentro de um texto (ex.: "R$ 1.234,56" → 900..1234.56). */
@@ -702,7 +705,13 @@ function formatKpiNumber(n: number): string {
   const int = Math.floor(n);
   const dec = n - int;
   const intStr = int.toLocaleString("pt-BR");
-  return dec > 0.004 ? intStr + "," + Math.round(dec * 100).toString().padStart(2, "0") : intStr;
+  return dec > 0.004
+    ? intStr +
+        "," +
+        Math.round(dec * 100)
+          .toString()
+          .padStart(2, "0")
+    : intStr;
 }
 
 function KpiCard({
@@ -752,7 +761,9 @@ function KpiCard({
   return (
     <div className="card-lift rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-4 hover:border-white/[0.16] hover:shadow-[0_0_24px_rgba(6,182,212,0.12)]">
       <div className="flex items-center gap-3">
-        <div className={`grid size-10 shrink-0 place-items-center rounded-xl border ${KPI_TONES[tone]}`}>
+        <div
+          className={`grid size-10 shrink-0 place-items-center rounded-xl border ${KPI_TONES[tone]}`}
+        >
           <Icon className="size-[18px]" />
         </div>
         <div className="min-w-0">

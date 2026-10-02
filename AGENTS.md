@@ -179,12 +179,20 @@
 - O limite NÃO bloqueia mais o cliente: `createOrder` sempre grava o pedido e
   apenas incrementa o contador. O bloqueio vive na **leitura dos detalhes pelo
   dono**, via RPC `get_order_for_owner` (SECURITY DEFINER, em `schema.sql`):
-  Premium ou cota disponível devolve o pedido; senão `{ blocked: true }` sem os
-  dados. O frontend (admin `OrderManager` e mobile `OrderCard`) só mostra o
-  aviso + "Assinar Premium" (link `/admin/assinatura`, mesmo fluxo existente).
-  Como é leitura (não RLS), assinar o Premium libera automaticamente os pedidos
-  que chegaram bloqueados. A RPC é aditiva — sem ela no banco, `getOrderForOwner`
-  cai para `getOrderById` (schema antigo). Se o e-mail/telefone da conta muda,
+  Premium ou cota disponível devolve o pedido; senão `{ blocked: true, items }`
+  — os **itens (nome + quantidade) continuam liberados** de propósito, como
+  gatilho de assinatura, mas cliente/endereço/valores não. O frontend (admin
+  `OrderManager` e mobile `OrderCard`) mostra o aviso + a lista de itens +
+  "Assinar Premium" (link `/admin/assinatura`, fluxo existente).
+- A RPC `owner_locked_stores()` devolve os restaurantes do dono com a cota
+  estourada; o `OrderManager` usa isso para marcar os cards (cadeado) e
+  **esconder as ações** de avançar/cancelar (`onAdvance`/`onCancel` ficam
+  `undefined` quando bloqueado) — o dono não processa o pedido enquanto não
+  assinar, mas continua vendo que ele chegou. Como é leitura (não RLS), assinar
+  o Premium libera automaticamente os pedidos que chegaram bloqueados.
+- As duas RPCs são aditivas: sem elas no banco, `getOrderForOwner` cai para
+  `getOrderById` (schema antigo) e `getOwnerLockedStores` devolve vazio — nada
+  trava, só perde o enforcement. Se o e-mail/telefone da conta muda,
   `registerPendingSubscription` grava o novo; a vinculação do MP continua por
   e-mail (pseudo-email `telefone@menufacil.local`), por isso o aviso do modal
   fala em "telefone", nunca no endereço interno.

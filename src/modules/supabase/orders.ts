@@ -261,6 +261,8 @@ export interface OwnerOrderDetailResult {
   order: Order | null;
   /** true quando o restaurante passou do limite do plano gratuito e não é Premium. */
   blocked: boolean;
+  /** Itens liberados mesmo no bloqueio (nome + quantidade) — gatilho de assinatura. */
+  items?: Order["order_items"];
   error?: string;
 }
 
@@ -285,10 +287,26 @@ export async function getOrderForOwner(orderId: string): Promise<OwnerOrderDetai
     return { order: null, blocked: false, error: error.message };
   }
   const row = (Array.isArray(data) ? data[0] : data) as
-    { blocked?: boolean; order?: Order | null } | null | undefined;
+    { blocked?: boolean; order?: Order | null; items?: Order["order_items"] } | null | undefined;
   if (!row) return { order: null, blocked: false };
-  if (row.blocked) return { order: null, blocked: true };
+  if (row.blocked) return { order: null, blocked: true, items: row.items ?? [] };
   return { order: (row.order as Order) ?? null, blocked: false };
+}
+
+/**
+ * Restaurantes do dono com o plano gratuito estourado. O painel usa isso para
+ * marcar os pedidos como bloqueados e esconder as ações (cancelar/avançar).
+ *
+ * Best-effort: se a RPC ainda não existir (schema antigo), devolve vazio e o
+ * painel se comporta como antes — sem travar nada.
+ */
+export async function getOwnerLockedStores(): Promise<Set<string>> {
+  const { data, error } = await supabase.rpc("owner_locked_stores");
+  if (error) return new Set();
+  const rows = (data ?? []) as (string | { owner_locked_stores?: string })[];
+  return new Set(
+    rows.map((r) => (typeof r === "string" ? r : (r?.owner_locked_stores ?? ""))).filter(Boolean),
+  );
 }
 
 function toNumber(value: unknown, fallback = 0): number {

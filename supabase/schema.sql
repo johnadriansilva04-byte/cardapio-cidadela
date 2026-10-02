@@ -412,9 +412,11 @@ DECLARE
   v_reset DATE;
   v_found UUID;
   v_order JSONB;
+  v_items JSONB;
+  v_blocked BOOLEAN := false;
 BEGIN
   IF auth.uid() IS NULL THEN
-    RETURN jsonb_build_object('blocked', true);
+    RETURN jsonb_build_object('blocked', true, 'items', '[]'::jsonb);
   END IF;
 
   SELECT o.restaurant_id, o.id INTO v_store_id, v_found
@@ -436,15 +438,23 @@ BEGIN
       v_count := 0;
     END IF;
     IF COALESCE(v_count, 0) >= 5 THEN
-      RETURN jsonb_build_object('blocked', true);
+      v_blocked := true;
     END IF;
   END IF;
 
+  -- Lista de itens é liberada mesmo quando bloqueado: o dono vê o que chegou
+  -- (nome + quantidade) como gatilho para assinar, mas não os dados comerciais
+  -- do pedido (cliente, endereço, valores). Nada de PII aqui.
+  SELECT COALESCE(jsonb_agg(row_to_json(i) ORDER BY i.created_at), '[]'::jsonb)
+    INTO v_items
+  FROM order_items i WHERE i.order_id = p_oid;
+
+  IF v_blocked THEN
+    RETURN jsonb_build_object('blocked', true, 'items', v_items);
+  END IF;
+
   SELECT row_to_json(o)::jsonb
-    || jsonb_build_object('order_items', COALESCE((
-         SELECT jsonb_agg(row_to_json(i) ORDER BY i.created_at)
-         FROM order_items i WHERE i.order_id = o.id
-       ), '[]'::jsonb))
+    || jsonb_build_object('order_items', v_items)
     INTO v_order
   FROM orders o WHERE o.id = p_oid;
 
@@ -453,6 +463,32 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_order_for_owner(UUID) TO authenticated;
+
+-- IDs dos restaurantes do dono que estão com o plano gratuito estourado.
+-- Serve para o painel marcar os cards como bloqueados e esconder as ações
+-- (cancelar/avançar) — sempre best-effort: sem a linha em admin_trials o
+-- restaurante é tratado como gratuito dentro da cota.
+CREATE OR REPLACE FUNCTION public.owner_locked_stores()
+RETURNS SETOF UUID
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT r.id
+  FROM restaurants r
+  LEFT JOIN admin_trials a ON a.store_id::text = r.id::text
+  WHERE is_restaurant_owner(r.id)
+    AND NOT (
+      COALESCE(a.is_premium, false)
+      AND (a.premium_expires_at IS NULL OR a.premium_expires_at > now())
+    )
+    AND COALESCE(
+      CASE
+        WHEN a.monthly_order_reset_date IS NULL
+          OR date_trunc('month', a.monthly_order_reset_date) <> date_trunc('month', CURRENT_DATE)
+        THEN 0
+        ELSE a.monthly_order_count
+      END, 0) >= 5;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.owner_locked_stores() TO authenticated;
 
 
 -- Mantém a tabela de convidados limpa: pedidos encerrados

@@ -53,6 +53,7 @@ import { OrderStatusBadge } from "@/components/admin/StatusBadge";
 import {
   getOrdersByRestaurant,
   getOrderForOwner,
+  getOwnerLockedStores,
   updateOrderStatus,
 } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
@@ -135,6 +136,8 @@ export function OrderManager({
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailBlocked, setDetailBlocked] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailItems, setDetailItems] = useState<Order["order_items"]>([]);
+  const [lockedStores, setLockedStores] = useState<Set<string>>(new Set());
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const fetchAllOrders = useCallback(async (): Promise<Order[]> => {
@@ -149,7 +152,9 @@ export function OrderManager({
     setLoading(true);
     setError(null);
     try {
-      setOrders(await fetchAllOrders());
+      const [data, locked] = await Promise.all([fetchAllOrders(), getOwnerLockedStores()]);
+      setOrders(data);
+      setLockedStores(locked);
     } catch (e) {
       console.error("[OrderManager] load", e);
       setError("Falha ao carregar pedidos.");
@@ -164,8 +169,11 @@ export function OrderManager({
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchAllOrders();
-        if (!cancelled) setOrders(data);
+        const [data, locked] = await Promise.all([fetchAllOrders(), getOwnerLockedStores()]);
+        if (!cancelled) {
+          setOrders(data);
+          setLockedStores(locked);
+        }
       } catch (e) {
         console.error("[OrderManager] initial load", e);
         if (!cancelled) setError("Falha ao carregar pedidos.");
@@ -271,12 +279,16 @@ export function OrderManager({
     setDetailOrder(null);
     setDetailBlocked(false);
     setDetailError(null);
+    setDetailItems([]);
     setDetailLoading(true);
     try {
       const res = await getOrderForOwner(order.id);
-      if (res.blocked) setDetailBlocked(true);
-      else if (res.order) setDetailOrder(res.order);
-      else setDetailError("Não foi possível carregar este pedido.");
+      if (res.blocked) {
+        setDetailBlocked(true);
+        setDetailItems(res.items ?? []);
+      } else if (res.order) {
+        setDetailOrder(res.order);
+      } else setDetailError("Não foi possível carregar este pedido.");
     } catch {
       setDetailError("Não foi possível carregar este pedido.");
     } finally {
@@ -289,6 +301,7 @@ export function OrderManager({
     setDetailOrder(null);
     setDetailBlocked(false);
     setDetailError(null);
+    setDetailItems([]);
     setDetailLoading(false);
   }
 
@@ -524,15 +537,17 @@ export function OrderManager({
         </div>
       ) : (
         <div className="space-y-5">
-          {/* Colunas ativas */}
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {/* Colunas ativas. `items-start` evita que a grade estique todas as
+              colunas até a altura da mais cheia (o vazio virava faixa enorme);
+              cada coluna limita sua própria altura e rola por dentro. */}
+          <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
             {KANBAN_COLUMNS.map((col) => {
               const colOrders = displayedOrders.filter((o) => o.status === col.status);
               return (
                 <div
                   key={col.status}
                   className={cn(
-                    "flex flex-col rounded-2xl border bg-black/20",
+                    "flex max-h-[calc(100vh-20rem)] min-h-0 flex-col rounded-2xl border bg-black/20",
                     COLUMN_ACCENT[col.status],
                   )}
                 >
@@ -552,20 +567,28 @@ export function OrderManager({
                       {colOrders.length}
                     </span>
                   </div>
-                  <div className="max-h-[60vh] space-y-2 overflow-y-auto p-2">
+                  <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
                     {colOrders.length === 0 ? (
                       <p className="py-6 text-center text-xs text-gray-600">Sem pedidos</p>
                     ) : (
-                      colOrders.map((order) => (
-                        <OrderCard
-                          key={order.id}
-                          order={order}
-                          storeName={multi ? restaurantNames.get(order.restaurant_id) : undefined}
-                          onOpen={() => openDetail(order)}
-                          onAdvance={() => changeStatus(order.id, NEXT_STATUS[order.status]!)}
-                          onCancel={() => requestCancel(order)}
-                        />
-                      ))
+                      colOrders.map((order) => {
+                        const locked = lockedStores.has(order.restaurant_id);
+                        return (
+                          <OrderCard
+                            key={order.id}
+                            order={order}
+                            storeName={multi ? restaurantNames.get(order.restaurant_id) : undefined}
+                            locked={locked}
+                            onOpen={() => openDetail(order)}
+                            onAdvance={
+                              locked
+                                ? undefined
+                                : () => changeStatus(order.id, NEXT_STATUS[order.status]!)
+                            }
+                            onCancel={locked ? undefined : () => requestCancel(order)}
+                          />
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -615,12 +638,15 @@ export function OrderManager({
                 {displayedOrders.some(
                   (o) => o.status === "delivered" || o.status === "cancelled",
                 ) ? (
-                  <div className="grid gap-3 border-t border-white/5 p-2 lg:grid-cols-2">
+                  <div className="grid items-start gap-3 border-t border-white/5 p-2 lg:grid-cols-2">
                     {(["delivered", "cancelled"] as OrderStatus[]).map((s) => {
                       const colOrders = displayedOrders.filter((o) => o.status === s);
                       if (colOrders.length === 0) return null;
                       return (
-                        <div key={s} className="rounded-xl bg-black/20">
+                        <div
+                          key={s}
+                          className="flex max-h-[calc(100vh-24rem)] min-h-0 flex-col rounded-xl bg-black/20"
+                        >
                           <div className="flex items-center gap-2 px-3 py-2">
                             <span
                               className={cn(
@@ -641,7 +667,7 @@ export function OrderManager({
                               {colOrders.length}
                             </span>
                           </div>
-                          <div className="max-h-[60vh] space-y-2 overflow-y-auto px-2 pb-2">
+                          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2">
                             {colOrders.map((order) => (
                               <OrderCard
                                 key={order.id}
@@ -673,6 +699,7 @@ export function OrderManager({
       <OrderDetailDialog
         preview={detailPreview}
         order={detailOrder}
+        items={detailItems}
         loading={detailLoading}
         blocked={detailBlocked}
         error={detailError}
@@ -693,6 +720,7 @@ export function OrderManager({
 function OrderCard({
   order,
   storeName,
+  locked = false,
   onOpen,
   onAdvance,
   onCancel,
@@ -700,6 +728,7 @@ function OrderCard({
 }: {
   order: Order;
   storeName?: string;
+  locked?: boolean;
   onOpen: () => void;
   onAdvance?: () => void;
   onCancel?: () => void;
@@ -712,13 +741,20 @@ function OrderCard({
       <button onClick={onOpen} className="flex w-full flex-col gap-1.5 text-left">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate font-mono text-xs font-bold text-white">{order.comanda}</span>
-          <span
-            className={cn(
-              "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold",
-              ORDER_STATUS_COLORS[order.status],
+          <span className="flex shrink-0 items-center gap-1">
+            {locked && (
+              <span className="grid size-4 place-items-center rounded-full bg-amber-500/15 text-amber-300">
+                <Lock className="size-2.5" />
+              </span>
             )}
-          >
-            {ORDER_STATUS_LABELS[order.status]}
+            <span
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-[9px] font-bold",
+                ORDER_STATUS_COLORS[order.status],
+              )}
+            >
+              {ORDER_STATUS_LABELS[order.status]}
+            </span>
           </span>
         </div>
         {storeName && (
@@ -781,6 +817,7 @@ function OrderCard({
 function OrderDetailDialog({
   preview,
   order,
+  items = [],
   loading,
   blocked,
   error,
@@ -792,6 +829,7 @@ function OrderDetailDialog({
 }: {
   preview: Order | null;
   order: Order | null;
+  items?: Order["order_items"];
   loading: boolean;
   blocked: boolean;
   error: string | null;
@@ -841,6 +879,25 @@ function OrderDetailDialog({
                   </p>
                 </div>
               </div>
+
+              {/* Gatilho de assinatura: o que chegou (itens) aparece; os dados
+                  comerciais (cliente, endereço, valores) ficam bloqueados. */}
+              {items.length > 0 && (
+                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                  <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                    <ShoppingBag className="size-3" /> Itens do pedido
+                  </p>
+                  <ul className="space-y-1.5">
+                    {items.map((item) => (
+                      <li key={item.id} className="flex items-start gap-2 text-sm">
+                        <span className="shrink-0 font-bold text-white">{item.quantity}x</span>
+                        <span className="min-w-0 flex-1 text-gray-200">{item.product_name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <Link
                 to="/admin/assinatura"
                 className="flex items-center justify-center gap-2 rounded-full bg-cyan-500 px-4 py-2.5 text-sm font-bold text-black transition-colors hover:bg-cyan-400"

@@ -142,6 +142,72 @@ export async function updateProfileName(name: string): Promise<{ ok: boolean; er
 }
 
 /**
+ * Troca o telefone de acesso do usuário.
+ *
+ * Como o login usa telefone→pseudo-email, mudar o telefone significa mudar o
+ * email da conta. Se a confirmação por email estiver ligada no projeto, o
+ * Supabase manda um link para o endereço novo e a troca só vale depois do
+ * clique — nesse caso devolvemos `pending` para a UI avisar em vez de fingir
+ * sucesso. O perfil também é atualizado (nome do telefone e metadata).
+ */
+export async function updateProfilePhone(
+  newPhone: string,
+  password: string,
+): Promise<{ ok: boolean; pending?: boolean; error?: string }> {
+  const digits = normalizePhone(newPhone);
+  if (digits.length < 10) {
+    return { ok: false, error: "Informe um telefone válido com DDD." };
+  }
+  if (!password) {
+    return { ok: false, error: "Informe sua senha para confirmar." };
+  }
+
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return { ok: false, error: "Você não está autenticado." };
+
+  const currentDigits = normalizePhone((user.user_metadata?.phone as string) || "");
+  if (currentDigits && currentDigits === digits) {
+    return { ok: false, error: "Este já é o seu telefone." };
+  }
+
+  // Confirma a identidade antes de mexer no acesso (o telefone atual continua
+  // válido enquanto o novo não é confirmado).
+  if (currentDigits) {
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: phoneToEmail(currentDigits),
+      password,
+    });
+    if (reauthError) {
+      return { ok: false, error: "Senha incorreta." };
+    }
+  }
+
+  const { data: updated, error: emailError } = await supabase.auth.updateUser({
+    email: phoneToEmail(digits),
+    data: { phone: digits, display_phone: newPhone.trim() },
+  });
+  if (emailError) {
+    console.error("[auth] update phone error:", emailError.message);
+    return { ok: false, error: "Não foi possível alterar o telefone." };
+  }
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({ phone: digits, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+  if (profileError) {
+    // Não é fatal: o login já aponta para o telefone novo.
+    console.warn("[auth] update profile phone error:", profileError.message);
+  }
+
+  // Com "Confirm email" ligado, o Supabase mantém o email antigo até o link ser
+  // clicado — o novo endereço aparece em new_email.
+  const pending = Boolean(updated?.user?.new_email);
+  return { ok: true, pending };
+}
+
+/**
  * Update the user's password.
  * Verifies a required current password if provided (best-effort on the
  * phone→pseudo email mapping), then updates via Supabase.

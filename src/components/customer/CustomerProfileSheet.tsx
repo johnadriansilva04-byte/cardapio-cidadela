@@ -14,6 +14,8 @@ import {
   ShoppingBag,
   Sparkles,
   ArrowRight,
+  KeyRound,
+  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCustomerProfile } from "@/modules/customer/useCustomerProfile";
@@ -23,6 +25,8 @@ import {
   signUpWithPhone,
   signOut as authSignOut,
   updateProfileName,
+  updateProfilePhone,
+  updatePassword,
 } from "@/modules/supabase/auth";
 import {
   claimGuestData,
@@ -73,7 +77,19 @@ export default function CustomerProfileSheet({
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
 
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [phonePassword, setPhonePassword] = useState("");
+
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  const [editingBusy, setEditingBusy] = useState<"phone" | "password" | null>(null);
+
   const displayName = profile?.name || user?.email?.split("@")[0] || "Cliente";
+  const displayPhone =
+    profile?.phone || (user?.user_metadata?.display_phone as string) || user?.phone || "";
 
   useEffect(() => {
     let alive = true;
@@ -176,6 +192,41 @@ export default function CustomerProfileSheet({
     }
   }
 
+  async function handleSavePhone() {
+    setEditingBusy("phone");
+    setFeedback(null);
+    const result = await updateProfilePhone(phoneDraft, phonePassword);
+    setEditingBusy(null);
+    if (!result.ok) {
+      setFeedback({ kind: "err", text: result.error ?? "Erro ao salvar." });
+      return;
+    }
+    setEditingPhone(false);
+    setPhonePassword("");
+    setFeedback({
+      kind: "ok",
+      text: result.pending
+        ? "Quase lá! Confirme o novo telefone pelo link enviado para o seu email."
+        : "Telefone atualizado.",
+    });
+    void reload();
+  }
+
+  async function handleSavePassword() {
+    setEditingBusy("password");
+    setFeedback(null);
+    const result = await updatePassword(currentPassword, newPassword);
+    setEditingBusy(null);
+    if (!result.ok) {
+      setFeedback({ kind: "err", text: result.error ?? "Erro ao alterar a senha." });
+      return;
+    }
+    setPasswordOpen(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setFeedback({ kind: "ok", text: "Senha alterada." });
+  }
+
   async function handleRedeem(promo: Promotion) {
     setRedeeming(promo.id);
     setFeedback(null);
@@ -269,9 +320,127 @@ export default function CustomerProfileSheet({
                     </button>
                   </div>
                 )}
-                <p className="truncate text-xs text-gray-500">{profile?.phone || user?.phone}</p>
+
+                {editingPhone ? (
+                  <div className="mt-2 space-y-2">
+                    <div className="relative">
+                      <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
+                      <input
+                        className={`${field} pl-9`}
+                        value={phoneDraft}
+                        onChange={(e) => setPhoneDraft(e.target.value)}
+                        placeholder="(11) 99999-9999"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        aria-label="Novo telefone"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="relative">
+                      <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
+                      <input
+                        className={`${field} pl-9`}
+                        type="password"
+                        value={phonePassword}
+                        onChange={(e) => setPhonePassword(e.target.value)}
+                        placeholder="Sua senha atual"
+                        autoComplete="current-password"
+                        aria-label="Senha atual"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSavePhone}
+                        disabled={editingBusy === "phone"}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold text-white transition-all hover:brightness-110 disabled:opacity-60"
+                        style={{ backgroundColor: accent }}
+                      >
+                        {editingBusy === "phone" ? (
+                          <LoaderCircle className="size-3.5 animate-spin" />
+                        ) : (
+                          "Salvar telefone"
+                        )}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingPhone(false);
+                          setPhonePassword("");
+                        }}
+                        className="rounded-xl border border-white/10 px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/5"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-xs text-gray-500">
+                      {displayPhone || "Sem telefone"}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setPhoneDraft(displayPhone);
+                        setEditingPhone(true);
+                      }}
+                      aria-label="Editar telefone"
+                      className="text-gray-500 transition-colors hover:text-white"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
+          </div>
+
+          {/* Segurança: troca de senha */}
+          <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <button
+              onClick={() => setPasswordOpen((v) => !v)}
+              aria-expanded={passwordOpen}
+              className="flex w-full items-center gap-2 text-left"
+            >
+              <KeyRound className="size-4 shrink-0" style={{ color: accent }} />
+              <span className="flex-1 text-sm font-semibold text-white">Alterar senha</span>
+              <ChevronDown
+                className={`size-4 shrink-0 text-gray-500 transition-transform ${passwordOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {passwordOpen && (
+              <div className="mt-3 space-y-2">
+                <input
+                  className={field}
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Senha atual"
+                  autoComplete="current-password"
+                  aria-label="Senha atual"
+                />
+                <input
+                  className={field}
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Nova senha (mínimo 6 caracteres)"
+                  autoComplete="new-password"
+                  aria-label="Nova senha"
+                />
+                <button
+                  onClick={handleSavePassword}
+                  disabled={editingBusy === "password"}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold text-white transition-all hover:brightness-110 disabled:opacity-60"
+                  style={{ backgroundColor: accent }}
+                >
+                  {editingBusy === "password" ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                  ) : (
+                    "Salvar nova senha"
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Resumo: SOV e pedidos */}
@@ -294,7 +463,10 @@ export default function CustomerProfileSheet({
               </h3>
               <div className="space-y-2">
                 {[1, 2].map((i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3"
+                  >
                     <div className="flex-1 space-y-2">
                       <Skeleton variant="text" className="h-4 w-3/4" />
                       <Skeleton variant="text" className="h-3 w-1/2" />

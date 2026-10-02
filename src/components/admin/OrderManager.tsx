@@ -958,7 +958,7 @@ function OrderDetailDialog({
                   </span>
                 </span>
                 <span className="shrink-0 rounded-full bg-cyan-500 px-3 py-1.5 text-[11px] font-black text-black">
-                  R$ 39,90/mês
+                  R$ 39,99/ano
                 </span>
               </Link>
 

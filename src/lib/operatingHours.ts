@@ -48,8 +48,14 @@ export function normalizeOperatingHours(raw: unknown): OperatingHours {
   for (const k of DAY_ORDER) {
     const v = (raw as Record<string, unknown>)[k] as Partial<DaySchedule> | undefined;
     if (v && typeof v === "object") {
-      const open = typeof v.open === "string" && /^\d{1,2}:\d{2}$/.test(v.open) ? v.open.padStart(5, "0") : out[k].open;
-      const close = typeof v.close === "string" && /^\d{1,2}:\d{2}$/.test(v.close) ? v.close.padStart(5, "0") : out[k].close;
+      const open =
+        typeof v.open === "string" && /^\d{1,2}:\d{2}$/.test(v.open)
+          ? v.open.padStart(5, "0")
+          : out[k].open;
+      const close =
+        typeof v.close === "string" && /^\d{1,2}:\d{2}$/.test(v.close)
+          ? v.close.padStart(5, "0")
+          : out[k].close;
       const closed = typeof v.closed === "boolean" ? v.closed : false;
       out[k] = { closed, open, close };
     }
@@ -78,47 +84,45 @@ export function formatRange(s: DaySchedule): string {
 export function isOpenNow(hours: OperatingHours | null | undefined, now = new Date()): boolean {
   if (!hours) return true; // sem config = sempre aberto
   const normalized = normalizeOperatingHours(hours);
-  const nowMin = now.getHours() * 60 + now.getMinutes();
   const todayKey = DOW_TO_KEY[now.getDay()];
   const today = normalized[todayKey];
+  if (today && !today.closed && isWithin(today, now)) return true;
 
-  // Hoje
-  if (!today.closed) {
-    const o = parseMinutes(today.open);
-    const c = parseMinutes(today.close);
-    if (c === o) return true; // 24h
-    if (c > o) {
-      if (nowMin >= o && nowMin < c) return true;
-    } else {
-      // vira madrugada: hoje aberto de o até 24h
-      if (nowMin >= o) return true;
-    }
-  }
-
-  // Ontem — pode ainda estar dentro do horário que virou
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const yKey = DOW_TO_KEY[yesterday.getDay()];
-  const y = normalized[yKey];
-  if (!y.closed) {
-    const o = parseMinutes(y.open);
-    const c = parseMinutes(y.close);
-    if (c !== o && c < o) {
-      // aberto de ontem até c hoje de madrugada
-      if (nowMin < c) return true;
-    }
-  }
-
-  return false;
+  // A madrugada pertence ao dia anterior: 22:00–02:00 de ontem ainda vale hoje.
+  const yesterdayKey = DOW_TO_KEY[(now.getDay() + 6) % 7];
+  const yesterday = normalized[yesterdayKey];
+  return Boolean(
+    yesterday && !yesterday.closed && crossesMidnight(yesterday) && isWithin(yesterday, now),
+  );
 }
 
-export function getTodaySchedule(hours: OperatingHours | null | undefined, now = new Date()): { key: DayKey; schedule: DaySchedule } {
+function crossesMidnight(s: DaySchedule): boolean {
+  return parseMinutes(s.close) <= parseMinutes(s.open);
+}
+
+function isWithin(s: DaySchedule, now: Date): boolean {
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const open = parseMinutes(s.open);
+  const close = parseMinutes(s.close);
+  if (open === close) return true; // 24h
+  return crossesMidnight(s)
+    ? minutes >= open || minutes < close
+    : minutes >= open && minutes < close;
+}
+
+export function getTodaySchedule(
+  hours: OperatingHours | null | undefined,
+  now = new Date(),
+): { key: DayKey; schedule: DaySchedule } {
   const normalized = normalizeOperatingHours(hours);
   const key = DOW_TO_KEY[now.getDay()];
   return { key, schedule: normalized[key] };
 }
 
-export function getNextOpenInfo(hours: OperatingHours | null | undefined, now = new Date()): { label: string; time: string } | null {
+export function getNextOpenInfo(
+  hours: OperatingHours | null | undefined,
+  now = new Date(),
+): { label: string; time: string } | null {
   if (!hours) return null;
   const normalized = normalizeOperatingHours(hours);
   for (let offset = 0; offset < 7; offset++) {
@@ -151,7 +155,10 @@ export function getNextOpenInfo(hours: OperatingHours | null | undefined, now = 
   return null;
 }
 
-export function getClosesAt(hours: OperatingHours | null | undefined, now = new Date()): string | null {
+export function getClosesAt(
+  hours: OperatingHours | null | undefined,
+  now = new Date(),
+): string | null {
   if (!hours) return null;
   const normalized = normalizeOperatingHours(hours);
   // se aberto por causa de ontem, fecha hoje no horário de ontem

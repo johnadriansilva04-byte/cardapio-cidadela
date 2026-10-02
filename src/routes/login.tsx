@@ -61,6 +61,17 @@ function LoginPage() {
   const [errorMsg, setErrorMsg] = useState(urlError);
   const [errorKey, setErrorKey] = useState(0); // reinicia a animação de shake
 
+  // O telefone do dono quase nunca muda: lembrar o último digitado evita
+  // redigitar o DDD toda vez que a sessão expira.
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("cidadela:last-phone");
+      if (saved) setPhone(saved);
+    } catch {
+      /* localStorage indisponível — sem preenchimento, sem quebrar */
+    }
+  }, []);
+
   // Redirect if already authenticated
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -89,6 +100,14 @@ function LoginPage() {
     const raw = e.target.value;
     const cleaned = raw.replace(/[^\d()\s-]/g, "");
     setPhone(formatPhone(cleaned));
+  }
+
+  function rememberPhone(formatted: string) {
+    try {
+      window.localStorage.setItem("cidadela:last-phone", formatted);
+    } catch {
+      /* sem persistência — só não lembra da próxima vez */
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -136,6 +155,7 @@ function LoginPage() {
         }
 
         if (session) {
+          rememberPhone(phone);
           // Traz para a conta o que foi feito como convidado neste aparelho.
           await claimGuestData();
           navigate({ to: returnTo as "/", replace: true });
@@ -166,7 +186,10 @@ function LoginPage() {
           }
 
           // Registration successful — try auto-login
-          const { session: newSession, error: loginError } = await signInWithPhone(digits, password);
+          const { session: newSession, error: loginError } = await signInWithPhone(
+            digits,
+            password,
+          );
           if (loginError || !newSession) {
             setMode("login");
             setErrorMsg("Conta criada! Tente fazer login.");
@@ -175,6 +198,7 @@ function LoginPage() {
             return;
           }
 
+          rememberPhone(phone);
           // Traz para a conta o que foi feito como convidado neste aparelho.
           await claimGuestData();
           navigate({ to: returnTo as "/", replace: true });
@@ -230,7 +254,9 @@ function LoginPage() {
         <div className="hidden lg:block animate-slide-up">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3.5 py-1.5">
             <Zap className="size-3.5 text-cyan-400" />
-            <span className="text-xs font-semibold text-cyan-300">Plataforma para restaurantes</span>
+            <span className="text-xs font-semibold text-cyan-300">
+              Plataforma para restaurantes
+            </span>
           </div>
           <h1 className="text-4xl font-black leading-tight tracking-tight text-white">
             Seu cardápio,
@@ -392,17 +418,13 @@ function LoginPage() {
                           key={i}
                           className="h-1 flex-1 rounded-full transition-all duration-300"
                           style={{
-                            backgroundColor:
-                              pwScore > i ? pwColor : "rgba(255,255,255,0.08)",
+                            backgroundColor: pwScore > i ? pwColor : "rgba(255,255,255,0.08)",
                             boxShadow: pwScore > i ? `0 0 8px ${pwColor}66` : undefined,
                           }}
                         />
                       ))}
                     </div>
-                    <p
-                      className="mt-1.5 text-[11px] font-semibold"
-                      style={{ color: pwColor }}
-                    >
+                    <p className="mt-1.5 text-[11px] font-semibold" style={{ color: pwColor }}>
                       {pwLabel}
                     </p>
                   </div>
@@ -432,10 +454,7 @@ function LoginPage() {
 
           {/* Back to home */}
           <div className="mt-6 text-center">
-            <Link
-              to="/"
-              className="text-xs text-gray-600 transition-colors hover:text-gray-400"
-            >
+            <Link to="/" className="text-xs text-gray-600 transition-colors hover:text-gray-400">
               ← Voltar ao site
             </Link>
           </div>

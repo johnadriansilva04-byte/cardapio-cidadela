@@ -210,7 +210,7 @@ export function OrderCard({
               </span>
             </span>
             <span className="shrink-0 rounded-full bg-cyan-500 px-2.5 py-1 text-[10px] font-black text-black">
-              R$ 39,90/mês
+              R$ 39,99/ano
             </span>
           </Link>
           <p className="text-center text-[11px] leading-relaxed text-gray-500">

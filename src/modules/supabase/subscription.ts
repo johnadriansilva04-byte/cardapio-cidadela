@@ -20,6 +20,8 @@ import type { SubscriptionStatus } from "@/lib/types";
 
 export const MONTHLY_FREE_LIMIT = 5;
 
+export { PREMIUM_PRICE_LABEL } from "@/lib/pricing";
+
 const COLUMNS =
   "store_id, admin_email, is_premium, premium_expires_at, monthly_order_count, monthly_order_reset_date";
 

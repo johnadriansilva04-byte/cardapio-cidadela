@@ -14,6 +14,10 @@ import {
   LayoutGrid,
   Crown,
   Sparkles,
+  Copy,
+  Check,
+  ExternalLink,
+  Power,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RestaurantCardCompact } from "@/components/admin/RestaurantCardCompact";
+import { StorePulseBar } from "@/components/admin/StorePulseBar";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
 import { OrdersDonut } from "@/components/admin/OrdersDonut";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
@@ -39,7 +44,7 @@ import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { checkSubscriptionStatus, MONTHLY_FREE_LIMIT } from "@/modules/supabase/subscription";
-import { serializeHours } from "@/lib/operatingHours";
+import { serializeHours, isOpenNow } from "@/lib/operatingHours";
 import type { OrderStatus, Restaurant } from "@/lib/types";
 import { brl } from "@/lib/utils";
 import { toast } from "sonner";
@@ -433,6 +438,16 @@ function AdminDashboardOverview() {
         </div>
       )}
 
+      {/* Sua loja agora — o pulso do dia em uma linha, com as ações que o dono
+          mais repete (abrir/fechar e mandar o link) a um toque. */}
+      {activeRestaurant && (
+        <StorePulseBar
+          restaurant={activeRestaurant}
+          toggling={togglingId === activeRestaurant.id}
+          onToggle={() => handleTogglePublish(activeRestaurant)}
+        />
+      )}
+
       {/* KPI compactos */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
@@ -524,20 +539,46 @@ function AdminDashboardOverview() {
       )}
 
       {restaurants.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-10 text-center">
-          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-white/5 text-gray-600">
-            <UtensilsCrossed className="size-7" />
+        <div className="rounded-3xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent p-8 sm:p-10">
+          <div className="mx-auto max-w-lg text-center">
+            <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-cyan-500/10 text-cyan-300">
+              <UtensilsCrossed className="size-7" />
+            </div>
+            <h3 className="mt-4 text-lg font-black text-white">Vamos abrir sua loja</h3>
+            <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-gray-400">
+              Três passos e o cliente já pode pedir pelo celular. Nada de configuração complicada.
+            </p>
           </div>
-          <h3 className="mt-4 text-sm font-bold text-white">Nenhum restaurante ainda</h3>
-          <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-gray-500">
-            Crie seu primeiro restaurante para liberar cardápio, pedidos e financeiro.
-          </p>
-          <Button
-            onClick={() => setDialogOpen(true)}
-            className="mt-4 rounded-full bg-cyan-500 text-black hover:bg-cyan-400"
-          >
-            <Plus className="size-4" /> Criar restaurante
-          </Button>
+
+          <ol className="mx-auto mt-8 max-w-lg space-y-3">
+            {[
+              { n: "1", t: "Crie o restaurante", d: "Nome, endereço e uma URL só sua." },
+              { n: "2", t: "Monte o cardápio", d: "Categorias, fotos e preços em minutos." },
+              { n: "3", t: "Publique e compartilhe", d: "Mande o link ou o QR no status." },
+            ].map((s) => (
+              <li
+                key={s.n}
+                className="flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3.5"
+              >
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-cyan-500/15 text-xs font-black text-cyan-300">
+                  {s.n}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-white">{s.t}</span>
+                  <span className="text-xs text-gray-400">{s.d}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-7 text-center">
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="rounded-full bg-cyan-500 px-6 text-sm font-bold text-black shadow-[0_0_24px_rgba(6,182,212,0.3)] hover:bg-cyan-400"
+            >
+              <Plus className="size-4" /> Criar meu restaurante
+            </Button>
+          </div>
         </div>
       ) : (
         <>

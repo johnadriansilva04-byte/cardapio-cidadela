@@ -163,6 +163,13 @@
 
 ## Assinatura Premium (Mercado Pago)
 
+- Preço único: `PREMIUM_PRICE_LABEL` em `src/lib/pricing.ts` (R$ 39,99/ano).
+  Fica fora de `modules/supabase` de propósito: a landing precisa exibir o preço
+  sem arrastar o cliente Supabase para o bundle público. `subscription.ts`
+  reexporta para compatibilidade — ao mudar o preço, mude só lá.
+- Landing (`src/routes/index.tsx`) tem uma demo viva (`LiveMenuDemo`): o
+  visitante monta um pedido de verdade na própria página, sem backend. É
+  marketing interativo, não um fluxo de pedido real — não conecta em nada.
 - Plano gratuito: 5 pedidos/mês; Premium é ilimitado. O estado vive em
   `admin_trials` (uma linha por restaurante, `store_id` = `restaurants.id`),
   com `is_premium`, `premium_expires_at`, `monthly_order_count`,
@@ -233,6 +240,21 @@
   modal era um passo obrigatório. O vínculo continua por e-mail/telefone
   (pseudo-email `telefone@menufacil.local`), por isso o aviso fala em
   "telefone" e nunca expõe o endereço interno.
+
+## Painel (admin)
+
+- A faixa `StorePulseBar` (`src/components/admin/StorePulseBar.tsx`) fica no topo
+  do dashboard com o pulso do dia em uma linha: aberto agora / fechado / pausado
+  (relógio de 60s, sem recarregar) e as ações que o dono mais repete — pausar,
+  copiar o link e abrir a gestão. Reusa `handleTogglePublish`, não cria regra nova.
+- O estado vazio do dashboard é um guia de 3 passos (criar → montar → publicar),
+  não só um botão solto.
+- `isOpenNow` (`src/lib/operatingHours.ts`) checa só hoje e ontem (madrugada),
+  em vez de varrer os 7 dias a cada render. Coberto por
+  `src/lib/operatingHours.test.ts`.
+- Login (`src/routes/login.tsx`) lembra o último telefone digitado em
+  `localStorage` (`cidadela:last-phone`) para não redigitar o DDD quando a sessão
+  expira. É conveniência, não credencial — a senha nunca é guardada.
 
 ## MATA-FOME: retenção e imagens leves
 

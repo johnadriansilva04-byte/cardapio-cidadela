@@ -22,6 +22,7 @@ import {
   registerPendingSubscription,
   getPreapprovalId,
   MONTHLY_FREE_LIMIT,
+  PREMIUM_PRICE_LABEL,
 } from "@/modules/supabase/subscription";
 import { supabase } from "@/modules/supabase/client";
 import type { Restaurant, SubscriptionStatus } from "@/lib/types";
@@ -36,7 +37,7 @@ const SUBSCRIPTION_LINK =
   (import.meta.env?.VITE_MERCADOPAGO_SUBSCRIPTION_LINK as string | undefined) ||
   "https://mpago.la/1Mz2uqH";
 
-const PRICE_LABEL = "R$ 39,90/mês";
+const PRICE_LABEL = PREMIUM_PRICE_LABEL;
 
 function SubscriptionPage() {
   const { user, session, loading: authLoading } = useAuth();
@@ -255,7 +256,7 @@ function SubscriptionPage() {
             Assinatura Premium
           </span>
         }
-        subtitle="Receba pedidos ilimitados por mês. Ativação automática após o pagamento."
+        subtitle="Pedidos ilimitados o ano inteiro. Ativação automática após o pagamento."
       />
 
       {restaurants.length > 1 && (
@@ -328,7 +329,7 @@ function SubscriptionPage() {
           <p className="mt-1 text-xs text-gray-400">
             {isPremium
               ? status?.premiumExpiresAt
-                ? `Renova em ${new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")}.`
+                ? `Válido até ${new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")}.`
                 : "Assinatura ativa e sem limite de pedidos."
               : `${remaining} de ${MONTHLY_FREE_LIMIT} pedidos restantes este mês.`}
           </p>

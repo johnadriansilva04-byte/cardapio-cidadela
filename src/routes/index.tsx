@@ -1,106 +1,288 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import {
-  UtensilsCrossed,
-  QrCode,
+  ArrowRight,
   BarChart3,
-  Smartphone,
-  Zap,
-  Shield,
-  ChevronRight,
+  BellRing,
+  Bike,
+  Check,
+  ChefHat,
   Menu,
+  MessageCircle,
+  QrCode,
+  Send,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  Timer,
+  UtensilsCrossed,
   X,
+  Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { PREMIUM_PRICE_LABEL } from "@/lib/pricing";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Cardápio Cidadela — Cardápios Digitais para Restaurantes" },
+      { title: "Cardápio Cidadela — Cardápio digital para micro-restaurantes" },
       {
         name: "description",
         content:
-          "Crie, gerencie e publique cardápios digitais profissionais para seu restaurante. URLs bonitas, pedidos em tempo real e design premium.",
+          "Cardápio digital com link próprio, QR Code e pedidos em tempo real. O cliente pede sozinho pelo celular — você só recebe. Sem comissão por pedido.",
       },
-      { property: "og:title", content: "Cardápio Cidadela — Cardápios Digitais" },
+      { property: "og:title", content: "Cardápio Cidadela — Seu cardápio no ar em minutos" },
       {
         property: "og:description",
-        content: "Plataforma para criação e gerenciamento de cardápios digitais.",
+        content:
+          "Feito para micro-restaurantes: link próprio, PIX e pedidos em tempo real. Sem comissão, sem app para instalar.",
       },
     ],
   }),
   component: LandingPage,
 });
 
+const DEMO_ITEMS = [
+  { id: "p1", emoji: "🍕", name: "Pizza da casa", price: 32, tag: "Mais pedido" },
+  { id: "p2", emoji: "🍔", name: "Burger artesanal", price: 26 },
+  { id: "p3", emoji: "🥤", name: "Refri lata", price: 6 },
+];
+
+function brl(n: number) {
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+/** Demo viva: o visitante monta um pedido de verdade na própria landing. */
+function LiveMenuDemo() {
+  const [cart, setCart] = useState<Record<string, number>>({});
+  const [sent, setSent] = useState(false);
+
+  const { count, total } = useMemo(() => {
+    let count = 0;
+    let total = 0;
+    for (const item of DEMO_ITEMS) {
+      const qty = cart[item.id] ?? 0;
+      count += qty;
+      total += qty * item.price;
+    }
+    return { count, total };
+  }, [cart]);
+
+  function add(id: string) {
+    setSent(false);
+    setCart((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+  }
+
+  function send() {
+    if (count === 0) return;
+    setSent(true);
+    setCart({});
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-[340px]">
+      <div className="relative rounded-[2rem] border border-white/10 bg-[#0b0b12] p-3 shadow-[0_30px_80px_-20px_rgba(6,182,212,0.35)]">
+        <div className="absolute left-1/2 top-2 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/10" />
+
+        <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/15 text-lg">
+            🍽️
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-white">Cantina da Praça</p>
+            <p className="flex items-center gap-1.5 text-[11px] text-emerald-300">
+              <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Aberto agora
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-2 space-y-2">
+          {DEMO_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => add(item.id)}
+              className="group flex w-full items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5 text-left transition-colors hover:border-cyan-500/30 hover:bg-cyan-500/[0.05]"
+            >
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.05] text-xl">
+                {item.emoji}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-semibold text-white">{item.name}</span>
+                <span className="text-[11px] font-bold text-cyan-300">{brl(item.price)}</span>
+                {item.tag && (
+                  <span className="ml-1.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                    {item.tag}
+                  </span>
+                )}
+              </span>
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-cyan-500 text-sm font-black text-black transition-transform group-hover:scale-110">
+                +
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-white/[0.06] bg-black/30 p-3">
+          {sent ? (
+            <div className="animate-pop-in flex items-center gap-2.5 py-1">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-500/20 text-emerald-300">
+                <Check className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white">Pedido enviado!</p>
+                <p className="text-[11px] text-gray-400">
+                  Chegou no painel do restaurante na hora.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-[11px] text-gray-400">
+                <span>{count === 0 ? "Toque nos itens acima" : `${count} item(ns)`}</span>
+                <span className="text-sm font-black text-white">{brl(total)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={send}
+                disabled={count === 0}
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-cyan-500 py-2.5 text-xs font-bold text-black transition-all hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Send className="size-3.5" /> Enviar pedido
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      <p className="mt-3 text-center text-[11px] text-gray-500">
+        É isto que seu cliente vê. Experimente.
+      </p>
+    </div>
+  );
+}
+
+const FEATURES = [
+  {
+    icon: Zap,
+    title: "Pedido na hora",
+    desc: "Alerta sonoro e painel em tempo real. Nada de print de WhatsApp.",
+  },
+  {
+    icon: QrCode,
+    title: "Link e QR próprios",
+    desc: "Sua URL bonita para a bio, o status e a mesa do salão.",
+  },
+  {
+    icon: MessageCircle,
+    title: "WhatsApp na mão",
+    desc: "Envie o pedido pronto pro cliente com um toque, sem digitar.",
+  },
+  {
+    icon: Bike,
+    title: "Entrega ou retirada",
+    desc: "O cliente escolhe. A taxa e o endereço entram no pedido.",
+  },
+  {
+    icon: BarChart3,
+    title: "Caixa no bolso",
+    desc: "Faturamento, ticket médio e pratos que mais saem.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Sem comissão",
+    desc: "O pedido é seu. Você não paga percentual por venda.",
+  },
+];
+
+const FAT_STEPS = [
+  {
+    icon: Timer,
+    title: "Zero espera",
+    desc: "Cliente pede sozinho. Sua equipe para de anotar e responder.",
+  },
+  {
+    icon: Smartphone,
+    title: "Zero instalação",
+    desc: "Abre no navegador. Sem app, sem cadastro para o cliente.",
+  },
+  {
+    icon: BellRing,
+    title: "Zero pedido perdido",
+    desc: "Todo pedido fica salvo e volta a aparecer se a conexão cair.",
+  },
+];
+
 function LandingPage() {
-  const [mobileMenu, setMobileMenu] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navbar */}
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
           <Link to="/" className="flex items-center gap-2">
             <UtensilsCrossed className="size-6 text-cyan-400" />
-            <span className="text-lg font-bold tracking-tight">
+            <span className="text-base font-bold tracking-tight">
               Cardápio <span className="text-cyan-400">Cidadela</span>
             </span>
           </Link>
 
-          {/* Desktop nav */}
-          <div className="hidden items-center gap-8 md:flex">
+          <div className="hidden items-center gap-7 md:flex">
             <a
-              href="#features"
+              href="#matafome"
               className="text-sm text-gray-400 transition-colors hover:text-white"
             >
-              Funcionalidades
+              Por que
             </a>
             <a
-              href="#about"
+              href="#recursos"
               className="text-sm text-gray-400 transition-colors hover:text-white"
             >
-              Sobre
+              Recursos
             </a>
-            <a
-              href="#how"
-              className="text-sm text-gray-400 transition-colors hover:text-white"
-            >
-              Como funciona
+            <a href="#preco" className="text-sm text-gray-400 transition-colors hover:text-white">
+              Preço
             </a>
+            <Link to="/login" className="text-sm text-gray-300 transition-colors hover:text-white">
+              Entrar
+            </Link>
             <Link
               to="/login"
-              className="rounded-lg bg-cyan-500 px-5 py-2 text-sm font-semibold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+              className="sheen rounded-full bg-cyan-500 px-5 py-2 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.35)]"
             >
-              Acessar Plataforma
+              Criar grátis
             </Link>
           </div>
 
-          {/* Mobile hamburger */}
           <button
-            onClick={() => setMobileMenu(!mobileMenu)}
-            className="md:hidden text-gray-400"
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="text-gray-400 md:hidden"
             aria-label="Menu"
           >
-            {mobileMenu ? <X className="size-6" /> : <Menu className="size-6" />}
+            {menuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
           </button>
         </div>
 
-        {/* Mobile menu */}
-        {mobileMenu && (
-          <div className="border-t border-white/10 px-4 py-4 space-y-3 md:hidden">
-            <a href="#features" className="block text-sm text-gray-400 hover:text-white">
-              Funcionalidades
-            </a>
-            <a href="#about" className="block text-sm text-gray-400 hover:text-white">
-              Sobre
-            </a>
-            <a href="#how" className="block text-sm text-gray-400 hover:text-white">
-              Como funciona
-            </a>
+        {menuOpen && (
+          <div className="space-y-1 border-t border-white/10 px-4 py-4 md:hidden">
+            {[
+              ["#matafome", "Por que"],
+              ["#recursos", "Recursos"],
+              ["#preco", "Preço"],
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={href}
+                onClick={() => setMenuOpen(false)}
+                className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+              >
+                {label}
+              </a>
+            ))}
             <Link
               to="/login"
-              className="block rounded-lg bg-cyan-500 px-5 py-2.5 text-center text-sm font-semibold text-black"
+              className="mt-2 block rounded-full bg-cyan-500 px-5 py-3 text-center text-sm font-bold text-black"
             >
-              Acessar Plataforma
+              Criar meu cardápio grátis
             </Link>
           </div>
         )}
@@ -108,254 +290,251 @@ function LandingPage() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        {/* Background glow */}
         <div className="absolute inset-0">
-          <div className="absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
-          <div className="animate-float absolute right-0 top-1/3 h-[400px] w-[400px] rounded-full bg-purple-500/5 blur-[100px]" />
+          <div className="absolute left-1/2 top-0 h-[480px] w-[760px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
+          <div className="animate-float absolute right-4 top-1/3 h-[320px] w-[320px] rounded-full bg-violet-500/[0.06] blur-[100px]" />
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32 lg:py-40">
-          <div className="text-center">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-1.5">
-              <Zap className="size-3.5 text-cyan-400" />
-              <span className="text-xs font-medium text-cyan-300">
-                Plataforma para restaurantes
+        <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-2 lg:py-28">
+          <div className="text-center lg:text-left">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1.5">
+              <Sparkles className="size-3.5 text-cyan-400" />
+              <span className="text-xs font-semibold text-cyan-300">
+                Feito para micro-restaurantes
               </span>
             </div>
 
-            <h1 className="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
-              Cardápios digitais que{" "}
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                encantam
-              </span>
+            <h1 className="text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+              Seu cardápio no ar.
               <br />
-              seus clientes
+              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                Seu WhatsApp em paz.
+              </span>
             </h1>
 
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-300">
-              Crie um cardápio profissional com URL personalizada, gerencie pedidos
-              em tempo real e surpreenda seus clientes com uma experiência mobile premium.
+            <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-gray-300 sm:text-lg lg:mx-0">
+              Link próprio, QR Code e pedidos em tempo real. O cliente monta e envia sozinho — a
+              comanda chega pronta no seu painel. Sem comissão, sem app, sem gibi.
             </p>
 
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
               <Link
                 to="/login"
-                className="sheen group flex items-center gap-2 rounded-xl bg-cyan-500 px-8 py-3.5 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
+                className="sheen group flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 px-7 py-3.5 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] sm:w-auto"
               >
                 Criar meu cardápio grátis
-                <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <a
                 href="/cardapio/cidadela"
-                className="flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/5 px-8 py-3.5 text-sm font-semibold text-cyan-300 transition-all hover:border-cyan-400/60 hover:bg-cyan-500/10 hover:text-cyan-200"
+                className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-7 py-3.5 text-sm font-semibold text-gray-300 transition-all hover:border-white/30 hover:text-white sm:w-auto"
               >
-                Ver cardápio de exemplo
-              </a>
-              <a
-                href="#how"
-                className="flex items-center gap-2 rounded-xl border border-white/15 px-8 py-3.5 text-sm font-medium text-gray-300 transition-all hover:border-white/30 hover:text-white"
-              >
-                Como funciona
+                Ver cardápio real
               </a>
             </div>
 
-            {/* Prova real, sem números inventados: recursos que já funcionam hoje */}
-            <div className="mt-14 flex flex-wrap items-center justify-center gap-2">
-              {[
-                { icon: QrCode, label: "URL própria por restaurante" },
-                { icon: Zap, label: "Pedidos em tempo real" },
-                { icon: Smartphone, label: "PIX e mobile-first" },
-              ].map((f, i) => (
-                <span
-                  key={f.label}
-                  className="animate-slide-up inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-gray-300 transition-colors hover:border-cyan-500/30 hover:text-white"
-                  style={{ animationDelay: `${300 + i * 120}ms` }}
-                >
-                  <f.icon className="size-3.5 text-cyan-400" />
-                  {f.label}
-                </span>
-              ))}
-            </div>
+            <p className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-gray-500 lg:justify-start">
+              <Check className="size-3.5 text-emerald-400" /> Comece grátis · 5 pedidos por mês
+              <span className="text-gray-700">•</span>
+              <Check className="size-3.5 text-emerald-400" /> Sem cartão
+            </p>
           </div>
+
+          <LiveMenuDemo />
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="border-t border-white/5 py-24">
+      {/* MATA-FOME */}
+      <section id="matafome" className="border-t border-white/5 py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold sm:text-4xl">
-              Tudo que seu restaurante precisa
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-amber-300">
+              <ChefHat className="size-3.5" /> Método MATA-FOME
+            </span>
+            <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
+              Só o que mata a fome.
+              <br />
+              <span className="text-gray-500">Zero gordura.</span>
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-gray-400">
-              Uma plataforma completa para criar, gerenciar e divulgar seu cardápio digital.
+            <p className="mt-4 text-gray-400">
+              A gente cortou tudo que atrapalha um restaurante pequeno. Sobrou o essencial: o pedido
+              chegando e o cliente feliz.
             </p>
           </div>
 
-          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              {
-                icon: UtensilsCrossed,
-                title: "Cardápio profissional",
-                desc: "Crie categorias, adicione produtos com fotos, preços e descrições. Tudo organizado e bonito.",
-              },
-              {
-                icon: QrCode,
-                title: "URL personalizada",
-                desc: "Seu restaurante ganha um link único e bonito — /cardapio/seu-restaurante. Fácil de compartilhar no WhatsApp.",
-              },
-              {
-                icon: BarChart3,
-                title: "Pedidos em tempo real",
-                desc: "Receba pedidos instantaneamente no painel. Acompanhe status do preparo até a entrega.",
-              },
-              {
-                icon: Smartphone,
-                title: "100% mobile",
-                desc: "Experiência mobile-first pensada para clientes que pedem pelo celular.",
-              },
-              {
-                icon: Shield,
-                title: "Seguro e isolado",
-                desc: "Cada restaurante é um tenant isolado. Seus dados nunca se misturam com outros.",
-              },
-              {
-                icon: Zap,
-                title: "Sem complicação",
-                desc: "Cadastre seu restaurante em minutos. Sem código, sem instalação, sem trava.",
-              },
-            ].map((f, i) => (
+          <div className="mt-14 grid gap-5 sm:grid-cols-3">
+            {FAT_STEPS.map((s, i) => (
               <div
-                key={i}
-                className="card-lift group animate-slide-up rounded-2xl border border-white/5 bg-white/[0.02] p-6 hover:border-cyan-500/20 hover:bg-cyan-500/[0.03]"
-                style={{ animationDelay: `${i * 70}ms` }}
+                key={s.title}
+                className="card-lift animate-slide-up rounded-3xl border border-white/[0.07] bg-white/[0.02] p-6"
+                style={{ animationDelay: `${i * 90}ms` }}
               >
-                <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-cyan-500/10 transition-all duration-300 group-hover:scale-110 group-hover:bg-cyan-500/20 group-hover:shadow-[0_0_18px_rgba(34,211,238,0.35)]">
-                  <f.icon className="size-5 text-cyan-400" />
+                <div className="mb-4 grid size-11 place-items-center rounded-2xl bg-cyan-500/10 text-cyan-300">
+                  <s.icon className="size-5" />
                 </div>
-                <h3 className="text-base font-semibold text-white">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-400">
-                  {f.desc}
-                </p>
+                <h3 className="text-base font-bold text-white">{s.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{s.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section id="how" className="border-t border-white/5 py-24">
+      {/* Recursos */}
+      <section id="recursos" className="border-t border-white/5 py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="text-center">
-            <h2 className="text-3xl font-bold sm:text-4xl">Como funciona</h2>
-            <p className="mx-auto mt-4 max-w-xl text-gray-400">
-              Em 4 passos simples, seu restaurante está online.
+            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+              O kit completo, sem peso
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-gray-400">
+              Tudo que um restaurante de bairro precisa para vender direto.
             </p>
           </div>
 
-          <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                step: "01",
-                title: "Crie sua conta",
-                desc: "Acesse a plataforma e cadastre seu restaurante com nome e identificador.",
-              },
-              {
-                step: "02",
-                title: "Monte o cardápio",
-                desc: "Adicione categorias, produtos, preços e fotos. Tudo pelo painel intuitivo.",
-              },
-              {
-                step: "03",
-                title: "Publique",
-                desc: "Publique seu cardápio. Ele ficará disponível na URL personalizada.",
-              },
-              {
-                step: "04",
-                title: "Compartilhe",
-                desc: "Envie o link via WhatsApp, gere QR Code e comece a receber pedidos.",
-              },
-            ].map((s, i) => (
-              <div key={i} className="text-center">
-                <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl border border-cyan-500/20 bg-cyan-500/10 text-lg font-bold text-cyan-400">
-                  {s.step}
+          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f, i) => (
+              <div
+                key={f.title}
+                className="card-lift group animate-slide-up rounded-3xl border border-white/[0.06] bg-white/[0.02] p-6 hover:border-cyan-500/20 hover:bg-cyan-500/[0.03]"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <div className="mb-4 grid size-10 place-items-center rounded-xl bg-cyan-500/10 text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:bg-cyan-500/20 group-hover:shadow-[0_0_18px_rgba(34,211,238,0.35)]">
+                  <f.icon className="size-5" />
                 </div>
-                <h3 className="text-base font-semibold text-white">{s.title}</h3>
-                <p className="mt-2 text-sm text-gray-400">{s.desc}</p>
+                <h3 className="text-base font-bold text-white">{f.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* About */}
-      <section id="about" className="border-t border-white/5 py-24">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">Sobre o Cardápio Cidadela</h2>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-400">
-            O Cardápio Cidadela nasceu da necessidade de oferecer uma plataforma simples e
-            profissional para restaurantes que querem digitalizar seu cardápio. Acreditamos
-            que todo restaurante merece uma presença digital elegante, sem precisar investir
-            em desenvolvimento caro.
-          </p>
-          <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-gray-400">
-            Nossa missão é tornar o acesso ao cardápio do restaurante uma experiência
-            moderna, rápida e agradável — tanto para o dono do restaurante quanto para
-            o cliente final.
-          </p>
+      {/* Preço */}
+      <section id="preco" className="border-t border-white/5 py-20 sm:py-24">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <div className="text-center">
+            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+              Um preço. Sem pegadinha.
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-gray-400">
+              Comece grátis. Quando o movimento crescer, um único valor libera tudo.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-5 sm:grid-cols-2">
+            <div className="rounded-3xl border border-white/[0.07] bg-white/[0.02] p-7">
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Grátis</p>
+              <p className="mt-3 text-4xl font-black text-white">R$ 0</p>
+              <p className="mt-1 text-sm text-gray-400">para sempre</p>
+              <ul className="mt-6 space-y-2.5 text-sm text-gray-300">
+                {[
+                  "Cardápio completo",
+                  "5 pedidos por mês",
+                  "Link e QR Code",
+                  "Pedidos em tempo real",
+                ].map((t) => (
+                  <li key={t} className="flex items-center gap-2">
+                    <Check className="size-4 shrink-0 text-emerald-400" /> {t}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                to="/login"
+                className="mt-7 flex w-full items-center justify-center gap-2 rounded-full border border-white/15 py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.06]"
+              >
+                Começar grátis
+              </Link>
+            </div>
+
+            <div className="relative overflow-hidden rounded-3xl border border-cyan-500/30 bg-gradient-to-b from-cyan-500/[0.10] to-transparent p-7">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-14 -top-14 size-44 rounded-full bg-cyan-500/20 blur-3xl"
+              />
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
+                    Premium
+                  </p>
+                  <span className="rounded-full bg-cyan-500 px-2.5 py-1 text-[10px] font-black text-black">
+                    ANUAL
+                  </span>
+                </div>
+                <p className="mt-3 text-4xl font-black text-white">{PREMIUM_PRICE_LABEL}</p>
+                <p className="mt-1 text-sm text-gray-400">menos de R$ 3,34 por mês</p>
+                <ul className="mt-6 space-y-2.5 text-sm text-gray-200">
+                  {[
+                    "Pedidos ilimitados",
+                    "Detalhes e itens liberados",
+                    "Todos os restaurantes da conta",
+                    "Cancele quando quiser",
+                  ].map((t) => (
+                    <li key={t} className="flex items-center gap-2">
+                      <Check className="size-4 shrink-0 text-cyan-300" /> {t}
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href="/login?returnTo=/admin/assinatura"
+                  className="sheen mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-3 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
+                >
+                  Assinar Premium <ArrowRight className="size-4" />
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="border-t border-white/5 py-24">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">
-            Pronto para começar?
+      {/* CTA final */}
+      <section className="border-t border-white/5 py-20 sm:py-24">
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+          <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+            Seu próximo pedido pode chegar sozinho.
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-gray-400">
-            Crie seu cardápio digital em minutos. Sem cartão de crédito, sem compromisso.
+          <p className="mx-auto mt-4 max-w-lg text-gray-400">
+            Crie seu cardápio agora e mande o link no status. Leva menos tempo que tirar uma foto do
+            prato.
           </p>
-          <div className="mt-10">
+          <div className="mt-8">
             <Link
               to="/login"
-              className="sheen inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-10 py-4 text-base font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.4)]"
+              className="sheen inline-flex items-center gap-2 rounded-full bg-cyan-500 px-9 py-4 text-base font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.4)]"
             >
-              Criar meu cardápio agora
-              <ChevronRight className="size-5" />
+              Criar meu cardápio grátis <ArrowRight className="size-5" />
             </Link>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 py-12">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <div className="flex items-center gap-2">
-              <UtensilsCrossed className="size-5 text-cyan-400" />
-              <span className="text-sm font-semibold text-gray-400">
-                Cardápio <span className="text-cyan-400">Cidadela</span>
-              </span>
-            </div>
-
-            <div className="flex gap-6 text-xs text-gray-500">
-              <a href="#about" className="hover:text-gray-300 transition-colors">
-                Sobre
-              </a>
-              <Link to="/terms" className="hover:text-gray-300 transition-colors">
-                Termos de Uso
-              </Link>
-              <Link to="/privacy" className="hover:text-gray-300 transition-colors">
-                Política de Privacidade
-              </Link>
-            </div>
+      <footer className="border-t border-white/5 py-10">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 px-4 sm:flex-row sm:px-6">
+          <div className="flex items-center gap-2">
+            <UtensilsCrossed className="size-5 text-cyan-400" />
+            <span className="text-sm font-semibold text-gray-400">
+              Cardápio <span className="text-cyan-400">Cidadela</span>
+            </span>
           </div>
-
-          <p className="mt-6 text-center text-[11px] text-gray-600">
-            © {new Date().getFullYear()} Cardápio Cidadela. Todos os direitos reservados.
-          </p>
+          <div className="flex gap-6 text-xs text-gray-500">
+            <a href="#preco" className="transition-colors hover:text-gray-300">
+              Preço
+            </a>
+            <Link to="/terms" className="transition-colors hover:text-gray-300">
+              Termos
+            </Link>
+            <Link to="/privacy" className="transition-colors hover:text-gray-300">
+              Privacidade
+            </Link>
+          </div>
         </div>
+        <p className="mt-6 text-center text-[11px] text-gray-600">
+          © {new Date().getFullYear()} Cardápio Cidadela · Feito para quem vive da cozinha.
+        </p>
       </footer>
     </div>
   );
 }
+
+export default LandingPage;

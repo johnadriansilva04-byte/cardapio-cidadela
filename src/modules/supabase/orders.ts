@@ -1,6 +1,6 @@
 import { supabase } from "./client";
 import type { Order, OrderStatus } from "@/lib/types";
-import { checkMonthlyLimit, incrementOrderCount } from "./subscription";
+import { incrementOrderCount } from "./subscription";
 
 function idempotencyKey(
   restaurantId: string,
@@ -76,25 +76,9 @@ export async function createOrder(
 
   const orderId = crypto.randomUUID();
 
-  // Limite do plano gratuito — checado só para pedidos novos (acima já saímos
-  // se era replay idempotente, para não bloquear um cliente que só reenviou).
-  if (items.length > 0) {
-    try {
-      const limit = await checkMonthlyLimit(restaurantId);
-      if (!limit.allowed) {
-        return {
-          order: null,
-          error: {
-            message: "Limite de 5 pedidos/mês atingido. Assine Premium para continuar.",
-            code: "SUBSCRIPTION_LIMIT",
-          },
-        };
-      }
-    } catch (e) {
-      // Falha de rede/coluna ausente não pode derrubar o pedido: segue sem limite.
-      console.warn("[orders] checagem de limite ignorada:", e);
-    }
-  }
+  // O limite do plano gratuito NÃO bloqueia mais a criação do pedido. Ele é
+  // apenas contabilizado abaixo e aplicado na *leitura dos detalhes* pelo
+  // estabelecimento (ver `getOrderForOwner`). O cliente público sempre conclui.
 
   // Base payload — only columns that are guaranteed to exist in every DB
   const base: Record<string, unknown> = {
@@ -271,6 +255,40 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
     .maybeSingle();
   if (error || !data) return null;
   return data as Order;
+}
+
+export interface OwnerOrderDetailResult {
+  order: Order | null;
+  /** true quando o restaurante passou do limite do plano gratuito e não é Premium. */
+  blocked: boolean;
+  error?: string;
+}
+
+/**
+ * Detalhe do pedido sob a ótica do estabelecimento.
+ *
+ * A leitura dos detalhes (dados do cliente, endereço, itens) é protegida pelo
+ * plano: quando o restaurante já atingiu o limite mensal gratuito e não é
+ * Premium, a RPC `get_order_for_owner` devolve `blocked = true` sem o pedido.
+ * A checagem vive no banco (SECURITY DEFINER) — não é só um bloqueio visual.
+ *
+ * Se a RPC ainda não existir no banco (schema antigo), cai para a leitura
+ * direta para não quebrar a operação de quem já usa o sistema.
+ */
+export async function getOrderForOwner(orderId: string): Promise<OwnerOrderDetailResult> {
+  const { data, error } = await supabase.rpc("get_order_for_owner", { p_oid: orderId });
+  if (error) {
+    if (error.code === "PGRST202" || /could not find the function/i.test(error.message)) {
+      const fallback = await getOrderById(orderId);
+      return { order: fallback, blocked: false };
+    }
+    return { order: null, blocked: false, error: error.message };
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as
+    { blocked?: boolean; order?: Order | null } | null | undefined;
+  if (!row) return { order: null, blocked: false };
+  if (row.blocked) return { order: null, blocked: true };
+  return { order: (row.order as Order) ?? null, blocked: false };
 }
 
 function toNumber(value: unknown, fallback = 0): number {

@@ -5,6 +5,13 @@ import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supab
 import { SharePanel } from "@/components/admin/SharePanel";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { EmptyState, LoadingState } from "@/modules/ui/Feedback";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/components/AuthProvider";
 import type { Restaurant } from "@/lib/types";
 
@@ -109,20 +116,19 @@ function CompartilharPage() {
         subtitle="Link público, QR Code e WhatsApp — pronto para enviar ao cliente"
       />
 
-      <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {restaurants.map((r) => (
-          <button
-            key={r.id}
-            onClick={() => setSelectedId(r.id)}
-            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-              selectedId === r.id
-                ? "bg-cyan-500 text-black"
-                : "border border-white/10 text-gray-400 hover:text-white hover:border-white/20"
-            }`}
-          >
-            {r.name}
-          </button>
-        ))}
+      <div className="max-w-xs">
+        <Select value={selectedId} onValueChange={setSelectedId}>
+          <SelectTrigger className="border-white/10 bg-white/[0.04] text-sm text-white">
+            <SelectValue placeholder="Escolha o restaurante" />
+          </SelectTrigger>
+          <SelectContent className="border-white/10 bg-[#1a1a22] text-white">
+            {restaurants.map((r) => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {selected && <SharePanel key={selected.id} restaurant={selected} />}

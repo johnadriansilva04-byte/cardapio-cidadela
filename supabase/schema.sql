@@ -390,6 +390,71 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.get_my_orders() TO authenticated;
 
+-- ============================================================
+-- LEITURA PROTEGIDA DO PEDIDO PELO ESTABELECIMENTO
+-- O plano gratuito permite 5 pedidos/mês. Os pedidos continuam sendo criados
+-- e gravados normalmente; o que fica protegido é a *leitura dos detalhes*
+-- pelo dono depois de estourar o limite. A checagem é feita aqui, no banco
+-- (SECURITY DEFINER), e não apenas no frontend. Quando o restaurante é
+-- Premium (ou ainda tem cota), devolve o pedido completo; caso contrário
+-- devolve blocked = true sem os dados. É aditivo: não muda a policy
+-- `owner_orders`, então assinar o Premium libera automaticamente todos os
+-- pedidos que chegaram enquanto o dono estava bloqueado.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.get_order_for_owner(p_oid UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_store_id UUID;
+  v_premium BOOLEAN;
+  v_expires TIMESTAMPTZ;
+  v_count INTEGER;
+  v_reset DATE;
+  v_found UUID;
+  v_order JSONB;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN jsonb_build_object('blocked', true);
+  END IF;
+
+  SELECT o.restaurant_id, o.id INTO v_store_id, v_found
+  FROM orders o
+  WHERE o.id = p_oid AND is_restaurant_owner(o.restaurant_id);
+
+  IF v_found IS NULL THEN
+    RETURN NULL; -- pedido inexistente ou não pertence ao dono
+  END IF;
+
+  SELECT a.is_premium, a.premium_expires_at, a.monthly_order_count, a.monthly_order_reset_date
+    INTO v_premium, v_expires, v_count, v_reset
+  FROM admin_trials a
+  WHERE a.store_id::text = v_store_id::text;
+
+  IF NOT (COALESCE(v_premium, false) AND (v_expires IS NULL OR v_expires > now())) THEN
+    -- Contador zera quando vira o mês (mesma regra do cliente).
+    IF v_reset IS NULL OR date_trunc('month', v_reset) <> date_trunc('month', CURRENT_DATE) THEN
+      v_count := 0;
+    END IF;
+    IF COALESCE(v_count, 0) >= 5 THEN
+      RETURN jsonb_build_object('blocked', true);
+    END IF;
+  END IF;
+
+  SELECT row_to_json(o)::jsonb
+    || jsonb_build_object('order_items', COALESCE((
+         SELECT jsonb_agg(row_to_json(i) ORDER BY i.created_at)
+         FROM order_items i WHERE i.order_id = o.id
+       ), '[]'::jsonb))
+    INTO v_order
+  FROM orders o WHERE o.id = p_oid;
+
+  RETURN jsonb_build_object('blocked', false, 'order', v_order);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_order_for_owner(UUID) TO authenticated;
+
+
 -- Mantém a tabela de convidados limpa: pedidos encerrados
 -- (entregue/cancelado) com mais de 24h deixam de ser listados e o
 -- guest_id é anonimizado, cumprindo a vida curta do "convidado".

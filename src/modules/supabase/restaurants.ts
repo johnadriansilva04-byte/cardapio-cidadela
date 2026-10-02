@@ -402,13 +402,17 @@ export function getOwnerIdSync(userId: string | undefined): string {
 
 /**
  * Reconciles legacy trial accounts with real restaurants for the authenticated user.
- * For each active legacy trial whose email/phone matches the user, it creates the
- * restaurant (with owner_id = user.id) or claims an existing one created on-demand
- * by the public fallback (owner_id = trial.store_id).
+ * Só importa o restaurante legado quando o dono ainda não tem nenhum (ver abaixo).
  *
  * Usa `.in()` em vez de `.or()` — evita 400 por caracteres especiais como `@` no
  * PostgREST (ex: 48999880030@menufacil.local) e é mais robusto para encode.
  */
+/** O dono já tem algum restaurante criado? */
+async function ownerHasRestaurants(ownerId: string): Promise<boolean> {
+  const { data } = await supabase.from("restaurants").select("id").eq("owner_id", ownerId).limit(1);
+  return (data?.length ?? 0) > 0;
+}
+
 export async function ensureRestaurantsForUser(user: {
   id: string;
   email?: string | null;
@@ -469,6 +473,12 @@ export async function ensureRestaurantsForUser(user: {
 
   _adminTrialsAvailable = true;
   if (trials.length === 0) return;
+
+  // Só importa o restaurante legado quando o dono ainda não tem nenhum. Antes
+  // isto inseria um restaurante novo para CADA linha de admin_trials que batesse
+  // com o e-mail/telefone, então contas antigas ganhavam restaurantes "fantasma"
+  // — sem logo/capa/cores — e o link público podia acabar apontando para eles.
+  if (await ownerHasRestaurants(user.id)) return;
 
   for (const trial of trials) {
     const { data: existing } = await supabase

@@ -174,9 +174,20 @@
   `activatePremium`, `cancelPremium`, ...). Ela cria a linha sob demanda e
   degrada em silêncio: sem as colunas/linha, o restaurante é tratado como
   gratuito e os pedidos continuam.
-- `createOrder` checa `checkMonthlyLimit` só em pedido novo (replay idempotente
-  passa direto) e incrementa o contador só depois de persistir. A checagem é
-  best-effort — falha de rede/coluna ausente não derruba o pedido.
+- `createOrder` incrementa o contador mensal só depois de persistir; a checagem
+  é best-effort e não derruba o pedido.
+- O limite NÃO bloqueia mais o cliente: `createOrder` sempre grava o pedido e
+  apenas incrementa o contador. O bloqueio vive na **leitura dos detalhes pelo
+  dono**, via RPC `get_order_for_owner` (SECURITY DEFINER, em `schema.sql`):
+  Premium ou cota disponível devolve o pedido; senão `{ blocked: true }` sem os
+  dados. O frontend (admin `OrderManager` e mobile `OrderCard`) só mostra o
+  aviso + "Assinar Premium" (link `/admin/assinatura`, mesmo fluxo existente).
+  Como é leitura (não RLS), assinar o Premium libera automaticamente os pedidos
+  que chegaram bloqueados. A RPC é aditiva — sem ela no banco, `getOrderForOwner`
+  cai para `getOrderById` (schema antigo). Se o e-mail/telefone da conta muda,
+  `registerPendingSubscription` grava o novo; a vinculação do MP continua por
+  e-mail (pseudo-email `telefone@menufacil.local`), por isso o aviso do modal
+  fala em "telefone", nunca no endereço interno.
 - O webhook é uma **server route** em `src/routes/api.webhook.mercadopago.ts`
   (`POST /api/webhook/mercadopago`), com a lógica compartilhada em
   `src/api/lib/{mercadopago,mp-subscription}.ts`. Rotas de API seguem a

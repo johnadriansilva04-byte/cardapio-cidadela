@@ -26,6 +26,7 @@ import { LoadingState, EmptyState, InlineError } from "@/modules/ui/Feedback";
 import { StatTile, ExpandableSection, InfoRow } from "@/modules/ui/ExpandableSection";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
+import { normalizePhone } from "@/modules/supabase/auth";
 import {
   checkSubscriptionStatus,
   cancelPremium,
@@ -50,6 +51,7 @@ const PRICE_LABEL = "R$ 39,90/mês";
 
 function SubscriptionPage() {
   const { user, session, loading: authLoading } = useAuth();
+  const accountPhone = normalizePhone((user?.user_metadata?.phone as string) || user?.phone || "");
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [activeId, setActiveId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -469,8 +471,8 @@ function SubscriptionPage() {
             Após o pagamento, sua assinatura será ativada automaticamente.
           </p>
           <p className="text-center text-[11px] leading-relaxed text-amber-300/80">
-            Use o mesmo e-mail da sua conta ({user?.email ?? "do painel"}) no Mercado Pago para a
-            ativação ser vinculada a este restaurante.
+            Use o mesmo telefone da sua conta{accountPhone ? ` (${accountPhone})` : ""} no Mercado
+            Pago para a ativação ser vinculada a este restaurante.
           </p>
         </DialogContent>
       </Dialog>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   RefreshCw,
   Printer,
@@ -18,6 +19,9 @@ import {
   History,
   ChevronDown,
   Store,
+  Crown,
+  Sparkles,
+  Lock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,7 +50,11 @@ import {
 } from "@/lib/utils";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/lib/types";
 import { OrderStatusBadge } from "@/components/admin/StatusBadge";
-import { getOrdersByRestaurant, updateOrderStatus } from "@/modules/supabase/orders";
+import {
+  getOrdersByRestaurant,
+  getOrderForOwner,
+  updateOrderStatus,
+} from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
@@ -122,7 +130,11 @@ export function OrderManager({
   const [storeFilter, setStoreFilter] = useState<string>(initialStoreId ?? "all");
   const [q, setQ] = useState("");
   const [period, setPeriod] = useState<PeriodKey>("all");
-  const [detail, setDetail] = useState<Order | null>(null);
+  const [detailPreview, setDetailPreview] = useState<Order | null>(null);
+  const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailBlocked, setDetailBlocked] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const fetchAllOrders = useCallback(async (): Promise<Order[]> => {
@@ -249,6 +261,35 @@ export function OrderManager({
   function requestCancel(order: Order) {
     if (!window.confirm(`Cancelar o pedido ${order.comanda}?`)) return;
     changeStatus(order.id, "cancelled");
+  }
+
+  // Abre o detalhe: a lista só traz o resumo do pedido; os dados comerciais
+  // (cliente, endereço, itens) vêm de `getOrderForOwner`, que aplica o bloqueio
+  // do plano no banco. Enquanto carrega, mostramos o preview já com o status.
+  async function openDetail(order: Order) {
+    setDetailPreview(order);
+    setDetailOrder(null);
+    setDetailBlocked(false);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const res = await getOrderForOwner(order.id);
+      if (res.blocked) setDetailBlocked(true);
+      else if (res.order) setDetailOrder(res.order);
+      else setDetailError("Não foi possível carregar este pedido.");
+    } catch {
+      setDetailError("Não foi possível carregar este pedido.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  function closeDetail() {
+    setDetailPreview(null);
+    setDetailOrder(null);
+    setDetailBlocked(false);
+    setDetailError(null);
+    setDetailLoading(false);
   }
 
   function printOrder(order: Order) {
@@ -511,7 +552,7 @@ export function OrderManager({
                       {colOrders.length}
                     </span>
                   </div>
-                  <div className="space-y-2 p-2">
+                  <div className="max-h-[60vh] space-y-2 overflow-y-auto p-2">
                     {colOrders.length === 0 ? (
                       <p className="py-6 text-center text-xs text-gray-600">Sem pedidos</p>
                     ) : (
@@ -520,7 +561,7 @@ export function OrderManager({
                           key={order.id}
                           order={order}
                           storeName={multi ? restaurantNames.get(order.restaurant_id) : undefined}
-                          onOpen={() => setDetail(order)}
+                          onOpen={() => openDetail(order)}
                           onAdvance={() => changeStatus(order.id, NEXT_STATUS[order.status]!)}
                           onCancel={() => requestCancel(order)}
                         />
@@ -600,7 +641,7 @@ export function OrderManager({
                               {colOrders.length}
                             </span>
                           </div>
-                          <div className="space-y-2 px-2 pb-2">
+                          <div className="max-h-[60vh] space-y-2 overflow-y-auto px-2 pb-2">
                             {colOrders.map((order) => (
                               <OrderCard
                                 key={order.id}
@@ -609,7 +650,7 @@ export function OrderManager({
                                   multi ? restaurantNames.get(order.restaurant_id) : undefined
                                 }
                                 compact
-                                onOpen={() => setDetail(order)}
+                                onOpen={() => openDetail(order)}
                               />
                             ))}
                           </div>
@@ -630,9 +671,17 @@ export function OrderManager({
 
       {/* Detalhes do pedido */}
       <OrderDetailDialog
-        order={detail}
-        storeName={detail ? restaurantNames.get(detail.restaurant_id) : undefined}
-        onClose={() => setDetail(null)}
+        preview={detailPreview}
+        order={detailOrder}
+        loading={detailLoading}
+        blocked={detailBlocked}
+        error={detailError}
+        storeName={
+          (detailOrder ?? detailPreview)
+            ? restaurantNames.get((detailOrder ?? detailPreview)!.restaurant_id)
+            : undefined
+        }
+        onClose={closeDetail}
         onChangeStatus={changeStatus}
         onPrint={printOrder}
         onWhatsApp={contactWhatsApp}
@@ -730,27 +779,95 @@ function OrderCard({
 }
 
 function OrderDetailDialog({
+  preview,
   order,
+  loading,
+  blocked,
+  error,
   storeName,
   onClose,
   onChangeStatus,
   onPrint,
   onWhatsApp,
 }: {
+  preview: Order | null;
   order: Order | null;
+  loading: boolean;
+  blocked: boolean;
+  error: string | null;
   storeName?: string;
   onClose: () => void;
   onChangeStatus: (id: string, status: OrderStatus) => void;
   onPrint: (o: Order) => void;
   onWhatsApp: (o: Order) => void;
 }) {
-  if (!order) return null;
+  if (!preview && !order) return null;
+  const headerRow = order ?? preview!;
+
+  // Sem os detalhes liberados (carregando, bloqueado pelo plano ou erro), o
+  // diálogo mostra só a identificação do pedido — nunca os dados comerciais.
+  if (!order) {
+    return (
+      <Dialog open onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-white/10 bg-[#0f0f14] text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <span className="font-mono text-lg">{headerRow.comanda}</span>
+              <OrderStatusBadge status={headerRow.status} />
+            </DialogTitle>
+            <DialogDescription className="text-gray-500">
+              {storeName ? `${storeName} • ` : ""}
+              {formatDate(headerRow.created_at)}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-gray-400">
+              <RefreshCw className="size-4 animate-spin" /> Carregando detalhes…
+            </div>
+          ) : blocked ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-4">
+                <div className="flex items-start gap-3">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-300">
+                    <Lock className="size-4" />
+                  </span>
+                  <p className="text-sm leading-relaxed text-amber-100">
+                    <span className="flex items-center gap-1.5 font-bold text-amber-200">
+                      <Sparkles className="size-4" /> Novo pedido recebido
+                    </span>
+                    Novo pedido recebido, mas os detalhes deste pedido estão bloqueados porque o
+                    limite do plano gratuito foi atingido.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/admin/assinatura"
+                className="flex items-center justify-center gap-2 rounded-full bg-cyan-500 px-4 py-2.5 text-sm font-bold text-black transition-colors hover:bg-cyan-400"
+              >
+                <Crown className="size-4" /> Assinar Premium
+              </Link>
+              <p className="text-center text-[11px] leading-relaxed text-gray-500">
+                O pedido continua salvo. Assim que o Premium for ativado, os detalhes são liberados
+                automaticamente.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-red-500/25 bg-red-500/[0.07] p-4 text-sm text-red-200">
+              {error ?? "Não foi possível carregar os detalhes deste pedido."}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   const next = NEXT_STATUS[order.status];
   const hasCustomerPhone =
     Boolean(order.customer_phone) && order.customer_phone.replace(/\D/g, "").length >= 10;
 
   return (
-    <Dialog open={Boolean(order)} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto border-white/10 bg-[#0f0f14] text-white sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
@@ -766,127 +883,127 @@ function OrderDetailDialog({
         <div className="grid gap-3 md:grid-cols-2">
           {/* Coluna esquerda: cliente e entrega */}
           <div className="space-y-3">
-          {/* Cliente */}
-          <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
-              <User className="size-3" /> Cliente
-            </p>
-            <p className="text-sm font-semibold text-white">{order.customer_name}</p>
-            {order.customer_email && (
-              <p className="mt-0.5 text-xs text-gray-400">{order.customer_email}</p>
-            )}
-            <p className="mt-1 text-xs text-gray-400">{order.customer_phone || "—"}</p>
-            {hasCustomerPhone && (
-              <button
-                onClick={() => onWhatsApp(order)}
-                className="mt-2 flex items-center gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-xs font-semibold text-green-400 transition-colors hover:bg-green-500/20"
-              >
-                <MessageCircle className="size-3.5" /> Chamar no WhatsApp
-              </button>
-            )}
-          </div>
+            {/* Cliente */}
+            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                <User className="size-3" /> Cliente
+              </p>
+              <p className="text-sm font-semibold text-white">{order.customer_name}</p>
+              {order.customer_email && (
+                <p className="mt-0.5 text-xs text-gray-400">{order.customer_email}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-400">{order.customer_phone || "—"}</p>
+              {hasCustomerPhone && (
+                <button
+                  onClick={() => onWhatsApp(order)}
+                  className="mt-2 flex items-center gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-xs font-semibold text-green-400 transition-colors hover:bg-green-500/20"
+                >
+                  <MessageCircle className="size-3.5" /> Chamar no WhatsApp
+                </button>
+              )}
+            </div>
 
-          {/* Entrega */}
-          <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
-              <MapPin className="size-3" />{" "}
-              {order.delivery_type === "entrega" ? "Entrega" : "Retirada"}
-            </p>
-            {order.delivery_type === "entrega" ? (
-              <>
-                <p className="text-sm text-white">{order.delivery_address || "—"}</p>
-                {(order.customer_complement ||
-                  order.customer_neighborhood ||
-                  order.customer_city) && (
-                  <p className="mt-1 text-xs text-gray-400">
-                    {[order.customer_complement, order.customer_neighborhood, order.customer_city]
-                      .filter(Boolean)
-                      .join(" • ")}
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-white">Retirada no balcão</p>
-            )}
-          </div>
+            {/* Entrega */}
+            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                <MapPin className="size-3" />{" "}
+                {order.delivery_type === "entrega" ? "Entrega" : "Retirada"}
+              </p>
+              {order.delivery_type === "entrega" ? (
+                <>
+                  <p className="text-sm text-white">{order.delivery_address || "—"}</p>
+                  {(order.customer_complement ||
+                    order.customer_neighborhood ||
+                    order.customer_city) && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      {[order.customer_complement, order.customer_neighborhood, order.customer_city]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-white">Retirada no balcão</p>
+              )}
+            </div>
           </div>
 
           {/* Coluna direita: itens e pagamento */}
           <div className="space-y-3">
-          {/* Itens */}
-          <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
-              <ShoppingBag className="size-3" /> Pedido
-            </p>
-            {order.order_items && order.order_items.length > 0 && (
-              <div className="space-y-2">
-                {order.order_items.map((item) => {
-                  const notes = (item as unknown as { notes?: string }).notes ?? "";
-                  const hasAddons = notes.toLowerCase().includes("adicionais:");
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-lg border border-white/[0.04] bg-black/20 px-2.5 py-2"
-                    >
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="min-w-0 flex-1 truncate text-gray-200">
-                          <span className="font-bold text-white">{item.quantity}x</span>{" "}
-                          {item.product_name}
-                        </span>
-                        <span className="shrink-0 font-bold text-white">{brl(item.total)}</span>
+            {/* Itens */}
+            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                <ShoppingBag className="size-3" /> Pedido
+              </p>
+              {order.order_items && order.order_items.length > 0 && (
+                <div className="space-y-2">
+                  {order.order_items.map((item) => {
+                    const notes = (item as unknown as { notes?: string }).notes ?? "";
+                    const hasAddons = notes.toLowerCase().includes("adicionais:");
+                    return (
+                      <div
+                        key={item.id}
+                        className="rounded-lg border border-white/[0.04] bg-black/20 px-2.5 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <span className="min-w-0 flex-1 truncate text-gray-200">
+                            <span className="font-bold text-white">{item.quantity}x</span>{" "}
+                            {item.product_name}
+                          </span>
+                          <span className="shrink-0 font-bold text-white">{brl(item.total)}</span>
+                        </div>
+                        {notes && (
+                          <p
+                            className={`mt-1 rounded-md px-2 py-1 text-[11px] leading-relaxed ${hasAddons ? "border border-violet-500/20 bg-violet-500/10 text-violet-200" : "bg-white/[0.04] text-gray-400"}`}
+                          >
+                            {notes}
+                          </p>
+                        )}
                       </div>
-                      {notes && (
-                        <p
-                          className={`mt-1 rounded-md px-2 py-1 text-[11px] leading-relaxed ${hasAddons ? "border border-violet-500/20 bg-violet-500/10 text-violet-200" : "bg-white/[0.04] text-gray-400"}`}
-                        >
-                          {notes}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {order.observations && (
-              <div className="mt-2 rounded bg-black/30 p-2">
-                <p className="text-[10px] text-gray-500">Observações:</p>
-                <p className="text-xs text-gray-300">{order.observations}</p>
-              </div>
-            )}
-            <div className="mt-2 space-y-1 border-t border-white/5 pt-2">
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>Subtotal</span>
-                <span>{brl(order.subtotal)}</span>
-              </div>
-              {order.delivery_fee > 0 && (
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>Taxa de entrega</span>
-                  <span>{brl(order.delivery_fee)}</span>
+                    );
+                  })}
                 </div>
               )}
-              <div className="flex justify-between text-sm font-bold text-white">
-                <span>Total</span>
-                <span>{brl(order.total)}</span>
+              {order.observations && (
+                <div className="mt-2 rounded bg-black/30 p-2">
+                  <p className="text-[10px] text-gray-500">Observações:</p>
+                  <p className="text-xs text-gray-300">{order.observations}</p>
+                </div>
+              )}
+              <div className="mt-2 space-y-1 border-t border-white/5 pt-2">
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>Subtotal</span>
+                  <span>{brl(order.subtotal)}</span>
+                </div>
+                {order.delivery_fee > 0 && (
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Taxa de entrega</span>
+                    <span>{brl(order.delivery_fee)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold text-white">
+                  <span>Total</span>
+                  <span>{brl(order.total)}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Pagamento */}
-          <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
-              <CreditCard className="size-3" /> Pagamento
-            </p>
-            <p className="text-sm font-semibold uppercase text-white">
-              {order.payment_method === "pix"
-                ? "PIX"
-                : order.payment_method === "dinheiro"
-                  ? "Dinheiro"
-                  : "Cartão"}
-            </p>
-            <p className="mt-1 text-[11px] text-gray-500 capitalize">
-              {order.payment_status?.replace(/_/g, " ")}
-            </p>
-          </div>
+            {/* Pagamento */}
+            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                <CreditCard className="size-3" /> Pagamento
+              </p>
+              <p className="text-sm font-semibold uppercase text-white">
+                {order.payment_method === "pix"
+                  ? "PIX"
+                  : order.payment_method === "dinheiro"
+                    ? "Dinheiro"
+                    : "Cartão"}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-500 capitalize">
+                {order.payment_status?.replace(/_/g, " ")}
+              </p>
+            </div>
           </div>
 
           {/* Ações */}

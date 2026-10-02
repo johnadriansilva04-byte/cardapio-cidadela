@@ -59,38 +59,6 @@ interface PublicMenuProps {
   slug: string;
 }
 
-async function ensureRestaurantFromLegacyTrial(slug: string): Promise<Restaurant | null> {
-  if (!slug) return null;
-  const { data: trial } = await supabase
-    .from("admin_trials")
-    .select("store_id, store_name, store_slogan, pix_key, whatsapp")
-    .eq("store_id", slug)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!trial) return null;
-
-  const existing = await getRestaurantBySlug(slug);
-  if (existing) return existing;
-
-  const { data, error } = await supabase
-    .from("restaurants")
-    .insert({
-      owner_id: trial.store_id,
-      name: trial.store_name ?? "Meu Restaurante",
-      slug: trial.store_id,
-      description: trial.store_slogan ?? "",
-      whatsapp: trial.whatsapp ?? "",
-      pix_key: trial.pix_key ?? "",
-      status: "published",
-    })
-    .select()
-    .maybeSingle();
-
-  if (error || !data) return null;
-  return data as Restaurant;
-}
-
 export default function PublicMenu({ slug }: PublicMenuProps) {
   const { cart, addToCart, removeFromCart, clearCart, setCart, discardCartIfForeign } =
     usePlatformStore();
@@ -131,8 +99,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       try {
         setLoading(true);
         setLoadError(null);
-        let r = await getRestaurantBySlug(slug);
-        if (!r) r = await ensureRestaurantFromLegacyTrial(slug);
+        const r = await getRestaurantBySlug(slug);
         if (!alive) return;
         if (!r) {
           setRestaurant(null);

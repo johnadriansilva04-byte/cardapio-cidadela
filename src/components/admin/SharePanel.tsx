@@ -16,8 +16,12 @@ export function SharePanel({ restaurant }: { restaurant: Restaurant }) {
   const publicPath = `/cardapio/${restaurant.slug}`;
 
   const publicUrl = useMemo(() => {
-    // URL fixo correto em vez de usar window.location.origin
-    const baseUrl = "https://cardapio-cidadela.vercel.app";
+    // Usa a origem atual em vez de um domínio fixo: assim o link compartilhado
+    // aponta sempre para a mesma implantação em que o painel está rodando.
+    const baseUrl =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://cardapio-cidadela.vercel.app";
     return `${baseUrl}${publicPath}`;
   }, [publicPath]);
 

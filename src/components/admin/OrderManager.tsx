@@ -21,6 +21,7 @@ import {
   Store,
   Sparkles,
   Lock,
+  ArrowRight,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -136,6 +137,7 @@ export function OrderManager({
   const [detailBlocked, setDetailBlocked] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [lockedStores, setLockedStores] = useState<Set<string>>(new Set());
+  const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const fetchAllOrders = useCallback(async (): Promise<Order[]> => {
@@ -194,6 +196,16 @@ export function OrderManager({
         if (prev.some((o) => o.id === row.id)) return prev;
         return [row, ...prev];
       });
+      // Realça o que acabou de chegar e limpa depois de um tempo — o dono que
+      // está olhando a tela precisa ver o pedido novo sem caçar na coluna.
+      setFreshIds((prev) => new Set(prev).add(row.id));
+      window.setTimeout(() => {
+        setFreshIds((prev) => {
+          const next = new Set(prev);
+          next.delete(row.id);
+          return next;
+        });
+      }, 15000);
     };
 
     for (const id of restaurantIds) {
@@ -398,6 +410,11 @@ export function OrderManager({
     return list;
   }, [orders, period, q, filter, storeFilter]);
 
+  const lockedCount = useMemo(
+    () => orders.filter((o) => lockedStores.has(o.restaurant_id)).length,
+    [orders, lockedStores],
+  );
+
   if (loading && orders.length === 0) {
     return (
       <div className="flex justify-center py-12">
@@ -423,6 +440,33 @@ export function OrderManager({
 
   return (
     <div className="space-y-4">
+      {/* Aviso no topo: sem ele o dono só descobria o bloqueio ao abrir um
+          pedido. Fica acima dos filtros e só aparece quando há loja estourada. */}
+      {lockedStores.size > 0 && (
+        <Link
+          to="/admin/assinatura"
+          className="flex items-center gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-3.5 transition-colors hover:bg-amber-500/[0.12]"
+        >
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-300">
+            <Lock className="size-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-amber-200">
+              Limite do plano gratuito atingido
+            </span>
+            <span className="mt-0.5 block text-xs text-amber-200/75">
+              {lockedCount > 0
+                ? `${lockedCount} pedido${lockedCount === 1 ? "" : "s"} com detalhes bloqueados. `
+                : ""}
+              Os pedidos continuam chegando — assine para liberar os detalhes.
+            </span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1 self-center rounded-full bg-amber-500 px-3 py-1.5 text-[11px] font-bold text-black">
+            Assinar <ArrowRight className="size-3" />
+          </span>
+        </Link>
+      )}
+
       {/* Atalhos de filtro — apenas fluxo operacional (entregues/cancelados seguem no histórico) */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {KANBAN_COLUMNS.map((s) => (
@@ -574,6 +618,7 @@ export function OrderManager({
                             order={order}
                             storeName={multi ? restaurantNames.get(order.restaurant_id) : undefined}
                             locked={locked}
+                            fresh={freshIds.has(order.id)}
                             onOpen={() => openDetail(order)}
                             onAdvance={
                               locked
@@ -715,6 +760,7 @@ function OrderCard({
   order,
   storeName,
   locked = false,
+  fresh = false,
   onOpen,
   onAdvance,
   onCancel,
@@ -723,6 +769,7 @@ function OrderCard({
   order: Order;
   storeName?: string;
   locked?: boolean;
+  fresh?: boolean;
   onOpen: () => void;
   onAdvance?: () => void;
   onCancel?: () => void;
@@ -731,10 +778,26 @@ function OrderCard({
   const next = NEXT_STATUS[order.status];
   const nextLabel = next ? ORDER_STATUS_LABELS[next] : null;
   return (
-    <div className="card-lift group rounded-xl border border-white/8 bg-white/[0.03] p-2.5 hover:border-cyan-500/30 hover:bg-white/[0.05] hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
+    <div
+      className={cn(
+        "card-lift group rounded-xl border p-2.5 transition-all",
+        locked
+          ? "border-amber-500/25 bg-amber-500/[0.04] hover:border-amber-500/40 hover:bg-amber-500/[0.07]"
+          : "border-white/8 bg-white/[0.03] hover:border-cyan-500/30 hover:bg-white/[0.05]",
+        fresh &&
+          "animate-[slide-up_0.28s_ease-out_both] border-cyan-400/60 bg-cyan-500/[0.06] shadow-[0_0_0_1px_rgba(34,211,238,0.25)]",
+      )}
+    >
       <button onClick={onOpen} className="flex w-full flex-col gap-1.5 text-left">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate font-mono text-xs font-bold text-white">{order.comanda}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            {fresh && (
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-cyan-500 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-black">
+                Novo
+              </span>
+            )}
+            <span className="truncate font-mono text-xs font-bold text-white">{order.comanda}</span>
+          </span>
           <span className="flex shrink-0 items-center gap-1">
             {locked && (
               <span className="grid size-4 place-items-center rounded-full bg-amber-500/15 text-amber-300">
@@ -767,8 +830,13 @@ function OrderCard({
           </p>
         )}
         {locked && (
-          <span className="flex items-center gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-200">
-            <Lock className="size-3" /> Detalhes bloqueados
+          <span className="flex items-center justify-between gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-200">
+            <span className="flex items-center gap-1.5">
+              <Lock className="size-3" /> Detalhes bloqueados
+            </span>
+            <span className="flex items-center gap-0.5 text-amber-300">
+              Assinar <ArrowRight className="size-3" />
+            </span>
           </span>
         )}
         <div className="flex items-center justify-between gap-2 pt-1">

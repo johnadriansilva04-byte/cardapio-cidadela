@@ -188,7 +188,10 @@
   estourada; o `OrderManager` usa isso para marcar os cards (cadeado) e
   **esconder as ações** de avançar/cancelar (`onAdvance`/`onCancel` ficam
   `undefined` quando bloqueado) — o dono não processa o pedido enquanto não
-  assinar, mas continua vendo que ele chegou. Como é leitura (não RLS), assinar
+  assinar. A tela também mostra um aviso no topo com o CTA "Assinar" (mesmo
+  `/admin/assinatura`) e o card bloqueado ganha um atalho de assinatura no
+  lugar dos itens; pedido novo entra com realce "Novo" + `slide-up` por 15s.
+  O dono continua vendo que o pedido chegou. Como é leitura (não RLS), assinar
   o Premium libera automaticamente os pedidos que chegaram bloqueados.
 - As duas RPCs são aditivas: sem elas no banco, `getOrderForOwner` cai para
   `getOrderById` (schema antigo) e `getOwnerLockedStores` devolve vazio — nada

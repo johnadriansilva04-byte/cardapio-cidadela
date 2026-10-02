@@ -138,7 +138,7 @@ function MobileShell({ loading, userId }: { loading: boolean; userId: string | u
   // traz o próprio título logo abaixo — antes cada tela repetia o cabeçalho
   // inteiro com espaçamentos diferentes.
   const header = (
-    <header className="flex items-center gap-3 border-b border-white/[0.06] bg-[#0a0a0f]/85 px-4 py-3 backdrop-blur">
+    <header className="flex items-center gap-3 border-b border-white/[0.06] bg-[#0a0a0f]/85 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur">
       <button
         type="button"
         onClick={() => setSidebarOpen(true)}

@@ -48,6 +48,10 @@ export interface OrderCardProps {
   defaultOpen?: boolean;
   /** Mostra o nome da loja — útil quando a conta tem mais de um restaurante. */
   showRestaurant?: boolean;
+  /** Pedido recém-recebido: realce temporário. */
+  fresh?: boolean;
+  /** Loja com o plano gratuito estourado: detalhes bloqueados. */
+  locked?: boolean;
   onAdvance: (order: Order, status: OrderStatus) => void | Promise<void>;
   onCancel: (order: Order) => void | Promise<void>;
   busy?: boolean;
@@ -63,6 +67,8 @@ export function OrderCard({
   restaurant,
   defaultOpen = false,
   showRestaurant = false,
+  fresh = false,
+  locked = false,
   onAdvance,
   onCancel,
   busy = false,
@@ -138,21 +144,39 @@ export function OrderCard({
     }
   }
 
-  const borderTone =
-    !isFinished && timer.level === "late"
-      ? "border-red-500/30"
-      : !isFinished && timer.level === "attention"
-        ? "border-amber-500/25"
-        : undefined;
+  const borderTone = fresh
+    ? "border-cyan-400/60 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]"
+    : locked
+      ? "border-amber-500/30"
+      : !isFinished && timer.level === "late"
+        ? "border-red-500/30"
+        : !isFinished && timer.level === "attention"
+          ? "border-amber-500/25"
+          : undefined;
 
   return (
     <ExpandableSection
       open={open}
       onOpenChange={setOpen}
-      className={borderTone}
+      className={cn(borderTone, fresh && "animate-[slide-up_0.28s_ease-out_both]")}
       icon={<Package className="size-4" />}
-      title={order.comanda}
-      badge={<OrderStatusBadge status={order.status} size="xs" />}
+      tone={locked ? "amber" : "neutral"}
+      title={
+        <span className="flex min-w-0 items-center gap-1.5">
+          {fresh && (
+            <span className="shrink-0 rounded-full bg-cyan-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-black">
+              Novo
+            </span>
+          )}
+          <span className="truncate">{order.comanda}</span>
+        </span>
+      }
+      badge={
+        <span className="flex shrink-0 items-center gap-1">
+          {locked && <Lock className="size-3.5 text-amber-300" />}
+          <OrderStatusBadge status={order.status} size="xs" />
+        </span>
+      }
       summary={summary}
     >
       {/* Detalhes travados pelo plano: enquanto bloqueado, o card não exibe
@@ -167,8 +191,8 @@ export function OrderCard({
               <span className="flex items-center gap-1.5 font-bold text-amber-200">
                 <Sparkles className="size-3.5" /> Novo pedido recebido
               </span>
-              Novo pedido recebido, mas os detalhes deste pedido estão bloqueados porque o limite do
-              plano gratuito foi atingido.
+              Os detalhes deste pedido estão bloqueados porque o limite do plano gratuito foi
+              atingido.
             </p>
           </div>
 

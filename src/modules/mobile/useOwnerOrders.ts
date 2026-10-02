@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/modules/supabase/client";
 import { getRestaurantsByOwner } from "@/modules/supabase/restaurants";
-import { getOrdersByRestaurant, subscribeToOrders } from "@/modules/supabase/orders";
+import {
+  getOrdersByRestaurant,
+  subscribeToOrders,
+  getOwnerLockedStores,
+} from "@/modules/supabase/orders";
 import type { Order, Restaurant } from "@/lib/types";
 
 export interface UseOwnerOrdersResult {
@@ -16,6 +20,10 @@ export interface UseOwnerOrdersResult {
   reloadOrders: () => Promise<void>;
   /** id do restaurante → nome, para exibir de qual loja veio o pedido. */
   restaurantNames: Map<string, string>;
+  /** Restaurantes com a cota do plano gratuito estourada (detalhes bloqueados). */
+  lockedStores: Set<string>;
+  /** Pedidos que acabaram de chegar (realce temporário na lista). */
+  freshIds: Set<string>;
 }
 
 /**
@@ -28,6 +36,8 @@ export interface UseOwnerOrdersResult {
 export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [lockedStores, setLockedStores] = useState<Set<string>>(new Set());
+  const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const aliveRef = useRef(true);
@@ -41,9 +51,13 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
     }
     setError(null);
     try {
-      const owned = await getRestaurantsByOwner(userId);
+      const [owned, locked] = await Promise.all([
+        getRestaurantsByOwner(userId),
+        getOwnerLockedStores(),
+      ]);
       if (!aliveRef.current) return;
       setRestaurants(owned);
+      setLockedStores(locked);
 
       if (owned.length === 0) {
         setOrders([]);
@@ -83,8 +97,12 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
 
   const reloadOrders = useCallback(async () => {
     if (restaurants.length === 0) return;
-    const batches = await Promise.all(restaurants.map((r) => getOrdersByRestaurant(r.id)));
+    const [batches, locked] = await Promise.all([
+      Promise.all(restaurants.map((r) => getOrdersByRestaurant(r.id))),
+      getOwnerLockedStores(),
+    ]);
     if (!aliveRef.current) return;
+    setLockedStores(locked);
     setOrders(
       batches
         .flat()
@@ -113,6 +131,16 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
                 (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
               );
             });
+            // Realça o recém-chegado por 20s — no celular o alerta toca, mas
+            // sem isso o operador não localiza o card na lista.
+            setFreshIds((prev) => new Set(prev).add(order.id));
+            setTimeout(() => {
+              setFreshIds((prev) => {
+                const next = new Set(prev);
+                next.delete(order.id);
+                return next;
+              });
+            }, 20000);
             return;
           }
           // UPDATE/DELETE em rajada: uma revalidação por lote basta.
@@ -141,7 +169,17 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
     [restaurants],
   );
 
-  return { restaurants, orders, loading, error, refresh, reloadOrders, restaurantNames };
+  return {
+    restaurants,
+    orders,
+    loading,
+    error,
+    refresh,
+    reloadOrders,
+    restaurantNames,
+    lockedStores,
+    freshIds,
+  };
 }
 
 /**

@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Ban, Package, RefreshCw, Search, Volume2, VolumeX } from "lucide-react";
+import { ArrowRight, Ban, Lock, Package, RefreshCw, Search, Volume2, VolumeX } from "lucide-react";
 import { OrderCard } from "@/components/mobile/OrderCard";
 import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
 import { PageHeader } from "@/modules/ui/PageHeader";
@@ -45,8 +45,17 @@ function startOfToday(): number {
 }
 
 function MobileOrdersPage() {
-  const { restaurants, orders, loading, error, refresh, reloadOrders, restaurantNames } =
-    useMobileStore();
+  const {
+    restaurants,
+    orders,
+    loading,
+    error,
+    refresh,
+    reloadOrders,
+    restaurantNames,
+    lockedStores,
+    freshIds,
+  } = useMobileStore();
 
   const [filter, setFilter] = useState<FilterKey>("active");
   const [search, setSearch] = useState("");
@@ -123,6 +132,11 @@ function MobileOrdersPage() {
     toast.success(next ? "Alerta sonoro ativado." : "Alerta sonoro desativado.");
   }
 
+  const lockedCount = useMemo(
+    () => orders.filter((o) => lockedStores.has(o.restaurant_id)).length,
+    [orders, lockedStores],
+  );
+
   if (loading) {
     return <LoadingState label="Carregando pedidos…" className="h-full" />;
   }
@@ -165,6 +179,33 @@ function MobileOrdersPage() {
       />
 
       {error && <InlineError message={error} onRetry={handleRefresh} retrying={refreshing} />}
+
+      {/* Aviso de plano: o dono precisa saber que há pedidos com detalhes
+          bloqueados antes de tentar abrir um card. */}
+      {lockedStores.size > 0 && (
+        <Link
+          to="/admin/assinatura"
+          className="flex items-center gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-3 transition-colors hover:bg-amber-500/[0.12]"
+        >
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-300">
+            <Lock className="size-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-amber-200">
+              Limite do plano gratuito atingido
+            </span>
+            <span className="mt-0.5 block text-[11px] text-amber-200/75">
+              {lockedCount > 0
+                ? `${lockedCount} pedido${lockedCount === 1 ? "" : "s"} com detalhes bloqueados. `
+                : ""}
+              Os pedidos continuam chegando.
+            </span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500 px-3 py-1.5 text-[11px] font-bold text-black">
+            Assinar <ArrowRight className="size-3" />
+          </span>
+        </Link>
+      )}
 
       {/* Busca + filtros */}
       <div className="space-y-2">
@@ -249,6 +290,8 @@ function MobileOrdersPage() {
               order={order}
               restaurant={restaurants.find((r) => r.id === order.restaurant_id)}
               showRestaurant={restaurants.length > 1}
+              fresh={freshIds.has(order.id)}
+              locked={lockedStores.has(order.restaurant_id)}
               // Com "cards recolhidos" ligado, o operador abre o que precisa;
               // desligado, os pedidos em andamento já vêm com os itens à vista.
               defaultOpen={!prefs.compactCards && isActive(order.status)}

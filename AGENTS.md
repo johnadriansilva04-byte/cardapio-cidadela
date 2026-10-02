@@ -193,6 +193,13 @@
   lugar dos itens; pedido novo entra com realce "Novo" + `slide-up` por 15s.
   O dono continua vendo que o pedido chegou. Como é leitura (não RLS), assinar
   o Premium libera automaticamente os pedidos que chegaram bloqueados.
+- O mobile segue a mesma regra: `useOwnerOrders` (via `store-context`) carrega
+  `getOwnerLockedStores()` junto dos pedidos e expõe `lockedStores` e
+  `freshIds`; a aba `/mobile` mostra o aviso de plano com CTA para
+  `/admin/assinatura` e passa `locked`/`fresh` ao `OrderCard`. O card bloqueado
+  fica âmbar com cadeado no cabeçalho. O header do `/mobile` usa
+  `env(safe-area-inset-top)` porque a PWA instalada (standalone +
+  `viewport-fit=cover`) fica sob o notch.
 - As duas RPCs são aditivas: sem elas no banco, `getOrderForOwner` cai para
   `getOrderById` (schema antigo) e `getOwnerLockedStores` devolve vazio — nada
   trava, só perde o enforcement. Se o e-mail/telefone da conta muda,

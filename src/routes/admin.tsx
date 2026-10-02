@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { LayoutDashboard, Store, Wallet, Share2, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Store, Wallet, Share2, ClipboardList, Crown } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import type { Restaurant } from "@/lib/types";
@@ -30,6 +30,7 @@ const NAV_ITEMS = [
   { to: "/admin/restaurantes", label: "Restaurantes", icon: Store },
   { to: "/admin/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/admin/compartilhar", label: "Compartilhar", icon: Share2 },
+  { to: "/admin/assinatura", label: "Assinatura", icon: Crown },
 ] as const;
 
 function AdminLayout() {

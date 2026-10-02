@@ -12,6 +12,8 @@ import {
   UtensilsCrossed,
   Calendar,
   LayoutGrid,
+  Crown,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,7 @@ import {
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { PageHeader } from "@/modules/ui/PageHeader";
+import { checkSubscriptionStatus, MONTHLY_FREE_LIMIT } from "@/modules/supabase/subscription";
 import { serializeHours } from "@/lib/operatingHours";
 import type { OrderStatus, Restaurant } from "@/lib/types";
 import { brl } from "@/lib/utils";
@@ -66,6 +69,8 @@ function AdminDashboardOverview() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const retryRef = useRef(0);
+  const [subRemaining, setSubRemaining] = useState<number | null>(null);
+  const [subPremium, setSubPremium] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -176,6 +181,28 @@ function AdminDashboardOverview() {
       cancelled = true;
     };
   }, [activeId, range]);
+
+  // Limite do plano gratuito — informa o banner quando está perto/acabou.
+  useEffect(() => {
+    if (!activeId) {
+      setSubRemaining(null);
+      setSubPremium(false);
+      return;
+    }
+    let cancelled = false;
+    checkSubscriptionStatus(activeId)
+      .then((s) => {
+        if (cancelled) return;
+        setSubRemaining(s.remainingOrders);
+        setSubPremium(s.isPremium);
+      })
+      .catch(() => {
+        if (!cancelled) setSubRemaining(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeId]);
 
   const counts = useMemo(() => {
     const init: Record<OrderStatus, number> = {
@@ -443,6 +470,58 @@ function AdminDashboardOverview() {
           hint="Por pedido não cancelado"
         />
       </div>
+
+      {/* Banner do limite do plano gratuito */}
+      {restaurants.length > 0 && !subPremium && subRemaining !== null && subRemaining <= 2 && (
+        <Link
+          to="/admin/assinatura"
+          className={
+            "flex items-start gap-3 rounded-2xl border p-4 transition-colors " +
+            (subRemaining === 0
+              ? "border-red-500/25 bg-red-500/[0.07] hover:bg-red-500/[0.12]"
+              : "border-amber-500/25 bg-amber-500/[0.07] hover:bg-amber-500/[0.12]")
+          }
+        >
+          <span
+            className={
+              "grid size-9 shrink-0 place-items-center rounded-xl " +
+              (subRemaining === 0 ? "bg-red-500/15 text-red-300" : "bg-amber-500/15 text-amber-300")
+            }
+          >
+            {subRemaining === 0 ? <Crown className="size-4" /> : <Sparkles className="size-4" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span
+              className={
+                "block text-sm font-bold " +
+                (subRemaining === 0 ? "text-red-200" : "text-amber-200")
+              }
+            >
+              {subRemaining === 0
+                ? "🚫 Limite de pedidos gratuito atingido"
+                : `⚠️ Você tem apenas ${subRemaining} pedido${subRemaining === 1 ? "" : "s"} gratuitos restantes este mês`}
+            </span>
+            <span
+              className={
+                "mt-0.5 block text-xs " +
+                (subRemaining === 0 ? "text-red-200/75" : "text-amber-200/75")
+              }
+            >
+              {subRemaining === 0
+                ? "Assine Premium para continuar recebendo pedidos."
+                : `O plano gratuito inclui ${MONTHLY_FREE_LIMIT} pedidos por mês. Assine Premium para ilimitado.`}
+            </span>
+          </span>
+          <span
+            className={
+              "inline-flex shrink-0 items-center gap-1 self-center rounded-full px-3 py-1.5 text-[11px] font-bold " +
+              (subRemaining === 0 ? "bg-red-500 text-white" : "bg-amber-500 text-black")
+            }
+          >
+            Assinar <ArrowRight className="size-3" />
+          </span>
+        </Link>
+      )}
 
       {restaurants.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-10 text-center">

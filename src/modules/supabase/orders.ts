@@ -1,5 +1,6 @@
 import { supabase } from "./client";
 import type { Order, OrderStatus } from "@/lib/types";
+import { checkMonthlyLimit, incrementOrderCount } from "./subscription";
 
 function idempotencyKey(
   restaurantId: string,
@@ -74,6 +75,26 @@ export async function createOrder(
   }
 
   const orderId = crypto.randomUUID();
+
+  // Limite do plano gratuito — checado só para pedidos novos (acima já saímos
+  // se era replay idempotente, para não bloquear um cliente que só reenviou).
+  if (items.length > 0) {
+    try {
+      const limit = await checkMonthlyLimit(restaurantId);
+      if (!limit.allowed) {
+        return {
+          order: null,
+          error: {
+            message: "Limite de 5 pedidos/mês atingido. Assine Premium para continuar.",
+            code: "SUBSCRIPTION_LIMIT",
+          },
+        };
+      }
+    } catch (e) {
+      // Falha de rede/coluna ausente não pode derrubar o pedido: segue sem limite.
+      console.warn("[orders] checagem de limite ignorada:", e);
+    }
+  }
 
   // Base payload — only columns that are guaranteed to exist in every DB
   const base: Record<string, unknown> = {
@@ -163,7 +184,14 @@ export async function createOrder(
     return { order: null, error: { message: hint, code: lastError.code } };
   }
 
+  // Pedido persistido — conta no limite mensal do plano gratuito. Best-effort.
   if (items.length > 0) {
+    try {
+      await incrementOrderCount(restaurantId);
+    } catch (e) {
+      console.warn("[orders] falha ao incrementar contador mensal:", e);
+    }
+
     const { error: itemsError } = await supabase.from("order_items").insert(
       items.map((item) => ({
         order_id: orderId,

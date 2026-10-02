@@ -160,3 +160,38 @@
   page stays quiet.
 - `sendToWhatsApp` strips non-digits from the number — wa.me rejects formatted
   phone numbers.
+
+## Assinatura Premium (Mercado Pago)
+
+- Plano gratuito: 5 pedidos/mês; Premium é ilimitado. O estado vive em
+  `admin_trials` (uma linha por restaurante, `store_id` = `restaurants.id`),
+  com `is_premium`, `premium_expires_at`, `monthly_order_count`,
+  `monthly_order_reset_date` e `mercadopago_preapproval_id`. As colunas novas
+  são adicionadas por `ALTER TABLE ... IF NOT EXISTS` no fim do bloco da tabela
+  em `schema.sql`.
+- `src/modules/supabase/subscription.ts` é a API de leitura/escrita do cliente
+  (`checkSubscriptionStatus`, `checkMonthlyLimit`, `incrementOrderCount`,
+  `activatePremium`, `cancelPremium`, ...). Ela cria a linha sob demanda e
+  degrada em silêncio: sem as colunas/linha, o restaurante é tratado como
+  gratuito e os pedidos continuam.
+- `createOrder` checa `checkMonthlyLimit` só em pedido novo (replay idempotente
+  passa direto) e incrementa o contador só depois de persistir. A checagem é
+  best-effort — falha de rede/coluna ausente não derruba o pedido.
+- O webhook é uma **server route** em `src/routes/api.webhook.mercadopago.ts`
+  (`POST /api/webhook/mercadopago`), com a lógica compartilhada em
+  `src/api/lib/{mercadopago,mp-subscription}.ts`. Rotas de API seguem a
+  convenção de nome `src/routes/api.<segmento>.<segmento>.ts` e aparecem no
+  `routeTree.gen.ts` como rotas normais.
+- Segurança: o Access Token é server-only. Use `MERCADOPAGO_ACCESS_TOKEN` (não
+  `VITE_*`) e configure `MERCADOPAGO_WEBHOOK_SECRET` para validar `x-signature`;
+  sem o secret o webhook processa mas loga — em produção sempre configure-o.
+- O link de assinatura do Mercado Pago é estático
+  (`VITE_MERCADOPAGO_SUBSCRIPTION_LINK`) e não carrega `external_reference`. Por
+  isso o restaurante é resolvido pelo e-mail do pagador, registrado antes do
+  checkout via `registerPendingSubscription`. O modal avisa o usuário a usar o
+  mesmo e-mail da conta.
+- Fallback do webhook: `POST /api/subscription/sync` (rota
+  `api.subscription.sync.ts`) busca o preapproval direto na API do MP. Exige
+  token de sessão e só age se o e-mail do pagador bater com o registrado na
+  linha — evita ativar o Premium de terceiros. A página `/admin/assinatura`
+  expõe o botão "Sincronizar" para isso.

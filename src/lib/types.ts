@@ -186,6 +186,16 @@ export interface OrderStatusHistoryEntry {
   created_at: string;
 }
 
+// --- Assinatura Premium (Mercado Pago) ---
+export interface SubscriptionStatus {
+  isPremium: boolean;
+  monthlyOrderCount: number;
+  monthlyLimit: number;
+  remainingOrders: number;
+  premiumExpiresAt: string | null;
+  resetDate: string;
+}
+
 // --- Cidadela ---
 export interface CidadelaUnlock {
   id: string;

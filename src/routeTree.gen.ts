@@ -18,6 +18,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAssinaturaRouteImport } from './routes/admin.assinatura'
 import { Route as AdminCardapioRouteImport } from './routes/admin.cardapio'
 import { Route as AdminCompartilharRouteImport } from './routes/admin.compartilhar'
 import { Route as AdminConfigRouteImport } from './routes/admin.config'
@@ -32,6 +33,8 @@ import { Route as MobileConfigRouteImport } from './routes/mobile.config'
 import { Route as MobileDashboardRouteImport } from './routes/mobile.dashboard'
 import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
 import { Route as AdminRestauranteIdRouteImport } from './routes/admin.restaurante.$id'
+import { Route as ApiSubscriptionSyncRouteImport } from './routes/api.subscription.sync'
+import { Route as ApiWebhookMercadopagoRouteImport } from './routes/api.webhook.mercadopago'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +79,11 @@ const TermsRoute = TermsRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAssinaturaRoute = AdminAssinaturaRouteImport.update({
+  id: '/assinatura',
+  path: '/assinatura',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminCardapioRoute = AdminCardapioRouteImport.update({
@@ -148,6 +156,16 @@ const AdminRestauranteIdRoute = AdminRestauranteIdRouteImport.update({
   path: '/restaurante/$id',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiSubscriptionSyncRoute = ApiSubscriptionSyncRouteImport.update({
+  id: '/api/subscription/sync',
+  path: '/api/subscription/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhookMercadopagoRoute = ApiWebhookMercadopagoRouteImport.update({
+  id: '/api/webhook/mercadopago',
+  path: '/api/webhook/mercadopago',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -158,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/admin/assinatura': typeof AdminAssinaturaRoute
   '/admin/cardapio': typeof AdminCardapioRoute
   '/admin/compartilhar': typeof AdminCompartilharRoute
   '/admin/config': typeof AdminConfigRoute
@@ -173,6 +192,8 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
+  '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -181,6 +202,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/admin/assinatura': typeof AdminAssinaturaRoute
   '/admin/cardapio': typeof AdminCardapioRoute
   '/admin/compartilhar': typeof AdminCompartilharRoute
   '/admin/config': typeof AdminConfigRoute
@@ -196,6 +218,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/mobile': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
+  '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -207,6 +231,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/admin/assinatura': typeof AdminAssinaturaRoute
   '/admin/cardapio': typeof AdminCardapioRoute
   '/admin/compartilhar': typeof AdminCompartilharRoute
   '/admin/config': typeof AdminConfigRoute
@@ -222,6 +247,8 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
+  '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -234,6 +261,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
+    | '/admin/assinatura'
     | '/admin/cardapio'
     | '/admin/compartilhar'
     | '/admin/config'
@@ -249,6 +277,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/mobile/'
     | '/admin/restaurante/$id'
+    | '/api/subscription/sync'
+    | '/api/webhook/mercadopago'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -257,6 +287,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
+    | '/admin/assinatura'
     | '/admin/cardapio'
     | '/admin/compartilhar'
     | '/admin/config'
@@ -272,6 +303,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/mobile'
     | '/admin/restaurante/$id'
+    | '/api/subscription/sync'
+    | '/api/webhook/mercadopago'
   id:
     | '__root__'
     | '/'
@@ -282,6 +315,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
+    | '/admin/assinatura'
     | '/admin/cardapio'
     | '/admin/compartilhar'
     | '/admin/config'
@@ -297,6 +331,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/mobile/'
     | '/admin/restaurante/$id'
+    | '/api/subscription/sync'
+    | '/api/webhook/mercadopago'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -311,6 +347,8 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   CardapioSlugRoute: typeof CardapioSlugRoute
   PedidoOrderIdRoute: typeof PedidoOrderIdRoute
+  ApiSubscriptionSyncRoute: typeof ApiSubscriptionSyncRoute
+  ApiWebhookMercadopagoRoute: typeof ApiWebhookMercadopagoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -376,6 +414,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/assinatura': {
+      id: '/admin/assinatura'
+      path: '/assinatura'
+      fullPath: '/admin/assinatura'
+      preLoaderRoute: typeof AdminAssinaturaRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/cardapio': {
@@ -476,10 +521,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRestauranteIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/subscription/sync': {
+      id: '/api/subscription/sync'
+      path: '/api/subscription/sync'
+      fullPath: '/api/subscription/sync'
+      preLoaderRoute: typeof ApiSubscriptionSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhook/mercadopago': {
+      id: '/api/webhook/mercadopago'
+      path: '/api/webhook/mercadopago'
+      fullPath: '/api/webhook/mercadopago'
+      preLoaderRoute: typeof ApiWebhookMercadopagoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AdminRouteChildren {
+  AdminAssinaturaRoute: typeof AdminAssinaturaRoute
   AdminCardapioRoute: typeof AdminCardapioRoute
   AdminCompartilharRoute: typeof AdminCompartilharRoute
   AdminConfigRoute: typeof AdminConfigRoute
@@ -491,6 +551,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAssinaturaRoute: AdminAssinaturaRoute,
   AdminCardapioRoute: AdminCardapioRoute,
   AdminCompartilharRoute: AdminCompartilharRoute,
   AdminConfigRoute: AdminConfigRoute,
@@ -532,6 +593,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   CardapioSlugRoute: CardapioSlugRoute,
   PedidoOrderIdRoute: PedidoOrderIdRoute,
+  ApiSubscriptionSyncRoute: ApiSubscriptionSyncRoute,
+  ApiWebhookMercadopagoRoute: ApiWebhookMercadopagoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

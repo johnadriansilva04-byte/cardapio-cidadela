@@ -45,8 +45,6 @@ interface CustomerProfileSheetProps {
   onClose: () => void;
   /** Abre a lista completa de pedidos (rota /meus-pedidos). */
   onOpenOrders: () => void;
-  /** Notifica o cardápio que o usuário entrou ou saiu, para recarregar. */
-  onAuthChange?: () => void;
 }
 
 type Mode = "login" | "register";
@@ -56,7 +54,6 @@ export default function CustomerProfileSheet({
   slug,
   onClose,
   onOpenOrders,
-  onAuthChange,
 }: CustomerProfileSheetProps) {
   const { user, profile, isAuthenticated } = useAuth();
   const { orders, totalPoints, totalOrders, totalSpent, pointsToNext, reload } =
@@ -106,9 +103,16 @@ export default function CustomerProfileSheet({
     };
   }, [slug]);
 
-  function notifyAuthChanged() {
-    onAuthChange?.();
-    void reload();
+  /** Após login/registro, só avisa se havia dados de convidado para trazer. */
+  function reportClaim(claimed: { orders: number; points: number }) {
+    setFeedback(
+      claimed.orders > 0 || claimed.points > 0
+        ? {
+            kind: "ok",
+            text: `Bem-vindo! Trouxemos ${claimed.orders} pedido(s) e ${claimed.points} lançamento(s) do seu histórico.`,
+          }
+        : { kind: "ok", text: "Tudo certo! Sua conta está sincronizada." },
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -161,15 +165,9 @@ export default function CustomerProfileSheet({
 
       // Traz pontos e pedidos feitos como convidado neste aparelho.
       const claimed = await claimGuestData();
-      notifyAuthChanged();
-      setFeedback(
-        claimed.orders > 0 || claimed.points > 0
-          ? {
-              kind: "ok",
-              text: `Bem-vindo! Trouxemos ${claimed.orders} pedido(s) e ${claimed.points} lançamento(s) do seu histórico.`,
-            }
-          : { kind: "ok", text: "Tudo certo! Sua conta está sincronizada." },
-      );
+      // O auth listener do AuthProvider já recarrega perfil e histórico;
+      // aqui só reportamos o que veio do convidado.
+      reportClaim(claimed);
     } finally {
       setBusy(false);
     }
@@ -177,7 +175,6 @@ export default function CustomerProfileSheet({
 
   async function handleSignOut() {
     await authSignOut();
-    notifyAuthChanged();
     setFeedback({ kind: "ok", text: "Você saiu da conta. Seus pedidos continuam no histórico." });
   }
 

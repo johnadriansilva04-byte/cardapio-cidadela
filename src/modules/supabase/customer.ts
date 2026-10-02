@@ -44,8 +44,9 @@ export async function claimGuestData(): Promise<ClaimResult> {
 /**
  * Histórico do cliente.
  *
- * Com conta: o histórico vem da própria conta (customer_id), então aparece
- * em qualquer aparelho. Sem conta: cai no guest id deste navegador, que é o
+ * Com conta: o histórico vem da própria conta (customer_id) pela RPC
+ * `get_my_orders`, que roda com SECURITY DEFINER porque a tabela orders não
+ * dá SELECT ao cliente. Sem conta: cai no guest id deste navegador, que é o
  * comportamento antigo — o convidado continua servindo para quem não quer
  * se cadastrar, só deixa de ser a única forma.
  */
@@ -53,23 +54,17 @@ export async function getCustomerOrders(userId?: string | null): Promise<GuestOr
   if (!userId) return getMyOrders();
 
   try {
-    const { data, error } = await supabase
-      .from("orders")
-      .select(
-        "id, restaurant_id, comanda, status, total, delivery_type, payment_method, created_at, restaurants(name)",
-      )
-      .eq("customer_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(100);
-
+    const { data, error } = await supabase.rpc("get_my_orders");
+    // RPC indisponível (schema ainda não atualizado): mantém o fallback do
+    // navegador em vez de mostrar "nenhum pedido" para quem tem histórico.
     if (error || !Array.isArray(data)) return getMyOrders();
 
     return data.map((row) => {
-      const r = row as unknown as GuestOrderSummary & { restaurants?: { name?: string } };
+      const r = row as unknown as GuestOrderSummary;
       return {
         id: r.id,
         restaurant_id: r.restaurant_id,
-        restaurant_name: r.restaurants?.name ?? "",
+        restaurant_name: r.restaurant_name ?? "",
         comanda: r.comanda,
         status: r.status,
         total: Number(r.total ?? 0),

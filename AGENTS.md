@@ -78,6 +78,15 @@
   `AudioContext` starts suspended until a user gesture; the module registers a
   global unlock on the first pointer/key/touch.
 
+- `orders` has RLS with no SELECT policy for customers — only
+  `is_restaurant_owner`. A logged-in customer's history therefore cannot be read
+  from the table directly; it comes from the `get_my_orders()` SECURITY DEFINER
+  RPC (in `schema.sql`), mirroring `get_orders_by_guest()` for guests. Both
+  return the same limited columns, and `getCustomerOrders` in
+  `src/modules/supabase/customer.ts` only falls back to the guest id when the
+  RPC is unavailable (schema not yet updated), never when the account genuinely
+  has no orders.
+
 ## Analytics and reviews (new modules)
 
 - `src/modules/analytics/` is provider-agnostic: it batches events and only
@@ -115,7 +124,7 @@
   except the Cidadela seal (top-right); the identity block — avatar, name,
   status and slogan — lives in flow below the hero, avatar beside the text,
   so it never hides the art.
-- The Cidadela seal is a `sticky top-0 z-30` sibling *before* the hero, not a
+- The Cidadela seal is a `sticky top-0 z-30` sibling _before_ the hero, not a
   child of it. The hero is `z-0`, which creates its own stacking context, so
   nothing inside it can outrank the sticky category bar (`z-20`) — as a child
   the seal was painted over by that bar when it stuck. The wrapper is

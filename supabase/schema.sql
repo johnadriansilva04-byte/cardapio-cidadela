@@ -351,6 +351,45 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.get_orders_by_guest(TEXT) TO anon, authenticated;
 
+-- Histórico do cliente logado.
+-- A tabela orders tem RLS e nenhuma policy de SELECT para o cliente (só o
+-- dono do restaurante lê). Sem esta função o histórico da conta voltava
+-- vazio, então ela expõe apenas os pedidos do próprio auth.uid() com os
+-- mesmos campos do convidado — sem PII.
+CREATE OR REPLACE FUNCTION public.get_my_orders()
+RETURNS TABLE (
+  id UUID,
+  restaurant_id UUID,
+  restaurant_name TEXT,
+  comanda TEXT,
+  status TEXT,
+  total NUMERIC,
+  delivery_type TEXT,
+  payment_method TEXT,
+  created_at TIMESTAMPTZ
+) LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    o.id,
+    o.restaurant_id,
+    r.name AS restaurant_name,
+    o.comanda,
+    o.status::text,
+    o.total,
+    o.delivery_type,
+    o.payment_method,
+    o.created_at
+  FROM orders o
+  JOIN restaurants r ON r.id = o.restaurant_id
+  WHERE o.customer_id = auth.uid()::text
+  ORDER BY o.created_at DESC
+  LIMIT 100;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_my_orders() TO authenticated;
+
 -- Mantém a tabela de convidados limpa: pedidos encerrados
 -- (entregue/cancelado) com mais de 24h deixam de ser listados e o
 -- guest_id é anonimizado, cumprindo a vida curta do "convidado".

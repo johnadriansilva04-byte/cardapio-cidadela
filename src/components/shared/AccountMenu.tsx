@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 
 interface AccountMenuProps {
   displayName: string;
+  avatarUrl?: string;
   onNavigate?: () => void;
   showDelete?: boolean;
   className?: string;
@@ -23,6 +24,7 @@ interface AccountMenuProps {
 
 export function AccountMenu({
   displayName,
+  avatarUrl,
   onNavigate,
   showDelete = true,
   className,
@@ -65,8 +67,18 @@ export function AccountMenu({
             className,
           )}
         >
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-500/30 to-violet-500/20 text-xs font-bold text-cyan-200 ring-1 ring-white/10">
-            {initials}
+          <span className="size-8 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-cyan-500/30 to-violet-500/20 ring-1 ring-white/10">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName || "Foto de perfil"}
+                className="size-full object-cover"
+              />
+            ) : (
+              <span className="grid size-full place-items-center text-xs font-bold text-cyan-200">
+                {initials}
+              </span>
+            )}
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-xs font-semibold text-gray-200">

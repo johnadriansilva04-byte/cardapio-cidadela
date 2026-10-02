@@ -29,11 +29,18 @@
 ## Architecture notes
 
 - Account vs. store separation: `/admin/config` is only the account
-  (name, phone, password, sign-out/delete) — no navigation shortcuts. Store
-  data (WhatsApp, address, PIX, fee, hours, logo, banner) lives in the
+  (photo, name, phone, password, sign-out/delete) — no navigation shortcuts.
+  Store data (WhatsApp, address, PIX, fee, hours, logo, banner) lives in the
   restaurant, under the **Restaurantes** tab; app installation and alerts live
   in the mobile Gestão (`/mobile/config`). The sidebar already carries the
   navigation, so don't repeat it as cards inside Configurações.
+- The sidebar has no "Configurações" item: the account card at the bottom
+  (`AccountMenu`) is the single entry point to the config screen and shows the
+  user's avatar (initials as fallback). The photo is stored in the `avatars`
+  bucket at `<uid>/...` and its URL in `profiles.avatar_url`; `AccountMenu`
+  reads `profile.avatar_url` with `user_metadata.avatar_url` as the instant
+  fallback. Adding another nav entry for config would create the duplicate the
+  card replaced.
 - Mobile app lives under `/mobile` (routes `mobile.tsx` layout +
   `mobile.index|dashboard|clientes|config`). Shared logic is in
   `src/modules/mobile/`, UI primitives in `src/modules/ui/`.

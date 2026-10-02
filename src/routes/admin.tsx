@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { LayoutDashboard, Store, Wallet, Share2, Settings, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Store, Wallet, Share2, ClipboardList } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { subscribeToOrders } from "@/modules/supabase/orders";
@@ -29,7 +29,6 @@ const NAV_ITEMS = [
   { to: "/admin/restaurantes", label: "Restaurantes", icon: Store },
   { to: "/admin/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/admin/compartilhar", label: "Compartilhar", icon: Share2 },
-  { to: "/admin/config", label: "Configurações", icon: Settings },
 ] as const;
 
 function AdminLayout() {
@@ -37,7 +36,7 @@ function AdminLayout() {
   const [pendingCount, setPendingCount] = useState(0);
   const matchRoute = useMatchRoute();
   const navigate = useNavigate();
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading, user, profile } = useAuth();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -173,6 +172,7 @@ function AdminLayout() {
   }
 
   const displayName = (user?.user_metadata?.name as string) || user?.email || user?.phone || "";
+  const avatarUrl = profile?.avatar_url || (user?.user_metadata?.avatar_url as string) || undefined;
 
   const sidebar = (
     <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}>
@@ -194,7 +194,11 @@ function AdminLayout() {
         ))}
       </nav>
       <div className="border-t border-white/[0.06] px-3 py-3">
-        <AccountMenu displayName={displayName} onNavigate={() => setSidebarOpen(false)} />
+        <AccountMenu
+          displayName={displayName}
+          avatarUrl={avatarUrl}
+          onNavigate={() => setSidebarOpen(false)}
+        />
       </div>
     </AppSidebar>
   );

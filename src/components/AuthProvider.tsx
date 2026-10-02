@@ -30,6 +30,8 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   /** True if user has admin role */
   isAdmin: boolean;
+  /** Reload the profile row from the database */
+  refreshProfile: () => Promise<void>;
   /** Sign out the current user */
   signOut: () => Promise<void>;
 }
@@ -98,6 +100,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }, []);
 
+  const refreshProfile = useCallback(async () => {
+    const current = await getCurrentUser();
+    if (!current) return;
+    try {
+      const userProfile = await getUserProfile(current.id);
+      setProfile(userProfile);
+    } catch {
+      /* best-effort */
+    }
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -106,9 +119,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       isAuthenticated: Boolean(user),
       isAdmin: profile?.role === "admin",
+      refreshProfile,
       signOut: handleSignOut,
     }),
-    [user, session, profile, loading, handleSignOut],
+    [user, session, profile, loading, refreshProfile, handleSignOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

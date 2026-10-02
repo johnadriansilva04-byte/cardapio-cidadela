@@ -28,13 +28,12 @@
 
 ## Architecture notes
 
-- Account vs. store separation: `/admin/config` is only the account and the
-  app (name, phone, password, sign-out/delete). Anything about the store —
-  WhatsApp, address, PIX, fee, hours, logo, banner — lives in the restaurant
-  itself, reached from the **Restaurantes** tab. Don't put store shortcuts in
-  Configurações; that tab already is the path. App installation lives in the
-  mobile Gestão (`/mobile/config`), next to the alerts it turns on, and is not
-  duplicated in the admin panel.
+- Account vs. store separation: `/admin/config` is only the account
+  (name, phone, password, sign-out/delete) — no navigation shortcuts. Store
+  data (WhatsApp, address, PIX, fee, hours, logo, banner) lives in the
+  restaurant, under the **Restaurantes** tab; app installation and alerts live
+  in the mobile Gestão (`/mobile/config`). The sidebar already carries the
+  navigation, so don't repeat it as cards inside Configurações.
 - Mobile app lives under `/mobile` (routes `mobile.tsx` layout +
   `mobile.index|dashboard|clientes|config`). Shared logic is in
   `src/modules/mobile/`, UI primitives in `src/modules/ui/`.

@@ -1,13 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, type ReactNode } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import {
   User,
   KeyRound,
   LogOut,
   Trash2,
   UserRound,
-  Smartphone,
-  Share2,
   Save,
   Loader2,
   Eye,
@@ -27,42 +25,13 @@ export const Route = createFileRoute("/admin/config")({
 const field =
   "w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30";
 
-/** Atalho compacto e quadrado — navega sem ocupar a tela. */
-function Shortcut({
-  to,
-  icon,
-  title,
-  hint,
-  tone,
-}: {
-  to: string;
-  icon: ReactNode;
-  title: string;
-  hint: string;
-  tone: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="group flex aspect-square flex-col justify-between rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 transition-colors hover:border-cyan-500/25 hover:bg-white/[0.045]"
-    >
-      <span className={`grid size-9 place-items-center rounded-xl ${tone}`}>{icon}</span>
-      <span className="min-w-0">
-        <span className="block truncate text-xs font-bold text-white">{title}</span>
-        <span className="block truncate text-[10px] text-gray-500">{hint}</span>
-      </span>
-    </Link>
-  );
-}
-
 /**
- * Esta tela é da conta e do app — não do restaurante.
+ * Esta tela é só da conta e do acesso ao painel.
  *
  * Dados da loja (WhatsApp, endereço, PIX, taxa, horários, logo, banner) vivem
- * no cadastro do restaurante, acessível pelo card em Restaurantes → Config.
- * Aqui não repetimos um atalho para lá: a própria aba Restaurantes já é o
- * caminho, e o subtítulo diz onde os dados ficam. A instalação do app vive na
- * gestão mobile, junto dos alertas que ela ativa.
+ * no cadastro do restaurante, na aba Restaurantes. Instalação do app e alertas
+ * ficam na gestão mobile. Nada disso vira atalho aqui: a navegação já está na
+ * barra lateral, e repetir na tela só poluía.
  */
 function ConfigPage() {
   // O atalho "Editar dados e senha" da gestão mobile chega em #conta.
@@ -73,23 +42,6 @@ function ConfigPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <PageHeader title="Configurações" subtitle="Sua conta e o acesso ao painel." />
-
-      <div className="grid grid-cols-2 gap-2.5">
-        <Shortcut
-          to="/mobile"
-          icon={<Smartphone className="size-4.5 text-emerald-300" />}
-          title="Gestão mobile"
-          hint="Balcão, alertas e instalação"
-          tone="bg-emerald-500/15"
-        />
-        <Shortcut
-          to="/admin/compartilhar"
-          icon={<Share2 className="size-4.5 text-violet-300" />}
-          title="Compartilhar"
-          hint="Link e QR"
-          tone="bg-violet-500/15"
-        />
-      </div>
 
       <AccountSection defaultOpen={openAccount} />
     </div>

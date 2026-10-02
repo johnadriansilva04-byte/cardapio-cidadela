@@ -19,7 +19,6 @@ import {
   History,
   ChevronDown,
   Store,
-  Crown,
   Sparkles,
   Lock,
 } from "lucide-react";
@@ -136,7 +135,6 @@ export function OrderManager({
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailBlocked, setDetailBlocked] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [detailItems, setDetailItems] = useState<Order["order_items"]>([]);
   const [lockedStores, setLockedStores] = useState<Set<string>>(new Set());
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -279,13 +277,11 @@ export function OrderManager({
     setDetailOrder(null);
     setDetailBlocked(false);
     setDetailError(null);
-    setDetailItems([]);
     setDetailLoading(true);
     try {
       const res = await getOrderForOwner(order.id);
       if (res.blocked) {
         setDetailBlocked(true);
-        setDetailItems(res.items ?? []);
       } else if (res.order) {
         setDetailOrder(res.order);
       } else setDetailError("Não foi possível carregar este pedido.");
@@ -301,7 +297,6 @@ export function OrderManager({
     setDetailOrder(null);
     setDetailBlocked(false);
     setDetailError(null);
-    setDetailItems([]);
     setDetailLoading(false);
   }
 
@@ -699,7 +694,6 @@ export function OrderManager({
       <OrderDetailDialog
         preview={detailPreview}
         order={detailOrder}
-        items={detailItems}
         loading={detailLoading}
         blocked={detailBlocked}
         error={detailError}
@@ -763,7 +757,7 @@ function OrderCard({
           </span>
         )}
         <p className="truncate text-[11px] text-gray-400">{order.customer_name}</p>
-        {!compact && order.order_items && order.order_items.length > 0 && (
+        {!locked && !compact && order.order_items && order.order_items.length > 0 && (
           <p className="line-clamp-2 text-[10px] leading-relaxed text-gray-500">
             {order.order_items
               .slice(0, 3)
@@ -771,6 +765,11 @@ function OrderCard({
               .join(" • ")}
             {order.order_items.length > 3 ? ` • +${order.order_items.length - 3}` : ""}
           </p>
+        )}
+        {locked && (
+          <span className="flex items-center gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-200">
+            <Lock className="size-3" /> Detalhes bloqueados
+          </span>
         )}
         <div className="flex items-center justify-between gap-2 pt-1">
           <span className="text-xs font-black text-cyan-400">{brl(order.total)}</span>
@@ -817,7 +816,6 @@ function OrderCard({
 function OrderDetailDialog({
   preview,
   order,
-  items = [],
   loading,
   blocked,
   error,
@@ -829,7 +827,6 @@ function OrderDetailDialog({
 }: {
   preview: Order | null;
   order: Order | null;
-  items?: Order["order_items"];
   loading: boolean;
   blocked: boolean;
   error: string | null;
@@ -880,30 +877,23 @@ function OrderDetailDialog({
                 </div>
               </div>
 
-              {/* Gatilho de assinatura: o que chegou (itens) aparece; os dados
-                  comerciais (cliente, endereço, valores) ficam bloqueados. */}
-              {items.length > 0 && (
-                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-                  <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
-                    <ShoppingBag className="size-3" /> Itens do pedido
-                  </p>
-                  <ul className="space-y-1.5">
-                    {items.map((item) => (
-                      <li key={item.id} className="flex items-start gap-2 text-sm">
-                        <span className="shrink-0 font-bold text-white">{item.quantity}x</span>
-                        <span className="min-w-0 flex-1 text-gray-200">{item.product_name}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
+              {/* Ação direta dentro do pedido: sem os itens, o lugar deles é o
+                  convite para assinar — o mesmo fluxo /admin/assinatura. */}
               <Link
                 to="/admin/assinatura"
-                className="flex items-center justify-center gap-2 rounded-full bg-cyan-500 px-4 py-2.5 text-sm font-bold text-black transition-colors hover:bg-cyan-400"
+                className="flex items-center justify-between gap-3 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/20 to-cyan-500/5 px-4 py-3 transition-colors hover:border-cyan-400 hover:from-cyan-500/30"
               >
-                <Crown className="size-4" /> Assinar Premium
+                <span className="min-w-0">
+                  <span className="block text-sm font-black text-white">Assinar Premium agora</span>
+                  <span className="mt-0.5 block text-[11px] text-cyan-200/80">
+                    Pedidos ilimitados e detalhes liberados na hora
+                  </span>
+                </span>
+                <span className="shrink-0 rounded-full bg-cyan-500 px-3 py-1.5 text-[11px] font-black text-black">
+                  R$ 39,90/mês
+                </span>
               </Link>
+
               <p className="text-center text-[11px] leading-relaxed text-gray-500">
                 O pedido continua salvo. Assim que o Premium for ativado, os detalhes são liberados
                 automaticamente.

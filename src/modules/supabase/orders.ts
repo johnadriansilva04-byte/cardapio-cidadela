@@ -261,8 +261,6 @@ export interface OwnerOrderDetailResult {
   order: Order | null;
   /** true quando o restaurante passou do limite do plano gratuito e não é Premium. */
   blocked: boolean;
-  /** Itens liberados mesmo no bloqueio (nome + quantidade) — gatilho de assinatura. */
-  items?: Order["order_items"];
   error?: string;
 }
 
@@ -287,9 +285,9 @@ export async function getOrderForOwner(orderId: string): Promise<OwnerOrderDetai
     return { order: null, blocked: false, error: error.message };
   }
   const row = (Array.isArray(data) ? data[0] : data) as
-    { blocked?: boolean; order?: Order | null; items?: Order["order_items"] } | null | undefined;
+    { blocked?: boolean; order?: Order | null } | null | undefined;
   if (!row) return { order: null, blocked: false };
-  if (row.blocked) return { order: null, blocked: true, items: row.items ?? [] };
+  if (row.blocked) return { order: null, blocked: true };
   return { order: (row.order as Order) ?? null, blocked: false };
 }
 

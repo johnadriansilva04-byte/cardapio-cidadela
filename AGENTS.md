@@ -179,11 +179,11 @@
 - O limite NÃO bloqueia mais o cliente: `createOrder` sempre grava o pedido e
   apenas incrementa o contador. O bloqueio vive na **leitura dos detalhes pelo
   dono**, via RPC `get_order_for_owner` (SECURITY DEFINER, em `schema.sql`):
-  Premium ou cota disponível devolve o pedido; senão `{ blocked: true, items }`
-  — os **itens (nome + quantidade) continuam liberados** de propósito, como
-  gatilho de assinatura, mas cliente/endereço/valores não. O frontend (admin
-  `OrderManager` e mobile `OrderCard`) mostra o aviso + a lista de itens +
-  "Assinar Premium" (link `/admin/assinatura`, fluxo existente).
+  Premium ou cota disponível devolve o pedido; senão `{ blocked: true }` e
+  **nada do pedido vaza** — nem os itens. O lugar dos itens na tela é a ação de
+  assinar: admin `OrderManager` e mobile `OrderCard` mostram o aviso, escondem
+  a lista e põem o CTA "Assinar Premium agora · R$ 39,90/mês" (link
+  `/admin/assinatura`, fluxo existente).
 - A RPC `owner_locked_stores()` devolve os restaurantes do dono com a cota
   estourada; o `OrderManager` usa isso para marcar os cards (cadeado) e
   **esconder as ações** de avançar/cancelar (`onAdvance`/`onCancel` ficam

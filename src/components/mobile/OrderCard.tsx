@@ -4,7 +4,6 @@ import {
   Bike,
   Check,
   Clock,
-  Crown,
   Link as LinkIcon,
   Lock,
   MapPin,
@@ -78,7 +77,6 @@ export function OrderCard({
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailBlocked, setDetailBlocked] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [detailItems, setDetailItems] = useState<Order["order_items"]>([]);
 
   const isFinished = order.status === "delivered" || order.status === "cancelled";
   const nextStatus = NEXT_STATUS[order.status];
@@ -101,10 +99,8 @@ export function OrderCard({
     getOrderForOwner(order.id)
       .then((res) => {
         if (cancelled) return;
-        if (res.blocked) {
-          setDetailBlocked(true);
-          setDetailItems(res.items ?? []);
-        } else if (res.order) setDetail(res.order);
+        if (res.blocked) setDetailBlocked(true);
+        else if (res.order) setDetail(res.order);
         else setDetailError("Não foi possível carregar os detalhes deste pedido.");
       })
       .catch(() => {
@@ -176,28 +172,22 @@ export function OrderCard({
             </p>
           </div>
 
-          {/* Itens liberados: gatilho de assinatura, sem dados do cliente. */}
-          {items.length > 0 && (
-            <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                Itens do pedido
-              </p>
-              <ul className="space-y-1.5">
-                {items.map((item) => (
-                  <li key={item.id} className="flex items-start gap-2 text-xs">
-                    <span className="shrink-0 font-bold text-gray-400">{item.quantity}x</span>
-                    <span className="min-w-0 flex-1 text-gray-200">{item.product_name}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
+          {/* Itens não são liberados no bloqueio: o lugar deles é a ação de assinar. */}
           <Link
             to="/admin/assinatura"
-            className="flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-3 py-2.5 text-xs font-bold uppercase text-black transition-colors hover:bg-cyan-400"
+            className="flex items-center justify-between gap-3 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/20 to-cyan-500/5 px-3 py-2.5 transition-colors hover:border-cyan-400"
           >
-            <Crown className="size-4" /> Assinar Premium
+            <span className="min-w-0">
+              <span className="block text-xs font-black uppercase text-white">
+                Assinar Premium agora
+              </span>
+              <span className="mt-0.5 block text-[10px] text-cyan-200/80">
+                Detalhes liberados na hora
+              </span>
+            </span>
+            <span className="shrink-0 rounded-full bg-cyan-500 px-2.5 py-1 text-[10px] font-black text-black">
+              R$ 39,90/mês
+            </span>
           </Link>
           <p className="text-center text-[11px] leading-relaxed text-gray-500">
             O pedido continua salvo. Assim que o Premium for ativado, os detalhes são liberados

@@ -29,7 +29,6 @@ export interface UserProfile {
   phone: string;
   name: string;
   role: UserRole;
-  avatar_url: string;
   created_at: string;
   updated_at: string;
 }
@@ -139,95 +138,6 @@ export async function updateProfileName(name: string): Promise<{ ok: boolean; er
     console.warn("[auth] update metadata error:", metaError.message);
   }
 
-  return { ok: true };
-}
-
-const AVATAR_BUCKET = "avatars";
-const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
-const AVATAR_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
-
-/**
- * Envia a foto de perfil para o bucket `avatars` e grava a URL no perfil.
- * Caminho `avatars/<uid>/avatar_<ts>.<ext>` — a policy do Storage só deixa o
- * próprio usuário escrever na pasta dele.
- */
-export async function updateProfileAvatar(
-  file: File,
-): Promise<{ ok: boolean; url?: string; error?: string }> {
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
-  if (!user) return { ok: false, error: "Você não está autenticado." };
-  if (!AVATAR_MIME.has(file.type)) {
-    return { ok: false, error: "Formato não permitido. Use JPG, PNG ou WebP." };
-  }
-  if (file.size > AVATAR_MAX_BYTES) {
-    return { ok: false, error: "Arquivo muito grande (máx. 5 MB)." };
-  }
-
-  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-  const path = `${user.id}/avatar_${Date.now()}.${ext}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(AVATAR_BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: true, cacheControl: "3600" });
-  if (uploadError) {
-    const msg = uploadError.message ?? "";
-    console.error("[auth] avatar upload error:", msg);
-    if (/bucket.*not found|No such bucket/i.test(msg)) {
-      return {
-        ok: false,
-        error:
-          "Bucket 'avatars' não encontrado. Rode o supabase/schema.sql no SQL Editor do Supabase.",
-      };
-    }
-    if (/row-level security|row level security/i.test(msg)) {
-      return { ok: false, error: "Sem permissão para enviar a foto. Faça login novamente." };
-    }
-    return { ok: false, error: "Não foi possível enviar a foto. Tente novamente." };
-  }
-
-  const { data: pub } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-  const url = pub.publicUrl;
-
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({ avatar_url: url, updated_at: new Date().toISOString() })
-    .eq("id", user.id);
-  if (profileError) {
-    const msg = profileError.message ?? "";
-    console.error("[auth] avatar profile update error:", msg);
-    if (/column|avatar_url|PGRST204|42703/i.test(msg)) {
-      return {
-        ok: false,
-        error:
-          "Coluna 'avatar_url' não existe. Rode o supabase/schema.sql no SQL Editor do Supabase.",
-      };
-    }
-    return { ok: false, error: "Foto enviada, mas não foi possível salvar no perfil." };
-  }
-
-  // Mantém o metadata em sincronia para o menu lateral atualizar sem recarregar.
-  await supabase.auth.updateUser({ data: { avatar_url: url } });
-  return { ok: true, url };
-}
-
-/**
- * Remove a foto de perfil (mantém as iniciais como fallback).
- */
-export async function removeProfileAvatar(): Promise<{ ok: boolean; error?: string }> {
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
-  if (!user) return { ok: false, error: "Você não está autenticado." };
-
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({ avatar_url: "", updated_at: new Date().toISOString() })
-    .eq("id", user.id);
-  if (profileError) {
-    console.error("[auth] avatar remove error:", profileError.message);
-    return { ok: false, error: "Não foi possível remover a foto." };
-  }
-  await supabase.auth.updateUser({ data: { avatar_url: "" } });
   return { ok: true };
 }
 

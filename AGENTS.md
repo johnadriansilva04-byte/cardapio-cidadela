@@ -36,11 +36,11 @@
   navigation, so don't repeat it as cards inside Configurações.
 - The sidebar has no "Configurações" item: the account card at the bottom
   (`AccountMenu`) is the single entry point to the config screen and shows the
-  user's avatar (initials as fallback). The photo is stored in the `avatars`
-  bucket at `<uid>/...` and its URL in `profiles.avatar_url`; `AccountMenu`
-  reads `profile.avatar_url` with `user_metadata.avatar_url` as the instant
-  fallback. Adding another nav entry for config would create the duplicate the
-  card replaced.
+  owner's photo. That photo is the **same logo as the restaurant** (replicated),
+  not a separate upload: `admin.tsx` loads the owner's restaurants and passes
+  the first `logo_url`; `AccountMenu` falls back to initials when there is none
+  or the image fails. Don't add an avatar bucket/upload — the logo already lives
+  in `restaurant-images` and is edited in the Restaurantes tab.
 - Mobile app lives under `/mobile` (routes `mobile.tsx` layout +
   `mobile.index|dashboard|clientes|config`). Shared logic is in
   `src/modules/mobile/`, UI primitives in `src/modules/ui/`.

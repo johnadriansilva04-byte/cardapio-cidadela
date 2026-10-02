@@ -33,6 +33,7 @@ export function AccountMenu({
   const navigate = useNavigate();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
 
   const initials = displayName
     ? displayName
@@ -41,6 +42,7 @@ export function AccountMenu({
         .map((w) => w[0]?.toUpperCase() ?? "")
         .join("")
     : "AD";
+  const showPhoto = Boolean(avatarUrl) && !photoFailed;
 
   async function handleSignOut() {
     await signOut();
@@ -68,11 +70,12 @@ export function AccountMenu({
           )}
         >
           <span className="size-8 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-cyan-500/30 to-violet-500/20 ring-1 ring-white/10">
-            {avatarUrl ? (
+            {showPhoto ? (
               <img
                 src={avatarUrl}
-                alt={displayName || "Foto de perfil"}
+                alt={displayName || "Foto do restaurante"}
                 className="size-full object-cover"
+                onError={() => setPhotoFailed(true)}
               />
             ) : (
               <span className="grid size-full place-items-center text-xs font-bold text-cyan-200">

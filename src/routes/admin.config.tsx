@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import {
   User,
   KeyRound,
@@ -10,15 +10,10 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  Camera,
+  Store,
 } from "lucide-react";
-import {
-  updateProfileName,
-  updatePassword,
-  deleteAccount,
-  updateProfileAvatar,
-  removeProfileAvatar,
-} from "@/modules/supabase/auth";
+import { updateProfileName, updatePassword, deleteAccount } from "@/modules/supabase/auth";
+import { getRestaurantsByOwner } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { PageHeader } from "@/modules/ui/PageHeader";
@@ -56,19 +51,18 @@ function ConfigPage() {
 }
 
 function AccountSection({ defaultOpen }: { defaultOpen: boolean }) {
-  const { user, profile, signOut, refreshProfile } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const displayName = (user?.user_metadata?.name as string) || profile?.name || "";
   const phone = (user?.user_metadata?.phone as string) || profile?.phone || "";
-  const avatarUrl = profile?.avatar_url || (user?.user_metadata?.avatar_url as string) || "";
 
   const [name, setName] = useState(displayName);
   const [savingName, setSavingName] = useState(false);
   const [nameMsg, setNameMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
-  const [savingAvatar, setSavingAvatar] = useState(false);
-  const [avatarMsg, setAvatarMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
+  // A foto do card é a mesma do restaurante (logo): nada de upload avulso aqui.
+  const [storePhoto, setStorePhoto] = useState<string | null>(null);
+  const [storeId, setStoreId] = useState<string | null>(null);
 
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -91,36 +85,20 @@ function AccountSection({ defaultOpen }: { defaultOpen: boolean }) {
     setName((user?.user_metadata?.name as string) || profile?.name || "");
   }, [user, profile]);
 
-  async function handlePickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setSavingAvatar(true);
-    setAvatarMsg(null);
-    const res = await updateProfileAvatar(file);
-    if (res.ok) await refreshProfile();
-    setSavingAvatar(false);
-    setAvatarMsg(
-      res.ok
-        ? { type: "ok", text: "Foto atualizada!" }
-        : { type: "err", text: res.error ?? "Erro ao enviar a foto." },
-    );
-    if (res.ok) setTimeout(() => setAvatarMsg(null), 3000);
-  }
-
-  async function handleRemoveAvatar() {
-    setSavingAvatar(true);
-    setAvatarMsg(null);
-    const res = await removeProfileAvatar();
-    if (res.ok) await refreshProfile();
-    setSavingAvatar(false);
-    setAvatarMsg(
-      res.ok
-        ? { type: "ok", text: "Foto removida." }
-        : { type: "err", text: res.error ?? "Erro ao remover a foto." },
-    );
-    if (res.ok) setTimeout(() => setAvatarMsg(null), 3000);
-  }
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    void (async () => {
+      const rests = await getRestaurantsByOwner(user.id);
+      if (!alive || rests.length === 0) return;
+      const withPhoto = rests.find((r) => r.logo_url) ?? rests[0];
+      setStoreId(withPhoto.id);
+      setStorePhoto(withPhoto.logo_url || null);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
 
   async function handleSaveName() {
     setSavingName(true);
@@ -177,8 +155,8 @@ function AccountSection({ defaultOpen }: { defaultOpen: boolean }) {
       >
         <div className="mb-4 flex items-center gap-3">
           <span className="size-14 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-cyan-500/30 to-violet-500/20 ring-1 ring-white/10">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Foto de perfil" className="size-full object-cover" />
+            {storePhoto ? (
+              <img src={storePhoto} alt="Foto do restaurante" className="size-full object-cover" />
             ) : (
               <span className="grid size-full place-items-center text-base font-bold text-cyan-200">
                 {initials}
@@ -186,48 +164,22 @@ function AccountSection({ defaultOpen }: { defaultOpen: boolean }) {
             )}
           </span>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={savingAvatar}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:bg-white/10 disabled:opacity-50"
+            <p className="text-xs font-semibold text-gray-300">Foto do restaurante</p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-gray-600">
+              A mesma logo aparece no cardápio público. Troque a foto na aba Restaurantes.
+            </p>
+            {storeId && (
+              <Link
+                to="/admin/restaurante/$id"
+                params={{ id: storeId }}
+                search={{ tab: "config" }}
+                className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400 transition-colors hover:text-cyan-300"
               >
-                {savingAvatar ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Camera className="size-3.5" />
-                )}
-                {avatarUrl ? "Trocar foto" : "Adicionar foto"}
-              </button>
-              {avatarUrl && (
-                <button
-                  type="button"
-                  onClick={handleRemoveAvatar}
-                  disabled={savingAvatar}
-                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:text-red-400 disabled:opacity-50"
-                >
-                  <Trash2 className="size-3.5" /> Remover
-                </button>
-              )}
-            </div>
-            <p className="mt-1 text-[11px] text-gray-600">JPG, PNG ou WebP · até 5 MB</p>
+                <Store className="size-3.5" /> Editar no restaurante
+              </Link>
+            )}
           </div>
-          <input
-            ref={avatarInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={handlePickAvatar}
-          />
         </div>
-        {avatarMsg && (
-          <p
-            className={`mb-3 text-xs ${avatarMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}
-          >
-            {avatarMsg.text}
-          </p>
-        )}
 
         <label className="mb-1.5 block text-xs font-medium text-gray-400">Nome</label>
         <div className="flex gap-2">

@@ -4,6 +4,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LayoutDashboard, Store, Wallet, Share2, ClipboardList } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
+import type { Restaurant } from "@/lib/types";
 import { subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
@@ -34,9 +35,10 @@ const NAV_ITEMS = [
 function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const matchRoute = useMatchRoute();
   const navigate = useNavigate();
-  const { isAuthenticated, loading, user, profile } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -97,6 +99,7 @@ function AdminLayout() {
         if (cancelled) return;
         const rests = await getRestaurantsByOwner(user.id);
         if (cancelled) return;
+        setRestaurants(rests);
         for (const r of rests) {
           try {
             const ch = subscribeToOrders(r.id, (eventType, order) => {
@@ -172,7 +175,8 @@ function AdminLayout() {
   }
 
   const displayName = (user?.user_metadata?.name as string) || user?.email || user?.phone || "";
-  const avatarUrl = profile?.avatar_url || (user?.user_metadata?.avatar_url as string) || undefined;
+  // Foto do card = mesma logo do restaurante (replicada), não uma foto separada.
+  const avatarUrl = restaurants.find((r) => r.logo_url)?.logo_url || undefined;
 
   const sidebar = (
     <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}>

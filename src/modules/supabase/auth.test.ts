@@ -3,11 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   const profileEq = vi.fn(async () => ({ error: null }));
   const profileUpdate = vi.fn(() => ({ eq: profileEq }));
-  const upload = vi.fn(async () => ({ error: null }));
-  const getPublicUrl = vi.fn(() => ({
-    data: { publicUrl: "https://cdn.test/avatars/u1/avatar_1.png" },
-  }));
-  const storageFrom = vi.fn(() => ({ upload, getPublicUrl }));
   return {
     getUser: vi.fn(),
     signInWithPassword: vi.fn(),
@@ -15,9 +10,6 @@ const mocks = vi.hoisted(() => {
     profileUpdate,
     profileEq,
     from: vi.fn(() => ({ update: profileUpdate })),
-    upload,
-    getPublicUrl,
-    storageFrom,
   };
 });
 
@@ -29,11 +21,10 @@ vi.mock("./client", () => ({
       updateUser: mocks.updateUser,
     },
     from: mocks.from,
-    storage: { from: mocks.storageFrom },
   },
 }));
 
-import { updateProfileAvatar, updateProfilePhone } from "./auth";
+import { updateProfilePhone } from "./auth";
 
 function signedInUser(overrides: Record<string, unknown> = {}) {
   return {
@@ -117,61 +108,5 @@ describe("updateProfilePhone", () => {
     mocks.profileEq.mockResolvedValue({ error: { message: "rls" } });
     const result = await updateProfilePhone("11988887777", "senha123");
     expect(result).toEqual({ ok: true, pending: false });
-  });
-});
-
-describe("updateProfileAvatar", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.getUser.mockResolvedValue({ data: { user: signedInUser() } });
-    mocks.profileEq.mockResolvedValue({ error: null });
-    mocks.upload.mockResolvedValue({ error: null });
-    mocks.updateUser.mockResolvedValue({ data: { user: {} }, error: null });
-  });
-
-  function png(name = "foto.png", size = 1024) {
-    return new File([new Uint8Array(size)], name, { type: "image/png" });
-  }
-
-  it("recusa quando não há usuário autenticado", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: null } });
-    const res = await updateProfileAvatar(png());
-    expect(res.ok).toBe(false);
-    expect(mocks.upload).not.toHaveBeenCalled();
-  });
-
-  it("recusa formato não permitido", async () => {
-    const gif = new File([new Uint8Array(10)], "x.gif", { type: "image/gif" });
-    const res = await updateProfileAvatar(gif);
-    expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/formato/i);
-    expect(mocks.upload).not.toHaveBeenCalled();
-  });
-
-  it("recusa arquivo acima de 5 MB", async () => {
-    const res = await updateProfileAvatar(png("grande.png", 5 * 1024 * 1024 + 1));
-    expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/grande/i);
-    expect(mocks.upload).not.toHaveBeenCalled();
-  });
-
-  it("envia na pasta do usuário e grava a URL no perfil", async () => {
-    const res = await updateProfileAvatar(png());
-    expect(res.ok).toBe(true);
-    expect(res.url).toBe("https://cdn.test/avatars/u1/avatar_1.png");
-    const [path] = mocks.upload.mock.calls[0];
-    expect(path.startsWith("u1/avatar_")).toBe(true);
-    expect(path.endsWith(".png")).toBe(true);
-    expect(mocks.profileUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ avatar_url: "https://cdn.test/avatars/u1/avatar_1.png" }),
-    );
-    expect(mocks.profileEq).toHaveBeenCalledWith("id", "u1");
-  });
-
-  it("propaga erro de upload sem gravar o perfil", async () => {
-    mocks.upload.mockResolvedValue({ error: { message: "rls" } });
-    const res = await updateProfileAvatar(png());
-    expect(res.ok).toBe(false);
-    expect(mocks.profileUpdate).not.toHaveBeenCalled();
   });
 });

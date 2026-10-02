@@ -591,7 +591,6 @@ CREATE TABLE IF NOT EXISTS profiles (
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT '';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT '';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'owner';
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT '';
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
@@ -1044,36 +1043,6 @@ CREATE POLICY "Owner update restaurant-images"
 CREATE POLICY "Owner delete restaurant-images"
   ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'restaurant-images' AND public.is_owner_of_storage_path(name));
-
--- ============================================================
--- STORAGE — bucket avatars (foto de perfil do usuário)
--- Leitura pública; cada usuário escreve apenas em avatars/<seu-uid>/...
--- ============================================================
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('avatars', 'avatars', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
-
-DO $$ BEGIN DROP POLICY IF EXISTS "Public read avatars" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
-DO $$ BEGIN DROP POLICY IF EXISTS "User insert own avatar" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
-DO $$ BEGIN DROP POLICY IF EXISTS "User update own avatar" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
-DO $$ BEGIN DROP POLICY IF EXISTS "User delete own avatar" ON storage.objects; EXCEPTION WHEN undefined_object THEN NULL; END $$;
-
-CREATE POLICY "Public read avatars"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'avatars');
-
-CREATE POLICY "User insert own avatar"
-  ON storage.objects FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
-
-CREATE POLICY "User update own avatar"
-  ON storage.objects FOR UPDATE TO authenticated
-  USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text)
-  WITH CHECK (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
-
-CREATE POLICY "User delete own avatar"
-  ON storage.objects FOR DELETE TO authenticated
-  USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
 
 -- ============================================================
 -- PUSH NOTIFICATIONS — Web Push nativo (sem Firebase, sem env vars)

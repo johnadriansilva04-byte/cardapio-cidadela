@@ -50,6 +50,7 @@ function SubscriptionPage() {
   const [preapprovalId, setPreapprovalId] = useState<string | null>(null);
 
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [awaitingPayment, setAwaitingPayment] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -146,7 +147,7 @@ function SubscriptionPage() {
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(PAYMENT_LINK);
+      await navigator.clipboard.writeText(paymentLink || PAYMENT_LINK);
       toast.success("Link copiado!");
     } catch {
       toast.error("Não foi possível copiar. Copie manualmente o link.");
@@ -173,6 +174,10 @@ function SubscriptionPage() {
         toast.error("Não foi possível gerar o link de pagamento.");
         return;
       }
+
+      // Guarda o link dinâmico (com external_reference) para o modal de
+      // fallback — o link estático não vincula o pagamento ao restaurante.
+      setPaymentLink(data.initPoint);
 
       // Abre o checkout no mesmo gesto do clique. O modal é só fallback para
       // quando o navegador bloqueia o popup — antes era sempre um clique extra.
@@ -468,7 +473,7 @@ function SubscriptionPage() {
           <div className="flex flex-col gap-2">
             <Button
               onClick={() => {
-                window.open(PAYMENT_LINK, "_blank", "noopener,noreferrer");
+                window.open(paymentLink || PAYMENT_LINK, "_blank", "noopener,noreferrer");
                 setPaymentOpen(false);
               }}
               className="rounded-full bg-cyan-500 text-black hover:bg-cyan-400"

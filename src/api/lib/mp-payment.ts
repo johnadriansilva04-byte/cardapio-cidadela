@@ -12,6 +12,8 @@ export interface PaymentLinkConfig {
   unitPrice: number;
   externalReference: string;
   backUrl?: string;
+  /** URL que o Mercado Pago chama a cada mudança de status do pagamento. */
+  notificationUrl?: string;
 }
 
 export async function createPaymentLink(
@@ -45,6 +47,8 @@ export async function createPaymentLink(
             : "https://cardapiocidadela.com.br/admin/assinatura?payment=pending",
         },
         external_reference: config.externalReference,
+        // Sem isto o webhook só chega se estiver configurado no painel do MP.
+        notification_url: config.notificationUrl,
         // Deixa o Mercado Pago decidir os métodos disponíveis
         // payment_methods: {
         //   excluded_payment_types: [],

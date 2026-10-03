@@ -3,6 +3,8 @@ import type {} from "@tanstack/react-start";
 import { getServerSupabase, getMercadoPagoToken } from "@/api/lib/mercadopago";
 import { createPaymentLink } from "@/api/lib/mp-payment";
 
+const FALLBACK_ORIGIN = "https://cardapio-cidadela.vercel.app";
+
 /**
  * POST /api/payment/create-link
  *
@@ -49,6 +51,17 @@ export const Route = createFileRoute("/api/payment/create-link")({
           });
         }
 
+        // Deriva a origem da própria requisição para back_url e webhook não
+        // apontarem para um domínio fixo (que pode nem ser o de produção).
+        const requestUrl = new URL(request.url);
+        const forwardedHost = request.headers.get("x-forwarded-host");
+        const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+        const origin = forwardedHost
+          ? `${forwardedProto}://${forwardedHost}`
+          : requestUrl.origin || FALLBACK_ORIGIN;
+        const backUrl = `${origin}/admin/assinatura`;
+        const notificationUrl = `${origin}/api/webhook/mercadopago`;
+
         // Busca o nome do restaurante para personalizar o pagamento
         const { data: restaurant } = await supabase
           .from("restaurants")
@@ -63,7 +76,8 @@ export const Route = createFileRoute("/api/payment/create-link")({
           description: "Acesso Premium por 1 ano - Pedidos ilimitados",
           unitPrice: 199.99,
           externalReference: storeId,
-          backUrl: "https://cardapiocidadela.com.br/admin/assinatura",
+          backUrl,
+          notificationUrl,
         });
 
         if (!result) {

@@ -1,7 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, Ban, Lock, Package, RefreshCw, Search, Volume2, VolumeX } from "lucide-react";
+import {
+  ArrowRight,
+  Ban,
+  ChefHat,
+  Lock,
+  Package,
+  RefreshCw,
+  Search,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { OrderCard } from "@/components/mobile/OrderCard";
+import { KitchenMode } from "@/components/admin/KitchenMode";
 import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { computeMetrics, isActive } from "@/modules/mobile/orders";
@@ -61,6 +72,7 @@ function MobileOrdersPage() {
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [kitchenOpen, setKitchenOpen] = useState(false);
   const [prefs, setPrefs] = useState(() => loadPreferences());
 
   useEffect(() => subscribePreferences(setPrefs), []);
@@ -152,6 +164,15 @@ function MobileOrdersPage() {
         }
         actions={
           <>
+            <button
+              type="button"
+              onClick={() => setKitchenOpen(true)}
+              aria-label="Abrir Modo Cozinha"
+              title="Modo Cozinha"
+              className="grid size-10 place-items-center rounded-xl border border-cyan-500/25 bg-cyan-500/10 text-cyan-300 transition-colors hover:bg-cyan-500/20"
+            >
+              <ChefHat className="size-5" />
+            </button>
             <button
               type="button"
               onClick={toggleSound}
@@ -313,6 +334,18 @@ function MobileOrdersPage() {
             <Ban className="size-3" /> {metrics.cancelledCount} cancelados
           </span>
         </div>
+      )}
+
+      {kitchenOpen && (
+        <KitchenMode
+          orders={orders}
+          lockedStores={lockedStores}
+          restaurantNames={restaurantNames}
+          multi={restaurants.length > 1}
+          onAdvance={handleAdvance}
+          onCancel={handleCancel}
+          onClose={() => setKitchenOpen(false)}
+        />
       )}
     </div>
   );

@@ -34,7 +34,7 @@ export const Route = createFileRoute("/admin/assinatura")({
 
 const PAYMENT_LINK =
   (import.meta.env?.VITE_MERCADOPAGO_PAYMENT_LINK as string | undefined) ||
-  "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=1084609242-3d02efb3-b5d3-417d-9b2f-a0d78133598c";
+  "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=1084609242-64393245-d688-470f-aab3-d7ecbe436dde";
 
 const ANNUAL_PRICE =
   (import.meta.env?.VITE_PREMIUM_ANNUAL_PRICE as string | undefined) || "R$ 199,99/ano";

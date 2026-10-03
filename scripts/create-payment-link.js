@@ -56,10 +56,8 @@ async function createPaymentLink() {
           excluded_payment_types: [],
           excluded_payment_methods: [],
         },
-        // Expira em 24 horas para segurança
-        expires: true,
-        expiration_date_from: new Date().toISOString(),
-        expiration_date_to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        // Sem expiração - link válido indefinidamente
+        expires: false,
       }),
     });
 
@@ -86,8 +84,8 @@ async function createPaymentLink() {
     console.log(`VITE_MERCADOPAGO_PREFERENCE_ID=${data.id}`);
 
     console.log("\n💡 Notas:");
-    console.log("- Este link expira em 24 horas por segurança");
-    console.log("- Você pode criar um novo link para cada cliente ou usar sempre o mesmo");
+    console.log("- Este link não expira - válido indefinidamente");
+    console.log("- Você pode usar sempre o mesmo link para todos os clientes");
     console.log("- O webhook precisa estar configurado para ativar o Premium automaticamente");
 
   } catch (error) {

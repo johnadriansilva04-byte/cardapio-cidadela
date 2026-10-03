@@ -76,7 +76,7 @@ export function OrderCard({
 }: OrderCardProps) {
   const [now, setNow] = useState(() => Date.now());
   const [copied, setCopied] = useState(false);
-  const items = order.order_items ?? [];
+  const items = useMemo(() => order.order_items ?? [], [order.order_items]);
   const itemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const [open, setOpen] = useState(defaultOpen);
@@ -122,11 +122,20 @@ export function OrderCard({
   }, [open, order.id]);
 
   const summary = useMemo(() => {
-    const bits = [`${itemsCount} ${itemsCount === 1 ? "item" : "itens"}`];
+    // Prévia do que vai pra cozinha: o operador lê o pedido sem abrir o card.
+    // Com a loja bloqueada o resumo fica genérico — os itens não podem vazar.
+    const preview = locked
+      ? null
+      : items
+          .slice(0, 3)
+          .map((item) => `${item.quantity}x ${item.product_name}`)
+          .join(" · ");
+    const bits = [preview || `${itemsCount} ${itemsCount === 1 ? "item" : "itens"}`];
+    if (!locked) bits.push(brl(Number(order.total)));
     bits.push(order.delivery_type === "entrega" ? "Entrega" : "Retirada");
     if (showRestaurant && restaurant) bits.push(restaurant.name);
     return bits.join(" • ");
-  }, [itemsCount, order.delivery_type, restaurant, showRestaurant]);
+  }, [locked, items, itemsCount, order.total, order.delivery_type, restaurant, showRestaurant]);
 
   function handleWhatsApp() {
     const message = buildWhatsAppMessage(order, restaurant?.name ?? "Restaurante");

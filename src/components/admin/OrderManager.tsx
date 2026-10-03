@@ -18,6 +18,7 @@ import {
   Bike,
   History,
   ChevronDown,
+  ChefHat,
   Store,
   Sparkles,
   Lock,
@@ -51,6 +52,7 @@ import {
 } from "@/lib/utils";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/lib/types";
 import { OrderStatusBadge } from "@/components/admin/StatusBadge";
+import { KitchenMode } from "@/components/admin/KitchenMode";
 import {
   getOrdersByRestaurant,
   getOrderForOwner,
@@ -140,6 +142,7 @@ export function OrderManager({
   const [lockedStores, setLockedStores] = useState<Set<string>>(new Set());
   const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [kitchenOpen, setKitchenOpen] = useState(false);
 
   const fetchAllOrders = useCallback(async (): Promise<Order[]> => {
     if (restaurantIds.length === 0) return [];
@@ -543,7 +546,7 @@ export function OrderManager({
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <button
           onClick={loadOrders}
           disabled={loading}
@@ -552,12 +555,22 @@ export function OrderManager({
           <RefreshCw className={`size-3 ${loading ? "animate-spin" : ""}`} />{" "}
           {loading ? "Atualizando..." : "Atualizar"}
         </button>
-        <span className="text-[11px] text-gray-500">
-          {displayedOrders.length} pedido{displayedOrders.length !== 1 ? "s" : ""} •{" "}
-          {filter === "all" ? "Todos" : ORDER_STATUS_LABELS[filter]}
-          {period !== "all" ? ` • ${period === "today" ? "hoje" : period}` : ""}
-          {q ? ` • busca: "${q}"` : ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="hidden text-[11px] text-gray-500 sm:inline">
+            {displayedOrders.length} pedido{displayedOrders.length !== 1 ? "s" : ""} •{" "}
+            {filter === "all" ? "Todos" : ORDER_STATUS_LABELS[filter]}
+            {period !== "all" ? ` • ${period === "today" ? "hoje" : period}` : ""}
+            {q ? ` • busca: "${q}"` : ""}
+          </span>
+          {/* Modo Cozinha: a fila linear em tela cheia, feita para o celular
+              apoiado na bancada — o Kanban não cabe bem nesse contexto. */}
+          <button
+            onClick={() => setKitchenOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-cyan-500 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-black transition-colors hover:bg-cyan-400"
+          >
+            <ChefHat className="size-3.5" /> Modo Cozinha
+          </button>
+        </div>
       </div>
 
       {/* Kanban: colunas de status ativo + seções entregues/cancelados */}
@@ -753,6 +766,18 @@ export function OrderManager({
         onPrint={printOrder}
         onWhatsApp={contactWhatsApp}
       />
+
+      {kitchenOpen && (
+        <KitchenMode
+          orders={displayedOrders}
+          lockedStores={lockedStores}
+          restaurantNames={restaurantNames}
+          multi={multi}
+          onAdvance={(order, status) => changeStatus(order.id, status)}
+          onCancel={requestCancel}
+          onClose={() => setKitchenOpen(false)}
+        />
+      )}
     </div>
   );
 }

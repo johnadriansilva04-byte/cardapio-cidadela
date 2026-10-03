@@ -2,19 +2,15 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   ArrowRight,
-  BarChart3,
   BellRing,
   Bike,
   Check,
   ChefHat,
   Menu,
-  MessageCircle,
   QrCode,
   Send,
   ShieldCheck,
   Smartphone,
-  Sparkles,
-  Timer,
   UtensilsCrossed,
   X,
   Zap,
@@ -160,54 +156,28 @@ function LiveMenuDemo() {
   );
 }
 
-const FEATURES = [
+const PROOF = [
+  { icon: Zap, label: "Pedido em tempo real", hint: "alerta sonoro no painel" },
+  { icon: QrCode, label: "Link e QR próprios", hint: "bio, salão e mesa" },
+  { icon: Bike, label: "Entrega ou retirada", hint: "taxa e endereço no pedido" },
+  { icon: ShieldCheck, label: "Sem comissão", hint: "o pedido é 100% seu" },
+];
+
+const STEPS = [
   {
-    icon: Zap,
-    title: "Pedido na hora",
-    desc: "Alerta sonoro e painel em tempo real. Nada de print de WhatsApp.",
+    icon: Smartphone,
+    title: "Monte o cardápio",
+    desc: "Fotos, preços e categorias em minutos, direto do celular.",
   },
   {
     icon: QrCode,
-    title: "Link e QR próprios",
-    desc: "Sua URL bonita para a bio, o status e a mesa do salão.",
-  },
-  {
-    icon: MessageCircle,
-    title: "WhatsApp na mão",
-    desc: "Envie o pedido pronto pro cliente com um toque, sem digitar.",
-  },
-  {
-    icon: Bike,
-    title: "Entrega ou retirada",
-    desc: "O cliente escolhe. A taxa e o endereço entram no pedido.",
-  },
-  {
-    icon: BarChart3,
-    title: "Caixa no bolso",
-    desc: "Faturamento, ticket médio e pratos que mais saem.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Sem comissão",
-    desc: "O pedido é seu. Você não paga percentual por venda.",
-  },
-];
-
-const FAT_STEPS = [
-  {
-    icon: Timer,
-    title: "Zero espera",
-    desc: "Cliente pede sozinho. Sua equipe para de anotar e responder.",
-  },
-  {
-    icon: Smartphone,
-    title: "Zero instalação",
-    desc: "Abre no navegador. Sem app, sem cadastro para o cliente.",
+    title: "Publique o link",
+    desc: "Um endereço próprio e um QR Code para o salão e o status.",
   },
   {
     icon: BellRing,
-    title: "Zero pedido perdido",
-    desc: "Todo pedido fica salvo e volta a aparecer se a conexão cair.",
+    title: "Receba os pedidos",
+    desc: "O cliente monta sozinho. A comanda chega pronta pra cozinha.",
   },
 ];
 
@@ -226,21 +196,12 @@ function LandingPage() {
             </span>
           </Link>
 
-          <div className="hidden items-center gap-7 md:flex">
+          <div className="hidden items-center gap-5 md:flex">
             <a
-              href="#matafome"
+              href="/cardapio/cidadela"
               className="text-sm text-gray-400 transition-colors hover:text-white"
             >
-              Por que
-            </a>
-            <a
-              href="#recursos"
-              className="text-sm text-gray-400 transition-colors hover:text-white"
-            >
-              Recursos
-            </a>
-            <a href="#preco" className="text-sm text-gray-400 transition-colors hover:text-white">
-              Preço
+              Ver cardápio
             </a>
             <Link to="/login" className="text-sm text-gray-300 transition-colors hover:text-white">
               Entrar
@@ -264,20 +225,20 @@ function LandingPage() {
 
         {menuOpen && (
           <div className="space-y-1 border-t border-white/10 px-4 py-4 md:hidden">
-            {[
-              ["#matafome", "Por que"],
-              ["#recursos", "Recursos"],
-              ["#preco", "Preço"],
-            ].map(([href, label]) => (
-              <a
-                key={href}
-                href={href}
-                onClick={() => setMenuOpen(false)}
-                className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-              >
-                {label}
-              </a>
-            ))}
+            <a
+              href="/cardapio/cidadela"
+              onClick={() => setMenuOpen(false)}
+              className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+            >
+              Ver cardápio real
+            </a>
+            <Link
+              to="/login"
+              onClick={() => setMenuOpen(false)}
+              className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+            >
+              Entrar
+            </Link>
             <Link
               to="/login"
               className="mt-2 block rounded-full bg-cyan-500 px-5 py-3 text-center text-sm font-bold text-black"
@@ -297,12 +258,9 @@ function LandingPage() {
 
         <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-2 lg:py-28">
           <div className="text-center lg:text-left">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1.5">
-              <Sparkles className="size-3.5 text-cyan-400" />
-              <span className="text-xs font-semibold text-cyan-300">
-                Feito para micro-restaurantes
-              </span>
-            </div>
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.25em] text-cyan-400">
+              Para micro-restaurantes
+            </p>
 
             <h1 className="text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
               Seu cardápio no ar.
@@ -344,66 +302,46 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* MATA-FOME */}
-      <section id="matafome" className="border-t border-white/5 py-20 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-amber-300">
-              <ChefHat className="size-3.5" /> Método MATA-FOME
-            </span>
-            <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
-              Só o que mata a fome.
-              <br />
-              <span className="text-gray-500">Zero gordura.</span>
-            </h2>
-            <p className="mt-4 text-gray-400">
-              A gente cortou tudo que atrapalha um restaurante pequeno. Sobrou o essencial: o pedido
-              chegando e o cliente feliz.
-            </p>
-          </div>
-
-          <div className="mt-14 grid gap-5 sm:grid-cols-3">
-            {FAT_STEPS.map((s, i) => (
-              <div
-                key={s.title}
-                className="card-lift animate-slide-up rounded-3xl border border-white/[0.07] bg-white/[0.02] p-6"
-                style={{ animationDelay: `${i * 90}ms` }}
-              >
-                <div className="mb-4 grid size-11 place-items-center rounded-2xl bg-cyan-500/10 text-cyan-300">
-                  <s.icon className="size-5" />
-                </div>
-                <h3 className="text-base font-bold text-white">{s.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{s.desc}</p>
+      {/* Prova rápida — uma linha, sem parágrafos */}
+      <section className="border-y border-white/5 bg-white/[0.015]">
+        <div className="mx-auto grid max-w-6xl gap-px px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
+          {PROOF.map((p) => (
+            <div key={p.label} className="flex items-center gap-3 py-5 sm:px-4">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
+                <p.icon className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-white">{p.label}</p>
+                <p className="truncate text-xs text-gray-500">{p.hint}</p>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Recursos */}
-      <section id="recursos" className="border-t border-white/5 py-20 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="text-center">
-            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-              O kit completo, sem peso
+      {/* Como funciona — 3 passos, direto */}
+      <section className="py-20 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="max-w-xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-amber-300">
+              <ChefHat className="size-3.5" /> Do zero ao primeiro pedido
+            </span>
+            <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
+              Três passos. Nenhum tutorial.
             </h2>
-            <p className="mx-auto mt-3 max-w-lg text-gray-400">
-              Tudo que um restaurante de bairro precisa para vender direto.
-            </p>
           </div>
 
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f, i) => (
-              <div
-                key={f.title}
-                className="card-lift group animate-slide-up rounded-3xl border border-white/[0.06] bg-white/[0.02] p-6 hover:border-cyan-500/20 hover:bg-cyan-500/[0.03]"
-                style={{ animationDelay: `${i * 60}ms` }}
-              >
-                <div className="mb-4 grid size-10 place-items-center rounded-xl bg-cyan-500/10 text-cyan-400 transition-all duration-300 group-hover:scale-110 group-hover:bg-cyan-500/20 group-hover:shadow-[0_0_18px_rgba(34,211,238,0.35)]">
-                  <f.icon className="size-5" />
+          <div className="mt-12 grid gap-8 sm:grid-cols-3">
+            {STEPS.map((s, i) => (
+              <div key={s.title}>
+                <span className="text-5xl font-black text-white/[0.07]">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="mt-2 flex items-center gap-2 text-cyan-300">
+                  <s.icon className="size-5" />
+                  <h3 className="text-base font-bold text-white">{s.title}</h3>
                 </div>
-                <h3 className="text-base font-bold text-white">{f.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{f.desc}</p>
+                <p className="mt-2 text-sm leading-relaxed text-gray-400">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -518,9 +456,6 @@ function LandingPage() {
             </span>
           </div>
           <div className="flex gap-6 text-xs text-gray-500">
-            <a href="#preco" className="transition-colors hover:text-gray-300">
-              Preço
-            </a>
             <Link to="/terms" className="transition-colors hover:text-gray-300">
               Termos
             </Link>

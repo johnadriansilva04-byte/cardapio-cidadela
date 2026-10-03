@@ -33,6 +33,7 @@ import { Route as MobileConfigRouteImport } from './routes/mobile.config'
 import { Route as MobileDashboardRouteImport } from './routes/mobile.dashboard'
 import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
 import { Route as AdminRestauranteIdRouteImport } from './routes/admin.restaurante.$id'
+import { Route as ApiPaymentCreateLinkRouteImport } from './routes/api.payment.create-link'
 import { Route as ApiSubscriptionSyncRouteImport } from './routes/api.subscription.sync'
 import { Route as ApiWebhookMercadopagoRouteImport } from './routes/api.webhook.mercadopago'
 
@@ -156,6 +157,11 @@ const AdminRestauranteIdRoute = AdminRestauranteIdRouteImport.update({
   path: '/restaurante/$id',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiPaymentCreateLinkRoute = ApiPaymentCreateLinkRouteImport.update({
+  id: '/api/payment/create-link',
+  path: '/api/payment/create-link',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSubscriptionSyncRoute = ApiSubscriptionSyncRouteImport.update({
   id: '/api/subscription/sync',
   path: '/api/subscription/sync',
@@ -192,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/mobile': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
@@ -277,6 +286,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/mobile/'
     | '/admin/restaurante/$id'
+    | '/api/payment/create-link'
     | '/api/subscription/sync'
     | '/api/webhook/mercadopago'
   fileRoutesByTo: FileRoutesByTo
@@ -303,6 +313,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/mobile'
     | '/admin/restaurante/$id'
+    | '/api/payment/create-link'
     | '/api/subscription/sync'
     | '/api/webhook/mercadopago'
   id:
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/mobile/'
     | '/admin/restaurante/$id'
+    | '/api/payment/create-link'
     | '/api/subscription/sync'
     | '/api/webhook/mercadopago'
   fileRoutesById: FileRoutesById
@@ -347,6 +359,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   CardapioSlugRoute: typeof CardapioSlugRoute
   PedidoOrderIdRoute: typeof PedidoOrderIdRoute
+  ApiPaymentCreateLinkRoute: typeof ApiPaymentCreateLinkRoute
   ApiSubscriptionSyncRoute: typeof ApiSubscriptionSyncRoute
   ApiWebhookMercadopagoRoute: typeof ApiWebhookMercadopagoRoute
 }
@@ -521,6 +534,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRestauranteIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/payment/create-link': {
+      id: '/api/payment/create-link'
+      path: '/api/payment/create-link'
+      fullPath: '/api/payment/create-link'
+      preLoaderRoute: typeof ApiPaymentCreateLinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/subscription/sync': {
       id: '/api/subscription/sync'
       path: '/api/subscription/sync'
@@ -593,6 +613,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   CardapioSlugRoute: CardapioSlugRoute,
   PedidoOrderIdRoute: PedidoOrderIdRoute,
+  ApiPaymentCreateLinkRoute: ApiPaymentCreateLinkRoute,
   ApiSubscriptionSyncRoute: ApiSubscriptionSyncRoute,
   ApiWebhookMercadopagoRoute: ApiWebhookMercadopagoRoute,
 }

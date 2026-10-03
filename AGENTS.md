@@ -146,6 +146,19 @@
   when the caller passes a positioning class: `.relative` is emitted after
   `.absolute`, so both together made the badge ignore `absolute` and overflow
   the right edge.
+- Public menu images go through `SmartImage` (logo, product photo): it tries the
+  Supabase `/render/image/` transform and falls back to the original URL, so a
+  project without the paid transform still shows the photo instead of a broken
+  icon. Product tiles request a 136px `cover` crop.
+- The public menu uses both brand colours: `primary_color` is the accent (prices,
+  buttons, borders) and `secondary_color` feeds the second radial glow in the
+  no-banner hero. Before, the secondary colour was only editable in the dialog
+  and never reached the customer's screen.
+- `ensureRestaurantsForUser` (legacy `admin_trials` import) no longer republishes
+  a slug whose row is empty (no `logo_url`/`banner_url`) and skips legacy rows
+  without a real `store_name`. That empty row was the "phantom restaurant" that
+  kept coming back and stealing the public link. It still adopts a slug that
+  belongs to another owner, and still inserts when the owner has none.
 - `RestaurantCardCompact` (admin list) applies the same idea to its cover: a
   `blur-xl` copy of the banner fills the frame while the sharp copy uses
   `object-contain`, so a 21:9 art — and any name baked into it — is never

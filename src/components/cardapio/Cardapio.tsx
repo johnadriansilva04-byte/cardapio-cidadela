@@ -45,6 +45,7 @@ import { useScrollSpy } from "@/hooks/useScrollSpy";
 import { useActiveOrderCount } from "@/modules/customer/useActiveOrderCount";
 import { ReviewsSection } from "@/components/reviews/ReviewsSection";
 import { CidadelaBadge } from "./CidadelaBadge";
+import { SmartImage } from "@/components/ui/SmartImage";
 import {
   normalizeOperatingHours,
   isOpenNow,
@@ -430,6 +431,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   }, [restaurant]);
 
   const accent = restaurant?.primary_color || "#06b6d4";
+  const accent2 = restaurant?.secondary_color || "#8b5cf6";
   const accentSoft = hexToRgba(accent, 0.14);
 
   const isCurrentlyOpen = useMemo(() => {
@@ -641,7 +643,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               aria-hidden
               className="pointer-events-none absolute inset-0"
               style={{
-                background: `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
+                background: `radial-gradient(600px 200px at 20% 20%, ${hexToRgba(accent, 0.25)} 0%, transparent 60%), radial-gradient(500px 200px at 85% 10%, ${hexToRgba(accent2, 0.18)} 0%, transparent 60%), linear-gradient(135deg, #05050a 0%, #0a0a14 55%, #07070b 100%)`,
               }}
             />
           )}
@@ -661,10 +663,18 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         <div className="flex items-start gap-3">
           {restaurant.logo_url ? (
             <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-xl border border-white/15 shadow-lg sm:size-14">
-              <img
+              <SmartImage
                 src={restaurant.logo_url}
                 alt={restaurant.name}
-                className="size-full object-cover"
+                width={112}
+                height={112}
+                eager
+                imgClassName="size-full object-cover"
+                fallback={
+                  <div className="grid size-full place-items-center bg-[#0a0a12]/90">
+                    <UtensilsCrossed className="size-5" style={{ color: accent }} />
+                  </div>
+                }
               />
             </div>
           ) : (
@@ -924,11 +934,24 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
                           {item.image_url ? (
                             <div className="aspect-square size-[68px] shrink-0 overflow-hidden rounded-lg">
-                              <img
+                              <SmartImage
                                 src={item.image_url}
                                 alt={item.name}
-                                className="size-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
-                                loading="lazy"
+                                width={136}
+                                height={136}
+                                resize="cover"
+                                imgClassName="size-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
+                                fallback={
+                                  <div
+                                    className="grid size-full place-items-center border"
+                                    style={{
+                                      borderColor: hexToRgba(accent, 0.22),
+                                      backgroundColor: hexToRgba(accent, 0.07),
+                                    }}
+                                  >
+                                    <UtensilsCrossed className="size-5" style={{ color: accent }} />
+                                  </div>
+                                }
                               />
                             </div>
                           ) : (

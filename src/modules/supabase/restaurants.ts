@@ -483,21 +483,30 @@ export async function ensureRestaurantsForUser(user: {
   for (const trial of trials) {
     const { data: existing } = await supabase
       .from("restaurants")
-      .select("id, owner_id, status")
+      .select("id, owner_id, status, logo_url, banner_url")
       .eq("slug", trial.store_id)
       .maybeSingle();
 
     if (existing) {
+      // Não republicar uma loja legada que ficou vazia (sem logo nem capa): era
+      // exatamente o "restaurante fantasma" que reaparecia sozinho e tomava o
+      // link público. Só reativa quando há arte real ou já era de outro dono.
+      const hasArt = Boolean(existing.logo_url || existing.banner_url);
+      const ownerChanged = existing.owner_id !== user.id;
       const updates: Record<string, unknown> = {};
-      if (existing.owner_id !== user.id) updates.owner_id = user.id;
-      if (existing.status === "draft") updates.status = "published";
+      if (ownerChanged) updates.owner_id = user.id;
+      if (existing.status === "draft" && (hasArt || ownerChanged)) updates.status = "published";
       if (Object.keys(updates).length > 0) {
         await supabase.from("restaurants").update(updates).eq("id", existing.id);
       }
     } else {
+      // Sem nome real na linha legada, não criar um "Meu Restaurante" órfão —
+      // era assim que nascia o restaurante fantasma, sem nada configurado.
+      const name = (trial.store_name ?? "").trim();
+      if (!name) continue;
       await supabase.from("restaurants").insert({
         owner_id: user.id,
-        name: trial.store_name ?? "Meu Restaurante",
+        name,
         slug: trial.store_id,
         description: trial.store_slogan ?? "",
         whatsapp: trial.whatsapp ?? "",

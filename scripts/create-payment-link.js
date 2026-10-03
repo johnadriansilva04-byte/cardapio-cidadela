@@ -51,11 +51,11 @@ async function createPaymentLink() {
           failure: "https://cardapiocidadela.com.br/admin/assinatura?payment=failure",
           pending: "https://cardapiocidadela.com.br/admin/assinatura?payment=pending",
         },
-        // Habilita todos os métodos de pagamento, incluindo Pix
-        payment_methods: {
-          excluded_payment_types: [],
-          excluded_payment_methods: [],
-        },
+        // Deixa o Mercado Pago decidir os métodos disponíveis
+        // payment_methods: {
+        //   excluded_payment_types: [],
+        //   excluded_payment_methods: [],
+        // },
         // Sem expiração - link válido indefinidamente
         expires: false,
       }),

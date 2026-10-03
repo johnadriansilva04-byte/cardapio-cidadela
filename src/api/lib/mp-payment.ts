@@ -45,10 +45,11 @@ export async function createPaymentLink(
             : "https://cardapiocidadela.com.br/admin/assinatura?payment=pending",
         },
         external_reference: config.externalReference,
-        payment_methods: {
-          excluded_payment_types: [],
-          excluded_payment_methods: [],
-        },
+        // Deixa o Mercado Pago decidir os métodos disponíveis
+        // payment_methods: {
+        //   excluded_payment_types: [],
+        //   excluded_payment_methods: [],
+        // },
         expires: false,
       }),
     },

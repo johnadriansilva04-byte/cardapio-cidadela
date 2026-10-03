@@ -288,3 +288,21 @@
   de fora porque o cardápio público não os usa — economiza KB por produto no
   celular do cliente. Ao adicionar um campo lido no cardápio, inclua-o nessas
   constantes ou ele virá `undefined`.
+
+## Modo Cozinha (fila de pedidos)
+
+- `src/components/admin/KitchenMode.tsx` é a fila linear em tela cheia: um
+  pedido por vez, o mais antigo primeiro, itens em letra grande e um botão que
+  nomeia a ação ("Começar preparo", "Marcar pronto") em vez do status. Existe
+  porque o Kanban empilha quatro colunas no celular apoiado na bancada.
+- É aberto pelo `OrderManager` (botão no cabeçalho) e pelo cabeçalho do
+  `/mobile`. Recebe `orders` já filtrados, `lockedStores`, `restaurantNames` e
+  `multi`; as ações (`onAdvance`/`onCancel`) são as mesmas do Kanban — não
+  duplica regra de transição.
+- Respeita o bloqueio do plano: com a loja bloqueada os itens **não** são
+  renderizados (o `getOrdersByRestaurant` traz `order_items`, então esconder é
+  responsabilidade da tela) e as ações somem. Coberto por
+  `KitchenMode.test.tsx` (ordem da fila, avanço, bloqueio).
+- Usa `orderTimer`/`formatElapsed` de `@/modules/mobile/orders` e tem relógio
+  próprio (15s) para o "tempo parado" não congelar. `Escape` fecha; o scroll do
+  painel atrás é travado enquanto o overlay está aberto.

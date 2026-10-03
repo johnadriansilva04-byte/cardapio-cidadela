@@ -22,7 +22,6 @@ import {
   registerPendingSubscription,
   getPreapprovalId,
   MONTHLY_FREE_LIMIT,
-  PREMIUM_PRICE_LABEL,
 } from "@/modules/supabase/subscription";
 import { supabase } from "@/modules/supabase/client";
 import type { Restaurant, SubscriptionStatus } from "@/lib/types";
@@ -33,11 +32,12 @@ export const Route = createFileRoute("/admin/assinatura")({
   component: SubscriptionPage,
 });
 
-const SUBSCRIPTION_LINK =
-  (import.meta.env?.VITE_MERCADOPAGO_SUBSCRIPTION_LINK as string | undefined) ||
-  "https://mpago.la/1Mz2uqH";
+const PAYMENT_LINK =
+  (import.meta.env?.VITE_MERCADOPAGO_PAYMENT_LINK as string | undefined) ||
+  "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=1084609242-3d02efb3-b5d3-417d-9b2f-a0d78133598c";
 
-const PRICE_LABEL = PREMIUM_PRICE_LABEL;
+const ANNUAL_PRICE =
+  (import.meta.env?.VITE_PREMIUM_ANNUAL_PRICE as string | undefined) || "R$ 199,99/ano";
 
 function SubscriptionPage() {
   const { user, session, loading: authLoading } = useAuth();
@@ -146,40 +146,52 @@ function SubscriptionPage() {
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(SUBSCRIPTION_LINK);
+      await navigator.clipboard.writeText(PAYMENT_LINK);
       toast.success("Link copiado!");
     } catch {
       toast.error("Não foi possível copiar. Copie manualmente o link.");
     }
   }
 
-  function openPayment() {
+  async function openPayment() {
+    if (!activeId) return;
     // Registra o e-mail da conta para correlacionar o webhook com o restaurante.
-    if (activeId && user?.email) void registerPendingSubscription(activeId, user.email);
-    // Abre o checkout no mesmo gesto do clique. O modal é só fallback para
-    // quando o navegador bloqueia o popup — antes era sempre um clique extra.
-    const win = window.open(SUBSCRIPTION_LINK, "_blank", "noopener,noreferrer");
-    setAwaitingPayment(true);
-    if (!win) setPaymentOpen(true);
+    if (user?.email) void registerPendingSubscription(activeId, user.email);
+
+    // Gera um link de pagamento com o external_reference correto
+    try {
+      const res = await fetch("/api/payment/create-link", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ storeId: activeId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { initPoint?: string };
+      if (!res.ok || !data.initPoint) {
+        toast.error("Não foi possível gerar o link de pagamento.");
+        return;
+      }
+
+      // Abre o checkout no mesmo gesto do clique. O modal é só fallback para
+      // quando o navegador bloqueia o popup — antes era sempre um clique extra.
+      const win = window.open(data.initPoint, "_blank", "noopener,noreferrer");
+      setAwaitingPayment(true);
+      if (!win) setPaymentOpen(true);
+    } catch {
+      toast.error("Não foi possível gerar o link de pagamento.");
+    }
   }
 
   async function runSync(): Promise<"premium" | "none" | "pending" | "error"> {
     if (!activeId || !session?.access_token) return "error";
     try {
-      const res = await fetch("/api/subscription/sync", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ storeId: activeId }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { status?: string };
-      if (!res.ok) return "error";
+      // Para pagamentos pontuais, a sincronização é feita pelo webhook automaticamente
+      // Aqui apenas recarregamos o status
       await loadStatus(activeId);
-      if (data.status === "premium") return "premium";
-      if (data.status === "none") return "none";
-      return "pending";
+      if (status?.isPremium) return "premium";
+      return "none";
     } catch {
       return "error";
     }
@@ -256,7 +268,7 @@ function SubscriptionPage() {
             Assinatura Premium
           </span>
         }
-        subtitle="Pedidos ilimitados o ano inteiro. Ativação automática após o pagamento."
+        subtitle="Pedidos ilimitados por 1 ano. Ativação automática após o pagamento via Pix, cartão ou boleto."
       />
 
       {restaurants.length > 1 && (
@@ -377,7 +389,7 @@ function SubscriptionPage() {
                 size="lg"
                 className="w-full rounded-full bg-cyan-500 text-sm font-bold text-black shadow-[0_8px_30px_rgba(6,182,212,0.3)] transition-transform hover:scale-[1.01] hover:bg-cyan-400 sm:w-auto sm:px-8"
               >
-                <Crown className="size-4" /> Assinar por {PRICE_LABEL}
+                <Crown className="size-4" /> Assinar por {ANNUAL_PRICE}
               </Button>
             )}
           </div>
@@ -444,7 +456,7 @@ function SubscriptionPage() {
               <Crown className="size-4 text-amber-300" /> Finalizar assinatura
             </DialogTitle>
             <DialogDescription className="text-gray-400">
-              {PRICE_LABEL} · pedidos ilimitados. Ativação automática após o pagamento.
+              {ANNUAL_PRICE} · pedidos ilimitados por 1 ano. Ativação automática após o pagamento.
             </DialogDescription>
           </DialogHeader>
 
@@ -456,7 +468,7 @@ function SubscriptionPage() {
           <div className="flex flex-col gap-2">
             <Button
               onClick={() => {
-                window.open(SUBSCRIPTION_LINK, "_blank", "noopener,noreferrer");
+                window.open(PAYMENT_LINK, "_blank", "noopener,noreferrer");
                 setPaymentOpen(false);
               }}
               className="rounded-full bg-cyan-500 text-black hover:bg-cyan-400"

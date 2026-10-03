@@ -4,6 +4,7 @@ import {
   getServerSupabase,
   getWebhookSecret,
   verifyMercadoPagoSignature,
+  mpFetch,
 } from "@/api/lib/mercadopago";
 import { processPreapprovalById } from "@/api/lib/mp-subscription";
 
@@ -84,8 +85,66 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
             });
           }
 
-          // Pagamento pontual — o Premium recorrente chega como `preapproval`.
-          // Registramos o recebimento para não gerar reentrega do Mercado Pago.
+          // Pagamento pontual — ativa Premium por 1 ano
+          if (type === "payment" || type === "merchant_order") {
+            const { ok, data } = await mpFetch(`/payments/${resourceId}`);
+            if (!ok || !data) {
+              console.error("[webhook/mercadopago] Falha ao buscar pagamento:", resourceId);
+              return new Response(JSON.stringify({ received: true, error: "payment not found" }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            const payment = data as Record<string, unknown>;
+            const status = String(payment.status ?? "");
+            const externalReference = String(payment.external_reference ?? "");
+
+            // Só processa pagamentos aprovados
+            if (status !== "approved") {
+              return new Response(JSON.stringify({ received: true, status }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            // external_reference deve conter o store_id
+            if (!externalReference || externalReference.includes("@")) {
+              console.warn("[webhook/mercadopago] external_reference inválido:", externalReference);
+              return new Response(JSON.stringify({ received: true, error: "invalid reference" }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            // Ativa Premium por 1 ano
+            const expiresAt = new Date();
+            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+            const { error } = await supabase
+              .from("admin_trials")
+              .update({
+                is_premium: true,
+                premium_expires_at: expiresAt.toISOString(),
+              })
+              .eq("store_id", externalReference);
+
+            if (error) {
+              console.error("[webhook/mercadopago] Erro ao ativar Premium:", error);
+              return new Response(JSON.stringify({ received: true, error: error.message }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            console.log("[webhook/mercadopago] Premium ativado para store:", externalReference);
+            return new Response(JSON.stringify({ received: true, activated: true, storeId: externalReference }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+
+          // Outros tipos — registramos o recebimento para não gerar reentrega
           return new Response(JSON.stringify({ received: true, ignored: type || "unknown" }), {
             status: 200,
             headers: { "Content-Type": "application/json" },

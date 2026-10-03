@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "generate-icons": "node scripts/generate-icons.js",
+    "create-payment-link": "node scripts/create-payment-link.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

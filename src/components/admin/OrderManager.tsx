@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Restaurant, Order, OrderStatus } from "@/lib/types";
+import { PREMIUM_PRICE_LABEL } from "@/lib/pricing";
 import {
   brl,
   buildThermalTicket,
@@ -958,7 +959,7 @@ function OrderDetailDialog({
                   </span>
                 </span>
                 <span className="shrink-0 rounded-full bg-cyan-500 px-3 py-1.5 text-[11px] font-black text-black">
-                  R$ 39,99/ano
+                  {PREMIUM_PRICE_LABEL}
                 </span>
               </Link>
 

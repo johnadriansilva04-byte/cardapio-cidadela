@@ -25,6 +25,7 @@ import {
   trackingUrl,
 } from "@/modules/mobile/orders";
 import { getOrderForOwner } from "@/modules/supabase/orders";
+import { PREMIUM_PRICE_LABEL } from "@/lib/pricing";
 import {
   brl,
   buildThermalTicket,
@@ -210,7 +211,7 @@ export function OrderCard({
               </span>
             </span>
             <span className="shrink-0 rounded-full bg-cyan-500 px-2.5 py-1 text-[10px] font-black text-black">
-              R$ 39,99/ano
+              {PREMIUM_PRICE_LABEL}
             </span>
           </Link>
           <p className="text-center text-[11px] leading-relaxed text-gray-500">

@@ -254,6 +254,42 @@
   (pseudo-email `telefone@menufacil.local`), por isso o aviso fala em
   "telefone" e nunca expõe o endereço interno.
 
+## Segurança e confiabilidade (não regredir)
+
+- **Preço é do servidor.** `createOrder` ignora `unit_price`/`total` do cliente e
+  recalcula tudo em `resolveOrderPricing` (`src/modules/supabase/pricing.ts`) a
+  partir de `products`, `product_addons` e `delivery_neighborhoods`. O cliente só
+  manda `product_id`, `quantity`, `addon_ids` e `notes`. Adicional de outro
+  restaurante é descartado; item indisponível/inexistente vira `PricingError`
+  (`code: "PRICING"`) — o `Cardapio` mostra essa mensagem ao cliente, o resto
+  vira texto genérico. Coberto por `pricing.test.ts`.
+- O match de bairro é feito em JS (case-insensitive exato), **nunca** com
+  `ilike`: um `%` enviado pelo cliente casaria com qualquer bairro.
+- **`admin_trials` não é mais pública.** A policy `public_all_admin_trials`
+  (FOR ALL TO anon) permitia a qualquer visitante `PATCH is_premium = true`. Agora
+  as policies são só para o dono (join `restaurants.owner_id = auth.uid()`), o
+  GRANT para `anon` foi removido e os acessos que precisavam de outra identidade
+  usam RPCs SECURITY DEFINER: `legacy_trials_for_owner()` (import legado por
+  e-mail/telefone) e `find_store_by_payer_email()` (webhook). O webhook precisa de
+  `SUPABASE_SERVICE_ROLE_KEY` para escrever (RLS não se aplica à service role).
+- `POST /api/payment/create-link` exige `Authorization: Bearer <token>` e confirma
+  a posse do `storeId` via cliente Supabase com o RLS do próprio usuário — sem
+  isso qualquer um geraria cobranças para a loja de terceiros.
+- `login?returnTo=` passa por `safeInternalPath` (`src/lib/utils.ts`): só caminhos
+  internos (`/...`), nunca `//host` ou `https://...`. Coberto por `utils.test.ts`.
+- Erros de render do root têm boundary em pt-BR e são encaminhados para
+  `reportLovableError`; a página SSR (`src/lib/error-page.ts`) também é pt-BR.
+- Timers de "pedido novo" (realce de 15–20s) são rastreados e limpos no unmount
+  em `useOwnerOrders.ts` e `OrderManager.tsx` — sem isso o `setState` dispara em
+  componente desmontado.
+- O `runSync` de `/admin/assinatura` chama `POST /api/subscription/sync` (não só
+  relê o status local); era por isso que "Conferir agora" não destravava o Premium
+  quando o webhook atrasava.
+- `SUPABASE_SERVICE_ROLE_KEY` / `MERCADOPAGO_ACCESS_TOKEN` são server-only. Nunca
+  prefixar com `VITE_` (vai para o bundle) e nunca deixar valor real no
+  `.env.example`.
+
+
 ## Painel (admin)
 
 - A faixa `StorePulseBar` (`src/components/admin/StorePulseBar.tsx`) fica no topo

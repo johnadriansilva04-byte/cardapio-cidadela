@@ -194,6 +194,7 @@ export function OrderManager({
   useEffect(() => {
     const channels: RealtimeChannel[] = [];
     let poll: ReturnType<typeof setInterval> | null = null;
+    const freshTimers = new Set<ReturnType<typeof setTimeout>>();
 
     const applyInsert = (row: Order) => {
       setOrders((prev) => {
@@ -203,13 +204,15 @@ export function OrderManager({
       // Realça o que acabou de chegar e limpa depois de um tempo — o dono que
       // está olhando a tela precisa ver o pedido novo sem caçar na coluna.
       setFreshIds((prev) => new Set(prev).add(row.id));
-      window.setTimeout(() => {
+      const timer = setTimeout(() => {
+        freshTimers.delete(timer);
         setFreshIds((prev) => {
           const next = new Set(prev);
           next.delete(row.id);
           return next;
         });
       }, 15000);
+      freshTimers.add(timer);
     };
 
     for (const id of restaurantIds) {
@@ -259,6 +262,8 @@ export function OrderManager({
 
     return () => {
       if (poll) clearInterval(poll);
+      // Limpa os realces pendentes: sem isso o timeout dispara após o unmount.
+      for (const t of freshTimers) clearTimeout(t);
       for (const channel of channels) {
         try {
           supabase.removeChannel(channel);

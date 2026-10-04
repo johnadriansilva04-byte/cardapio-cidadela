@@ -31,6 +31,21 @@ export function readEnv(key: string, env?: ServerEnv): string {
 
 export const MP_API_BASE = "https://api.mercadopago.com";
 
+/**
+ * Cliente Supabase agindo COMO o usuário (anon key + token de sessão). O RLS é
+ * aplicado com a identidade dele, então serve para validar posse de recursos
+ * (ex.: confirmar que o restaurante pertence ao dono autenticado).
+ */
+export function getSupabaseForUser(token: string, env?: ServerEnv): SupabaseClient | null {
+  const url = readEnv("SUPABASE_URL", env) || readEnv("VITE_SUPABASE_URL", env);
+  const anon = readEnv("VITE_SUPABASE_ANON_KEY", env) || readEnv("SUPABASE_ANON_KEY", env);
+  if (!url || !anon || !token) return null;
+  return createClient(url, anon, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 export function getMercadoPagoToken(env?: ServerEnv): string {
   return readEnv("MERCADOPAGO_ACCESS_TOKEN", env) || readEnv("VITE_MERCADOPAGO_ACCESS_TOKEN", env);
 }
@@ -40,17 +55,22 @@ export function getWebhookSecret(env?: ServerEnv): string {
 }
 
 /**
- * Cliente Supabase com privilégio de escrita. Usa a service role quando
- * disponível; caso contrário cai para a anon key (a policy de `admin_trials`
- * permite escrita) para que a ativação mesmo assim aconteça.
+ * Cliente Supabase com privilégio de escrita. Use a service role: as policies de
+ * `admin_trials` agora são restritas ao dono, então a ativação do Premium pelo
+ * webhook precisa de uma credencial que ignore RLS. A anon key é mantida apenas
+ * como fallback de leitura/degradação — sem service role a escrita não persiste.
  */
 export function getServerSupabase(env?: ServerEnv): SupabaseClient | null {
   const url = readEnv("SUPABASE_URL", env) || readEnv("VITE_SUPABASE_URL", env);
+  const serviceRole = readEnv("SUPABASE_SERVICE_ROLE_KEY", env);
   const key =
-    readEnv("SUPABASE_SERVICE_ROLE_KEY", env) ||
-    readEnv("SUPABASE_ANON_KEY", env) ||
-    readEnv("VITE_SUPABASE_ANON_KEY", env);
+    serviceRole || readEnv("SUPABASE_ANON_KEY", env) || readEnv("VITE_SUPABASE_ANON_KEY", env);
   if (!url || !key) return null;
+  if (!serviceRole) {
+    console.warn(
+      "[supabase] SUPABASE_SERVICE_ROLE_KEY ausente — o webhook não conseguirá ativar o Premium (RLS de admin_trials).",
+    );
+  }
   return createClient(url, key, { auth: { persistSession: false } });
 }
 

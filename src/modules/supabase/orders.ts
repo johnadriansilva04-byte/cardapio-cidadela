@@ -1,6 +1,7 @@
 import { supabase } from "./client";
 import type { Order, OrderStatus } from "@/lib/types";
 import { incrementOrderCount } from "./subscription";
+import { resolveOrderPricing, PricingError } from "./pricing";
 
 function idempotencyKey(
   restaurantId: string,
@@ -49,9 +50,38 @@ export async function createOrder(
     unit_price: number;
     total: number;
     notes?: string;
+    /** Ids dos adicionais — o preço deles é resolvido no servidor. */
+    addon_ids?: string[];
   }[],
 ): Promise<{ order: Order | null; error?: { message: string; code?: string } }> {
-  const key = idempotencyKey(restaurantId, orderData.customer_phone, orderData.comanda, items);
+  // Preços autoritativos: ignoramos unit_price/subtotal/total enviados pelo
+  // navegador e recalculamos a partir do banco (ver `resolveOrderPricing`).
+  let pricing;
+  try {
+    pricing = await resolveOrderPricing({
+      restaurantId,
+      delivery_type: orderData.delivery_type,
+      customer_neighborhood: orderData.customer_neighborhood,
+      items,
+    });
+  } catch (e) {
+    if (e instanceof PricingError) {
+      return { order: null, error: { message: e.message, code: "PRICING" } };
+    }
+    throw e;
+  }
+
+  const pricedItems = pricing.items;
+  const subtotal = pricing.subtotal;
+  const deliveryFee = pricing.delivery_fee;
+  const total = pricing.total;
+
+  const key = idempotencyKey(
+    restaurantId,
+    orderData.customer_phone,
+    orderData.comanda,
+    pricedItems,
+  );
 
   const { data: existing, error: lookupError } = await supabase
     .from("orders")
@@ -69,7 +99,7 @@ export async function createOrder(
     return {
       order: {
         ...(existing as Order),
-        order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })),
+        order_items: pricedItems.map((i, idx) => ({ id: `${idx}`, ...i })),
       },
     };
   }
@@ -92,9 +122,9 @@ export async function createOrder(
     delivery_address: orderData.delivery_address,
     delivery_type: orderData.delivery_type,
     observations: orderData.observations,
-    subtotal: orderData.subtotal,
-    delivery_fee: orderData.delivery_fee,
-    total: orderData.total,
+    subtotal,
+    delivery_fee: deliveryFee,
+    total,
     payment_method: orderData.payment_method,
     payment_status: orderData.payment_method === "pix" ? "awaiting_confirmation" : "pending",
     status: "received",
@@ -131,7 +161,7 @@ export async function createOrder(
         return {
           order: {
             ...(dup as Order),
-            order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })),
+            order_items: pricedItems.map((i, idx) => ({ id: `${idx}`, ...i })),
           },
         };
       }
@@ -177,7 +207,7 @@ export async function createOrder(
     }
 
     const { error: itemsError } = await supabase.from("order_items").insert(
-      items.map((item) => ({
+      pricedItems.map((item) => ({
         order_id: orderId,
         product_id: item.product_id,
         product_name: item.product_name,
@@ -205,9 +235,9 @@ export async function createOrder(
         restaurant_id: restaurantId,
         customer_name: orderData.customer_name,
         comanda: orderData.comanda,
-        total: orderData.total,
+        total,
         delivery_type: orderData.delivery_type,
-        items: items.map((i) => ({ product_name: i.product_name, quantity: i.quantity })),
+        items: pricedItems.map((i) => ({ product_name: i.product_name, quantity: i.quantity })),
       },
     })
     .catch(() => {
@@ -232,9 +262,9 @@ export async function createOrder(
       customer_city: (payload.customer_city as string) ?? orderData.customer_city ?? "",
       delivery_type: orderData.delivery_type,
       observations: orderData.observations,
-      subtotal: orderData.subtotal,
-      delivery_fee: orderData.delivery_fee,
-      total: orderData.total,
+      subtotal,
+      delivery_fee: deliveryFee,
+      total,
       payment_method: orderData.payment_method,
       payment_status: orderData.payment_method === "pix" ? "awaiting_confirmation" : "pending",
       status: "received" as OrderStatus,
@@ -242,7 +272,7 @@ export async function createOrder(
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       cidadela_unlocked: false,
-      order_items: items.map((i, idx) => ({ id: `${idx}`, ...i, notes: i.notes ?? "" })),
+      order_items: pricedItems.map((i, idx) => ({ id: `${idx}`, ...i })),
     },
   };
 }

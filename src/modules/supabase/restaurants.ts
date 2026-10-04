@@ -423,33 +423,22 @@ export async function ensureRestaurantsForUser(user: {
   // Skip if admin_trials was already confirmed missing
   if (_adminTrialsAvailable === false) return;
 
-  const raw = [user.email, user.phone].filter((v): v is string => Boolean(v)) as string[];
-  const lookups = [...new Set(raw.map((v) => v.trim()).filter(Boolean))];
-  if (lookups.length === 0) return;
+  // A leitura de `admin_trials` por e-mail/telefone do dono é feita pela RPC
+  // SECURITY DEFINER `legacy_trials_for_owner` — a tabela não é mais legível
+  // por anon (era por onde um visitante ativava o Premium de graça).
+  const { data: rpcData, error } = await supabase.rpc("legacy_trials_for_owner");
 
-  // Busca legacy em duas consultas com `.in()` (robusto p/ `@`, `+`, etc.)
-  const baseSel = "store_id, store_name, store_slogan, pix_key, whatsapp";
-  const [byEmail, byPhone] = await Promise.all([
-    supabase
-      .from("admin_trials")
-      .select(baseSel)
-      .in("admin_email", lookups)
-      .eq("is_active", true)
-      .limit(10),
-    supabase
-      .from("admin_trials")
-      .select(baseSel)
-      .in("admin_phone", lookups)
-      .eq("is_active", true)
-      .limit(10),
-  ]);
-
-  const error = byEmail.error ?? byPhone.error;
   if (error) {
     const code = String((error as unknown as { code?: string }).code ?? "");
     const msg = String(error.message ?? "").toLowerCase();
-    // 42P01 = undefined_table, PGRST116 etc — legacy pode não existir no banco
-    if (code === "42P01" || code === "PGRST205" || msg.includes("admin_trials")) {
+    // 42P01 = undefined_table, PGRST202/205 = função/tabela ausente no schema
+    if (
+      code === "42P01" ||
+      code === "PGRST205" ||
+      code === "PGRST202" ||
+      msg.includes("admin_trials") ||
+      msg.includes("legacy_trials_for_owner")
+    ) {
       _adminTrialsAvailable = false;
     }
     return;
@@ -462,14 +451,7 @@ export async function ensureRestaurantsForUser(user: {
     pix_key: string | null;
     whatsapp: string | null;
   };
-  const emailRows = (byEmail.data ?? []) as LegacyRow[];
-  const phoneRows = (byPhone.data ?? []) as LegacyRow[];
-  const merged = new Map<string, LegacyRow>();
-  for (const t of [...emailRows, ...phoneRows]) {
-    const key = String(t.store_id ?? "");
-    if (key && !merged.has(key)) merged.set(key, t);
-  }
-  const trials = [...merged.values()];
+  const trials = (rpcData ?? []) as LegacyRow[];
 
   _adminTrialsAvailable = true;
   if (trials.length === 0) return;

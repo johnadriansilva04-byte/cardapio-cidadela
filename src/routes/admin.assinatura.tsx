@@ -32,9 +32,10 @@ export const Route = createFileRoute("/admin/assinatura")({
   component: SubscriptionPage,
 });
 
-const PAYMENT_LINK =
-  (import.meta.env?.VITE_MERCADOPAGO_PAYMENT_LINK as string | undefined) ||
-  "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=1084609242-7aa21a60-04a6-4237-bc53-01a95db5d4e9";
+// Link estático é apenas fallback legado — o fluxo real usa o link dinâmico
+// gerado por /api/payment/create-link (com external_reference). Sem a env, o
+// modal orienta a gerar o link novamente em vez de abrir uma preferência fixa.
+const PAYMENT_LINK = (import.meta.env?.VITE_MERCADOPAGO_PAYMENT_LINK as string | undefined) || "";
 
 const SUBSCRIPTION_LINK =
   (import.meta.env?.VITE_MERCADOPAGO_SUBSCRIPTION_LINK as string | undefined) ||
@@ -150,8 +151,13 @@ function SubscriptionPage() {
   );
 
   async function copyLink() {
+    const url = paymentLink || PAYMENT_LINK;
+    if (!url) {
+      toast.error("Gere o link novamente para copiá-lo.");
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(paymentLink || PAYMENT_LINK);
+      await navigator.clipboard.writeText(url);
       toast.success("Link copiado!");
     } catch {
       toast.error("Não foi possível copiar. Copie manualmente o link.");
@@ -196,11 +202,30 @@ function SubscriptionPage() {
   async function runSync(): Promise<"premium" | "none" | "pending" | "error"> {
     if (!activeId || !session?.access_token) return "error";
     try {
-      // Para pagamentos pontuais, a sincronização é feita pelo webhook automaticamente
-      // Aqui apenas recarregamos o status
+      // O endpoint busca o preapproval na API do Mercado Pago pelo e-mail da
+      // conta e aplica o resultado. Antes esta função só relia o status local,
+      // então "Conferir agora" nunca destravava o Premium quando o webhook
+      // atrasava — parecia que o pagamento não havia sido reconhecido.
+      const res = await fetch("/api/subscription/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ storeId: activeId }),
+      });
+
+      if (res.status === 403) return "error";
+      if (!res.ok) return "error";
+
+      const data = (await res.json().catch(() => ({}))) as { status?: string };
+      // Recarrega o status local (o sync já aplicou no banco).
       await loadStatus(activeId);
-      if (status?.isPremium) return "premium";
-      return "none";
+
+      if (data.status === "premium") return "premium";
+      if (data.status === "free") return "none";
+      if (data.status === "none") return "none";
+      return "pending";
     } catch {
       return "error";
     }
@@ -477,7 +502,12 @@ function SubscriptionPage() {
           <div className="flex flex-col gap-2">
             <Button
               onClick={() => {
-                window.open(paymentLink || PAYMENT_LINK, "_blank", "noopener,noreferrer");
+                const url = paymentLink || PAYMENT_LINK;
+                if (!url) {
+                  toast.error("Gere o link novamente para abrir o checkout.");
+                  return;
+                }
+                window.open(url, "_blank", "noopener,noreferrer");
                 setPaymentOpen(false);
               }}
               className="rounded-full bg-cyan-500 text-black hover:bg-cyan-400"

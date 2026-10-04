@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { captureInstallPrompt, registerServiceWorker } from "@/modules/pwa/install";
+import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
@@ -40,12 +41,21 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   console.error(error);
   const router = useRouter();
 
+  // Encaminha o erro do boundary para a telemetria (Lovable em preview e
+  // window.onerror/unhandledrejection no navegador) — sem isso, erros de
+  // render somem no console e não há como investigar instabilidade em produção.
+  useEffect(() => {
+    reportLovableError(error, { boundary: "root" });
+  }, [error]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-white">Algo deu errado</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-white">
+          Não foi possível carregar a página
+        </h1>
         <p className="mt-2 text-sm text-gray-400">
-          Ocorreu um erro ao carregar a página. Tente novamente.
+          Algo deu errado do nosso lado. Tente novamente ou volte para o início.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button

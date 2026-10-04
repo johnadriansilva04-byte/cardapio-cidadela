@@ -211,22 +211,11 @@ export async function registerPendingSubscription(
 /** Resolve o restaurante pelo e-mail do pagador (fallback do webhook). */
 export async function findStoreIdByPayerEmail(payerEmail: string): Promise<string | null> {
   if (!payerEmail) return null;
-  const { data: byMp } = await supabase
-    .from("admin_trials")
-    .select("store_id")
-    .eq("mercadopago_payer_email", payerEmail)
-    .not("store_id", "is", null)
-    .limit(1)
-    .maybeSingle();
-  if (byMp?.store_id) return byMp.store_id as string;
-  const { data: byAdmin } = await supabase
-    .from("admin_trials")
-    .select("store_id")
-    .eq("admin_email", payerEmail)
-    .not("store_id", "is", null)
-    .limit(1)
-    .maybeSingle();
-  return (byAdmin?.store_id as string) ?? null;
+  // A tabela não é legível por anon; a resolução por e-mail é feita pela RPC
+  // SECURITY DEFINER `find_store_by_payer_email`.
+  const { data, error } = await supabase.rpc("find_store_by_payer_email", { p_email: payerEmail });
+  if (error) return null;
+  return (data as string | null) ?? null;
 }
 
 /** Preapproval ativo registrado para o restaurante (usado no "Gerenciar"). */

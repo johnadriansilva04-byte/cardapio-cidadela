@@ -904,12 +904,91 @@ CREATE POLICY "owner_cidadela" ON cidadela_unlocks FOR ALL
   USING (is_restaurant_owner(restaurant_id));
 CREATE POLICY "public_insert_cidadela_unlocks" ON cidadela_unlocks FOR INSERT TO anon,authenticated
   WITH CHECK (true);
-DO $$ BEGIN
-  CREATE POLICY "public_all_admin_trials" ON admin_trials FOR ALL TO anon,authenticated
-    USING (true)
-    WITH CHECK (true);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- ============================================================
+-- ADMIN_TRIALS (assinatura/legado)
+-- ============================================================
+-- A tabela guarda o vínculo do Mercado Pago e o flag `is_premium`. A policy
+-- antiga ("public_all_admin_trials" FOR ALL TO anon) permitia a QUALQUER
+-- visitante anônimo setar `is_premium = true` e destravar o plano — bastava
+-- um PATCH no REST do Supabase. Além disso, `access_code`, `admin_email` e
+-- `admin_phone` ficavam legíveis por anon.
+--
+-- Modelo novo:
+--   - SELECT: liberado só para o dono do restaurante (colunas sensíveis ficam
+--     expostas apenas para o próprio dono, o que é aceitável) — e como o
+--     PostgREST não permite esconder colunas por linha, o acesso sensível
+--     (leitura por e-mail/telefone do dono no import legado, e escrita do
+--     webhook) passa a usar as RPCs SECURITY DEFINER abaixo.
+--   - INSERT/UPDATE/DELETE: só o dono (necessário para `ensureRow`,
+--     `registerPendingSubscription` e `cancelPremium` no cliente).
+--   - O webhook/sync escrevem com a service role, que ignora RLS.
+ALTER TABLE admin_trials ENABLE ROW LEVEL SECURITY;
+SELECT drop_policies_if_exist('admin_trials');
+CREATE POLICY "owner_admin_trials_select" ON admin_trials FOR SELECT TO authenticated
+  USING (
+    store_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM restaurants r
+      WHERE r.id::text = admin_trials.store_id::text
+        AND r.owner_id = auth.uid()::text
+    )
+  );
+CREATE POLICY "owner_admin_trials_insert" ON admin_trials FOR INSERT TO authenticated
+  WITH CHECK (
+    store_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM restaurants r
+      WHERE r.id::text = admin_trials.store_id::text
+        AND r.owner_id = auth.uid()::text
+    )
+  );
+CREATE POLICY "owner_admin_trials_update" ON admin_trials FOR UPDATE TO authenticated
+  USING (
+    store_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM restaurants r
+      WHERE r.id::text = admin_trials.store_id::text
+        AND r.owner_id = auth.uid()::text
+    )
+  )
+  WITH CHECK (
+    store_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM restaurants r
+      WHERE r.id::text = admin_trials.store_id::text
+        AND r.owner_id = auth.uid()::text
+    )
+  );
+
+-- Import legado: lê as linhas do dono por e-mail/telefone sem expor a tabela
+-- para anon. Usada por `ensureRestaurantsForUser`.
+CREATE OR REPLACE FUNCTION public.legacy_trials_for_owner()
+RETURNS TABLE(store_id TEXT, store_name TEXT, store_slogan TEXT, pix_key TEXT, whatsapp TEXT)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT a.store_id::text, a.store_name, a.store_slogan, a.pix_key, a.whatsapp
+  FROM admin_trials a
+  WHERE a.is_active = true
+    AND (
+      a.admin_email = (SELECT u.email FROM auth.users u WHERE u.id = auth.uid())
+      OR a.admin_phone = (SELECT u.phone FROM auth.users u WHERE u.id = auth.uid())
+    )
+  LIMIT 20;
+$$;
+GRANT EXECUTE ON FUNCTION public.legacy_trials_for_owner() TO authenticated;
+
+-- Webhook/fallback: resolve o restaurante pelo e-mail do pagador sem depender
+-- da policy pública. Sem EXECUTE para anon (o webhook usa service role).
+CREATE OR REPLACE FUNCTION public.find_store_by_payer_email(p_email TEXT)
+RETURNS TEXT
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT a.store_id::text
+  FROM admin_trials a
+  WHERE a.store_id IS NOT NULL
+    AND (a.mercadopago_payer_email = p_email OR a.admin_email = p_email)
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION public.find_store_by_payer_email(TEXT) FROM PUBLIC, anon, authenticated;
+
 DO $$ BEGIN
   CREATE POLICY "public_all_chat_messages" ON chat_messages FOR ALL TO anon,authenticated
     USING (true)
@@ -1212,4 +1291,7 @@ GRANT SELECT ON order_tracking TO anon, authenticated;
 -- Admin/dono: acesso total às tabelas de domínio via policies de owner
 GRANT ALL ON TABLE restaurants, categories, products, product_addons, addon_groups, addons,
   orders, order_items, order_status_history, cidadela_unlocks TO authenticated;
-GRANT ALL ON TABLE admin_trials, chat_messages, game_sessions, game_moves, profiles TO anon, authenticated, service_role;
+-- admin_trials: escrita/leitura do dono (policies de owner). Nunca para anon —
+-- era por aqui que um visitante ativava o Premium de graça.
+GRANT SELECT, INSERT, UPDATE ON TABLE admin_trials TO authenticated;
+GRANT ALL ON TABLE chat_messages, game_sessions, game_moves, profiles TO anon, authenticated, service_role;

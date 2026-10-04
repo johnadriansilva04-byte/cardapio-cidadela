@@ -119,6 +119,7 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
   useEffect(() => {
     const channels: RealtimeChannel[] = [];
     let debounce: ReturnType<typeof setTimeout> | null = null;
+    const freshTimers = new Set<ReturnType<typeof setTimeout>>();
 
     for (const id of restaurantIds.split(",").filter(Boolean)) {
       const channel = subscribeToOrders(
@@ -134,13 +135,15 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
             // Realça o recém-chegado por 20s — no celular o alerta toca, mas
             // sem isso o operador não localiza o card na lista.
             setFreshIds((prev) => new Set(prev).add(order.id));
-            setTimeout(() => {
+            const timer = setTimeout(() => {
+              freshTimers.delete(timer);
               setFreshIds((prev) => {
                 const next = new Set(prev);
                 next.delete(order.id);
                 return next;
               });
             }, 20000);
+            freshTimers.add(timer);
             return;
           }
           // UPDATE/DELETE em rajada: uma revalidação por lote basta.
@@ -154,6 +157,9 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
 
     return () => {
       if (debounce) clearTimeout(debounce);
+      // Sem limpar os timers de realce, o callback dispara após o unmount e
+      // mexe no estado de um componente que já saiu da árvore.
+      for (const t of freshTimers) clearTimeout(t);
       for (const channel of channels) {
         try {
           supabase.removeChannel(channel);

@@ -354,21 +354,17 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     setCheckoutError("");
     try {
       const orderItems = lines.map((l) => {
-        const addonsLabel = l.addons.length ? ` (+ ${l.addons.map((a) => a.name).join(", ")})` : "";
         const notesParts: string[] = [];
-        if (l.addons.length) {
-          notesParts.push(
-            `Adicionais: ${l.addons.map((a) => `${a.name} (+${brl(Number(a.price))})`).join(", ")}`,
-          );
-        }
         if (l.notes) notesParts.push(l.notes);
         return {
           product_id: l.item.id,
-          product_name: l.item.name + addonsLabel,
+          product_name: l.item.name,
           quantity: l.qty,
+          // unit_price/total são recalculados no servidor a partir do banco.
           unit_price: l.unitPrice,
           total: l.lineTotal,
           notes: notesParts.join(" | "),
+          addon_ids: l.addons.map((a) => a.addon_id),
         };
       });
       const comanda = newComanda();
@@ -402,10 +398,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         orderItems,
       );
       if (!order) {
-        setCheckoutError(
-          error?.message ||
-            "Não foi possível concluir o pedido agora. Confira sua conexão e tente novamente.",
-        );
+        // Mensagens de precificação ("item indisponível") são úteis ao cliente;
+        // o resto é técnico (RLS, schema) e vira um texto genérico.
+        const friendly =
+          error?.code === "PRICING"
+            ? error.message
+            : "Não foi possível concluir o pedido agora. Confira sua conexão e tente novamente.";
+        setCheckoutError(friendly);
         return;
       }
       rememberOrderId(order.id);

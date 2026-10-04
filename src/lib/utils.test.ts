@@ -7,6 +7,7 @@ import {
   formatDeliveryAddress,
   generateSlug,
   hexToRgba,
+  safeInternalPath,
   sendToWhatsApp,
   statusLabel,
 } from "@/lib/utils";
@@ -185,5 +186,28 @@ describe("sendToWhatsApp", () => {
 
     expect(opened[0]).toContain("https://wa.me/11999999999?");
     expect(opened[0]).toContain(encodeURIComponent("Olá!"));
+  });
+});
+
+describe("safeInternalPath", () => {
+  it("mantém caminhos internos", () => {
+    expect(safeInternalPath("/admin")).toBe("/admin");
+    expect(safeInternalPath("/mobile/config")).toBe("/mobile/config");
+    expect(safeInternalPath("/cardapio/loja?x=1")).toBe("/cardapio/loja?x=1");
+  });
+
+  it("cai no fallback para destinos externos ou vazios", () => {
+    expect(safeInternalPath(null)).toBe("/admin");
+    expect(safeInternalPath("")).toBe("/admin");
+    expect(safeInternalPath("https://evil.com")).toBe("/admin");
+    expect(safeInternalPath("//evil.com")).toBe("/admin");
+    expect(safeInternalPath("/\\evil.com")).toBe("/admin");
+    expect(safeInternalPath("\\evil.com")).toBe("/admin");
+    expect(safeInternalPath("javascript:alert(1)")).toBe("/admin");
+    expect(safeInternalPath("/admin\nSet-Cookie: x")).toBe("/admin");
+  });
+
+  it("respeita fallback customizado", () => {
+    expect(safeInternalPath("https://evil.com", "/mobile")).toBe("/mobile");
   });
 });

@@ -14,6 +14,25 @@ export function brl(value: number): string {
 }
 
 /**
+ * Sanitiza o destino pós-login (`?returnTo=`).
+ *
+ * Só aceita caminhos internos absolutos. Um valor como `//evil.com` ou
+ * `https://evil.com` é tratado como URL pelo navegador e transformaria o login
+ * num open redirect — o dono digita a senha no domínio certo e é jogado para
+ * outro site logo depois. Qualquer coisa suspeita cai no fallback.
+ */
+export function safeInternalPath(value: string | null | undefined, fallback = "/admin"): string {
+  if (!value) return fallback;
+  // Caminho absoluto interno: começa com uma única barra, não com "//" nem "/\".
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return fallback;
+  // Um "\" inicial (ex.: "/\evil.com") também é interpretado como host.
+  if (value.startsWith("\\")) return fallback;
+  // Bloqueia esquemas embutidos que o navegador poderia normalizar.
+  if (/[\r\n\t]/.test(value)) return fallback;
+  return value;
+}
+
+/**
  * Convert a hex color (#rgb | #rrggbb) to an rgba() string.
  * Falls back to cyan when the color is missing/invalid.
  */

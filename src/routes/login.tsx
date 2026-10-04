@@ -18,6 +18,7 @@ import {
 import { signInWithPhone, signUpWithPhone, isSupabaseConfigured } from "@/modules/supabase/auth";
 import { useAuth } from "@/components/AuthProvider";
 import { claimGuestData } from "@/modules/supabase/customer";
+import { safeInternalPath } from "@/lib/utils";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -44,7 +45,8 @@ function LoginPage() {
     if (typeof window === "undefined") return { returnTo: "/admin", error: "" };
     const params = new URLSearchParams(window.location.search);
     return {
-      returnTo: params.get("returnTo") || "/admin",
+      // Só caminhos internos — um `returnTo` externo seria um open redirect.
+      returnTo: safeInternalPath(params.get("returnTo")),
       error: params.get("error") || "",
     };
   }, []);

@@ -44,23 +44,12 @@ async function resolveStoreId(
   if (isExternalReference(info.externalReference)) return info.externalReference;
 
   if (info.payerEmail) {
-    const { data } = await supabase
-      .from("admin_trials")
-      .select("store_id")
-      .eq("mercadopago_payer_email", info.payerEmail)
-      .not("store_id", "is", null)
-      .limit(1)
-      .maybeSingle();
-    if (data?.store_id) return data.store_id as string;
-
-    const { data: byAdmin } = await supabase
-      .from("admin_trials")
-      .select("store_id")
-      .eq("admin_email", info.payerEmail)
-      .not("store_id", "is", null)
-      .limit(1)
-      .maybeSingle();
-    if (byAdmin?.store_id) return byAdmin.store_id as string;
+    // Resolve pelo e-mail via RPC SECURITY DEFINER — funciona mesmo quando o
+    // webhook roda com a anon key (a tabela não é mais legível por anon).
+    const { data } = await supabase.rpc("find_store_by_payer_email", {
+      p_email: info.payerEmail,
+    });
+    if (data) return data as string;
   }
 
   return null;

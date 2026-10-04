@@ -176,7 +176,7 @@
 
 ## Assinatura Premium (Mercado Pago)
 
-- Preço único: `PREMIUM_PRICE_LABEL` em `src/lib/pricing.ts` (R$ 39,99/ano).
+- Preço único: `PREMIUM_PRICE_LABEL` em `src/lib/pricing.ts` (R$ 199,99/ano).
   Fica fora de `modules/supabase` de propósito: a landing precisa exibir o preço
   sem arrastar o cliente Supabase para o bundle público. `subscription.ts`
   reexporta para compatibilidade — ao mudar o preço, mude só lá.
@@ -202,7 +202,7 @@
   Premium ou cota disponível devolve o pedido; senão `{ blocked: true }` e
   **nada do pedido vaza** — nem os itens. O lugar dos itens na tela é a ação de
   assinar: admin `OrderManager` e mobile `OrderCard` mostram o aviso, escondem
-  a lista e põem o CTA "Assinar Premium agora · R$ 39,90/mês" (link
+  a lista e põem o CTA "Assinar Premium agora · R$ 199,99/ano" (link
   `/admin/assinatura`, fluxo existente).
 - A RPC `owner_locked_stores()` devolve os restaurantes do dono com a cota
   estourada; o `OrderManager` usa isso para marcar os cards (cadeado) e
@@ -248,7 +248,7 @@
   Premium é liberado sem recarregar. O link "Conferir agora" é o fallback
   manual.
 - `/admin/assinatura` é organizada em torno de UM único bloco (plano + ação):
-  o CTA "Assinar por R$ 39,90/mês" abre o Mercado Pago direto no clique. O
+  o CTA "Assinar por R$ 199,99/ano" abre o Mercado Pago direto no clique. O
   modal só aparece quando o `window.open` é barrado (popup blocker) — antes o
   modal era um passo obrigatório. O vínculo continua por e-mail/telefone
   (pseudo-email `telefone@menufacil.local`), por isso o aviso fala em

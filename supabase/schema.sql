@@ -984,6 +984,40 @@ CREATE POLICY "owner_admin_trials_update" ON admin_trials FOR UPDATE TO authenti
     )
   );
 
+-- O dono pode atualizar a própria linha (necessário para ensureRow,
+-- registerPendingSubscription e cancelPremium), mas NÃO pode se dar Premium:
+-- sem isto bastava um PATCH is_premium=true via PostgREST na própria loja.
+-- Somente a service role (webhook/sync do Mercado Pago) ativa o Premium.
+CREATE OR REPLACE FUNCTION public.guard_admin_trials_premium()
+RETURNS TRIGGER
+LANGUAGE plpgsql SET search_path = public AS $$
+DECLARE
+  is_privileged BOOLEAN := current_user IN ('service_role', 'postgres', 'supabase_admin');
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF COALESCE(NEW.is_premium, false) AND NOT is_privileged THEN
+      RAISE EXCEPTION 'is_premium só pode ser definido pelo webhook do Mercado Pago';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF COALESCE(NEW.is_premium, false) <> COALESCE(OLD.is_premium, false)
+     AND NOT is_privileged THEN
+    RAISE EXCEPTION 'is_premium só pode ser alterado pelo webhook do Mercado Pago';
+  END IF;
+  IF NEW.mercadopago_preapproval_id IS DISTINCT FROM OLD.mercadopago_preapproval_id
+     AND NOT is_privileged THEN
+    RAISE EXCEPTION 'mercadopago_preapproval_id é somente leitura para o cliente';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_guard_admin_trials_premium ON admin_trials;
+CREATE TRIGGER trg_guard_admin_trials_premium
+  BEFORE INSERT OR UPDATE ON admin_trials
+  FOR EACH ROW EXECUTE FUNCTION public.guard_admin_trials_premium();
+
 -- Import legado: lê as linhas do dono por e-mail/telefone sem expor a tabela
 -- para anon. Usada por `ensureRestaurantsForUser`.
 CREATE OR REPLACE FUNCTION public.legacy_trials_for_owner()

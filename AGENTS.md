@@ -297,6 +297,12 @@
 - Ativação do Premium usa `upsert` (não `update`): um UPDATE sem linha não gera
   erro, então o webhook devolvia 200 e o pagamento ficava "perdido". O webhook
   ainda confere `activated.length` e devolve 500 para o MP reentregar.
+- Um trigger `guard_admin_trials_premium` (SECURITY INVOKER — se fosse DEFINER
+  `current_user` viraria o owner e o guard sempre passaria) bloqueia
+  `is_premium`/`mercadopago_preapproval_id` para quem não é service role. Sem
+  ele, o dono dava `PATCH is_premium=true` na própria linha e burlava o
+  pagamento. `cancelPremium` (dono) continua podendo desligar; o webhook
+  (service role) liga.
 - `order_status_history`: o cliente só pode inserir a entrada inicial `received`
   (policy `WITH CHECK (status = 'received')`) e só lê histórico de loja
   publicada. Antes qualquer anônimo podia forjar "entregue"/"cancelado" e ler

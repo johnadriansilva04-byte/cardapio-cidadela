@@ -48,14 +48,14 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 $$;
 GRANT EXECUTE ON FUNCTION public.order_belongs_to_restaurant(UUID, UUID) TO anon, authenticated;
 
-DO $$ BEGIN
-  CREATE POLICY "public_insert_reviews" ON reviews FOR INSERT TO anon, authenticated
-    WITH CHECK (
-      rating BETWEEN 1 AND 5
-      AND (order_id IS NULL OR public.order_belongs_to_restaurant(order_id, restaurant_id))
-    );
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Remove a policy antiga (WITH CHECK só de rating) em bancos que já rodaram a
+-- migração; senão o `CREATE POLICY` abaixo seria ignorado pelo duplicate_object.
+DROP POLICY IF EXISTS "public_insert_reviews" ON reviews;
+CREATE POLICY "public_insert_reviews" ON reviews FOR INSERT TO anon, authenticated
+  WITH CHECK (
+    rating BETWEEN 1 AND 5
+    AND (order_id IS NULL OR public.order_belongs_to_restaurant(order_id, restaurant_id))
+  );
 
 -- O dono enxerga e gerencia as avaliações dos próprios restaurantes.
 DO $$ BEGIN

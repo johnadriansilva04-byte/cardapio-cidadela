@@ -400,7 +400,9 @@ function LandingPage() {
                   </span>
                 </div>
                 <p className="mt-3 text-4xl font-black text-white">{PREMIUM_PRICE_LABEL}</p>
-                <p className="mt-1 text-sm text-gray-400">menos de R$ 3,34 por mês</p>
+                <p className="mt-1 text-sm text-gray-400">
+                  pagamento único · equivale a R$ 16,67 por mês
+                </p>
                 <ul className="mt-6 space-y-2.5 text-sm text-gray-200">
                   {[
                     "Pedidos ilimitados",

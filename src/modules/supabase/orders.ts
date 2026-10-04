@@ -1,6 +1,5 @@
 import { supabase } from "./client";
 import type { Order, OrderStatus } from "@/lib/types";
-import { incrementOrderCount } from "./subscription";
 import { resolveOrderPricing, PricingError } from "./pricing";
 
 function idempotencyKey(
@@ -198,14 +197,10 @@ export async function createOrder(
     return { order: null, error: { message: hint, code: lastError.code } };
   }
 
-  // Pedido persistido — conta no limite mensal do plano gratuito. Best-effort.
+  // Pedido persistido. O limite mensal do plano gratuito é derivado dos
+  // pedidos reais do mês (ver `owner_locked_stores`/`get_order_for_owner`), não
+  // de um contador gravável pelo cliente — então não há nada a incrementar aqui.
   if (items.length > 0) {
-    try {
-      await incrementOrderCount(restaurantId);
-    } catch (e) {
-      console.warn("[orders] falha ao incrementar contador mensal:", e);
-    }
-
     const { error: itemsError } = await supabase.from("order_items").insert(
       pricedItems.map((item) => ({
         order_id: orderId,

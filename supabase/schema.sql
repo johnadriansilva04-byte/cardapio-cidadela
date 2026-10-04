@@ -409,7 +409,6 @@ DECLARE
   v_premium BOOLEAN;
   v_expires TIMESTAMPTZ;
   v_count INTEGER;
-  v_reset DATE;
   v_found UUID;
   v_order JSONB;
   v_blocked BOOLEAN := false;
@@ -426,16 +425,21 @@ BEGIN
     RETURN NULL; -- pedido inexistente ou não pertence ao dono
   END IF;
 
-  SELECT a.is_premium, a.premium_expires_at, a.monthly_order_count, a.monthly_order_reset_date
-    INTO v_premium, v_expires, v_count, v_reset
+  SELECT a.is_premium, a.premium_expires_at
+    INTO v_premium, v_expires
   FROM admin_trials a
   WHERE a.store_id::text = v_store_id::text;
 
   IF NOT (COALESCE(v_premium, false) AND (v_expires IS NULL OR v_expires > now())) THEN
-    -- Contador zera quando vira o mês (mesma regra do cliente).
-    IF v_reset IS NULL OR date_trunc('month', v_reset) <> date_trunc('month', CURRENT_DATE) THEN
-      v_count := 0;
-    END IF;
+    -- Conta os pedidos REAIS do mês em vez de confiar no contador gravável.
+    -- Como qualquer escrita em admin_trials é do dono/webhook (a tabela deixou
+    -- de ser pública), o contador no cliente nunca subia e o limite de 5
+    -- pedidos/mês deixava de valer. Derivar de `orders` é à prova de adulteração.
+    SELECT count(*) INTO v_count
+    FROM orders o
+    WHERE o.restaurant_id = v_store_id
+      AND o.status <> 'cancelled'
+      AND o.created_at >= date_trunc('month', CURRENT_DATE);
     IF COALESCE(v_count, 0) >= 5 THEN
       v_blocked := true;
     END IF;
@@ -476,16 +480,32 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
       COALESCE(a.is_premium, false)
       AND (a.premium_expires_at IS NULL OR a.premium_expires_at > now())
     )
-    AND COALESCE(
-      CASE
-        WHEN a.monthly_order_reset_date IS NULL
-          OR date_trunc('month', a.monthly_order_reset_date) <> date_trunc('month', CURRENT_DATE)
-        THEN 0
-        ELSE a.monthly_order_count
-      END, 0) >= 5;
+    AND (
+      SELECT count(*)
+      FROM orders o
+      WHERE o.restaurant_id = r.id
+        AND o.status <> 'cancelled'
+        AND o.created_at >= date_trunc('month', CURRENT_DATE)
+    ) >= 5;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.owner_locked_stores() TO authenticated;
+
+-- Contagem real de pedidos do mês para o painel (uso do plano gratuito).
+-- Mesma regra de owner_locked_stores/get_order_for_owner: derivada de orders,
+-- não do contador monthly_order_count (que o cliente não pode mais escrever).
+-- Valida a posse via is_restaurant_owner.
+CREATE OR REPLACE FUNCTION public.owner_monthly_order_count(p_store UUID)
+RETURNS INTEGER
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT count(*)::int
+  FROM orders o
+  WHERE o.restaurant_id = p_store
+    AND is_restaurant_owner(p_store)
+    AND o.status <> 'cancelled'
+    AND o.created_at >= date_trunc('month', CURRENT_DATE);
+$$;
+GRANT EXECUTE ON FUNCTION public.owner_monthly_order_count(UUID) TO authenticated;
 
 
 -- Mantém a tabela de convidados limpa: pedidos encerrados
@@ -882,8 +902,12 @@ CREATE POLICY "owner_order_status_history" ON order_status_history FOR ALL
   USING (order_id IN (
     SELECT o.id FROM orders o WHERE is_restaurant_owner(o.restaurant_id)
   ));
-CREATE POLICY "public_insert_order_status_history" ON order_status_history FOR INSERT TO anon,authenticated
-  WITH CHECK (true);
+-- O cliente (anon/autenticado) só pode registrar a entrada INICIAL "received",
+-- feita junto com o pedido. Antes a policy era TO anon WITH CHECK (true), então
+-- qualquer visitante podia inserir "entregue"/"cancelado" no pedido de terceiros.
+CREATE POLICY "public_insert_initial_order_status_history" ON order_status_history
+  FOR INSERT TO anon,authenticated
+  WITH CHECK (status = 'received');
 
 -- ADDON GROUPS
 ALTER TABLE addon_groups ENABLE ROW LEVEL SECURITY;
@@ -989,20 +1013,28 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 $$;
 REVOKE ALL ON FUNCTION public.find_store_by_payer_email(TEXT) FROM PUBLIC, anon, authenticated;
 
+-- Tabelas legadas de chat/jogos. Antes eram `FOR ALL TO anon USING(true)`:
+-- qualquer visitante sem login podia ler/gravar/apagar tudo. Não são usadas
+-- pelo cardápio/pedidos; ficam restritas a usuários autenticados até serem
+-- removidas de vez. O drop remove as policies antigas `public_all_*` de quem
+-- já rodou o schema antes (senão elas continuariam valendo).
+SELECT drop_policies_if_exist('chat_messages');
+SELECT drop_policies_if_exist('game_sessions');
+SELECT drop_policies_if_exist('game_moves');
 DO $$ BEGIN
-  CREATE POLICY "public_all_chat_messages" ON chat_messages FOR ALL TO anon,authenticated
+  CREATE POLICY "auth_all_chat_messages" ON chat_messages FOR ALL TO authenticated
     USING (true)
     WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN
-  CREATE POLICY "public_all_game_sessions" ON game_sessions FOR ALL TO anon,authenticated
+  CREATE POLICY "auth_all_game_sessions" ON game_sessions FOR ALL TO authenticated
     USING (true)
     WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN
-  CREATE POLICY "public_all_game_moves" ON game_moves FOR ALL TO anon,authenticated
+  CREATE POLICY "auth_all_game_moves" ON game_moves FOR ALL TO authenticated
     USING (true)
     WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -1019,7 +1051,11 @@ END $$;
 -- ============================================================
 DO $$ BEGIN
   CREATE POLICY "public_read_order_status_history" ON order_status_history FOR SELECT TO anon,authenticated
-    USING (true);
+    USING (order_id IN (
+      SELECT o.id FROM orders o
+      JOIN restaurants r ON r.id = o.restaurant_id
+      WHERE r.status = 'published'
+    ));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 GRANT SELECT ON order_tracking TO anon,authenticated;
@@ -1294,4 +1330,4 @@ GRANT ALL ON TABLE restaurants, categories, products, product_addons, addon_grou
 -- admin_trials: escrita/leitura do dono (policies de owner). Nunca para anon —
 -- era por aqui que um visitante ativava o Premium de graça.
 GRANT SELECT, INSERT, UPDATE ON TABLE admin_trials TO authenticated;
-GRANT ALL ON TABLE chat_messages, game_sessions, game_moves, profiles TO anon, authenticated, service_role;
+GRANT ALL ON TABLE chat_messages, game_sessions, game_moves, profiles TO authenticated, service_role;

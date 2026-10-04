@@ -117,6 +117,31 @@ Deno.serve(async (req) => {
       return new Response("Missing restaurant_id", { status: 400 });
     }
 
+    const admin = createClient(supabaseUrl, serviceRoleKey);
+
+    // O endpoint é público (a chave anon vai no bundle). Sem esta checagem
+    // qualquer visitante podia disparar push para a loja de terceiros. Exigimos
+    // que o `id` exista em `orders` e pertença ao restaurante informado.
+    const orderId = order?.id;
+    if (!orderId) {
+      return new Response(JSON.stringify({ error: "missing order id" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const { data: stored } = await admin
+      .from("orders")
+      .select("id")
+      .eq("id", orderId)
+      .eq("restaurant_id", restaurantId)
+      .maybeSingle();
+    if (!stored) {
+      return new Response(JSON.stringify({ error: "order not found" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const vapid = await getVapidKeys();
     if (!vapid) {
       return new Response(JSON.stringify({ error: "vapid unavailable" }), {
@@ -125,7 +150,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const admin = createClient(supabaseUrl, serviceRoleKey);
     const { data: subscriptions, error } = await admin
       .from("push_subscriptions")
       .select("token, p256dh, auth")
@@ -143,7 +167,11 @@ Deno.serve(async (req) => {
 
     const itemCount = Array.isArray(order.items) ? order.items.length : 0;
     const title = "🔔 Novo Pedido!";
-    const body = `${order.customer_name ?? "Cliente"} — ${itemCount} item${itemCount === 1 ? "" : "s"} • R$ ${Number(order.total ?? 0).toFixed(2).replace(".", ",")}`;
+    const body = `${order.customer_name ?? "Cliente"} — ${itemCount} item${itemCount === 1 ? "" : "s"} • R$ ${Number(
+      order.total ?? 0,
+    )
+      .toFixed(2)
+      .replace(".", ",")}`;
 
     const payload = JSON.stringify({
       title,

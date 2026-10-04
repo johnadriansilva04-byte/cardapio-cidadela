@@ -110,38 +110,48 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
 
             // external_reference deve conter o store_id
             if (!externalReference || externalReference.includes("@")) {
-              console.warn("[webhook/mercadopago] external_reference inválido:", externalReference);
+              // Não loga o valor: dados antigos podiam trazer um e-mail (PII) aqui.
+              console.warn("[webhook/mercadopago] external_reference inválido (ignorado)");
               return new Response(JSON.stringify({ received: true, error: "invalid reference" }), {
                 status: 200,
                 headers: { "Content-Type": "application/json" },
               });
             }
 
-            // Ativa Premium por 1 ano
+            // Ativa Premium por 1 ano. upsert para não depender de a linha já
+            // existir — um UPDATE sem linha não gera erro e o pagamento ficava
+            // "perdido" (200 ao MP, Premium nunca ativado).
             const expiresAt = new Date();
             expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
-            const { error } = await supabase
+            const { data: activated, error } = await supabase
               .from("admin_trials")
-              .update({
-                is_premium: true,
-                premium_expires_at: expiresAt.toISOString(),
-              })
-              .eq("store_id", externalReference);
+              .upsert(
+                {
+                  store_id: externalReference,
+                  is_premium: true,
+                  premium_expires_at: expiresAt.toISOString(),
+                },
+                { onConflict: "store_id" },
+              )
+              .select("store_id");
 
-            if (error) {
+            if (error || !activated?.length) {
               console.error("[webhook/mercadopago] Erro ao ativar Premium:", error);
-              return new Response(JSON.stringify({ received: true, error: error.message }), {
-                status: 500,
-                headers: { "Content-Type": "application/json" },
-              });
+              return new Response(
+                JSON.stringify({ received: true, error: error?.message ?? "not activated" }),
+                { status: 500, headers: { "Content-Type": "application/json" } },
+              );
             }
 
             console.log("[webhook/mercadopago] Premium ativado para store:", externalReference);
-            return new Response(JSON.stringify({ received: true, activated: true, storeId: externalReference }), {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            });
+            return new Response(
+              JSON.stringify({ received: true, activated: true, storeId: externalReference }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            );
           }
 
           // Outros tipos — registramos o recebimento para não gerar reentrega

@@ -288,6 +288,32 @@
 - `SUPABASE_SERVICE_ROLE_KEY` / `MERCADOPAGO_ACCESS_TOKEN` são server-only. Nunca
   prefixar com `VITE_` (vai para o bundle) e nunca deixar valor real no
   `.env.example`.
+- **Cota do plano gratuito é derivada de `orders`, não de um contador.** Com
+  `admin_trials` restrita ao dono/webhook, `monthly_order_count` deixou de subir
+  (o cliente não pode mais escrever) e o limite de 5 pedidos/mês sumia. Agora
+  `get_order_for_owner`, `owner_locked_stores` e `owner_monthly_order_count`
+  contam os pedidos REAIS do mês (`status <> 'cancelled'`). É consistente e à
+  prova de adulteração; não reintroduza o contador no cliente.
+- Ativação do Premium usa `upsert` (não `update`): um UPDATE sem linha não gera
+  erro, então o webhook devolvia 200 e o pagamento ficava "perdido". O webhook
+  ainda confere `activated.length` e devolve 500 para o MP reentregar.
+- `order_status_history`: o cliente só pode inserir a entrada inicial `received`
+  (policy `WITH CHECK (status = 'received')`) e só lê histórico de loja
+  publicada. Antes qualquer anônimo podia forjar "entregue"/"cancelado" e ler
+  histórico de pedido de terceiros.
+- Avaliação só é aceita se o `order_id` pertencer ao `restaurant_id`
+  (`order_belongs_to_restaurant`, SECURITY DEFINER em
+  `supabase_reviews_migration.sql`) — antes dava para avaliar pedido de outra loja.
+- Edge Function `notify-new-order` valida que o `id` do pedido existe e pertence
+  ao `restaurant_id` antes de enviar push (endpoint público com a anon key).
+- Tabelas legadas `chat_messages`/`game_sessions`/`game_moves` não são mais
+  `FOR ALL TO anon`; ficam para `authenticated` (não são usadas pelo app).
+- `src/start.ts` injeta cabeçalhos de segurança (HSTS, X-Frame-Options,
+  nosniff, Referrer-Policy, Permissions-Policy e CSP de enquadramento) em
+  produção; em dev ficam de fora para não quebrar http.
+- Se um `id` de pedido (`orders.id`, UUID) vaza, o histórico/status fica exposto
+  por design (link de acompanhamento). É um ponto em aberto: não aumente a
+  superfície logando o id em analytics/URLs de terceiros.
 
 
 ## Painel (admin)

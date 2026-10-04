@@ -85,15 +85,19 @@ export async function applyPreapproval(
   const cancelled = CANCEL_STATUSES.has(info.status);
 
   if (active) {
-    const { error } = await supabase
-      .from("admin_trials")
-      .update({
+    // upsert: cria a linha se ainda não existir. Um UPDATE silenciosamente sem
+    // efeito (0 linhas) fazia o Premium nunca ativar sem erro — o webhook
+    // devolvia 200 e o Mercado Pago não reentregava.
+    const { error } = await supabase.from("admin_trials").upsert(
+      {
+        store_id: storeId,
         is_premium: true,
         premium_expires_at: nextBillingDate(info),
         mercadopago_preapproval_id: info.id,
         mercadopago_payer_email: info.payerEmail || null,
-      })
-      .eq("store_id", storeId);
+      },
+      { onConflict: "store_id" },
+    );
     if (error) {
       return { handled: false, storeId, premium: false, reason: error.message };
     }

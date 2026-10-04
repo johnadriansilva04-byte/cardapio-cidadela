@@ -36,9 +36,24 @@ END $$;
 
 -- Escrita pública: o pedido é anônimo, então o cliente que avaliou não tem
 -- sessão. Ainda assim ele só pode inserir — não editar nem apagar.
+-- Valida (SECURITY DEFINER, pois o cliente não enxerga `orders` por RLS) que
+-- o pedido avaliado pertence ao restaurante avaliado. Sem isso, qualquer
+-- visitante podia colar uma avaliação em pedido de outra loja.
+CREATE OR REPLACE FUNCTION public.order_belongs_to_restaurant(p_order UUID, p_store UUID)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM orders o WHERE o.id = p_order AND o.restaurant_id = p_store
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.order_belongs_to_restaurant(UUID, UUID) TO anon, authenticated;
+
 DO $$ BEGIN
   CREATE POLICY "public_insert_reviews" ON reviews FOR INSERT TO anon, authenticated
-    WITH CHECK (rating BETWEEN 1 AND 5);
+    WITH CHECK (
+      rating BETWEEN 1 AND 5
+      AND (order_id IS NULL OR public.order_belongs_to_restaurant(order_id, restaurant_id))
+    );
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 

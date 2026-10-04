@@ -62,6 +62,16 @@ async function fetchRow(storeId: string): Promise<SubscriptionRow | null> {
   return (data as SubscriptionRow) ?? null;
 }
 
+/**
+ * Pedidos do mês corrente, derivados de `orders` (não do contador gravável).
+ * A RPC valida a posse; sem ela (schema antigo) cai para 0 e a UI não trava.
+ */
+async function fetchMonthlyOrderCount(storeId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("owner_monthly_order_count", { p_store: storeId });
+  if (error) return 0;
+  return Math.max(0, Number(data ?? 0) || 0);
+}
+
 /** Garante uma linha de assinatura para o restaurante. */
 async function ensureRow(storeId: string): Promise<SubscriptionRow | null> {
   const existing = await fetchRow(storeId);
@@ -92,8 +102,8 @@ async function patchRow(storeId: string, values: Record<string, unknown>): Promi
   return true;
 }
 
-function toStatus(row: SubscriptionRow | null): SubscriptionStatus {
-  const used = Math.max(0, Number(row?.monthly_order_count ?? 0) || 0);
+function toStatus(row: SubscriptionRow | null, usedOverride?: number): SubscriptionStatus {
+  const used = Math.max(0, Number(usedOverride ?? row?.monthly_order_count ?? 0) || 0);
   const isPremium = Boolean(row?.is_premium) && premiumActive(row?.premium_expires_at ?? null);
   return {
     isPremium,
@@ -125,28 +135,21 @@ export async function resetMonthlyCountIfNeeded(storeId: string): Promise<void> 
 /** Verifica se é premium ou gratuito, com o uso do mês corrente. */
 export async function checkSubscriptionStatus(storeId: string): Promise<SubscriptionStatus> {
   await resetMonthlyCountIfNeeded(storeId);
-  return toStatus(await fetchRow(storeId));
-}
-
-/** Incrementa o contador de pedidos do mês (após um pedido criado com sucesso). */
-export async function incrementOrderCount(storeId: string): Promise<void> {
-  await resetMonthlyCountIfNeeded(storeId);
-  const row = await ensureRow(storeId);
-  if (!row) return;
-  const next = Math.max(0, Number(row.monthly_order_count ?? 0) || 0) + 1;
-  await patchRow(storeId, { monthly_order_count: next });
+  const row = await fetchRow(storeId);
+  const used = await fetchMonthlyOrderCount(storeId);
+  return toStatus(row, used);
 }
 
 /**
  * Retorna se o restaurante ainda pode receber pedidos neste mês.
- * Premium nunca é bloqueado.
+ * Premium nunca é bloqueado. A contagem vem dos pedidos reais do mês.
  */
 export async function checkMonthlyLimit(
   storeId: string,
 ): Promise<{ allowed: boolean; remaining: number; used: number; isPremium: boolean }> {
   await resetMonthlyCountIfNeeded(storeId);
   const row = await fetchRow(storeId);
-  const status = toStatus(row);
+  const status = toStatus(row, await fetchMonthlyOrderCount(storeId));
   return {
     allowed: status.isPremium || status.remainingOrders > 0,
     remaining: status.remainingOrders,

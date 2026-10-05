@@ -2,26 +2,27 @@ import { supabase } from "./client";
 import type { Order, OrderStatus } from "@/lib/types";
 import { resolveOrderPricing, PricingError } from "./pricing";
 
-function idempotencyKey(
-  restaurantId: string,
-  customerPhone: string,
-  comanda: string,
-  items: { product_id: string; quantity: number; unit_price: number }[],
-): string {
-  // A comanda entra na chave porque identifica a *tentativa* de pedido, não o
-  // conteúdo: sem ela, o mesmo cliente repetindo os mesmos itens ("o de sempre")
-  // caía no dedupe e a segunda compra nunca virava linha nova no banco.
-  const raw = [
-    restaurantId,
-    customerPhone,
-    comanda,
-    ...items.map((i) => `${i.product_id}:${i.quantity}:${i.unit_price}`).sort(),
-  ].join("|");
-  let h = 5381;
-  for (let i = 0; i < raw.length; i++) h = ((h << 5) + h) ^ raw.charCodeAt(i);
-  return "idem-" + (h >>> 0).toString(16);
+function rpcFunctionMissing(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "PGRST202" ||
+    // A RPC pode existir mas não ser encontrada no cache do PostgREST.
+    /could not find the function|schema cache/i.test(error.message ?? "")
+  );
 }
 
+/**
+ * Cria o pedido de forma atômica e com preço autoritativo no banco.
+ *
+ * O caminho oficial é a RPC `create_order_atomic` (SECURITY DEFINER): ela
+ * recalcula unit_price/subtotal/frete/total a partir de `products`,
+ * `product_addons` e `delivery_neighborhoods` e grava pedido + itens +
+ * histórico na MESMA transação. É a única forma segura — o cliente nunca
+ * consegue forjar o total, e um pedido nunca fica sem itens.
+ *
+ * Se a RPC ainda não existir no banco (schema antigo, sem as tabelas novas),
+ * cai para o caminho legado no cliente para não travar quem já opera.
+ */
 export async function createOrder(
   restaurantId: string,
   orderData: {
@@ -50,6 +51,124 @@ export async function createOrder(
     total: number;
     notes?: string;
     /** Ids dos adicionais — o preço deles é resolvido no servidor. */
+    addon_ids?: string[];
+  }[],
+): Promise<{ order: Order | null; error?: { message: string; code?: string } }> {
+  const { data, error } = await supabase.rpc("create_order_atomic", {
+    p_restaurant_id: restaurantId,
+    p_order: {
+      comanda: orderData.comanda,
+      customer_id: orderData.customer_id ?? null,
+      guest_id: orderData.guest_id ?? null,
+      customer_name: orderData.customer_name,
+      customer_phone: orderData.customer_phone,
+      customer_email: orderData.customer_email,
+      delivery_address: orderData.delivery_address,
+      customer_complement: orderData.customer_complement ?? "",
+      customer_neighborhood: orderData.customer_neighborhood ?? "",
+      customer_city: orderData.customer_city ?? "",
+      delivery_type: orderData.delivery_type,
+      observations: orderData.observations,
+      payment_method: orderData.payment_method,
+    },
+    p_items: items.map((i) => ({
+      product_id: i.product_id,
+      quantity: i.quantity,
+      notes: i.notes ?? "",
+      addon_ids: i.addon_ids ?? [],
+    })),
+  });
+
+  if (error && !rpcFunctionMissing(error)) {
+    // Erros de regra (item indisponível, carrinho vazio, restaurante inexistente)
+    // vêm do banco como EXCEPTION (SQLSTATE P0001) e são úteis ao cliente;
+    // falhas técnicas (RLS, schema) viram mensagem genérica na tela.
+    const isRuleError =
+      error.code === "P0001" ||
+      /indisponível|carrinho vazio|não encontrado|não está mais disponível/i.test(
+        error.message ?? "",
+      );
+    return {
+      order: null,
+      error: { message: error.message, code: isRuleError ? "PRICING" : error.code },
+    };
+  }
+
+  if (!error) {
+    const row = data as { order?: Order | null } | null;
+    const order = row?.order ?? null;
+    if (!order) {
+      return {
+        order: null,
+        error: { message: "Não foi possível confirmar o pedido. Tente novamente." },
+      };
+    }
+    void supabase.functions
+      .invoke("notify-new-order", {
+        body: {
+          id: order.id,
+          restaurant_id: restaurantId,
+          customer_name: order.customer_name,
+          comanda: order.comanda,
+          total: order.total,
+          delivery_type: order.delivery_type,
+          items: items.map((i) => ({ product_name: i.product_name, quantity: i.quantity })),
+        },
+      })
+      .catch(() => {
+        /* push é best-effort: falha não afeta o pedido */
+      });
+    return { order: { ...order, order_items: order.order_items ?? [] } };
+  }
+
+  return createOrderViaClient(restaurantId, orderData, items);
+}
+
+/** Hash estável usado só pelo caminho legado (DBs sem a RPC atômica). */
+function idempotencyKey(
+  restaurantId: string,
+  customerPhone: string,
+  comanda: string,
+  items: { product_id: string; quantity: number; unit_price: number }[],
+): string {
+  const raw = [
+    restaurantId,
+    customerPhone,
+    comanda,
+    ...items.map((i) => `${i.product_id}:${i.quantity}:${i.unit_price}`).sort(),
+  ].join("|");
+  let h = 5381;
+  for (let i = 0; i < raw.length; i++) h = ((h << 5) + h) ^ raw.charCodeAt(i);
+  return "idem-" + (h >>> 0).toString(16);
+}
+
+async function createOrderViaClient(
+  restaurantId: string,
+  orderData: {
+    comanda: string;
+    customer_id?: string | null;
+    guest_id?: string | null;
+    customer_name: string;
+    customer_phone: string;
+    customer_email: string;
+    delivery_address: string;
+    customer_complement?: string;
+    customer_neighborhood?: string;
+    customer_city?: string;
+    delivery_type: string;
+    observations: string;
+    subtotal: number;
+    delivery_fee: number;
+    total: number;
+    payment_method: string;
+  },
+  items: {
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+    notes?: string;
     addon_ids?: string[];
   }[],
 ): Promise<{ order: Order | null; error?: { message: string; code?: string } }> {

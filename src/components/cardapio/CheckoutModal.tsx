@@ -186,7 +186,9 @@ export default function CheckoutModal({
               const Icon = s.icon;
               return (
                 <div key={s.n} className="flex flex-1 items-center last:flex-none">
-                  <div className="flex items-center gap-1.5">                      <span
+                  <div className="flex items-center gap-1.5">
+                    {" "}
+                    <span
                       className={`grid size-6 place-items-center rounded-full border text-[10px] font-black transition-all ${
                         done
                           ? "border-transparent text-white"
@@ -196,7 +198,10 @@ export default function CheckoutModal({
                       }`}
                       style={
                         done || active
-                          ? { backgroundColor: accent, boxShadow: `0 0 14px ${hexToRgba(accent, 0.5)}` }
+                          ? {
+                              backgroundColor: accent,
+                              boxShadow: `0 0 14px ${hexToRgba(accent, 0.5)}`,
+                            }
                           : undefined
                       }
                     >
@@ -247,8 +252,11 @@ export default function CheckoutModal({
           {step === 1 && (
             <div className="space-y-3">
               <div>
-                <label className={label}>Seu nome *</label>
+                <label className={label} htmlFor="co-name">
+                  Seu nome *
+                </label>
                 <input
+                  id="co-name"
                   className={field}
                   placeholder="Como podemos te chamar?"
                   value={form.customer_name}
@@ -257,8 +265,11 @@ export default function CheckoutModal({
                 />
               </div>
               <div>
-                <label className={label}>WhatsApp / Telefone *</label>
+                <label className={label} htmlFor="co-phone">
+                  WhatsApp / Telefone *
+                </label>
                 <input
+                  id="co-phone"
                   className={field}
                   placeholder="(11) 99999-9999"
                   value={form.customer_phone}
@@ -268,10 +279,11 @@ export default function CheckoutModal({
                 />
               </div>
               <div>
-                <label className={label}>
+                <label className={label} htmlFor="co-email">
                   E-mail <span className="text-gray-600">(opcional)</span>
                 </label>
                 <input
+                  id="co-email"
                   className={field}
                   placeholder="voce@email.com"
                   value={form.customer_email}
@@ -321,8 +333,11 @@ export default function CheckoutModal({
               {isDelivery ? (
                 <>
                   <div>
-                    <label className={label}>Endereço (rua e número) *</label>
+                    <label className={label} htmlFor="co-address">
+                      Endereço (rua e número) *
+                    </label>
                     <input
+                      id="co-address"
                       className={field}
                       placeholder="Rua das Flores, 123"
                       value={form.delivery_address}
@@ -332,8 +347,11 @@ export default function CheckoutModal({
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className={label}>Complemento</label>
+                      <label className={label} htmlFor="co-complement">
+                        Complemento
+                      </label>
                       <input
+                        id="co-complement"
                         className={field}
                         placeholder="Apto 42"
                         value={form.customer_complement}
@@ -341,9 +359,12 @@ export default function CheckoutModal({
                       />
                     </div>
                     <div>
-                      <label className={label}>Bairro *</label>
+                      <label className={label} htmlFor="co-neighborhood">
+                        Bairro *
+                      </label>
                       {hasNeighborhoods ? (
                         <select
+                          id="co-neighborhood"
                           className={field + " appearance-none"}
                           value={form.customer_neighborhood}
                           onChange={(e) =>
@@ -361,6 +382,7 @@ export default function CheckoutModal({
                         </select>
                       ) : (
                         <input
+                          id="co-neighborhood"
                           className={field}
                           placeholder="Seu bairro"
                           value={form.customer_neighborhood}
@@ -372,8 +394,11 @@ export default function CheckoutModal({
                     </div>
                   </div>
                   <div>
-                    <label className={label}>Cidade</label>
+                    <label className={label} htmlFor="co-city">
+                      Cidade
+                    </label>
                     <input
+                      id="co-city"
                       className={field}
                       placeholder="Sua cidade"
                       value={form.customer_city}
@@ -404,10 +429,11 @@ export default function CheckoutModal({
               )}
 
               <div>
-                <label className={label}>
+                <label className={label} htmlFor="co-observations">
                   Observações <span className="text-gray-600">(opcional)</span>
                 </label>
                 <textarea
+                  id="co-observations"
                   className={field + " resize-none"}
                   rows={2}
                   placeholder="Ex: ponto de referência, campainha..."
@@ -455,8 +481,11 @@ export default function CheckoutModal({
               )}
               {form.payment_method === "dinheiro" && (
                 <div>
-                  <label className={label}>Troco para quanto?</label>
+                  <label className={label} htmlFor="co-change">
+                    Troco para quanto?
+                  </label>
                   <input
+                    id="co-change"
                     className={field}
                     placeholder={`Ex: ${Math.ceil(totalWithFee / 10) * 10}`}
                     value={form.change_for}

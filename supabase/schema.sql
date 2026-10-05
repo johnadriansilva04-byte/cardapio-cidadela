@@ -391,6 +391,217 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_my_orders() TO authenticated;
 
 -- ============================================================
+-- CRIAÇÃO ATÔMICA DO PEDIDO (preço autoritativo no banco)
+-- ============================================================
+-- Antes, o pedido era montado no navegador: `resolveOrderPricing` rodava como
+-- código de cliente e o INSERT direto em `orders`/`order_items` aceitava
+-- `WITH CHECK (true)`. Qualquer anon podia gravar unit_price/subtotal/total
+-- arbitrários (ex.: R$ 0,01) e o dono só descobria depois. Além disso, se o
+-- INSERT de itens falhasse, o pedido ficava sem itens (não-transacional).
+-- Esta RPC recalcula TUDO a partir de `products`/`product_addons`/
+-- `delivery_neighborhoods` e grava pedido + itens + histórico na mesma
+-- transação. É o único caminho de escrita do cliente.
+CREATE OR REPLACE FUNCTION public.create_order_atomic(
+  p_restaurant_id UUID,
+  p_order JSONB,
+  p_items JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_restaurant RECORD;
+  v_item JSONB;
+  v_product RECORD;
+  v_idem TEXT;
+  v_existing orders%ROWTYPE;
+  v_qty INTEGER;
+  v_addon_ids TEXT[];
+  v_addon RECORD;
+  v_addon_sum NUMERIC(10,2);
+  v_addon_names TEXT;
+  v_unit NUMERIC(10,2);
+  v_qty_total INTEGER;
+  v_line NUMERIC(10,2);
+  v_subtotal NUMERIC(10,2) := 0;
+  v_delivery_fee NUMERIC(10,2) := 0;
+  v_total NUMERIC(10,2) := 0;
+  v_order_id UUID;
+  v_priced_items JSONB := '[]'::jsonb;
+  v_sig TEXT := '';
+  v_attempt INTEGER := 0;
+  v_delivery_type TEXT;
+  v_neighborhood TEXT;
+  v_fee RECORD;
+  v_order_row JSONB;
+BEGIN
+  IF p_restaurant_id IS NULL THEN
+    RAISE EXCEPTION 'Restaurante inválido.';
+  END IF;
+
+  SELECT * INTO v_restaurant FROM restaurants WHERE id = p_restaurant_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Restaurante não encontrado.';
+  END IF;
+
+  IF jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+    RAISE EXCEPTION 'Carrinho vazio.';
+  END IF;
+
+  v_delivery_type := COALESCE(NULLIF(p_order->>'delivery_type', ''), 'retirada');
+  v_neighborhood := NULLIF(p_order->>'customer_neighborhood', '');
+
+  -- 1) Resolve cada item a partir do banco (nunca confia no cliente).
+  --    `WITH ORDINALITY` preserva a ordem enviada.
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+    v_qty_total := GREATEST(1, COALESCE(NULLIF(v_item->>'quantity', '')::INTEGER, 1));
+
+    SELECT id, name, price, available INTO v_product
+      FROM products
+     WHERE id = NULLIF(v_item->>'product_id', '')::UUID
+       AND restaurant_id = p_restaurant_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Um item do seu carrinho não está mais disponível. Recarregue o cardápio.';
+    END IF;
+    IF v_product.available IS FALSE THEN
+      RAISE EXCEPTION '"%" está indisponível no momento.', v_product.name;
+    END IF;
+
+    v_addon_sum := 0;
+    v_addon_names := '';
+    SELECT array_agg(t.value) INTO v_addon_ids
+      FROM jsonb_array_elements_text(COALESCE(v_item->'addon_ids', '[]'::jsonb)) AS t(value);
+    IF v_addon_ids IS NOT NULL THEN
+      FOR v_addon IN
+        SELECT name, price FROM product_addons
+         WHERE id = ANY(v_addon_ids::UUID[])
+           AND (restaurant_id IS NULL OR restaurant_id = p_restaurant_id)
+      LOOP
+        v_addon_sum := v_addon_sum + COALESCE(v_addon.price, 0);
+        v_addon_names := v_addon_names || CASE WHEN v_addon_names = '' THEN '' ELSE ', ' END || v_addon.name;
+      END LOOP;
+    END IF;
+
+    v_unit := ROUND(COALESCE(v_product.price, 0) + v_addon_sum, 2);
+    v_line := ROUND(v_unit * v_qty_total, 2);
+    v_subtotal := v_subtotal + v_line;
+
+    -- Assinatura estável do item (sem o id gerado) para a chave de idempotência.
+    -- COALESCE: sem adicionais o array_agg é NULL e a concatenação zeraria a chave.
+    v_sig := v_sig || '|' || v_product.id::text || ':' || v_qty_total::text || ':' ||
+             v_unit::text || ':' || COALESCE(v_item->>'notes', '') || ':' ||
+             COALESCE(array_to_string(v_addon_ids, ','), '');
+
+    v_priced_items := v_priced_items || jsonb_build_object(
+      'id', gen_random_uuid()::text,
+      'product_id', v_product.id,
+      'product_name', CASE WHEN v_addon_names = '' THEN v_product.name
+                           ELSE v_product.name || ' (+ ' || v_addon_names || ')' END,
+      'quantity', v_qty_total,
+      'unit_price', v_unit,
+      'total', v_line,
+      'notes', COALESCE(v_item->>'notes', '')
+    );
+  END LOOP;
+
+  -- 2) Frete: só entrega, com match EXATO (case-insensitive) do bairro.
+  IF v_delivery_type = 'entrega' THEN
+    IF v_neighborhood IS NOT NULL THEN
+      SELECT n.fee INTO v_fee
+        FROM delivery_neighborhoods n
+       WHERE n.restaurant_id = p_restaurant_id
+         AND lower(trim(n.name)) = lower(trim(v_neighborhood))
+       LIMIT 1;
+      IF FOUND THEN
+        v_delivery_fee := COALESCE(v_fee.fee, COALESCE(v_restaurant.delivery_fee, 0));
+      ELSE
+        v_delivery_fee := COALESCE(v_restaurant.delivery_fee, 0);
+      END IF;
+    ELSE
+      v_delivery_fee := COALESCE(v_restaurant.delivery_fee, 0);
+    END IF;
+  END IF;
+  v_delivery_fee := ROUND(v_delivery_fee, 2);
+  v_total := ROUND(v_subtotal + v_delivery_fee, 2);
+
+  -- 3) Idempotência calculada no banco (md5 é estável e maior que o hash de 32
+  --    bits do cliente, evitando colisões).
+  v_idem := 'idem-' || md5(
+    p_restaurant_id::text || '|' || COALESCE(p_order->>'customer_phone', '') || '|' ||
+    COALESCE(p_order->>'comanda', '') || '|' || v_sig
+  );
+
+  SELECT * INTO v_existing FROM orders WHERE idempotency_key = v_idem LIMIT 1;
+  IF FOUND AND v_existing.status <> 'cancelled' THEN
+    RETURN jsonb_build_object(
+      'order', to_jsonb(v_existing),
+      'items', v_priced_items
+    );
+  END IF;
+
+  -- 4) Insere o pedido; em corrida de idempotência gera uma chave nova.
+  LOOP
+    v_order_id := gen_random_uuid();
+    BEGIN
+      INSERT INTO orders (
+        id, restaurant_id, idempotency_key, comanda,
+        customer_name, customer_phone, customer_email,
+        delivery_address, delivery_type, observations,
+        subtotal, delivery_fee, total, payment_method, payment_status, status,
+        customer_id, guest_id, customer_complement, customer_neighborhood, customer_city
+      ) VALUES (
+        v_order_id, p_restaurant_id, v_idem, COALESCE(p_order->>'comanda', ''),
+        COALESCE(p_order->>'customer_name', ''), COALESCE(p_order->>'customer_phone', ''),
+        COALESCE(p_order->>'customer_email', ''),
+        COALESCE(p_order->>'delivery_address', ''), v_delivery_type,
+        COALESCE(p_order->>'observations', ''),
+        v_subtotal, v_delivery_fee, v_total,
+        COALESCE(p_order->>'payment_method', 'pix'),
+        CASE WHEN p_order->>'payment_method' = 'pix' THEN 'awaiting_confirmation' ELSE 'pending' END,
+        'received',
+        NULLIF(p_order->>'customer_id', ''), NULLIF(p_order->>'guest_id', ''),
+        COALESCE(p_order->>'customer_complement', ''),
+        COALESCE(p_order->>'customer_neighborhood', ''), COALESCE(p_order->>'customer_city', '')
+      );
+      EXIT;
+    EXCEPTION WHEN unique_violation THEN
+      v_attempt := v_attempt + 1;
+      IF v_attempt > 5 THEN
+        -- Já existe (corrida): devolve o pedido gravado.
+        SELECT * INTO v_existing FROM orders
+         WHERE idempotency_key LIKE v_idem || '%' ORDER BY created_at DESC LIMIT 1;
+        IF FOUND THEN
+          RETURN jsonb_build_object('order', to_jsonb(v_existing), 'items', v_priced_items);
+        END IF;
+        RAISE;
+      END IF;
+      v_idem := v_idem || '-' || floor(random() * 1000000)::text;
+    END;
+  END LOOP;
+
+  -- 5) Itens e histórico na MESMA transação — se algo falhar, tudo desfaz.
+  INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price, total, notes)
+  SELECT
+    v_order_id,
+    NULLIF(it->>'product_id', '')::UUID,
+    it->>'product_name',
+    (it->>'quantity')::INTEGER,
+    (it->>'unit_price')::NUMERIC,
+    (it->>'total')::NUMERIC,
+    COALESCE(it->>'notes', '')
+  FROM jsonb_array_elements(v_priced_items) it;
+
+  INSERT INTO order_status_history (order_id, status, note)
+  VALUES (v_order_id, 'received', 'Pedido criado');
+
+  SELECT to_jsonb(o) INTO v_order_row FROM orders o WHERE o.id = v_order_id;
+
+  RETURN jsonb_build_object('order', v_order_row, 'items', v_priced_items);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.create_order_atomic(UUID, JSONB, JSONB) TO anon, authenticated;
+
+-- ============================================================
 -- LEITURA PROTEGIDA DO PEDIDO PELO ESTABELECIMENTO
 -- O plano gratuito permite 5 pedidos/mês. Os pedidos continuam sendo criados
 -- e gravados normalmente; o que fica protegido é a *leitura dos detalhes*
@@ -883,8 +1094,11 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 SELECT drop_policies_if_exist('orders');
 CREATE POLICY "owner_orders" ON orders FOR ALL
   USING (is_restaurant_owner(restaurant_id));
-CREATE POLICY "public_insert_orders" ON orders FOR INSERT TO anon,authenticated
-  WITH CHECK (true);
+-- Sem INSERT público direto na tabela: o pedido é gravado por
+-- `create_order_atomic` (SECURITY DEFINER), que recalcula os preços no banco.
+-- Antes, `WITH CHECK (true)` deixava qualquer anon inserir pedido com
+-- unit_price/subtotal/total inventados — o `resolveOrderPricing` era código de
+-- cliente e não protegia nada contra um client malicioso.
 
 -- ORDER ITEMS
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
@@ -893,8 +1107,7 @@ CREATE POLICY "owner_order_items" ON order_items FOR ALL
   USING (order_id IN (
     SELECT o.id FROM orders o WHERE is_restaurant_owner(o.restaurant_id)
   ));
-CREATE POLICY "public_insert_order_items" ON order_items FOR INSERT TO anon,authenticated
-  WITH CHECK (true);
+-- (INSERT fica por conta da RPC `create_order_atomic`.)
 -- ORDER STATUS HISTORY
 ALTER TABLE order_status_history ENABLE ROW LEVEL SECURITY;
 SELECT drop_policies_if_exist('order_status_history');
@@ -902,12 +1115,9 @@ CREATE POLICY "owner_order_status_history" ON order_status_history FOR ALL
   USING (order_id IN (
     SELECT o.id FROM orders o WHERE is_restaurant_owner(o.restaurant_id)
   ));
--- O cliente (anon/autenticado) só pode registrar a entrada INICIAL "received",
--- feita junto com o pedido. Antes a policy era TO anon WITH CHECK (true), então
--- qualquer visitante podia inserir "entregue"/"cancelado" no pedido de terceiros.
-CREATE POLICY "public_insert_initial_order_status_history" ON order_status_history
-  FOR INSERT TO anon,authenticated
-  WITH CHECK (status = 'received');
+-- Sem INSERT público: a entrada inicial "received" é gravada pela própria RPC
+-- `create_order_atomic`. Antes qualquer anon podia inserir linhas de histórico
+-- para um order_id alheio.
 
 -- ADDON GROUPS
 ALTER TABLE addon_groups ENABLE ROW LEVEL SECURITY;
@@ -922,12 +1132,27 @@ CREATE POLICY "owner_addons" ON addons FOR ALL
   USING (is_restaurant_owner(restaurant_id));
 
 -- CIDADELA UNLOCKS
+-- Helper: valida que um pedido pertence ao restaurante informado. Usado pelas
+-- policies de INSERT público (cidadela_unlocks e, na migração de reviews,
+-- reviews) para impedir que qualquer anon vincule linhas a pedidos alheios.
+CREATE OR REPLACE FUNCTION public.order_belongs_to_restaurant(p_order UUID, p_store UUID)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM orders o WHERE o.id = p_order AND o.restaurant_id = p_store
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.order_belongs_to_restaurant(UUID, UUID) TO anon, authenticated;
+
 ALTER TABLE cidadela_unlocks ENABLE ROW LEVEL SECURITY;
 SELECT drop_policies_if_exist('cidadela_unlocks');
 CREATE POLICY "owner_cidadela" ON cidadela_unlocks FOR ALL
   USING (is_restaurant_owner(restaurant_id));
+-- O desbloqueio só é aceito se o order_id realmente pertencer ao restaurante —
+-- antes o `WITH CHECK (true)` deixava qualquer anon criar linhas para qualquer
+-- loja e poluir o histórico de fidelidade com pedidos alheios.
 CREATE POLICY "public_insert_cidadela_unlocks" ON cidadela_unlocks FOR INSERT TO anon,authenticated
-  WITH CHECK (true);
+  WITH CHECK (public.order_belongs_to_restaurant(order_id, restaurant_id));
 -- ============================================================
 -- ADMIN_TRIALS (assinatura/legado)
 -- ============================================================

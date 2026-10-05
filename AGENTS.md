@@ -14,6 +14,12 @@
 ## Build & verification
 
 - `npm run build` (Vite + Nitro). `npx tsc --noEmit` for types.
+- `npm run test:e2e` (Playwright, chromium). Sobe o dev server com `E2E=1`,
+  que troca o SDK do Supabase por um backend em memória
+  (`src/e2e/supabase-stub.ts`) — não precisa de projeto Supabase real. O stub
+  também implementa a RPC `create_order_atomic`, então o E2E prova de ponta a
+  ponta que o preço é recalculado no "servidor" e que um item indisponível
+  bloqueia o pedido. Config em `playwright.config.ts`, specs em `e2e/`.
 - `npm run test` (Vitest, jsdom). Config in `vitest.config.ts`, setup in
   `src/test/setup.ts`; `@` maps to `src/`. Component tests use
   `@testing-library/react` + `@testing-library/user-event`.
@@ -82,6 +88,17 @@
 - `createOrder` dedupes on an idempotency key that includes the `comanda` —
   without it, the same customer reordering identical items was swallowed as a
   duplicate and never reached the restaurant.
+- Pricing is server-authoritative: `orders`/`order_items`/`order_status_history`
+  have **no** public INSERT policy. The only client write path is the
+  `create_order_atomic` RPC (SECURITY DEFINER), which recomputes
+  unit_price/subtotal/frete/total from `products`/`product_addons`/
+  `delivery_neighborhoods` and writes order + items + history in one
+  transaction. `createOrder` calls it and only falls back to the legacy
+  client-side path when the RPC is absent (old schema). Never reintroduce
+  `WITH CHECK (true)` inserts — the client could forge the total before this.
+- `cidadela_unlocks` INSERT requires `order_belongs_to_restaurant(order_id,
+  restaurant_id)`; the public history insert policy was removed (the RPC writes
+  the initial `received` row).
 - Every `subscribeToOrders` caller passes a distinct channel prefix
   (`mobile_orders`, `mobile_badge`, `admin_alert`, `customer_list`,
   `customer_order`). Supabase reuses channel topics by name, so sharing one

@@ -39,5 +39,11 @@ dist-ssr
 *.sln
 *.sw?
 
+# Playwright (E2E)
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
 # N8N workflow files with secrets
 fluxo cidadela.json

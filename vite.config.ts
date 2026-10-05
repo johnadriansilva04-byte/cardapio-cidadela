@@ -5,6 +5,13 @@
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { fileURLToPath } from "node:url";
+
+// E2E=1 troca o SDK real do Supabase por um backend em memória
+// (src/e2e/supabase-stub.ts). Só para os testes E2E; o build normal não é
+// afetado porque o alias só existe com a variável ligada.
+const isE2E = process.env.E2E === "1";
+const stubPath = fileURLToPath(new URL("./src/e2e/supabase-stub.ts", import.meta.url));
 
 export default defineConfig({
   tanstackStart: {
@@ -13,6 +20,15 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    ...(isE2E
+      ? {
+          resolve: {
+            alias: {
+              "@supabase/supabase-js": stubPath,
+            },
+          },
+        }
+      : {}),
     server: {
       // Allow the sandbox/preview hosts (and any localhost variant) to reach
       // the dev server. Without this Vite blocks requests that arrive with a

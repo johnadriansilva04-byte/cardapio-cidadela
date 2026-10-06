@@ -391,3 +391,21 @@
 - Usa `orderTimer`/`formatElapsed` de `@/modules/mobile/orders` e tem relógio
   próprio (15s) para o "tempo parado" não congelar. `Escape` fecha; o scroll do
   painel atrás é travado enquanto o overlay está aberto.
+
+## Fila de pedidos com volume (não poluir a tela)
+
+- `src/modules/ui/ProgressiveList.tsx` mostra os `initial` primeiros itens e
+  resume o resto em "Ver mais N" (lotes de `step`, com "Mostrar menos" para
+  recolher). Os itens escondidos **não são montados**, então 40 pedidos não
+  custam 40 cards na primeira pintura. É o primitivo para qualquer lista longa.
+- O `/mobile` (`mobile.index.tsx`) usa `initial={2} step={8}` sobre
+  `visibleOrders`; o Kanban do `OrderManager` usa o mesmo em cada coluna ativa e
+  no histórico. Assim um dia cheio não vira uma parede de cards nem rolagem
+  infinita — a tela fica estável e o operador abre só o que precisa.
+- O `data-testid="progressive-more"` existe para o E2E medir o resumo. Coberto
+  por `ProgressiveList.test.tsx` (só 2 montados, revela em lotes, recolhe, sem
+  controles quando cabe).
+- O E2E `e2e/orders-queue.spec.ts` prova com 40 pedidos: só 2 cards no DOM,
+  botão "+38", 10 após um toque. Para telas autenticadas o stub aceita uma
+  sessão logada via `window.__E2E_SESSION__` (o `getSession`/`getUser` do stub
+  a devolvem); sem ela o E2E continua anônimo como antes.

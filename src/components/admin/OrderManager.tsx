@@ -53,6 +53,7 @@ import {
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/lib/types";
 import { OrderStatusBadge } from "@/components/admin/StatusBadge";
 import { KitchenMode } from "@/components/admin/KitchenMode";
+import { ProgressiveList } from "@/modules/ui/ProgressiveList";
 import {
   getOrdersByRestaurant,
   getOrderForOwner,
@@ -629,25 +630,38 @@ export function OrderManager({
                     {colOrders.length === 0 ? (
                       <p className="py-6 text-center text-xs text-gray-600">Sem pedidos</p>
                     ) : (
-                      colOrders.map((order) => {
-                        const locked = lockedStores.has(order.restaurant_id);
-                        return (
-                          <OrderCard
-                            key={order.id}
-                            order={order}
-                            storeName={multi ? restaurantNames.get(order.restaurant_id) : undefined}
-                            locked={locked}
-                            fresh={freshIds.has(order.id)}
-                            onOpen={() => openDetail(order)}
-                            onAdvance={
-                              locked
-                                ? undefined
-                                : () => changeStatus(order.id, NEXT_STATUS[order.status]!)
-                            }
-                            onCancel={locked ? undefined : () => requestCancel(order)}
-                          />
-                        );
-                      })
+                      // Cada coluna resume o volume: os 2 primeiros à vista e o
+                      // resto atrás de "Ver mais". Sem isso, um dia cheio vira
+                      // uma parede de cards e a coluna vira rolagem infinita.
+                      <ProgressiveList
+                        items={colOrders}
+                        initial={2}
+                        step={8}
+                        singular="pedido"
+                        plural="pedidos"
+                        ariaLabel={`${col.label} — pedidos`}
+                        renderItem={(order) => {
+                          const locked = lockedStores.has(order.restaurant_id);
+                          return (
+                            <OrderCard
+                              key={order.id}
+                              order={order}
+                              storeName={
+                                multi ? restaurantNames.get(order.restaurant_id) : undefined
+                              }
+                              locked={locked}
+                              fresh={freshIds.has(order.id)}
+                              onOpen={() => openDetail(order)}
+                              onAdvance={
+                                locked
+                                  ? undefined
+                                  : () => changeStatus(order.id, NEXT_STATUS[order.status]!)
+                              }
+                              onCancel={locked ? undefined : () => requestCancel(order)}
+                            />
+                          );
+                        }}
+                      />
                     )}
                   </div>
                 </div>
@@ -727,17 +741,25 @@ export function OrderManager({
                             </span>
                           </div>
                           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2">
-                            {colOrders.map((order) => (
-                              <OrderCard
-                                key={order.id}
-                                order={order}
-                                storeName={
-                                  multi ? restaurantNames.get(order.restaurant_id) : undefined
-                                }
-                                compact
-                                onOpen={() => openDetail(order)}
-                              />
-                            ))}
+                            <ProgressiveList
+                              items={colOrders}
+                              initial={2}
+                              step={8}
+                              singular="pedido"
+                              plural="pedidos"
+                              ariaLabel={`${ORDER_STATUS_LABELS[s]} — pedidos`}
+                              renderItem={(order) => (
+                                <OrderCard
+                                  key={order.id}
+                                  order={order}
+                                  storeName={
+                                    multi ? restaurantNames.get(order.restaurant_id) : undefined
+                                  }
+                                  compact
+                                  onOpen={() => openDetail(order)}
+                                />
+                              )}
+                            />
                           </div>
                         </div>
                       );

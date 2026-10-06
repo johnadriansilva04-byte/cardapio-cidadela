@@ -38,6 +38,17 @@ interface E2EDb {
 declare global {
   var __E2E_DB__: E2EDb | undefined;
   var __E2E_SEED__: Partial<E2EDb> | undefined;
+  /** Sessão logada para exercitar telas autenticadas no E2E. */
+  var __E2E_SESSION__: E2ESession | undefined;
+}
+
+export interface E2ESession {
+  user: {
+    id: string;
+    email?: string;
+    phone?: string;
+    user_metadata?: Record<string, unknown>;
+  };
 }
 
 const RESTAURANT_ID = "11111111-1111-1111-1111-111111111111";
@@ -461,10 +472,19 @@ class Channel {
   }
 }
 
+/** Usuário logado no E2E, quando o teste injeta `__E2E_SESSION__`. */
+function getE2ESessionUser(): E2ESession["user"] | null {
+  if (typeof globalThis !== "undefined" && globalThis.__E2E_SESSION__) {
+    return globalThis.__E2E_SESSION__.user;
+  }
+  return null;
+}
+
 class StubClient {
   from(table: string): QueryBuilder {
     return new QueryBuilder(table);
   }
+
   rpc(name: string, args?: Record<string, unknown>): Promise<{ data: unknown; error: unknown }> {
     const db = getDb();
     if (db.failRpc?.includes(name)) {
@@ -490,8 +510,14 @@ class StubClient {
     invoke: () => Promise.resolve({ data: null, error: null }),
   };
   auth = {
-    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-    getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+    getSession: () => {
+      const user = getE2ESessionUser();
+      return Promise.resolve({
+        data: { session: user ? { user, access_token: "e2e-token" } : null },
+        error: null,
+      });
+    },
+    getUser: () => Promise.resolve({ data: { user: getE2ESessionUser() }, error: null }),
     onAuthStateChange: () => ({
       data: { subscription: { unsubscribe: () => undefined } },
     }),

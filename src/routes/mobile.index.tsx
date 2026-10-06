@@ -15,6 +15,7 @@ import { OrderCard } from "@/components/mobile/OrderCard";
 import { KitchenMode } from "@/components/admin/KitchenMode";
 import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
 import { PageHeader } from "@/modules/ui/PageHeader";
+import { ProgressiveList } from "@/modules/ui/ProgressiveList";
 import { computeMetrics, isActive } from "@/modules/mobile/orders";
 import { useMobileStore } from "@/modules/mobile/store-context";
 import {
@@ -305,22 +306,32 @@ function MobileOrdersPage() {
             }
           />
         ) : (
-          visibleOrders.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              restaurant={restaurants.find((r) => r.id === order.restaurant_id)}
-              showRestaurant={restaurants.length > 1}
-              fresh={freshIds.has(order.id)}
-              locked={lockedStores.has(order.restaurant_id)}
-              // Com "cards recolhidos" ligado, o operador abre o que precisa;
-              // desligado, os pedidos em andamento já vêm com os itens à vista.
-              defaultOpen={!prefs.compactCards && isActive(order.status)}
-              busy={busyId === order.id}
-              onAdvance={handleAdvance}
-              onCancel={handleCancel}
-            />
-          ))
+          // Lista progressiva: só os primeiros pedidos ficam à vista; o resto
+          // vira "Ver mais" para 40 pedidos não esticarem a tela do celular.
+          <ProgressiveList
+            items={visibleOrders}
+            initial={2}
+            step={8}
+            singular="pedido"
+            plural="pedidos"
+            ariaLabel="Pedidos"
+            renderItem={(order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                restaurant={restaurants.find((r) => r.id === order.restaurant_id)}
+                showRestaurant={restaurants.length > 1}
+                fresh={freshIds.has(order.id)}
+                locked={lockedStores.has(order.restaurant_id)}
+                // Com "cards recolhidos" ligado, o operador abre o que precisa;
+                // desligado, os pedidos em andamento já vêm com os itens à vista.
+                defaultOpen={!prefs.compactCards && isActive(order.status)}
+                busy={busyId === order.id}
+                onAdvance={handleAdvance}
+                onCancel={handleCancel}
+              />
+            )}
+          />
         )}
       </div>
 

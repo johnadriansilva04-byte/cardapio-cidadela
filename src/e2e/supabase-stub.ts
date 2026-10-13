@@ -323,6 +323,87 @@ function createOrderAtomic(
   return Promise.resolve({ data: { order: row, items: pricedItems }, error: null });
 }
 
+/** Restaurantes do dono (a sessão E2E) — espelha `restaurants.owner_id`. */
+function ownedRestaurantIds(db: E2EDb, userId: string | undefined): string[] {
+  if (!userId) return [];
+  return db.restaurants.filter((r) => r.owner_id === userId).map((r) => String(r.id));
+}
+
+/** Linha de `admin_trials` do restaurante (pode não existir). */
+function trialFor(db: E2EDb, storeId: string): Row | undefined {
+  return db.admin_trials.find((t) => String(t.store_id) === storeId);
+}
+
+function isPremiumActive(trial: Row | undefined, now: number): boolean {
+  if (!trial || !trial.is_premium) return false;
+  const expires = trial.premium_expires_at;
+  return !expires || new Date(String(expires)).getTime() > now;
+}
+
+/** Pedidos do mês (não cancelados) do restaurante — base da cota do plano grátis. */
+function monthlyOrderCount(db: E2EDb, storeId: string, now: number): number {
+  const start = new Date(now);
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  return db.orders.filter(
+    (o) =>
+      String(o.restaurant_id) === storeId &&
+      o.status !== "cancelled" &&
+      new Date(String(o.created_at)).getTime() >= start.getTime(),
+  ).length;
+}
+
+const FREE_PLAN_LIMIT = 5;
+
+/**
+ * Espelha a RPC `get_order_for_owner` (SECURITY DEFINER): devolve o pedido só
+ * se pertencer ao dono; com a cota do plano grátis estourada devolve
+ * `{ blocked: true }` SEM vazar itens. É o que o E2E usa para provar que
+ * assinar o Premium destrava os detalhes.
+ */
+function getOrderForOwner(
+  db: E2EDb,
+  args?: Record<string, unknown>,
+): Promise<{ data: unknown; error: unknown }> {
+  const userId = getE2ESessionUser()?.id;
+  const orderId = String(args?.p_oid ?? "");
+  const order = db.orders.find((o) => String(o.id) === orderId);
+  if (!order) return Promise.resolve({ data: null, error: null });
+
+  const owned = ownedRestaurantIds(db, userId);
+  if (!owned.includes(String(order.restaurant_id))) {
+    return Promise.resolve({ data: null, error: null });
+  }
+
+  const now = Date.now();
+  const trial = trialFor(db, String(order.restaurant_id));
+  const premium = isPremiumActive(trial, now);
+  if (!premium && monthlyOrderCount(db, String(order.restaurant_id), now) >= FREE_PLAN_LIMIT) {
+    return Promise.resolve({ data: { blocked: true }, error: null });
+  }
+
+  const items = db.order_items.filter((i) => String(i.order_id) === orderId);
+  return Promise.resolve({
+    data: { blocked: false, order: { ...order, order_items: items } },
+    error: null,
+  });
+}
+
+/** Espelha `owner_locked_stores()`: ids do dono com a cota estourada. */
+function ownerLockedStores(
+  db: E2EDb,
+  args?: Record<string, unknown>,
+): { data: unknown; error: unknown } {
+  const userId = getE2ESessionUser()?.id;
+  const now = Date.now();
+  const locked = ownedRestaurantIds(db, userId).filter((id) => {
+    const premium = isPremiumActive(trialFor(db, id), now);
+    return !premium && monthlyOrderCount(db, id, now) >= FREE_PLAN_LIMIT;
+  });
+  void args;
+  return { data: locked, error: null };
+}
+
 class QueryBuilder implements PromiseLike<{ data: unknown; error: unknown }> {
   private filters: [string, unknown][] = [];
   private orderCol: string | null = null;
@@ -495,8 +576,15 @@ class StubClient {
       return Promise.resolve({ data: row ? [row] : [], error: null });
     }
     if (name === "get_my_orders") return Promise.resolve({ data: [], error: null });
-    if (name === "owner_monthly_order_count") return Promise.resolve({ data: 0, error: null });
-    if (name === "owner_locked_stores") return Promise.resolve({ data: [], error: null });
+    if (name === "owner_monthly_order_count") {
+      // Conta os pedidos reais do mês do restaurante informado (mesma regra da
+      // RPC no banco). Antes devolvia 0 fixo e a tela de assinatura mostrava
+      // "0 usados" mesmo com pedidos — parecia que a cota não havia sido usada.
+      const storeId = String(args?.p_store ?? "");
+      return Promise.resolve({ data: monthlyOrderCount(db, storeId, Date.now()), error: null });
+    }
+    if (name === "owner_locked_stores") return Promise.resolve(ownerLockedStores(db, args));
+    if (name === "get_order_for_owner") return getOrderForOwner(db, args);
     if (name === "create_order_atomic") return createOrderAtomic(db, args);
     return Promise.resolve({ data: null, error: null });
   }
@@ -534,6 +622,28 @@ export function createClient(): StubClient {
   // provar que o preço é recalculado no "servidor", não no navegador.
   if (typeof window !== "undefined") {
     (window as unknown as { __E2E_CLIENT__?: StubClient }).__E2E_CLIENT__ = client;
+    // Simula o que o webhook do Mercado Pago faz ao aprovar o pagamento: ativa
+    // o Premium na linha de `admin_trials`. O E2E usa isso para provar que a
+    // assinatura destrava os pedidos que estavam bloqueados pela cota.
+    (
+      window as unknown as { __E2E_ACTIVATE_PREMIUM__?: (storeId: string) => void }
+    ).__E2E_ACTIVATE_PREMIUM__ = (storeId: string) => {
+      const db = getDb();
+      const expires = new Date();
+      expires.setFullYear(expires.getFullYear() + 1);
+      const existing = db.admin_trials.find((t) => String(t.store_id) === storeId);
+      if (existing) {
+        existing.is_premium = true;
+        existing.premium_expires_at = expires.toISOString();
+      } else {
+        db.admin_trials.push({
+          id: `trial-${storeId}`,
+          store_id: storeId,
+          is_premium: true,
+          premium_expires_at: expires.toISOString(),
+        });
+      }
+    };
   }
   return client;
 }

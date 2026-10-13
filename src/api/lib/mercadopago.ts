@@ -55,6 +55,58 @@ export function getWebhookSecret(env?: ServerEnv): string {
 }
 
 /**
+ * Escape hatch para desenvolvimento local sem secret. Em produção NÃO defina.
+ *
+ * O webhook é um endereço público: sem secret não há como provar que a
+ * notificação veio do Mercado Pago, então qualquer um poderia forjar uma
+ * ativação de Premium. Por isso o padrão é recusar (fail-closed).
+ */
+export function getWebhookAllowUnsigned(env?: ServerEnv): boolean {
+  const raw = readEnv("MERCADOPAGO_WEBHOOK_ALLOW_UNSIGNED", env).toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
+export interface WebhookAuthParams {
+  secret: string;
+  signature: string | null;
+  requestId: string | null;
+  dataId: string | null;
+  authorization: string | null;
+  /** Só para dev local; em produção o secret sempre existe. */
+  allowUnsigned?: boolean;
+}
+
+export type WebhookAuthResult = { ok: true } | { ok: false; reason: string };
+
+/**
+ * Decide se a requisição do webhook pode ser processada.
+ *
+ * Extraído da rota para ser testável: a decisão de segurança é o ponto mais
+ * sensível do fluxo de pagamento e precisa de prova automatizada.
+ *
+ * Regras:
+ * - Com secret: exige `Bearer <secret>` OU `x-signature` HMAC válido.
+ * - Sem secret: recusa, a menos que `allowUnsigned` esteja ligado (dev).
+ */
+export async function authorizeWebhookRequest(
+  params: WebhookAuthParams,
+): Promise<WebhookAuthResult> {
+  const { secret, signature, requestId, dataId, authorization, allowUnsigned } = params;
+
+  if (!secret) {
+    if (allowUnsigned) return { ok: true };
+    return { ok: false, reason: "MERCADOPAGO_WEBHOOK_SECRET não configurado" };
+  }
+
+  const authorized =
+    authorization === `Bearer ${secret}` ||
+    (await verifyMercadoPagoSignature({ signature, requestId, dataId, secret }));
+
+  if (!authorized) return { ok: false, reason: "invalid signature" };
+  return { ok: true };
+}
+
+/**
  * Cliente Supabase com privilégio de escrita. Use a service role: as policies de
  * `admin_trials` agora são restritas ao dono, então a ativação do Premium pelo
  * webhook precisa de uma credencial que ignore RLS. A anon key é mantida apenas

@@ -79,12 +79,6 @@ const PREMIUM_BENEFITS: { icon: LucideIcon; title: string; text: string }[] = [
   },
 ];
 
-const HOW_IT_WORKS: { icon: LucideIcon; title: string; text: string }[] = [
-  { icon: QrCode, title: "Pague", text: "Pix, cartão ou boleto no Mercado Pago." },
-  { icon: Zap, title: "Ativa sozinho", text: "A confirmação libera o Premium na hora." },
-  { icon: Crown, title: "Venda sem limite", text: "12 meses de pedidos ilimitados." },
-];
-
 /** Contador animado do uso do plano gratuito. */
 function AnimatedCount({ value }: { value: number }) {
   const shown = useCountUp(value);
@@ -475,24 +469,6 @@ function SubscriptionPage() {
             </span>
           </div>
 
-          <div className="relative mt-4 grid grid-cols-3 gap-2">
-            {[
-              { label: "Pedidos/mês", value: "∞" },
-              { label: "Período", value: "12 meses" },
-              { label: "Bloqueios", value: "0" },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className="rounded-2xl border border-white/[0.07] bg-black/20 px-3 py-2.5 text-center"
-              >
-                <p className="text-base font-black tabular-nums text-white">{s.value}</p>
-                <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                  {s.label}
-                </p>
-              </div>
-            ))}
-          </div>
-
           <div className="relative mt-5 flex flex-wrap gap-2">
             <Button
               onClick={() =>
@@ -599,25 +575,6 @@ function SubscriptionPage() {
             ))}
           </ul>
 
-          {/* Como funciona — 3 passos */}
-          <div className="relative mt-4 grid grid-cols-3 gap-2">
-            {HOW_IT_WORKS.map(({ icon: Icon, title, text }, i) => (
-              <div
-                key={title}
-                className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className="grid size-6 place-items-center rounded-lg bg-white/[0.06] text-[10px] font-black text-gray-300">
-                    {i + 1}
-                  </span>
-                  <Icon className="size-3.5 text-cyan-300" />
-                </div>
-                <p className="mt-2 text-[11px] font-bold text-white">{title}</p>
-                <p className="mt-0.5 text-[10px] leading-relaxed text-gray-500">{text}</p>
-              </div>
-            ))}
-          </div>
-
           {/* Ação: um clique até o Mercado Pago */}
           <div className="relative mt-5">
             <Button
@@ -655,17 +612,12 @@ function SubscriptionPage() {
         <InfoRow label="Pedidos usados no mês" value={String(used)} />
         <InfoRow label="Limite gratuito" value={`${MONTHLY_FREE_LIMIT}/mês`} />
         <InfoRow
-          label="Data de renovação"
+          label="Renovação"
           value={
             status?.premiumExpiresAt
-              ? new Date(status.premiumExpiresAt).toLocaleString("pt-BR")
+              ? new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")
               : "—"
           }
-        />
-        <InfoRow label="ID da assinatura MP" value={preapprovalId ?? "—"} />
-        <InfoRow
-          label="Reset do contador"
-          value={status?.resetDate ? new Date(status.resetDate).toLocaleDateString("pt-BR") : "—"}
         />
       </ExpandableSection>
 

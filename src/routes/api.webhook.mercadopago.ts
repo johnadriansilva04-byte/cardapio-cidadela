@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import {
+  authorizeWebhookRequest,
   getServerSupabase,
+  getWebhookAllowUnsigned,
   getWebhookSecret,
-  verifyMercadoPagoSignature,
   mpFetch,
 } from "@/api/lib/mercadopago";
 import { processPreapprovalById } from "@/api/lib/mp-subscription";
@@ -13,45 +14,50 @@ import { processPreapprovalById } from "@/api/lib/mp-subscription";
  *
  * Recebe notificações do Mercado Pago e ativa/cancela o Premium sozinho.
  *
- * Segurança: se `MERCADOPAGO_WEBHOOK_SECRET` estiver configurado, exige o header
- * `x-signature` válido. Sem o secret, responde mas ignora em produção — o
- * endereço do webhook é público e sem assinatura qualquer um poderia forjar
- * uma ativação. Também aceita `Authorization: Bearer <secret>` para testes.
+ * Segurança (fail-closed): o endereço é público, então sem
+ * `MERCADOPAGO_WEBHOOK_SECRET` configurado a requisição é RECUSADA (503) em vez
+ * de processada. Antes bastava o secret faltar para qualquer um forjar uma
+ * notificação e ativar o Premium de graça. Em dev local dá para liberar com
+ * `MERCADOPAGO_WEBHOOK_ALLOW_UNSIGNED=1` — nunca em produção.
+ *
+ * Com o secret presente, exige `x-signature` HMAC válido (ou
+ * `Authorization: Bearer <secret>` para testes manuais).
  */
 export const Route = createFileRoute("/api/webhook/mercadopago")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const url = new URL(request.url);
         const secret = getWebhookSecret();
+        const allowUnsigned = getWebhookAllowUnsigned();
 
-        if (!secret) {
-          // Sem secret não há como provar que a notificação veio do Mercado Pago.
-          // Configurar MERCADOPAGO_WEBHOOK_SECRET é obrigatório em produção.
-          console.warn(
-            "[webhook/mercadopago] MERCADOPAGO_WEBHOOK_SECRET não configurado — assinatura não validada.",
-          );
-        }
-
-        if (secret) {
-          const url = new URL(request.url);
-          const dataId =
+        const auth = await authorizeWebhookRequest({
+          secret,
+          allowUnsigned,
+          authorization: request.headers.get("authorization"),
+          signature: request.headers.get("x-signature"),
+          requestId: request.headers.get("x-request-id"),
+          dataId:
             url.searchParams.get("data.id") ||
             url.searchParams.get("data_id") ||
-            url.searchParams.get("id");
-          const requestId = request.headers.get("x-request-id");
-          const signature = request.headers.get("x-signature");
-          const auth = request.headers.get("authorization") ?? "";
+            url.searchParams.get("id"),
+        });
 
-          const authorized =
-            auth === `Bearer ${secret}` ||
-            (await verifyMercadoPagoSignature({ signature, requestId, dataId, secret }));
-
-          if (!authorized) {
-            return new Response(JSON.stringify({ error: "invalid signature" }), {
-              status: 401,
-              headers: { "Content-Type": "application/json" },
-            });
+        if (!auth.ok) {
+          // 503 (e não 401) quando o problema é configuração: sinaliza ao
+          // Mercado Pago que a entrega pode ser tentada de novo depois de
+          // corrigir o ambiente, em vez de tratar como assinatura inválida.
+          const misconfigured = !secret;
+          if (misconfigured) {
+            console.error(
+              "[webhook/mercadopago] RECUSADO: MERCADOPAGO_WEBHOOK_SECRET não configurado. " +
+                "Configure o secret (ou, só em dev, MERCADOPAGO_WEBHOOK_ALLOW_UNSIGNED=1).",
+            );
           }
+          return new Response(JSON.stringify({ error: auth.reason }), {
+            status: misconfigured ? 503 : 401,
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
         let body: Record<string, unknown> = {};
@@ -61,7 +67,6 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
           body = {};
         }
 
-        const url = new URL(request.url);
         const type = String(body.type ?? body.topic ?? url.searchParams.get("type") ?? "");
         const data = (body.data ?? {}) as Record<string, unknown>;
         const resourceId = String(

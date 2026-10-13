@@ -103,6 +103,10 @@ export function OrderCard({
     let cancelled = false;
     setDetailLoading(true);
     setDetailError(null);
+    // Reseta o bloqueio a cada consulta: o dono pode assinar o Premium e o
+    // pedido precisa destravar ao reabrir o card, sem recarregar a página —
+    // é o que o aviso promete ("os detalhes são liberados automaticamente").
+    setDetailBlocked(false);
     getOrderForOwner(order.id)
       .then((res) => {
         if (cancelled) return;

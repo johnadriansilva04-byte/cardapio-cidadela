@@ -576,6 +576,56 @@
 @utility text-future { color: var(--future); }
 @utility text-future-deep { color: var(--future-deep); }
 
+/* ============================================================
+   Passe Premium — presença de convite (anel orbitando + brilho dourado)
+   ============================================================ */
+
+@keyframes premium-orbit {
+  to { transform: rotate(360deg); }
+}
+
+/* Anel cônico girando na borda do "passe": um convite, não um selo estático. */
+.premium-pass {
+  position: relative;
+  isolation: isolate;
+}
+
+.premium-pass::before {
+  content: "";
+  position: absolute;
+  /* O card precisa de `overflow-hidden` (blobs de blur), que recorta na padding
+     box. Por isso o anel é desenhado a partir da borda com 2px de espessura: o
+     recorte come só o 1º pixel e o arco continua visível por dentro. */
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 260deg,
+    rgba(34, 211, 238, 0.9) 320deg,
+    rgba(251, 191, 36, 0.95) 350deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: premium-orbit 5.5s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-pass::before {
+    animation: none;
+  }
+}
+
 /* Acessibilidade: quem pediu menos movimento no sistema não deve receber
    pulsos, brilhos e transições animadas. Reduzimos a duração a quase zero em
    vez de desligar as animações, para que os estados finais continuem corretos. */

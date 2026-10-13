@@ -82,6 +82,11 @@ function MobileShell({ loading, userId }: { loading: boolean; userId: string | u
 
   const onConfig = Boolean(matchRoute({ to: "/mobile/config" }));
 
+  // Aba atual derivada da rota: sem isso o indicador da barra inferior ficava
+  // sempre em "Pedidos", mesmo nas outras abas.
+  const activeNavId =
+    NAV_ITEMS.find((item) => matchRoute({ to: item.to, fuzzy: false }))?.to ?? "/mobile";
+
   const bottomNavItems = NAV_ITEMS.map((item) => ({
     id: item.to,
     label: item.label,
@@ -104,6 +109,7 @@ function MobileShell({ loading, userId }: { loading: boolean; userId: string | u
               className: "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
             }}
             onClick={() => setSidebarOpen(false)}
+            aria-current={item.to === activeNavId ? "page" : undefined}
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all"
           >
             <item.icon className="size-4 shrink-0" />
@@ -138,7 +144,7 @@ function MobileShell({ loading, userId }: { loading: boolean; userId: string | u
   // traz o próprio título logo abaixo — antes cada tela repetia o cabeçalho
   // inteiro com espaçamentos diferentes.
   const header = (
-    <header className="flex items-center gap-3 border-b border-white/[0.06] bg-[#0a0a0f]/85 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur">
+    <header className="flex items-center gap-3 border-b border-white/[0.06] bg-[#0a0a0f]/85 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur">
       <button
         type="button"
         onClick={() => setSidebarOpen(true)}
@@ -168,10 +174,12 @@ function MobileShell({ loading, userId }: { loading: boolean; userId: string | u
     <AppLayout loading={loading} sidebar={sidebar} header={header} className="pb-20 lg:pb-0">
       {/* Preparo dos alertas só onde ainda falta um passo; some sozinho quando
           já está tudo ativo e não reaparece em Configurações, que tem a versão
-          completa do convite. */}
-      {!onConfig && <AlertsBanner className="mx-4 mt-3" />}
+          completa do convite. O `AppLayout` já aplica o padding da página, então
+          aqui só entra a folga inferior — com margem lateral o banner ficaria
+          desalinhado do resto do conteúdo. */}
+      {!onConfig && <AlertsBanner className="mb-4" />}
       <Outlet />
-      <BottomNav items={bottomNavItems} activeId="/mobile" />
+      <BottomNav items={bottomNavItems} activeId={activeNavId} />
     </AppLayout>
   );
 }

@@ -4,6 +4,7 @@ import { MapPin, MessageCircle, Phone, RefreshCw, Search, TrendingUp, Users } fr
 import { ExpandableSection, StatTile } from "@/modules/ui/ExpandableSection";
 import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
 import { PageHeader } from "@/modules/ui/PageHeader";
+import { HeaderIconButton, SearchField, SegmentedControl } from "@/modules/ui/Controls";
 import { aggregateCustomers } from "@/modules/mobile/orders";
 import { useMobileStore } from "@/modules/mobile/store-context";
 import { brl, cn } from "@/lib/utils";
@@ -75,15 +76,13 @@ function MobileCustomersPage() {
           recurring > 0 ? ` · ${recurring} recorrente${recurring === 1 ? "" : "s"}` : ""
         }`}
         actions={
-          <button
-            type="button"
-            onClick={handleRefresh}
+          <HeaderIconButton
+            icon={RefreshCw}
+            label="Atualizar clientes"
+            spinning={refreshing}
             disabled={refreshing}
-            aria-label="Atualizar clientes"
-            className="grid size-10 place-items-center rounded-xl bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
-          >
-            <RefreshCw className={`size-5 ${refreshing && "animate-spin"}`} />
-          </button>
+            onClick={handleRefresh}
+          />
         }
       />
 
@@ -110,34 +109,19 @@ function MobileCustomersPage() {
 
       {customers.length > 0 && (
         <div className="space-y-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar por nome ou telefone"
-              className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
-            />
-          </div>
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por nome ou telefone"
+            ariaLabel="Buscar clientes"
+          />
 
-          <div className="flex gap-2">
-            {SORTS.map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => setSort(option.key)}
-                className={cn(
-                  "flex-1 rounded-xl px-2 py-2 text-xs font-bold transition-all",
-                  sort === option.key
-                    ? "bg-cyan-500 text-black"
-                    : "border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10",
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            ariaLabel="Ordenar clientes"
+            value={sort}
+            onChange={setSort}
+            options={SORTS}
+          />
         </div>
       )}
 

@@ -16,6 +16,7 @@ import { KitchenMode } from "@/components/admin/KitchenMode";
 import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { ProgressiveList } from "@/modules/ui/ProgressiveList";
+import { HeaderIconButton, SearchField, SegmentedControl } from "@/modules/ui/Controls";
 import { computeMetrics, isActive } from "@/modules/mobile/orders";
 import { useMobileStore } from "@/modules/mobile/store-context";
 import {
@@ -165,37 +166,25 @@ function MobileOrdersPage() {
         }
         actions={
           <>
-            <button
-              type="button"
+            <HeaderIconButton
+              icon={ChefHat}
+              label="Abrir Modo Cozinha"
+              tone="cyan"
               onClick={() => setKitchenOpen(true)}
-              aria-label="Abrir Modo Cozinha"
-              title="Modo Cozinha"
-              className="grid size-10 place-items-center rounded-xl border border-cyan-500/25 bg-cyan-500/10 text-cyan-300 transition-colors hover:bg-cyan-500/20"
-            >
-              <ChefHat className="size-5" />
-            </button>
-            <button
-              type="button"
+            />
+            <HeaderIconButton
+              icon={prefs.sound ? Volume2 : VolumeX}
+              label={prefs.sound ? "Desativar alerta sonoro" : "Ativar alerta sonoro"}
+              tone={prefs.sound ? "cyan" : "neutral"}
               onClick={toggleSound}
-              aria-label={prefs.sound ? "Desativar alerta sonoro" : "Ativar alerta sonoro"}
-              title={prefs.sound ? "Alerta sonoro ligado" : "Alerta sonoro desligado"}
-              className={`grid size-10 place-items-center rounded-xl border transition-colors ${
-                prefs.sound
-                  ? "border-cyan-500/25 bg-cyan-500/10 text-cyan-300"
-                  : "border-white/10 bg-white/5 text-gray-500"
-              }`}
-            >
-              {prefs.sound ? <Volume2 className="size-5" /> : <VolumeX className="size-5" />}
-            </button>
-            <button
-              type="button"
-              onClick={handleRefresh}
+            />
+            <HeaderIconButton
+              icon={RefreshCw}
+              label="Atualizar pedidos"
+              spinning={refreshing}
               disabled={refreshing}
-              aria-label="Atualizar pedidos"
-              className="grid size-10 place-items-center rounded-xl bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
-            >
-              <RefreshCw className={`size-5 ${refreshing ? "animate-spin" : ""}`} />
-            </button>
+              onClick={handleRefresh}
+            />
           </>
         }
       />
@@ -231,49 +220,28 @@ function MobileOrdersPage() {
 
       {/* Busca + filtros */}
       <div className="space-y-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por cliente, telefone ou comanda"
-            className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
-          />
-        </div>
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar por cliente, telefone ou comanda"
+          ariaLabel="Buscar pedidos"
+        />
 
-        <div className="flex gap-2">
-          {FILTERS.map((item) => {
-            const count =
+        <SegmentedControl
+          ariaLabel="Filtrar pedidos"
+          value={filter}
+          onChange={setFilter}
+          options={FILTERS.map((item) => ({
+            key: item.key,
+            label: item.label,
+            count:
               item.key === "active"
                 ? metrics.activeCount
                 : item.key === "today"
                   ? metrics.todayOrders
-                  : metrics.totalOrders;
-            const isActiveFilter = filter === item.key;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setFilter(item.key)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all ${
-                  isActiveFilter
-                    ? "bg-cyan-500 text-black"
-                    : "border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10"
-                }`}
-              >
-                {item.label}
-                <span
-                  className={`rounded-full px-1.5 text-[10px] ${
-                    isActiveFilter ? "bg-black/20 text-black" : "bg-white/10 text-gray-400"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  : metrics.totalOrders,
+          }))}
+        />
       </div>
 
       {/* Lista */}

@@ -35,7 +35,10 @@ export function BottomNav({ items, activeId, accent = "#06b6d4", className }: Bo
             <Link
               key={item.id}
               to={item.to}
-              activeOptions={{ exact: item.to === "/" }}
+              // `exact` sempre: o `activeId` já diz qual aba está acesa. Sem isso
+              // o TanStack marcava "/mobile" como ativo em todas as sub-abas
+              // (aria-current="page" em Pedidos mesmo em Clientes/Painel/Config).
+              activeOptions={{ exact: true }}
               activeProps={{ className: "text-cyan-300" }}
               inactiveProps={{ className: "text-gray-500" }}
               aria-current={isActive ? "page" : undefined}

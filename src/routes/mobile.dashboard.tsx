@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { RefreshCw, TrendingUp } from "lucide-react";
 import { DashboardPanels } from "@/components/mobile/DashboardPanels";
 import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
 import { PageHeader } from "@/modules/ui/PageHeader";
+import { HeaderIconButton } from "@/modules/ui/Controls";
+import { computeMetrics } from "@/modules/mobile/orders";
 import { useMobileStore } from "@/modules/mobile/store-context";
+import { brl } from "@/lib/utils";
 
 export const Route = createFileRoute("/mobile/dashboard")({
   head: () => ({
@@ -23,6 +26,8 @@ function MobileDashboardPage() {
   const { restaurants, orders, loading, error, refresh, restaurantNames } = useMobileStore();
   const [refreshing, setRefreshing] = useState(false);
 
+  const metrics = useMemo(() => computeMetrics(orders, restaurantNames), [orders, restaurantNames]);
+
   async function handleRefresh() {
     setRefreshing(true);
     await refresh();
@@ -37,17 +42,19 @@ function MobileDashboardPage() {
     <div className="space-y-4">
       <PageHeader
         title="Painel"
-        subtitle="Visão rápida do negócio"
+        subtitle={
+          metrics.totalOrders > 0
+            ? `${metrics.totalOrders} pedido${metrics.totalOrders === 1 ? "" : "s"} na base · ticket ${brl(metrics.averageTicket)}`
+            : "Visão rápida do negócio"
+        }
         actions={
-          <button
-            type="button"
-            onClick={handleRefresh}
+          <HeaderIconButton
+            icon={RefreshCw}
+            label="Atualizar painel"
+            spinning={refreshing}
             disabled={refreshing}
-            aria-label="Atualizar painel"
-            className="grid size-10 place-items-center rounded-xl bg-white/5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
-          >
-            <RefreshCw className={`size-5 ${refreshing ? "animate-spin" : ""}`} />
-          </button>
+            onClick={handleRefresh}
+          />
         }
       />
 

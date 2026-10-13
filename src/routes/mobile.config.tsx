@@ -171,6 +171,9 @@ function MobileConfigPage() {
     <div className="space-y-4">
       <PageHeader title="Configurações" subtitle={`${displayName} · ${storeStatus}`} />
 
+      {/* Dispositivo: o que o dono ajusta no celular do balcão. */}
+      <GroupLabel>Este dispositivo</GroupLabel>
+
       {/* Instalação — junto dos alertas que ela ativa (o cardápio não repete) */}
       <ExpandableSection
         icon={<MonitorSmartphone className="size-5" />}
@@ -306,6 +309,8 @@ function MobileConfigPage() {
       </ExpandableSection>
 
       {/* Atalhos */}
+      <GroupLabel>Conta e atalhos</GroupLabel>
+
       <ExpandableSection
         icon={<ExternalLink className="size-5" />}
         title="Atalhos"
@@ -364,6 +369,10 @@ function MobileConfigPage() {
         </div>
       </ExpandableSection>
 
+      {/* Privacidade e informações do app — separadas da conta para não
+          parecerem ajustes do usuário. */}
+      <GroupLabel>Privacidade e app</GroupLabel>
+
       {/* Estatísticas de uso (consentimento por dispositivo) */}
       <AnalyticsConsentCard />
 
@@ -385,6 +394,14 @@ function MobileConfigPage() {
         </div>
       </ExpandableSection>
     </div>
+  );
+}
+
+function GroupLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="px-1 pt-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+      {children}
+    </p>
   );
 }
 

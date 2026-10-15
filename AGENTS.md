@@ -409,3 +409,39 @@
   botão "+38", 10 após um toque. Para telas autenticadas o stub aceita uma
   sessão logada via `window.__E2E_SESSION__` (o `getSession`/`getUser` do stub
   a devolvem); sem ela o E2E continua anônimo como antes.
+
+## Recompensas: pedidos bônus por engajamento (sem desconto)
+
+- Em vez de cupom de desconto, a loja que usa o sistema ganha **pedidos a mais
+  na cota** do mês. A cota efetiva é `5 (grátis) + bônus do mês`. Nada toca o
+  Mercado Pago — é tudo Supabase, e o preço segue intocado.
+- Migração única: `supabase/supabase_rewards_migration.sql` (idempotente).
+  Cria `store_bonus_orders` (saldo), `store_usage` (tempo online por dia),
+  `rewards` (metas), `reward_grants` (dedupe por mês) e as RPCs
+  `bump_store_usage`, `owner_bonus_orders`, `owner_usage_seconds`,
+  `owner_rewards`, `evaluate_rewards`; recria `get_order_for_owner` e
+  `owner_locked_stores` com `5 + bônus`; agenda `evaluate_rewards` no `pg_cron`
+  (de hora em hora) e semeia as metas padrão (20h online → +5; 1.000 pedidos →
+  +20).
+- **O bônus nunca é gravável pelo cliente.** Vive em `store_bonus_orders`, com
+  RLS só de leitura para o dono; quem concede é o cron (SECURITY DEFINER). Se
+  ficasse em `admin_trials` (que o dono edita), bastava um `PATCH bonus=9999`
+  para furar o limite. Não reintroduza escrita de bônus no cliente.
+- A cota recalculada está no servidor, dentro das mesmas RPCs de bloqueio. O
+  `SubscriptionStatus` ganhou `bonusOrders` e `monthlyLimit = 5 + bonus`; o
+  `toStatus` (`subscription.ts`) já cobre isso. `PremiumUsageMeter` e a tela de
+  assinatura mostram o bônus; `RewardsProgress` mostra as metas e o progresso.
+- **Tempo online conta só com a loja aberta.** `useStoreUsage`
+  (`src/modules/mobile/useStoreUsage.ts`) manda um batimento de 60s enquanto o
+  painel está visível **e** `isOpenNow(operating_hours)` é verdadeiro — é o
+  "tempo online da loja", não a aba do dono fora de hora. O servidor limita a
+  120s por chamada (anti-inflação). Está ligado no `MobileStoreProvider` e no
+  layout `/admin`.
+- Push ao dono: Edge Function `notify-reward` (reaproveita `push_vapid` +
+  `push_subscriptions`). O cron chama via `pg_net`; sem `app_settings`
+  (`functions_base_url`) o bônus ainda é concedido, só não sai o push. As RPCs
+  são aditivas: sem a migração, `owner_bonus_orders` devolve 0 e tudo segue na
+  cota padrão — nada trava.
+- Coberto por `subscription.test.ts` (cota+bônus), `rewards.test.ts` (RPCs),
+  `RewardsProgress.test.tsx` e o E2E `premium-flow.spec.ts` ("pedidos bônus
+  elevam a cota e destravam os detalhes").

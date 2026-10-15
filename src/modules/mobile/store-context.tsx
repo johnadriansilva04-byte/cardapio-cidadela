@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useOwnerOrders, type UseOwnerOrdersResult } from "@/modules/mobile/useOwnerOrders";
+import { useStoreUsage } from "@/modules/mobile/useStoreUsage";
 import { isOpenNow } from "@/lib/operatingHours";
 
 export interface MobileStoreValue extends UseOwnerOrdersResult {
@@ -28,6 +29,10 @@ export function MobileStoreProvider({
   const data = useOwnerOrders(userId);
   const primary = data.restaurants[0];
   const openNow = Boolean(primary && isOpenNow(primary.operating_hours));
+
+  // Tempo online da loja (para as recompensas): só conta com o painel visível
+  // e a loja aberta. Uma única carga serve todas as abas do mobile.
+  useStoreUsage(primary?.id, primary?.operating_hours ?? null);
 
   const value = useMemo<MobileStoreValue>(
     () => ({ ...data, primary, openNow }),

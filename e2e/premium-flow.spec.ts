@@ -169,3 +169,36 @@ test("dentro da cota os detalhes ficam liberados e sem aviso de plano", async ({
   });
   await expect(card.getByRole("button", { name: "Preparando" })).toBeVisible();
 });
+
+test("pedidos bônus elevam a cota e destravam os detalhes", async ({ page }) => {
+  // 6 pedidos: acima da cota padrão de 5, mas cobertos por um bônus de +20.
+  await seedOrders(page, FREE_LIMIT + 1);
+  await page.addInitScript((storeId) => {
+    (window as unknown as { __E2E_SEED__?: Record<string, unknown> }).__E2E_SEED__ = {
+      ...((window as unknown as { __E2E_SEED__?: Record<string, unknown> }).__E2E_SEED__ ?? {}),
+      store_bonus_orders: [
+        {
+          id: "bonus-1",
+          restaurant_id: storeId,
+          amount: 20,
+          reason: "reward:test",
+          period_month: new Date().toISOString(),
+        },
+      ],
+    };
+  }, RESTAURANT_ID);
+
+  await page.goto("/mobile");
+  await expect(page.getByText("PED-01")).toBeVisible();
+
+  // Sem aviso de plano: a cota efetiva é 5 + 20.
+  await expect(page.getByText(/Limite do plano gratuito atingido/i)).toHaveCount(0);
+
+  const card = cardFor(page, "PED-01");
+  await card.getByRole("button", { name: /PED-01/ }).click();
+  await expect(card.getByRole("listitem").filter({ hasText: /X-Burger Especial/ })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(card.getByText(/detalhes deste pedido estão bloqueados/i)).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Preparando" })).toBeVisible();
+});

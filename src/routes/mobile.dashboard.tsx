@@ -9,6 +9,8 @@ import { HeaderIconButton } from "@/modules/ui/Controls";
 import { computeMetrics } from "@/modules/mobile/orders";
 import { useMobileStore } from "@/modules/mobile/store-context";
 import { checkSubscriptionStatus, MONTHLY_FREE_LIMIT } from "@/modules/supabase/subscription";
+import { fetchRewards, type RewardProgress } from "@/modules/supabase/rewards";
+import { RewardsProgress } from "@/modules/ui/RewardsProgress";
 import { brl } from "@/lib/utils";
 
 export const Route = createFileRoute("/mobile/dashboard")({
@@ -27,7 +29,8 @@ export const Route = createFileRoute("/mobile/dashboard")({
 function MobileDashboardPage() {
   const { restaurants, orders, loading, error, refresh, restaurantNames } = useMobileStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [sub, setSub] = useState<{ used: number; premium: boolean } | null>(null);
+  const [sub, setSub] = useState<{ used: number; premium: boolean; bonus: number } | null>(null);
+  const [rewards, setRewards] = useState<RewardProgress[]>([]);
 
   const metrics = useMemo(() => computeMetrics(orders, restaurantNames), [orders, restaurantNames]);
   const primaryId = restaurants[0]?.id;
@@ -41,10 +44,18 @@ function MobileDashboardPage() {
     let cancelled = false;
     checkSubscriptionStatus(primaryId)
       .then((s) => {
-        if (!cancelled) setSub({ used: s.monthlyOrderCount, premium: s.isPremium });
+        if (!cancelled)
+          setSub({ used: s.monthlyOrderCount, premium: s.isPremium, bonus: s.bonusOrders });
       })
       .catch(() => {
         if (!cancelled) setSub(null);
+      });
+    fetchRewards(primaryId)
+      .then((r) => {
+        if (!cancelled) setRewards(r);
+      })
+      .catch(() => {
+        if (!cancelled) setRewards([]);
       });
     return () => {
       cancelled = true;
@@ -57,7 +68,7 @@ function MobileDashboardPage() {
     if (primaryId) {
       try {
         const s = await checkSubscriptionStatus(primaryId);
-        setSub({ used: s.monthlyOrderCount, premium: s.isPremium });
+        setSub({ used: s.monthlyOrderCount, premium: s.isPremium, bonus: s.bonusOrders });
       } catch {
         /* termômetro é best-effort */
       }
@@ -92,8 +103,15 @@ function MobileDashboardPage() {
       {error && <InlineError message={error} onRetry={handleRefresh} retrying={refreshing} />}
 
       {sub && (
-        <PremiumUsageMeter used={sub.used} limit={MONTHLY_FREE_LIMIT} isPremium={sub.premium} />
+        <PremiumUsageMeter
+          used={sub.used}
+          limit={MONTHLY_FREE_LIMIT}
+          bonus={sub.bonus}
+          isPremium={sub.premium}
+        />
       )}
+
+      {sub && !sub.premium && <RewardsProgress rewards={rewards} />}
 
       {orders.length === 0 && !error ? (
         <EmptyState

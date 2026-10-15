@@ -72,6 +72,17 @@ async function fetchMonthlyOrderCount(storeId: string): Promise<number> {
   return Math.max(0, Number(data ?? 0) || 0);
 }
 
+/**
+ * Pedidos bônus conquistados no mês (recompensas por engajamento).
+ * A RPC é aditiva: sem ela no banco (migração não aplicada) devolve 0 e a cota
+ * volta ao valor padrão — nada trava.
+ */
+async function fetchBonusOrders(storeId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("owner_bonus_orders", { p_store: storeId });
+  if (error) return 0;
+  return Math.max(0, Number(data ?? 0) || 0);
+}
+
 /** Garante uma linha de assinatura para o restaurante. */
 async function ensureRow(storeId: string): Promise<SubscriptionRow | null> {
   const existing = await fetchRow(storeId);
@@ -102,16 +113,23 @@ async function patchRow(storeId: string, values: Record<string, unknown>): Promi
   return true;
 }
 
-function toStatus(row: SubscriptionRow | null, usedOverride?: number): SubscriptionStatus {
+function toStatus(
+  row: SubscriptionRow | null,
+  usedOverride?: number,
+  bonusOverride?: number,
+): SubscriptionStatus {
   const used = Math.max(0, Number(usedOverride ?? row?.monthly_order_count ?? 0) || 0);
+  const bonus = Math.max(0, Number(bonusOverride ?? 0) || 0);
+  const limit = MONTHLY_FREE_LIMIT + bonus;
   const isPremium = Boolean(row?.is_premium) && premiumActive(row?.premium_expires_at ?? null);
   return {
     isPremium,
     monthlyOrderCount: used,
-    monthlyLimit: MONTHLY_FREE_LIMIT,
-    remainingOrders: Math.max(0, MONTHLY_FREE_LIMIT - used),
+    monthlyLimit: limit,
+    remainingOrders: Math.max(0, limit - used),
     premiumExpiresAt: row?.premium_expires_at ?? null,
     resetDate: row?.monthly_order_reset_date ?? todayISO(),
+    bonusOrders: bonus,
   };
 }
 
@@ -136,8 +154,11 @@ export async function resetMonthlyCountIfNeeded(storeId: string): Promise<void> 
 export async function checkSubscriptionStatus(storeId: string): Promise<SubscriptionStatus> {
   await resetMonthlyCountIfNeeded(storeId);
   const row = await fetchRow(storeId);
-  const used = await fetchMonthlyOrderCount(storeId);
-  return toStatus(row, used);
+  const [used, bonus] = await Promise.all([
+    fetchMonthlyOrderCount(storeId),
+    fetchBonusOrders(storeId),
+  ]);
+  return toStatus(row, used, bonus);
 }
 
 /**
@@ -149,7 +170,11 @@ export async function checkMonthlyLimit(
 ): Promise<{ allowed: boolean; remaining: number; used: number; isPremium: boolean }> {
   await resetMonthlyCountIfNeeded(storeId);
   const row = await fetchRow(storeId);
-  const status = toStatus(row, await fetchMonthlyOrderCount(storeId));
+  const [used, bonus] = await Promise.all([
+    fetchMonthlyOrderCount(storeId),
+    fetchBonusOrders(storeId),
+  ]);
+  const status = toStatus(row, used, bonus);
   return {
     allowed: status.isPremium || status.remainingOrders > 0,
     remaining: status.remainingOrders,

@@ -5,6 +5,7 @@ import {
   Copy,
   Crown,
   ExternalLink,
+  Gift,
   Infinity as InfinityIcon,
   Loader2,
   Lock,
@@ -40,6 +41,8 @@ import {
   MONTHLY_FREE_LIMIT,
 } from "@/modules/supabase/subscription";
 import { supabase } from "@/modules/supabase/client";
+import { fetchRewards, type RewardProgress } from "@/modules/supabase/rewards";
+import { RewardsProgress } from "@/modules/ui/RewardsProgress";
 import { PREMIUM_PRICE_VALUE } from "@/lib/pricing";
 import type { Restaurant, SubscriptionStatus } from "@/lib/types";
 import { toast } from "sonner";
@@ -137,6 +140,7 @@ function SubscriptionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
+  const [rewards, setRewards] = useState<RewardProgress[]>([]);
   const [preapprovalId, setPreapprovalId] = useState<string | null>(null);
 
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -160,6 +164,7 @@ function SubscriptionPage() {
     const s = await checkSubscriptionStatus(storeId);
     setStatus(s);
     setPreapprovalId(await getPreapprovalId(storeId));
+    setRewards(await fetchRewards(storeId));
   }, []);
 
   useEffect(() => {
@@ -387,10 +392,12 @@ function SubscriptionPage() {
 
   const isPremium = status?.isPremium ?? false;
   const used = status?.monthlyOrderCount ?? 0;
+  const bonus = status?.bonusOrders ?? 0;
+  const limit = status?.monthlyLimit ?? MONTHLY_FREE_LIMIT;
   const remaining = status?.remainingOrders ?? 0;
   const priceShort = ANNUAL_PRICE.replace(/\/ano$/, "");
   const pricePerMonth = `R$ ${(PREMIUM_PRICE_VALUE / 12).toFixed(2).replace(".", ",")}`;
-  const usagePct = Math.min(100, Math.round((used / MONTHLY_FREE_LIMIT) * 100));
+  const usagePct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -533,7 +540,7 @@ function SubscriptionPage() {
                   <span className="font-black text-white">
                     <AnimatedCount value={used} />
                   </span>{" "}
-                  de {MONTHLY_FREE_LIMIT}
+                  de {limit}
                 </p>
                 <p
                   className={
@@ -561,6 +568,11 @@ function SubscriptionPage() {
                   style={{ width: `${usagePct}%` }}
                 />
               </div>
+              {bonus > 0 && (
+                <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
+                  <Gift className="size-3.5" /> +{bonus} pedidos bônus conquistados neste mês
+                </p>
+              )}
             </div>
 
             {/* Preço-herói: o valor é o protagonista, com o "por mês" abaixo. */}
@@ -678,6 +690,10 @@ function SubscriptionPage() {
         </section>
       )}
 
+      {/* Recompensas: metas de engajamento viram pedidos bônus na cota. Só no
+          plano gratuito — no Premium a cota já é ilimitada. */}
+      {!isPremium && <RewardsProgress rewards={rewards} className="animate-slide-up" />}
+
       {/* Histórico / detalhes */}
       <ExpandableSection
         icon={<Crown className="size-5" />}
@@ -689,6 +705,7 @@ function SubscriptionPage() {
         <InfoRow label="Status" value={isPremium ? "Premium" : "Gratuito"} />
         <InfoRow label="Pedidos usados no mês" value={String(used)} />
         <InfoRow label="Limite gratuito" value={`${MONTHLY_FREE_LIMIT}/mês`} />
+        {bonus > 0 && <InfoRow label="Pedidos bônus conquistados" value={`+${bonus}`} />}
         <InfoRow
           label="Renovação"
           value={

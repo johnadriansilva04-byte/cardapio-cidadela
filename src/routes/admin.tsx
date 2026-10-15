@@ -7,6 +7,7 @@ import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supab
 import type { Restaurant } from "@/lib/types";
 import { subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
+import { useStoreUsage } from "@/modules/mobile/useStoreUsage";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
 import { maybeAutoPrintOrder } from "@/modules/mobile/autoPrint";
 import {
@@ -51,6 +52,10 @@ function AdminLayout() {
   useEffect(() => {
     requestOrderNotificationPermission();
   }, []);
+
+  // Tempo online da loja (recompensas): o painel admin é a tela que fica
+  // aberta no balcão, então também conta — só com a loja aberta.
+  useStoreUsage(restaurants[0]?.id, restaurants[0]?.operating_hours ?? null);
 
   // Badge + som: conta pedidos ativos (received/preparing/ready/out_for_delivery) e toca alerta em INSERT
   useEffect(() => {

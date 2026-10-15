@@ -1,12 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { Crown, Sparkles, Zap } from "lucide-react";
+import { Crown, Gift, Sparkles, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PremiumUsageMeterProps {
   /** Pedidos já usados no mês (derivado de `orders`, à prova de adulteração). */
   used: number;
-  /** Cota do plano gratuito (ex.: 5). */
+  /** Cota do plano gratuito (ex.: 5), sem contar bônus. */
   limit: number;
+  /** Pedidos bônus conquistados no mês (recompensas por engajamento). */
+  bonus?: number;
   /** Assinante não vê termômetro: mostra o estado Premium. */
   isPremium?: boolean;
   /** Para onde leva o convite de upgrade. */
@@ -25,11 +27,12 @@ interface PremiumUsageMeterProps {
 export function PremiumUsageMeter({
   used,
   limit,
+  bonus = 0,
   isPremium = false,
   to = "/admin/assinatura",
   className,
 }: PremiumUsageMeterProps) {
-  const safeLimit = Math.max(1, limit);
+  const safeLimit = Math.max(1, limit + Math.max(0, bonus));
   const clampedUsed = Math.max(0, Math.min(used, safeLimit));
   const remaining = Math.max(0, safeLimit - clampedUsed);
   const ratio = clampedUsed / safeLimit;
@@ -98,6 +101,11 @@ export function PremiumUsageMeter({
               ? "Cota do mês esgotada — assine para liberar tudo."
               : `${clampedUsed} de ${safeLimit} pedidos usados neste mês`}
           </p>
+          {bonus > 0 && (
+            <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+              <Gift className="size-3" /> +{bonus} bônus conquistado{bonus === 1 ? "" : "s"}
+            </p>
+          )}
         </div>
         <span
           className={cn(

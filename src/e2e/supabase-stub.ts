@@ -29,6 +29,13 @@ interface E2EDb {
   admin_trials: Row[];
   cidadela_unlocks: Row[];
   push_subscriptions: Row[];
+  /** Saldo de pedidos bônus por loja (recompensas por engajamento). */
+  store_bonus_orders: Row[];
+  /** Tempo online por loja/dia (segundos). */
+  store_usage: Row[];
+  /** Metas de engajamento. */
+  rewards: Row[];
+  reward_grants: Row[];
   /** RPCs/consultas que devem falhar (ex.: ["get_order_tracking"]). */
   failRpc?: string[];
   /** Força o preço/indisponibilidade no servidor sem alterar a lista da tela. */
@@ -135,6 +142,10 @@ function defaultDb(): E2EDb {
     admin_trials: [],
     cidadela_unlocks: [],
     push_subscriptions: [],
+    store_bonus_orders: [],
+    store_usage: [],
+    rewards: [],
+    reward_grants: [],
     failRpc: [],
   };
 }
@@ -355,6 +366,33 @@ function monthlyOrderCount(db: E2EDb, storeId: string, now: number): number {
 
 const FREE_PLAN_LIMIT = 5;
 
+function monthStart(now: number): Date {
+  const start = new Date(now);
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+/**
+ * Pedidos bônus conquistados no mês (mesma regra da RPC `owner_bonus_orders`).
+ * Eleva a cota efetiva do plano gratuito.
+ */
+function bonusOrders(db: E2EDb, storeId: string, now: number): number {
+  const start = monthStart(now).getTime();
+  return db.store_bonus_orders
+    .filter(
+      (b) =>
+        String(b.restaurant_id) === storeId &&
+        new Date(String(b.period_month ?? new Date(now).toISOString())).getTime() >= start,
+    )
+    .reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+}
+
+/** Cota efetiva do mês = 5 (grátis) + bônus conquistado. */
+function effectiveLimit(db: E2EDb, storeId: string, now: number): number {
+  return FREE_PLAN_LIMIT + bonusOrders(db, storeId, now);
+}
+
 /**
  * Espelha a RPC `get_order_for_owner` (SECURITY DEFINER): devolve o pedido só
  * se pertencer ao dono; com a cota do plano grátis estourada devolve
@@ -378,7 +416,11 @@ function getOrderForOwner(
   const now = Date.now();
   const trial = trialFor(db, String(order.restaurant_id));
   const premium = isPremiumActive(trial, now);
-  if (!premium && monthlyOrderCount(db, String(order.restaurant_id), now) >= FREE_PLAN_LIMIT) {
+  if (
+    !premium &&
+    monthlyOrderCount(db, String(order.restaurant_id), now) >=
+      effectiveLimit(db, String(order.restaurant_id), now)
+  ) {
     return Promise.resolve({ data: { blocked: true }, error: null });
   }
 
@@ -398,7 +440,7 @@ function ownerLockedStores(
   const now = Date.now();
   const locked = ownedRestaurantIds(db, userId).filter((id) => {
     const premium = isPremiumActive(trialFor(db, id), now);
-    return !premium && monthlyOrderCount(db, id, now) >= FREE_PLAN_LIMIT;
+    return !premium && monthlyOrderCount(db, id, now) >= effectiveLimit(db, id, now);
   });
   void args;
   return { data: locked, error: null };
@@ -582,6 +624,67 @@ class StubClient {
       // "0 usados" mesmo com pedidos — parecia que a cota não havia sido usada.
       const storeId = String(args?.p_store ?? "");
       return Promise.resolve({ data: monthlyOrderCount(db, storeId, Date.now()), error: null });
+    }
+    if (name === "owner_bonus_orders") {
+      const storeId = String(args?.p_store ?? "");
+      return Promise.resolve({ data: bonusOrders(db, storeId, Date.now()), error: null });
+    }
+    if (name === "owner_usage_seconds") {
+      const storeId = String(args?.p_store ?? "");
+      const start = monthStart(Date.now()).getTime();
+      const total = db.store_usage
+        .filter(
+          (u) => String(u.restaurant_id) === storeId && new Date(String(u.day)).getTime() >= start,
+        )
+        .reduce((sum, u) => sum + (Number(u.seconds) || 0), 0);
+      return Promise.resolve({ data: total, error: null });
+    }
+    if (name === "bump_store_usage") {
+      const storeId = String(args?.p_store ?? "");
+      const secs = Math.min(Math.max(Number(args?.p_seconds) || 0, 0), 120);
+      const day = new Date().toISOString().slice(0, 10);
+      const row = db.store_usage.find(
+        (u) => String(u.restaurant_id) === storeId && String(u.day).slice(0, 10) === day,
+      );
+      if (row) row.seconds = Number(row.seconds || 0) + secs;
+      else db.store_usage.push({ restaurant_id: storeId, day, seconds: secs });
+      const start = monthStart(Date.now()).getTime();
+      const total = db.store_usage
+        .filter(
+          (u) => String(u.restaurant_id) === storeId && new Date(String(u.day)).getTime() >= start,
+        )
+        .reduce((sum, u) => sum + (Number(u.seconds) || 0), 0);
+      return Promise.resolve({ data: total, error: null });
+    }
+    if (name === "owner_rewards") {
+      const storeId = String(args?.p_store ?? "");
+      const now = Date.now();
+      const start = monthStart(now).getTime();
+      const progress = (metric: string): number => {
+        if (metric === "orders") return monthlyOrderCount(db, storeId, now);
+        if (metric === "usage_seconds")
+          return db.store_usage
+            .filter(
+              (u) =>
+                String(u.restaurant_id) === storeId && new Date(String(u.day)).getTime() >= start,
+            )
+            .reduce((sum, u) => sum + (Number(u.seconds) || 0), 0);
+        return 0;
+      };
+      const data = db.rewards
+        .filter((r) => r.active !== false)
+        .map((r) => ({
+          reward_id: r.id,
+          title: r.title,
+          metric: r.metric,
+          threshold: r.threshold,
+          bonus_orders: r.bonus_orders,
+          progress: progress(String(r.metric)),
+          granted: db.reward_grants.some(
+            (g) => g.reward_id === r.id && String(g.restaurant_id) === storeId,
+          ),
+        }));
+      return Promise.resolve({ data, error: null });
     }
     if (name === "owner_locked_stores") return Promise.resolve(ownerLockedStores(db, args));
     if (name === "get_order_for_owner") return getOrderForOwner(db, args);

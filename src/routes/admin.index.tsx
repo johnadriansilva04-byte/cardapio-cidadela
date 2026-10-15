@@ -75,6 +75,7 @@ function AdminDashboardOverview() {
   const retryRef = useRef(0);
   const [subUsed, setSubUsed] = useState<number | null>(null);
   const [subPremium, setSubPremium] = useState(false);
+  const [subBonus, setSubBonus] = useState(0);
 
   useEffect(() => {
     if (authLoading) return;
@@ -191,6 +192,7 @@ function AdminDashboardOverview() {
     if (!activeId) {
       setSubUsed(null);
       setSubPremium(false);
+      setSubBonus(0);
       return;
     }
     let cancelled = false;
@@ -199,6 +201,7 @@ function AdminDashboardOverview() {
         if (cancelled) return;
         setSubUsed(s.monthlyOrderCount);
         setSubPremium(s.isPremium);
+        setSubBonus(s.bonusOrders);
       })
       .catch(() => {
         if (!cancelled) setSubUsed(null);
@@ -489,7 +492,12 @@ function AdminDashboardOverview() {
           longo do mês. Substitui o banner que só aparecia no aperto — agora o
           dono vê o consumo a qualquer momento, com convite suave ao upgrade. */}
       {restaurants.length > 0 && subUsed !== null && (
-        <PremiumUsageMeter used={subUsed} limit={MONTHLY_FREE_LIMIT} isPremium={subPremium} />
+        <PremiumUsageMeter
+          used={subUsed}
+          limit={MONTHLY_FREE_LIMIT}
+          bonus={subBonus}
+          isPremium={subPremium}
+        />
       )}
 
       {restaurants.length === 0 ? (

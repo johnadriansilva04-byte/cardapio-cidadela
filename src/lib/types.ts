@@ -194,6 +194,8 @@ export interface SubscriptionStatus {
   remainingOrders: number;
   premiumExpiresAt: string | null;
   resetDate: string;
+  /** Pedidos bônus conquistados no mês (elevam a cota do plano gratuito). */
+  bonusOrders: number;
 }
 
 // --- Cidadela ---

@@ -127,6 +127,11 @@ GRANT SELECT ON TABLE store_bonus_orders, store_usage, reward_grants, rewards
 GRANT ALL ON TABLE app_settings, store_bonus_orders, store_usage, rewards, reward_grants
   TO service_role;
 
+-- O anon não tem policy nenhuma aqui: nada de bônus/config para visitante.
+-- RLS já barra; o REVOKE é defesa em profundidade (não depender só do RLS).
+REVOKE ALL ON TABLE app_settings, store_bonus_orders, store_usage, rewards, reward_grants
+  FROM anon;
+
 -- ------------------------------------------------------------
 -- 6. bump_store_usage — batimento do cliente (com teto anti-inflação)
 -- ------------------------------------------------------------

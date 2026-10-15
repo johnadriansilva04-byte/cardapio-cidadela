@@ -445,3 +445,34 @@
 - Coberto por `subscription.test.ts` (cota+bônus), `rewards.test.ts` (RPCs),
   `RewardsProgress.test.tsx` e o E2E `premium-flow.spec.ts` ("pedidos bônus
   elevam a cota e destravam os detalhes").
+
+## Banco de dados: aplicar as migrações
+
+- **Projeto Supabase: `xfgmnggdgnozyrluqabv`** (região `us-east-2`). O
+  `GOOGLE_AUTH_SETUP.md` cita um ref antigo (`hkzhksauilonqppipjyc`) — está
+  desatualizado; o banco vivo é o `xfgmnggdgnozyrluqabv`.
+- `supabase/apply-all.mjs` aplica **todas** as migrações na ordem correta via
+  Management API (sem Docker, sem conexão direta ao Postgres — o host
+  `db.<ref>.supabase.co` é IPv6-only e não resolve neste ambiente). Uso:
+  `SUPABASE_ACCESS_TOKEN=... SUPABASE_PROJECT_REF=... node supabase/apply-all.mjs`
+  (`DRY_RUN=1` só lista os arquivos). Ordem: `schema.sql` → loyalty → reviews →
+  rewards → retention. O token vai por env var, nunca por argumento.
+- **Ordem de bootstrap no `schema.sql`.** Algumas funções (`get_order_for_owner`,
+  `owner_locked_stores`) referenciam `admin_trials`, que só é criada mais
+  adiante. O arquivo abre com `SET check_function_bodies = off` (como o
+  `pg_dump`) para o Postgres não validar o corpo na criação. Não remova esse
+  `SET` nem reordene as funções para depois das tabelas sem testar num banco
+  vazio — é o que quebra o bootstrap do zero.
+- **Tabelas legadas precisam de `ENABLE ROW LEVEL SECURITY`.** `chat_messages`,
+  `game_sessions` e `game_moves` têm policies `TO authenticated` mas, sem o
+  `ENABLE`, o grant default do Supabase deixa o **anon** ler/gravar/apagar tudo.
+  O schema agora faz `ENABLE` + `REVOKE ... FROM anon` nelas.
+- **Defesa em profundidade nos grants.** Além do RLS, o schema revoga o grant
+  default do `anon` em `admin_trials`, `app_settings`, `store_bonus_orders`,
+  `store_usage`, `rewards` e `reward_grants` (o `anon` só mantém o que tem
+  policy pública: catálogo, `orders`/`order_status_history`/`cidadela_unlocks`/
+  `reviews`/`order_tracking`). Não reintroduza grants amplos para `anon` nessas
+  tabelas — era por aí que um visitante sem login escrevia em `admin_trials`.
+- Verificação rápida após aplicar: todas as tabelas `public` com
+  `relrowsecurity = true`; `evaluate_rewards()` roda sem erro; o job
+  `cidadela-rewards` (`10 * * * *`) está ativo em `cron.job`.

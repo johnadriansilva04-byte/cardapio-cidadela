@@ -3,6 +3,13 @@
 -- Run this in Supabase SQL Editor to set up all tables
 -- ============================================================
 
+-- Algumas funções (ex.: get_order_for_owner / owner_locked_stores) referenciam
+-- tabelas criadas mais adiante neste mesmo arquivo (ex.: admin_trials). O
+-- Postgres valida o corpo de funções SQL na criação, então desligamos essa
+-- checagem durante o bootstrap — o mesmo que o pg_dump faz. Em runtime as
+-- funções resolvem as tabelas normalmente.
+SET check_function_bodies = off;
+
 -- ENUMS
 DO $$ BEGIN
   CREATE TYPE restaurant_status AS ENUM ('draft', 'published', 'paused');
@@ -1299,6 +1306,15 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- Habilita RLS e tira o anon dessas tabelas. Sem o ENABLE as policies acima não
+-- têm efeito nenhum e o grant default do Supabase deixa o visitante sem login
+-- ler/gravar/apagar tudo. (As policies são TO authenticated; sem RLS o anon
+-- passava direto.)
+ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_moves    ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE chat_messages, game_sessions, game_moves FROM anon;
+
 -- PUSH: chaves VAPID nunca saem pelas policies (só service_role);
 -- subscriptions são geridas pelo próprio dono autenticado.
 -- Nota: As tabelas push_vapid e push_subscriptions são criadas mais abaixo
@@ -1590,3 +1606,12 @@ GRANT ALL ON TABLE restaurants, categories, products, product_addons, addon_grou
 -- era por aqui que um visitante ativava o Premium de graça.
 GRANT SELECT, INSERT, UPDATE ON TABLE admin_trials TO authenticated;
 GRANT ALL ON TABLE chat_messages, game_sessions, game_moves, profiles TO authenticated, service_role;
+
+-- Endurecimento (defesa em profundidade): remove o GRANT que o Supabase dá ao
+-- anon por padrão nestas tabelas. O RLS já bloqueia (não há policy para anon),
+-- mas não queremos depender só dele — era por aqui que um visitante sem login
+-- podia escrever direto em admin_trials/orders. Mantemos os grants de anon só
+-- onde há policy pública de verdade (orders, order_status_history,
+-- cidadela_unlocks, reviews, catálogo).
+REVOKE ALL ON TABLE admin_trials, app_settings, store_bonus_orders, store_usage,
+  rewards, reward_grants FROM anon;

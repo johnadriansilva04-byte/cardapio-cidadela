@@ -8,6 +8,7 @@ import {
   Infinity as InfinityIcon,
   Loader2,
   Lock,
+  Minus,
   QrCode,
   ShieldCheck,
   Sparkles,
@@ -77,6 +78,14 @@ const PREMIUM_BENEFITS: { icon: LucideIcon; title: string; text: string }[] = [
     title: "Confirmação automática",
     text: "Pix, cartão ou boleto aprovam e o Premium liga sozinho, sem espera.",
   },
+];
+
+/** Comparativo gratuito × Premium — a diferença em uma olhada, sem letras miúdas. */
+const PLAN_COMPARISON: { feature: string; free: string; premium: string }[] = [
+  { feature: "Pedidos por mês", free: `${MONTHLY_FREE_LIMIT}`, premium: "Ilimitados" },
+  { feature: "Detalhes dos pedidos", free: "Bloqueiam na cota", premium: "Sempre liberados" },
+  { feature: "Ativação após pagamento", free: "—", premium: "Automática" },
+  { feature: "Cancele quando quiser", free: "—", premium: "Sim, sem multa" },
 ];
 
 /** Contador animado do uso do plano gratuito. */
@@ -480,123 +489,192 @@ function SubscriptionPage() {
                   "noopener,noreferrer",
                 )
               }
-              className="rounded-full bg-white/[0.07] text-white hover:bg-white/[0.13]"
+              className="tap rounded-full bg-white/[0.07] text-white hover:bg-white/[0.13]"
             >
               <ExternalLink className="size-4" /> Gerenciar assinatura
             </Button>
             <Button
               variant="outline"
               onClick={() => setCancelOpen(true)}
-              className="rounded-full border-white/10 bg-transparent text-gray-400 hover:bg-white/[0.06] hover:text-white"
+              className="tap rounded-full border-white/10 bg-transparent text-gray-400 hover:bg-white/[0.06] hover:text-white"
             >
               Cancelar
             </Button>
           </div>
         </section>
       ) : (
-        /* ------- Convite: oferta + benefícios + como funciona ------- */
-        <section className="animate-slide-up relative overflow-hidden rounded-3xl border border-white/[0.09] bg-gradient-to-b from-white/[0.055] to-white/[0.01] p-5 sm:p-6">
+        /* ------- Convite: preço-herói + prova de valor + comparativo + CTA ---- */
+        <section className="animate-slide-up relative overflow-hidden rounded-3xl border border-white/[0.09] bg-gradient-to-b from-white/[0.055] to-white/[0.01]">
           <div
             aria-hidden
-            className="pointer-events-none absolute -right-20 -top-24 size-56 rounded-full bg-cyan-500/15 blur-3xl"
+            className="pointer-events-none absolute -right-24 -top-28 size-64 rounded-full bg-cyan-500/15 blur-3xl"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -bottom-28 -left-20 size-56 rounded-full bg-amber-500/10 blur-3xl"
           />
 
-          <div className="relative flex items-start justify-between gap-3">
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-500">
-              Seu plano
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              <ShieldCheck className="size-3.5 text-cyan-300" /> Gratuito
-            </span>
-          </div>
-
-          {/* Medidor da cota: números grandes + barra que respira */}
-          <div className="relative mt-4 rounded-2xl border border-white/[0.07] bg-black/20 p-4">
-            <div className="flex items-end justify-between gap-3">
-              <p className="text-[11px] font-semibold text-gray-400">
-                Pedidos usados{" "}
-                <span className="font-black text-white">
-                  <AnimatedCount value={used} />
-                </span>{" "}
-                de {MONTHLY_FREE_LIMIT}
-              </p>
-              <p
-                className={
-                  "text-[11px] font-bold " +
-                  (remaining <= 0
-                    ? "text-red-400"
-                    : remaining <= 2
-                      ? "text-amber-300"
-                      : "text-cyan-300")
-                }
-              >
-                {remaining > 0 ? `${remaining} restantes` : "cota esgotada"}
-              </p>
+          {/* Cabeçalho do plano + preço-herói, tudo num bloco só. */}
+          <div className="relative p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-500">
+                Seu plano hoje
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <ShieldCheck className="size-3.5 text-cyan-300" /> Gratuito
+              </span>
             </div>
-            <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
-              <div
-                className={
-                  "h-full rounded-full transition-all duration-700 " +
-                  (remaining <= 0
-                    ? "bg-red-500"
-                    : remaining <= 2
-                      ? "bg-amber-500"
-                      : "bg-gradient-to-r from-cyan-500 to-cyan-300")
-                }
-                style={{ width: `${usagePct}%` }}
-              />
+
+            {/* Medidor da cota: números grandes + barra que acompanha o consumo */}
+            <div className="mt-4 rounded-2xl border border-white/[0.07] bg-black/20 p-4">
+              <div className="flex items-end justify-between gap-3">
+                <p className="text-[11px] font-semibold text-gray-400">
+                  Pedidos usados{" "}
+                  <span className="font-black text-white">
+                    <AnimatedCount value={used} />
+                  </span>{" "}
+                  de {MONTHLY_FREE_LIMIT}
+                </p>
+                <p
+                  className={
+                    "text-[11px] font-bold " +
+                    (remaining <= 0
+                      ? "text-red-400"
+                      : remaining <= 2
+                        ? "text-amber-300"
+                        : "text-cyan-300")
+                  }
+                >
+                  {remaining > 0 ? `${remaining} restantes` : "cota esgotada"}
+                </p>
+              </div>
+              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className={
+                    "h-full rounded-full transition-all duration-700 " +
+                    (remaining <= 0
+                      ? "bg-red-500"
+                      : remaining <= 2
+                        ? "bg-amber-500"
+                        : "bg-gradient-to-r from-cyan-500 to-cyan-300")
+                  }
+                  style={{ width: `${usagePct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Preço-herói: o valor é o protagonista, com o "por mês" abaixo. */}
+            <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-cyan-300/80">
+                  Premium · 1 ano
+                </p>
+                <p className="mt-0.5 flex items-baseline gap-1.5 text-white">
+                  <span className="text-[clamp(2rem,9vw,2.75rem)] font-black leading-none tracking-tight">
+                    {priceShort}
+                  </span>
+                  <span className="text-sm font-semibold text-gray-500">/ano</span>
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Só {pricePerMonth}/mês · pedidos ilimitados
+                </p>
+              </div>
+              <span className="glow-cyan inline-flex items-center gap-1.5 rounded-full border border-cyan-400/25 bg-cyan-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan-200">
+                <Zap className="size-3.5" /> Ativa em segundos
+              </span>
             </div>
           </div>
-
-          <p className="relative mt-4 flex items-center gap-2 text-sm font-semibold text-white">
-            <Sparkles className="size-4 shrink-0 text-amber-300" />
-            Libere o cardápio sem limite por <span className="text-cyan-300">{priceShort}</span>
-          </p>
-          <p className="relative mt-0.5 text-xs text-gray-400">
-            Equivale a {pricePerMonth}/mês · ativação automática, cancele quando quiser.
-          </p>
 
           {/* Benefícios — o que muda no dia a dia */}
-          <ul className="relative mt-4 space-y-2">
-            {PREMIUM_BENEFITS.map(({ icon: Icon, title, text }) => (
-              <li
-                key={title}
-                className="flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3"
-              >
-                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-cyan-500/12 text-cyan-300">
-                  <Icon className="size-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-white">{title}</p>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-gray-400">{text}</p>
+          <div className="relative border-t border-white/[0.06] px-5 py-5 sm:px-6">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-500">
+              O que você libera
+            </p>
+            <ul className="mt-3 space-y-2">
+              {PREMIUM_BENEFITS.map(({ icon: Icon, title, text }) => (
+                <li
+                  key={title}
+                  className="flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3 transition-colors hover:border-cyan-400/20 hover:bg-white/[0.04]"
+                >
+                  <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-cyan-500/12 text-cyan-300">
+                    <Icon className="size-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white">{title}</p>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-gray-400">{text}</p>
+                  </div>
+                  <Check className="ml-auto mt-1 size-4 shrink-0 text-emerald-400" />
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Comparativo gratuito × Premium — a diferença sem letras miúdas. */}
+          <div className="relative border-t border-white/[0.06] px-5 py-5 sm:px-6">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-500">
+              Comparativo
+            </p>
+            <div className="mt-3 overflow-hidden rounded-2xl border border-white/[0.06]">
+              <div className="grid grid-cols-[1.4fr_1fr_1fr] bg-white/[0.03] px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+                <span className="text-gray-500">Recurso</span>
+                <span className="text-center text-gray-500">Gratuito</span>
+                <span className="text-center text-cyan-300">Premium</span>
+              </div>
+              {PLAN_COMPARISON.map((row, i) => (
+                <div
+                  key={row.feature}
+                  className={
+                    "grid grid-cols-[1.4fr_1fr_1fr] items-center px-3 py-2.5 text-[11px] " +
+                    (i % 2 ? "bg-white/[0.015]" : "")
+                  }
+                >
+                  <span className="pr-2 font-medium text-gray-300">{row.feature}</span>
+                  <span className="flex items-center justify-center gap-1 text-center text-gray-500">
+                    {row.free === "—" ? <Minus className="size-3.5" /> : row.free}
+                  </span>
+                  <span className="flex items-center justify-center gap-1 text-center font-semibold text-white">
+                    <Check className="size-3.5 shrink-0 text-emerald-400" />
+                    {row.premium}
+                  </span>
                 </div>
-                <Check className="ml-auto mt-1 size-4 shrink-0 text-emerald-400" />
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          </div>
 
           {/* Ação: um clique até o Mercado Pago */}
-          <div className="relative mt-5">
+          <div className="relative border-t border-white/[0.06] bg-black/10 px-5 py-5 sm:px-6">
             <Button
               onClick={openPayment}
               size="lg"
-              className="sheen h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-sm font-black text-black shadow-[0_10px_34px_rgba(6,182,212,0.35)] transition-transform hover:scale-[1.01] hover:from-cyan-300 hover:to-cyan-400"
+              className="sheen tap h-14 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black shadow-[0_10px_34px_rgba(6,182,212,0.35)] transition-transform hover:scale-[1.01] hover:from-cyan-300 hover:to-cyan-400"
             >
-              <Crown className="size-4" /> Assinar por {priceShort}
+              <Crown className="size-5" /> Assinar por {priceShort}/ano
             </Button>
-          </div>
 
-          <p className="relative mt-3 text-center text-[11px] leading-relaxed text-gray-500">
-            Pagou e ainda aparece como gratuito?{" "}
-            <button
-              type="button"
-              onClick={syncNow}
-              disabled={syncing}
-              className="font-semibold text-cyan-400 underline-offset-2 transition-colors hover:text-cyan-300 hover:underline disabled:opacity-50"
-            >
-              {syncing ? "Conferindo…" : "Conferir agora"}
-            </button>
-          </p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-gray-500">
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck className="size-3.5 text-emerald-400" /> Pagamento seguro
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Zap className="size-3.5 text-cyan-400" /> Libera sozinho
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Lock className="size-3.5 text-gray-400" /> Cancele quando quiser
+              </span>
+            </div>
+
+            <p className="mt-3 text-center text-[11px] leading-relaxed text-gray-500">
+              Pagou e ainda aparece como gratuito?{" "}
+              <button
+                type="button"
+                onClick={syncNow}
+                disabled={syncing}
+                className="font-semibold text-cyan-400 underline-offset-2 transition-colors hover:text-cyan-300 hover:underline disabled:opacity-50"
+              >
+                {syncing ? "Conferindo…" : "Conferir agora"}
+              </button>
+            </p>
+          </div>
         </section>
       )}
 

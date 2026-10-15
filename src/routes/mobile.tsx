@@ -34,7 +34,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: "/mobile", label: "Pedidos", icon: Package },
   { to: "/mobile/clientes", label: "Clientes", icon: Users },
-  { to: "/mobile/dashboard", label: "Painel", icon: TrendingUp },
+  { to: "/mobile/dashboard", label: "Métricas", icon: TrendingUp },
   { to: "/mobile/config", label: "Config", icon: Settings },
 ];
 
@@ -120,10 +120,10 @@ function MobileShell({ loading, userId }: { loading: boolean; userId: string | u
 
         <Link
           to="/admin"
-          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-400 transition-all hover:bg-white/[0.04] hover:text-gray-200"
+          className="tap flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-400 transition-all hover:bg-white/[0.04] hover:text-gray-200"
         >
           <Home className="size-4 shrink-0" />
-          <span className="flex-1">Painel completo</span>
+          <span className="flex-1">Painel administrativo</span>
         </Link>
       </nav>
 

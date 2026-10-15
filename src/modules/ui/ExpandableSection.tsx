@@ -185,16 +185,22 @@ export function StatTile({ label, value, hint, icon, tone = "cyan", className }:
     >
       <div className="mb-2 flex items-center gap-2">
         {icon && (
-          <span className={cn("grid size-6 place-items-center rounded-lg", TONE_ICON[tone])}>
+          <span
+            className={cn("grid size-6 shrink-0 place-items-center rounded-lg", TONE_ICON[tone])}
+          >
             {icon}
           </span>
         )}
-        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+        <span className="truncate text-[10px] font-bold uppercase tracking-widest text-gray-500">
           {label}
         </span>
       </div>
-      <p className="truncate text-xl font-black tabular-nums text-white">{shown}</p>
-      {hint && <p className="mt-1 text-[10px] text-gray-500">{hint}</p>}
+      {/* Valor nunca truncado: quebra linha em vez de cortar a casa decimal
+          ("R$ 309,..."). O tamanho acompanha a largura do tile. */}
+      <p className="break-words text-[clamp(1rem,4.5vw,1.25rem)] font-black leading-tight tabular-nums text-white">
+        {shown}
+      </p>
+      {hint && <p className="mt-1 truncate text-[10px] text-gray-500">{hint}</p>}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   subscribeToOrders,
   getOwnerLockedStores,
 } from "@/modules/supabase/orders";
+import { maybeAutoPrintOrder } from "@/modules/mobile/autoPrint";
 import type { Order, Restaurant } from "@/lib/types";
 
 export interface UseOwnerOrdersResult {
@@ -110,6 +111,16 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
     );
   }, [restaurants]);
 
+  const restaurantNames = useMemo(
+    () => new Map(restaurants.map((r) => [r.id, r.name])),
+    [restaurants],
+  );
+  // Guardado num ref porque o efeito de realtime não depende de `restaurants`:
+  // referenciar o memo direto deixaria o callback com o nome preso no primeiro
+  // render. O realtime só precisa do valor atual no momento do INSERT.
+  const restaurantNamesRef = useRef(restaurantNames);
+  restaurantNamesRef.current = restaurantNames;
+
   // Assina por lista de ids (string) para um refresh que recria o array de
   // restaurantes não derrubar e recriar os canais à toa.
   const restaurantIds = useMemo(() => restaurants.map((r) => r.id).join(","), [restaurants]);
@@ -144,6 +155,9 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
               });
             }, 20000);
             freshTimers.add(timer);
+            // Imprime a comanda sozinho quando o dispositivo pedir (a função
+            // está desligada por padrão e deduplica por id).
+            maybeAutoPrintOrder(order, restaurantNamesRef.current.get(order.restaurant_id) ?? "");
             return;
           }
           // UPDATE/DELETE em rajada: uma revalidação por lote basta.
@@ -169,11 +183,6 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
       }
     };
   }, [restaurantIds, reloadOrders]);
-
-  const restaurantNames = useMemo(
-    () => new Map(restaurants.map((r) => [r.id, r.name])),
-    [restaurants],
-  );
 
   return {
     restaurants,

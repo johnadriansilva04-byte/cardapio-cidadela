@@ -229,21 +229,70 @@ export function buildPixPayload(opts: {
 }
 
 /**
- * Print a ticket in a new window
+ * Imprime um ticket (comanda térmica) via iframe oculto.
+ *
+ * Usa um iframe em vez de `window.open`: o navegador BLOQUEIA popup sem gesto
+ * do usuário, então a impressão automática (sem clique) simplesmente não abria.
+ * O iframe não é um popup, então a impressão funciona tanto no toque manual
+ * quanto disparada pelo realtime em pedido novo. Quem recebe o trabalho é a
+ * impressora padrão do sistema — o diálogo só aparece se ela não estiver
+ * definida (ou com "Salvar como PDF" escolhido).
  */
 export function printTicket(ticket: string) {
-  const win = window.open("", "_blank", "width=380,height=640");
-  if (!win) return;
+  if (typeof document === "undefined") return;
   const escaped = ticket.replace(
     /[<>&]/g,
     (c) => (({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }) as Record<string, string>)[c] as string,
   );
-  win.document.write(
-    `<pre style="font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.35;">${escaped}</pre>`,
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.position = "fixed";
+  frame.style.right = "0";
+  frame.style.bottom = "0";
+  frame.style.width = "0";
+  frame.style.height = "0";
+  frame.style.border = "0";
+  frame.style.visibility = "hidden";
+
+  const cleanup = () => {
+    try {
+      frame.remove();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  document.body.appendChild(frame);
+  const doc = frame.contentWindow?.document;
+  if (!doc) {
+    cleanup();
+    return;
+  }
+  doc.open();
+  doc.write(
+    `<!doctype html><html><head><meta charset="utf-8"><style>@page{size:80mm auto;margin:0} body{margin:0} pre{font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; margin: 0; padding: 4px;}</style></head><body><pre>${escaped}</pre></body></html>`,
   );
-  win.document.close();
-  win.focus();
-  win.print();
+  doc.close();
+
+  const runPrint = () => {
+    try {
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+    } catch {
+      /* ignore */
+    }
+    // O diálogo de impressão bloqueia a thread; removemos depois de um tempo
+    // folgado para o trabalho já estar enfileirado.
+    window.setTimeout(cleanup, 2000);
+  };
+
+  // Espera as fontes/estilo assentarem; cai no timeout se o load demorar.
+  if (frame.contentWindow?.document.readyState === "complete") {
+    window.setTimeout(runPrint, 60);
+  } else {
+    frame.onload = () => window.setTimeout(runPrint, 60);
+    window.setTimeout(runPrint, 400);
+  }
 }
 
 /** Monta as linhas de endereço de entrega (rua, complemento, bairro, cidade). */

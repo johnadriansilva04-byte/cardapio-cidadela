@@ -12,8 +12,6 @@ import {
   UtensilsCrossed,
   Calendar,
   LayoutGrid,
-  Crown,
-  Sparkles,
   Copy,
   Check,
   ExternalLink,
@@ -43,6 +41,7 @@ import {
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { PageHeader } from "@/modules/ui/PageHeader";
+import { PremiumUsageMeter } from "@/modules/ui/PremiumUsageMeter";
 import { checkSubscriptionStatus, MONTHLY_FREE_LIMIT } from "@/modules/supabase/subscription";
 import { serializeHours, isOpenNow } from "@/lib/operatingHours";
 import type { OrderStatus, Restaurant } from "@/lib/types";
@@ -74,7 +73,7 @@ function AdminDashboardOverview() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const retryRef = useRef(0);
-  const [subRemaining, setSubRemaining] = useState<number | null>(null);
+  const [subUsed, setSubUsed] = useState<number | null>(null);
   const [subPremium, setSubPremium] = useState(false);
 
   useEffect(() => {
@@ -187,10 +186,10 @@ function AdminDashboardOverview() {
     };
   }, [activeId, range]);
 
-  // Limite do plano gratuito — informa o banner quando está perto/acabou.
+  // Limite do plano gratuito — informa o termômetro de uso e o estado Premium.
   useEffect(() => {
     if (!activeId) {
-      setSubRemaining(null);
+      setSubUsed(null);
       setSubPremium(false);
       return;
     }
@@ -198,11 +197,11 @@ function AdminDashboardOverview() {
     checkSubscriptionStatus(activeId)
       .then((s) => {
         if (cancelled) return;
-        setSubRemaining(s.remainingOrders);
+        setSubUsed(s.monthlyOrderCount);
         setSubPremium(s.isPremium);
       })
       .catch(() => {
-        if (!cancelled) setSubRemaining(null);
+        if (!cancelled) setSubUsed(null);
       });
     return () => {
       cancelled = true;
@@ -486,56 +485,11 @@ function AdminDashboardOverview() {
         />
       </div>
 
-      {/* Banner do limite do plano gratuito */}
-      {restaurants.length > 0 && !subPremium && subRemaining !== null && subRemaining <= 2 && (
-        <Link
-          to="/admin/assinatura"
-          className={
-            "flex items-start gap-3 rounded-2xl border p-4 transition-colors " +
-            (subRemaining === 0
-              ? "border-red-500/25 bg-red-500/[0.07] hover:bg-red-500/[0.12]"
-              : "border-amber-500/25 bg-amber-500/[0.07] hover:bg-amber-500/[0.12]")
-          }
-        >
-          <span
-            className={
-              "grid size-9 shrink-0 place-items-center rounded-xl " +
-              (subRemaining === 0 ? "bg-red-500/15 text-red-300" : "bg-amber-500/15 text-amber-300")
-            }
-          >
-            {subRemaining === 0 ? <Crown className="size-4" /> : <Sparkles className="size-4" />}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span
-              className={
-                "block text-sm font-bold " +
-                (subRemaining === 0 ? "text-red-200" : "text-amber-200")
-              }
-            >
-              {subRemaining === 0
-                ? "🚫 Limite de pedidos gratuito atingido"
-                : `⚠️ Você tem apenas ${subRemaining} pedido${subRemaining === 1 ? "" : "s"} gratuitos restantes este mês`}
-            </span>
-            <span
-              className={
-                "mt-0.5 block text-xs " +
-                (subRemaining === 0 ? "text-red-200/75" : "text-amber-200/75")
-              }
-            >
-              {subRemaining === 0
-                ? "Assine Premium para liberar os detalhes dos pedidos."
-                : `O plano gratuito inclui ${MONTHLY_FREE_LIMIT} pedidos por mês. Assine Premium para ilimitado.`}
-            </span>
-          </span>
-          <span
-            className={
-              "inline-flex shrink-0 items-center gap-1 self-center rounded-full px-3 py-1.5 text-[11px] font-bold " +
-              (subRemaining === 0 ? "bg-red-500 text-white" : "bg-amber-500 text-black")
-            }
-          >
-            Assinar <ArrowRight className="size-3" />
-          </span>
-        </Link>
+      {/* Termômetro de uso do plano: mostra a cota de 5 pedidos enchendo ao
+          longo do mês. Substitui o banner que só aparecia no aperto — agora o
+          dono vê o consumo a qualquer momento, com convite suave ao upgrade. */}
+      {restaurants.length > 0 && subUsed !== null && (
+        <PremiumUsageMeter used={subUsed} limit={MONTHLY_FREE_LIMIT} isPremium={subPremium} />
       )}
 
       {restaurants.length === 0 ? (
@@ -797,22 +751,39 @@ function KpiCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target?.num]);
 
-  const shown = target ? `${target.prefix}${formatKpiNumber(display)}${target.suffix}` : value;
-
   return (
-    <div className="card-lift rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-4 hover:border-white/[0.16] hover:shadow-[0_0_24px_rgba(6,182,212,0.12)]">
+    <div className="card-lift rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.02] p-4 hover:border-cyan-400/25 hover:glow-cyan">
       <div className="flex items-center gap-3">
         <div
           className={`grid size-10 shrink-0 place-items-center rounded-xl border ${KPI_TONES[tone]}`}
         >
           <Icon className="size-[18px]" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-[10px] font-bold uppercase tracking-widest text-gray-400">
             {label}
           </p>
-          <p className="mt-0.5 truncate text-xl font-black leading-tight text-white tabular-nums sm:text-2xl">
-            {shown}
+          {/* O valor não trunca: a moeda (R$) é separada do número e o tamanho
+              acompanha a largura (clamp), então "R$ 1.234,56" aparece inteiro
+              mesmo no card estreito — antes virava "R$ 309,...". */}
+          <p className="mt-0.5 flex min-w-0 items-baseline gap-1 text-white">
+            {target ? (
+              <>
+                {target.prefix.trim() && (
+                  <span className="shrink-0 text-[0.6em] font-bold leading-none text-gray-400">
+                    {target.prefix.trim()}
+                  </span>
+                )}
+                <span className="min-w-0 break-words text-[clamp(1.05rem,5vw,1.5rem)] font-black leading-tight tabular-nums">
+                  {formatKpiNumber(display)}
+                  {target.suffix}
+                </span>
+              </>
+            ) : (
+              <span className="min-w-0 break-words text-[clamp(1.05rem,5vw,1.5rem)] font-black leading-tight">
+                {value}
+              </span>
+            )}
           </p>
         </div>
       </div>

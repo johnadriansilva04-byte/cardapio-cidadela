@@ -344,6 +344,54 @@
 }
 
 /* ============================================================
+   Dark Mode Premium — brilho ciano (#00D2FF) de baixa opacidade
+   em cards ativos. Dá o aspecto de painel de alta performance
+   sem competir com o conteúdo.
+   ============================================================ */
+
+/* Glow estático para cards "ativos" (ex.: loja selecionada, KPI destacado). */
+@utility glow-cyan {
+  box-shadow:
+    0 0 0 1px rgba(0, 210, 255, 0.18),
+    0 0 22px rgba(0, 210, 255, 0.14),
+    inset 0 0 18px rgba(0, 210, 255, 0.05);
+}
+
+/* Mesmo glow, respirando devagar — presença viva, nunca piscando. */
+@utility glow-cyan-live {
+  box-shadow:
+    0 0 0 1px rgba(0, 210, 255, 0.2),
+    0 0 22px rgba(0, 210, 255, 0.16),
+    inset 0 0 18px rgba(0, 210, 255, 0.06);
+  animation: glow-cyan-breathe 3.6s ease-in-out infinite;
+}
+
+@keyframes glow-cyan-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(0, 210, 255, 0.16),
+      0 0 16px rgba(0, 210, 255, 0.1),
+      inset 0 0 14px rgba(0, 210, 255, 0.04);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(0, 210, 255, 0.28),
+      0 0 28px rgba(0, 210, 255, 0.2),
+      inset 0 0 22px rgba(0, 210, 255, 0.08);
+  }
+}
+
+/* Feedback tátil no toque: encolhe de leve ao pressionar. Aplicar em botões
+   e cards clicáveis; a classe NÃO define `transition`, então convive com
+   `transition-colors`/`card-lift` sem sobrescrever o dono da transição. */
+@utility tap {
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+/* ============================================================
    Selo "Conheça a Cidadela" — presença viva e discreta
    (respiração neon + anel duplo + arco girando + varredura contínua)
    ============================================================ */

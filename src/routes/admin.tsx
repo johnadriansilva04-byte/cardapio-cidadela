@@ -8,6 +8,7 @@ import type { Restaurant } from "@/lib/types";
 import { subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
+import { maybeAutoPrintOrder } from "@/modules/mobile/autoPrint";
 import {
   AppLayout,
   AppSidebar,
@@ -101,6 +102,7 @@ function AdminLayout() {
         const rests = await getRestaurantsByOwner(user.id);
         if (cancelled) return;
         setRestaurants(rests);
+        const nameMap = new Map(rests.map((r) => [String(r.id), r.name]));
         for (const r of rests) {
           try {
             const ch = subscribeToOrders(r.id, (eventType, order) => {
@@ -109,6 +111,8 @@ function AdminLayout() {
                   setPendingCount((c) => c + 1);
                 }
                 playNewOrderAlert();
+                // Imprime a comanda sozinho quando o dispositivo pedir.
+                maybeAutoPrintOrder(order, nameMap.get(String(order.restaurant_id)) ?? "");
                 if (
                   typeof window !== "undefined" &&
                   "Notification" in window &&

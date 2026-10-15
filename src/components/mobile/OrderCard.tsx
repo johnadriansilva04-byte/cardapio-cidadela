@@ -213,7 +213,7 @@ export function OrderCard({
           {/* Itens não são liberados no bloqueio: o lugar deles é a ação de assinar. */}
           <Link
             to="/admin/assinatura"
-            className="flex items-center justify-between gap-3 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/20 to-cyan-500/5 px-3 py-2.5 transition-colors hover:border-cyan-400"
+            className="tap flex items-center justify-between gap-3 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/20 to-cyan-500/5 px-3 py-2.5 transition-colors hover:border-cyan-400"
           >
             <span className="min-w-0">
               <span className="block text-xs font-black uppercase text-white">

@@ -7,6 +7,7 @@ const KEYS = {
   notifications: "cidadela:pref-notifications",
   keepAwake: "cidadela:pref-keep-awake",
   compactCards: "cidadela:pref-compact-cards",
+  autoPrint: "cidadela:pref-auto-print",
 } as const;
 
 export interface MobilePreferences {
@@ -18,6 +19,8 @@ export interface MobilePreferences {
   keepAwake: boolean;
   /** Cards de pedido recolhidos por padrão. */
   compactCards: boolean;
+  /** Imprime a comanda sozinho quando um pedido novo chega. */
+  autoPrint: boolean;
 }
 
 export const DEFAULT_PREFERENCES: MobilePreferences = {
@@ -25,6 +28,7 @@ export const DEFAULT_PREFERENCES: MobilePreferences = {
   notifications: true,
   keepAwake: false,
   compactCards: true,
+  autoPrint: false,
 };
 
 const PREFERENCE_EVENT = "cidadela:preferences-changed";
@@ -44,6 +48,7 @@ export function loadPreferences(): MobilePreferences {
     notifications: readBool(KEYS.notifications, DEFAULT_PREFERENCES.notifications),
     keepAwake: readBool(KEYS.keepAwake, DEFAULT_PREFERENCES.keepAwake),
     compactCards: readBool(KEYS.compactCards, DEFAULT_PREFERENCES.compactCards),
+    autoPrint: readBool(KEYS.autoPrint, DEFAULT_PREFERENCES.autoPrint),
   };
 }
 

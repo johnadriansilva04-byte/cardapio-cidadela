@@ -87,7 +87,7 @@ export function SegmentedControl<T extends string>({
             aria-selected={active}
             onClick={() => onChange(option.key)}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all",
+              "tap flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all",
               active
                 ? "bg-cyan-500 text-black shadow-[0_4px_16px_rgba(6,182,212,0.25)]"
                 : "text-gray-400 hover:bg-white/[0.05] hover:text-gray-200",
@@ -116,10 +116,15 @@ export interface HeaderIconButtonProps {
   label: string;
   onClick: () => void;
   /** Realce ciano para ações ligadas (som, cozinha); neutro por padrão. */
-  tone?: "neutral" | "cyan";
+  tone?: "neutral" | "cyan" | "danger";
   disabled?: boolean;
   /** Gira o ícone — usado no "atualizar" enquanto carrega. */
   spinning?: boolean;
+  /**
+   * Estado desligado (ex.: som mutado): risca o ícone na diagonal e colore de
+   * âmbar, para o operador ver de relance que o alerta NÃO vai tocar.
+   */
+  struck?: boolean;
   className?: string;
 }
 
@@ -136,6 +141,7 @@ export function HeaderIconButton({
   tone = "neutral",
   disabled,
   spinning,
+  struck,
   className,
 }: HeaderIconButtonProps) {
   return (
@@ -144,16 +150,26 @@ export function HeaderIconButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
+      aria-pressed={struck ? false : undefined}
       title={label}
       className={cn(
-        "grid size-10 shrink-0 place-items-center rounded-xl border transition-colors disabled:opacity-50",
+        "tap relative grid size-10 shrink-0 place-items-center rounded-xl border transition-colors disabled:opacity-50",
         tone === "cyan"
           ? "border-cyan-500/25 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20"
-          : "border-white/[0.08] bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-white",
+          : tone === "danger"
+            ? "border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+            : "border-white/[0.08] bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-white",
+        struck && "border-amber-500/30 bg-amber-500/[0.08] text-amber-300/80",
         className,
       )}
     >
       <Icon className={cn("size-5", spinning && "animate-spin")} />
+      {struck && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute h-[1.5px] w-5 rotate-[-45deg] rounded-full bg-amber-300/90"
+        />
+      )}
     </button>
   );
 }

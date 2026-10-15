@@ -174,8 +174,13 @@ function MobileOrdersPage() {
             />
             <HeaderIconButton
               icon={prefs.sound ? Volume2 : VolumeX}
-              label={prefs.sound ? "Desativar alerta sonoro" : "Ativar alerta sonoro"}
+              label={
+                prefs.sound
+                  ? "Desativar alerta sonoro"
+                  : "Alerta sonoro desligado — toque para ativar"
+              }
               tone={prefs.sound ? "cyan" : "neutral"}
+              struck={!prefs.sound}
               onClick={toggleSound}
             />
             <HeaderIconButton
@@ -196,7 +201,7 @@ function MobileOrdersPage() {
       {lockedStores.size > 0 && (
         <Link
           to="/admin/assinatura"
-          className="flex items-center gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-3 transition-colors hover:bg-amber-500/[0.12]"
+          className="tap flex items-center gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-3 transition-colors hover:bg-amber-500/[0.12]"
         >
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-300">
             <Lock className="size-4" />

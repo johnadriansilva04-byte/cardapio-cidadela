@@ -455,7 +455,7 @@ export function OrderManager({
       {lockedStores.size > 0 && (
         <Link
           to="/admin/assinatura"
-          className="flex items-center gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-3.5 transition-colors hover:bg-amber-500/[0.12]"
+          className="tap flex items-center gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-3.5 transition-colors hover:bg-amber-500/[0.12]"
         >
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-300">
             <Lock className="size-4" />
@@ -1002,7 +1002,7 @@ function OrderDetailDialog({
                   convite para assinar — o mesmo fluxo /admin/assinatura. */}
               <Link
                 to="/admin/assinatura"
-                className="flex items-center justify-between gap-3 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/20 to-cyan-500/5 px-4 py-3 transition-colors hover:border-cyan-400 hover:from-cyan-500/30"
+                className="tap flex items-center justify-between gap-3 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/20 to-cyan-500/5 px-4 py-3 transition-colors hover:border-cyan-400 hover:from-cyan-500/30"
               >
                 <span className="min-w-0">
                   <span className="block text-sm font-black text-white">Assinar Premium agora</span>

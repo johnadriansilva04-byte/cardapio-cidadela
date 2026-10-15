@@ -56,7 +56,14 @@ export function StorePulseBar({ restaurant, toggling, onToggle }: StorePulseBarP
       : { dot: "bg-amber-400", text: "text-amber-300", label: "Fechado agora" };
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3">
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-3 rounded-2xl border p-3 transition-colors",
+        published && open
+          ? "glow-cyan-live border-cyan-400/20 bg-cyan-500/[0.03]"
+          : "border-white/[0.07] bg-white/[0.02]",
+      )}
+    >
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
         <Power className="size-4" />
       </span>

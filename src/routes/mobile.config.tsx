@@ -10,6 +10,7 @@ import {
   LogOut,
   MonitorSmartphone,
   Moon,
+  Printer,
   RefreshCw,
   ShieldCheck,
   Sun,
@@ -33,6 +34,7 @@ import { useMobileStore } from "@/modules/mobile/store-context";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { LoadingState } from "@/modules/ui/Feedback";
 import { previewOrderAlert } from "@/lib/orderAlertSound";
+import { printOrderTicket } from "@/modules/mobile/autoPrint";
 import { useWakeLock } from "@/modules/mobile/useWakeLock";
 import { isOpenNow } from "@/lib/operatingHours";
 import { usePwaInstall } from "@/modules/pwa/usePwaInstall";
@@ -228,6 +230,35 @@ function MobileConfigPage() {
             hint="Receba o alerta mesmo com o app fechado."
           />
 
+          <ToggleRow
+            icon={<Printer className="size-4" />}
+            title="Impressão automática"
+            description="Imprime a comanda sozinho quando um pedido novo chega, na impressora padrão do computador."
+            checked={prefs.autoPrint}
+            onChange={(value) => update("autoPrint", value)}
+            hint={
+              prefs.autoPrint
+                ? "No Chrome há impressão silenciosa; nos outros navegadores a janela de impressão abre a cada pedido."
+                : undefined
+            }
+          />
+          {prefs.autoPrint && (
+            <button
+              type="button"
+              onClick={() => {
+                const sample = orders[0];
+                if (!sample) {
+                  toast.error("Nenhum pedido ainda para testar a impressão.");
+                  return;
+                }
+                printOrderTicket(sample, restaurants[0]?.name ?? "Restaurante");
+              }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-gray-300 transition-colors hover:bg-white/10"
+            >
+              <Printer className="size-3.5" /> Imprimir último pedido (teste)
+            </button>
+          )}
+
           <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
             <InfoRow label="Permissão do navegador" value={notificationLabel} />
             {permission !== "granted" && (
@@ -314,7 +345,7 @@ function MobileConfigPage() {
       <ExpandableSection
         icon={<ExternalLink className="size-5" />}
         title="Atalhos"
-        summary="Painel completo, cardápio público e privacidade"
+        summary="Painel administrativo, cardápio público e privacidade"
       >
         <div className="space-y-2">
           <ShortcutLink

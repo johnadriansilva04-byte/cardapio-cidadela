@@ -100,20 +100,34 @@ export function OrdersDonut({
         </div>
 
         <div className="min-w-0 flex-1 space-y-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {(Object.keys(counts) as OrderStatus[]).map((s) => (
-              <div
-                key={s}
-                className="flex items-center gap-2 rounded-lg border border-white/5 bg-black/20 px-2.5 py-2"
-              >
-                <span className="size-2 rounded-full" style={{ background: STATUS_COLOR[s] }} />
-                <span className="flex-1 truncate text-xs font-medium text-gray-300">
-                  {ORDER_STATUS_LABELS[s]}
-                </span>
-                <span className="text-xs font-bold text-white">{counts[s] ?? 0}</span>
-              </div>
-            ))}
-          </div>
+          {/* Legenda minimalista: cada linha repete a cor exata da fatia, com
+              contagem e participação no total — leitura de relance na cozinha. */}
+          <ul className="space-y-1.5">
+            {data.map((d) => {
+              const pct = totalOrders ? Math.round((d.value / totalOrders) * 100) : 0;
+              return (
+                <li
+                  key={d.key}
+                  className="flex items-center gap-2.5 rounded-lg border border-white/5 bg-black/20 px-2.5 py-2"
+                >
+                  <span
+                    className="size-2.5 shrink-0 rounded-full ring-2 ring-inset ring-black/20"
+                    style={{ background: d.color }}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-300">
+                    {d.name}
+                  </span>
+                  <span className="shrink-0 text-xs font-bold tabular-nums text-white">
+                    {d.value}
+                  </span>
+                  <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-gray-500">
+                    {pct}%
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-[11px] text-gray-500">
             <span>
               Total no filtro: <span className="font-bold text-white">{totalOrders}</span>

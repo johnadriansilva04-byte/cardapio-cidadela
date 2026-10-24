@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react";
+import { useRef, type ComponentType, type KeyboardEvent, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +60,14 @@ export interface SegmentedControlProps<T extends string> {
  * Substitui os dois blocos de botões (Pedidos e Clientes) que repetiam a mesma
  * lógica de estado ativo/inativo. A contagem aparece como selo no segmento para
  * o operador saber o volume antes de tocar.
+ *
+ * Semântica de `radiogroup` (e não `tablist`): o segmento filtra/ordena a lista
+ * já visível, não troca de painel. `tablist` sem `tabpanel` é um estado
+ * incompleto para leitores de tela — e aqui não existe painel para apontar.
+ *
+ * Teclado: um só segmento fica na ordem de tabulação (roving tabindex) e as
+ * setas movem entre eles, como num grupo de rádio. Antes o teclado precisava
+ * tabular por cada botão, sem atalho para "andar" pelo grupo.
  */
 export function SegmentedControl<T extends string>({
   options,
@@ -68,23 +76,52 @@ export function SegmentedControl<T extends string>({
   ariaLabel,
   className,
 }: SegmentedControlProps<T>) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"];
+    if (!keys.includes(event.key)) return;
+    event.preventDefault();
+
+    const current = options.findIndex((option) => option.key === value);
+    const last = options.length - 1;
+    let next = current;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown")
+      next = current >= last ? 0 : current + 1;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp")
+      next = current <= 0 ? last : current - 1;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = last;
+
+    const target = options[next];
+    if (!target) return;
+    onChange(target.key);
+    refs.current[next]?.focus();
+  }
+
   return (
     <div
-      role="tablist"
+      role="radiogroup"
       aria-label={ariaLabel}
+      onKeyDown={handleKeyDown}
       className={cn(
         "flex gap-1.5 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-1.5",
         className,
       )}
     >
-      {options.map((option) => {
+      {options.map((option, index) => {
         const active = option.key === value;
         return (
           <button
             key={option.key}
+            ref={(node) => {
+              refs.current[index] = node;
+            }}
             type="button"
-            role="tab"
-            aria-selected={active}
+            role="radio"
+            aria-checked={active}
+            // Roving tabindex: o grupo entra na tabulação uma vez só, na opção ativa.
+            tabIndex={active ? 0 : -1}
             onClick={() => onChange(option.key)}
             className={cn(
               "tap flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all",

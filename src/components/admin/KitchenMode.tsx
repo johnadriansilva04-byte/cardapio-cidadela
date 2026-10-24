@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ORDER_STATUS_LABELS, type Order, type OrderStatus } from "@/lib/types";
 import { formatElapsed, orderTimer } from "@/modules/mobile/orders";
+import { SegmentedControl } from "@/modules/ui/Controls";
 import { brl, cn } from "@/lib/utils";
 
 const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
@@ -152,34 +153,20 @@ export function KitchenMode({
         </button>
       </header>
 
-      {/* Abas da fila */}
-      <nav className="flex shrink-0 gap-1.5 border-b border-white/10 px-4 py-2.5">
-        {QUEUE_TABS.map((t) => {
-          const active = t.key === tab;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors",
-                active
-                  ? "bg-cyan-500 text-black"
-                  : "bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-white",
-              )}
-            >
-              {t.label}
-              <span
-                className={cn(
-                  "rounded-full px-1.5 py-0.5 text-[10px] font-black",
-                  active ? "bg-black/20 text-black" : "bg-white/10 text-white",
-                )}
-              >
-                {counts[t.key] ?? 0}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+      {/* Abas da fila — mesmo primitivo do resto do app (uma linha só de código,
+          com contagem por aba e teclado). */}
+      <div className="shrink-0 border-b border-white/10 px-4 py-2.5">
+        <SegmentedControl
+          ariaLabel="Filtrar a fila por etapa"
+          value={tab}
+          onChange={setTab}
+          options={QUEUE_TABS.map((t) => ({
+            key: t.key,
+            label: t.label,
+            count: counts[t.key] ?? 0,
+          }))}
+        />
+      </div>
 
       {/* Pedido atual */}
       <main className="min-h-0 flex-1 overflow-y-auto p-4">

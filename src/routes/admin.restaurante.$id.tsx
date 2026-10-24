@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   UtensilsCrossed,
   Settings2,
@@ -26,7 +26,7 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import { serializeHours } from "@/lib/operatingHours";
 import type { Restaurant } from "@/lib/types";
-import { brl } from "@/lib/utils";
+import { brl, cn } from "@/lib/utils";
 import { supabase } from "@/modules/supabase/client";
 import { getMenuWithProducts } from "@/modules/supabase/menu";
 import { toast } from "sonner";
@@ -63,9 +63,22 @@ function RestaurantDetailPage() {
   const [editing, setEditing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [publishConfirm, setPublishConfirm] = useState(false);
-  const [tab, setTab] = useState<string>(search.tab ?? "cardapio");
   const [menuCount, setMenuCount] = useState<number | null>(null);
   const retryRef = useRef(0);
+
+  // A aba vive na URL (`?tab=`), não em estado local: recarregar, voltar no
+  // navegador ou compartilhar o link mantém a área aberta. Antes a aba era
+  // estado interno e um F5 caía sempre no Cardápio.
+  const tab: "cardapio" | "config" = search.tab === "config" ? "config" : "cardapio";
+
+  function selectTab(next: "cardapio" | "config") {
+    navigate({
+      to: "/admin/restaurante/$id",
+      params: { id },
+      search: { tab: next },
+      replace: true,
+    });
+  }
 
   // Pedidos deixaram de ser uma aba daqui e viraram a rota global /admin/pedidos.
   useEffect(() => {
@@ -354,7 +367,7 @@ function RestaurantDetailPage() {
         </div>
       )}
 
-      <AdminModuleNav tab={tab} onSelect={setTab} menuCount={menuCount} />
+      <AdminModuleNav tab={tab} onSelect={selectTab} menuCount={menuCount} />
 
       {tab === "cardapio" && <MenuManager key={restaurant.id} restaurant={restaurant} />}
       {tab === "config" && (
@@ -400,24 +413,18 @@ const MODULES: {
   label: string;
   description: string;
   icon: typeof UtensilsCrossed;
-  accent: string;
-  chip: string;
 }[] = [
   {
     id: "cardapio",
     label: "Cardápio",
     description: "Categorias, lanches e disponibilidade",
     icon: UtensilsCrossed,
-    accent: "from-emerald-500/20 to-teal-500/5 border-emerald-400/40 hover:border-emerald-300/70",
-    chip: "bg-emerald-500 text-black",
   },
   {
     id: "config",
     label: "Configurações",
     description: "Dados, entrega e bairros",
     icon: Settings2,
-    accent: "from-sky-500/20 to-indigo-500/5 border-sky-400/40 hover:border-sky-300/70",
-    chip: "bg-sky-500 text-black",
   },
 ];
 
@@ -426,58 +433,86 @@ function AdminModuleNav({
   onSelect,
   menuCount,
 }: {
-  tab: string;
+  tab: "cardapio" | "config";
   onSelect: (tab: "cardapio" | "config") => void;
   menuCount: number | null;
 }) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Setas movem entre as áreas, como um tablist de verdade (o painel abaixo
+  // troca de conteúdo). Sem isso o teclado tinha que tabular por cada card.
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const current = MODULES.findIndex((m) => m.id === tab);
+    const last = MODULES.length - 1;
+    let next = current;
+    if (event.key === "ArrowRight") next = current >= last ? 0 : current + 1;
+    else if (event.key === "ArrowLeft") next = current <= 0 ? last : current - 1;
+    else if (event.key === "Home") next = 0;
+    else next = last;
+
+    const target = MODULES[next];
+    if (!target) return;
+    onSelect(target.id);
+    refs.current[next]?.focus();
+  }
+
   return (
-    <nav className="space-y-3">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">
-        Selecione a área
-      </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {MODULES.map((m) => {
+    // Barra compacta e grudada no topo: a área escolhida fica sempre à mão sem
+    // rolar de volta. Antes eram dois cards grandes que empurravam o conteúdo
+    // para baixo e repetiam três sinais de "ativo" ao mesmo tempo (anel, fundo
+    // branco e sublinhado) — agora o aceso é um só: fundo ciano e ícone preto.
+    //
+    // O `-top-4/-mx-4` (e os equivalentes `lg`) cancelam o padding do `main`:
+    // sem isso a barra grudava 24px abaixo da borda e o conteúdo passava por
+    // essa faixa, aparecendo por cima dela enquanto rolava.
+    <div className="sticky -top-4 z-10 -mx-4 bg-[#0a0a0f] px-4 pb-3 pt-4 lg:-top-6 lg:-mx-6 lg:px-6 lg:pt-6">
+      <div
+        role="tablist"
+        aria-label="Área do restaurante"
+        onKeyDown={handleKeyDown}
+        className="flex gap-1.5 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-1.5"
+      >
+        {MODULES.map((m, index) => {
           const active = tab === m.id;
           const value = m.id === "cardapio" ? menuCount : null;
-          const valueLabel = value === null ? "…" : `${value} item${value === 1 ? "" : "s"}`;
           return (
             <button
               key={m.id}
+              ref={(node) => {
+                refs.current[index] = node;
+              }}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              tabIndex={active ? 0 : -1}
               onClick={() => onSelect(m.id)}
-              aria-pressed={active}
-              className={`group flex items-center gap-4 rounded-2xl border bg-gradient-to-br p-5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${m.accent} ${
+              title={m.description}
+              className={cn(
+                "tap flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition-all",
                 active
-                  ? "ring-2 ring-white/50 shadow-lg"
-                  : "hover:-translate-y-0.5 hover:shadow-[0_10px_34px_rgba(0,0,0,0.45)]"
-              }`}
+                  ? "bg-cyan-500 text-black shadow-[0_4px_16px_rgba(6,182,212,0.25)]"
+                  : "text-gray-400 hover:bg-white/[0.05] hover:text-gray-200",
+              )}
             >
-              <span
-                className={`grid size-14 shrink-0 place-items-center rounded-2xl transition-transform group-hover:scale-105 ${
-                  active ? "bg-white text-black" : "bg-black/40 text-white"
-                }`}
-              >
-                <m.icon className="size-7" />
-              </span>
-              <span className="min-w-0 flex-1">
+              <m.icon className="size-4 shrink-0" />
+              <span className="truncate">{m.label}</span>
+              {value != null && (
                 <span
-                  className={`text-base font-black tracking-tight text-white ${active ? "underline decoration-2 underline-offset-4" : ""}`}
+                  className={cn(
+                    "shrink-0 rounded-full px-1.5 text-[10px] tabular-nums",
+                    active ? "bg-black/20 text-black" : "bg-white/10 text-gray-400",
+                  )}
                 >
-                  {m.label}
+                  {value}
                 </span>
-                <span className="mt-1 block text-xs leading-relaxed text-white/60">
-                  {m.description}
-                </span>
-                <span
-                  className={`mt-3 inline-block rounded-full px-2.5 py-1 text-[11px] font-bold ${active ? "bg-white/15 text-white" : m.chip}`}
-                >
-                  {valueLabel}
-                </span>
-              </span>
+              )}
             </button>
           );
         })}
       </div>
-    </nav>
+    </div>
   );
 }
 

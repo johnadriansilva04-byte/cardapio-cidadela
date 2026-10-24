@@ -233,17 +233,6 @@ export async function registerPendingSubscription(
   await patchRow(storeId, { admin_phone: digits });
 }
 
-/** Resolve o restaurante pelo telefone do dono (fallback do webhook). */
-export async function findStoreIdByPhone(payerPhone: string): Promise<string | null> {
-  const digits = payerPhone.replace(/\D/g, "");
-  if (!digits) return null;
-  // A tabela não é legível por anon; a resolução por telefone é feita pela RPC
-  // SECURITY DEFINER `find_store_by_phone`.
-  const { data, error } = await supabase.rpc("find_store_by_phone", { p_phone: digits });
-  if (error) return null;
-  return (data as string | null) ?? null;
-}
-
 /** Preapproval ativo registrado para o restaurante (usado no "Gerenciar"). */
 export async function getPreapprovalId(storeId: string): Promise<string | null> {
   const { data, error } = await supabase

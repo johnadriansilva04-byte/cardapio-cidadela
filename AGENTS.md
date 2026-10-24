@@ -239,10 +239,13 @@
   `viewport-fit=cover`) fica sob o notch.
 - As duas RPCs são aditivas: sem elas no banco, `getOrderForOwner` cai para
   `getOrderById` (schema antigo) e `getOwnerLockedStores` devolve vazio — nada
-  trava, só perde o enforcement. Se o e-mail/telefone da conta muda,
-  `registerPendingSubscription` grava o novo; a vinculação do MP continua por
-  e-mail (pseudo-email `telefone@menufacil.local`), por isso o aviso do modal
-  fala em "telefone", nunca no endereço interno.
+  trava, só perde o enforcement. Se o telefone da conta muda,
+  `registerPendingSubscription` grava o novo. A vinculação do MP é por LOJA
+  (`external_reference` = `store_id`, enviado no link) e, como fallback, por
+  TELEFONE do pagador — **nunca por e-mail**. O app autentica por telefone e o
+  e-mail da conta é um pseudo-endereço interno
+  (`<ddd><numero>@menufacil.local`) que o Mercado Pago não conhece: casar por
+  ele nunca encontrava a assinatura.
 - O webhook é uma **server route** em `src/routes/api.webhook.mercadopago.ts`
   (`POST /api/webhook/mercadopago`), com a lógica compartilhada em
   `src/api/lib/{mercadopago,mp-subscription}.ts`. Rotas de API seguem a
@@ -251,15 +254,30 @@
 - Segurança: o Access Token é server-only. Use `MERCADOPAGO_ACCESS_TOKEN` (não
   `VITE_*`) e configure `MERCADOPAGO_WEBHOOK_SECRET` para validar `x-signature`;
   sem o secret o webhook processa mas loga — em produção sempre configure-o.
+- **Prefixos da API do MP (fácil de errar, falha silenciosa).** Pagamento exige
+  `/v1`: `GET /v1/payments/{id}` e `GET /v1/payments/search`. O `/payments/...`
+  (sem `v1`) responde 404 "resource not found" e o código tratava como "não
+  encontrado" — o Premium nunca ativava pelo link de pagamento. `preapproval` e
+  `merchant_orders` **não** usam `v1` (`/preapproval/{id}`, `/merchant_orders/{id}`).
+  Confirmado contra o SDK oficial (`github.com/mercadopago/sdk-nodejs`). Os testes
+  travam o prefixo na URL para essa regressão não voltar.
+- `type: "merchant_order"` é o pedido do Checkout Pro e agrupa pagamentos: o
+  webhook busca `/merchant_orders/{id}` e usa o primeiro pagamento de
+  `payments[]`. Antes ele buscava `/payments/{merchant_order_id}` — outro
+  recurso, com id numérico que podia colidir e ativar o Premium errado.
 - O link de assinatura do Mercado Pago é estático
   (`VITE_MERCADOPAGO_SUBSCRIPTION_LINK`) e não carrega `external_reference`. Por
-  isso o restaurante é resolvido pelo e-mail do pagador, registrado antes do
-  checkout via `registerPendingSubscription`. O aviso orienta o usuário a usar o
-  mesmo telefone da conta (o e-mail interno é um pseudo-endereço).
+  isso o webhook resolve o restaurante pelo TELEFONE do pagador
+  (`find_store_by_phone`, RPC SECURITY DEFINER), registrado antes do checkout
+  via `registerPendingSubscription`. O aviso orienta o usuário a usar o mesmo
+  telefone da conta. O checkout dinâmico (`/api/payment/create-link`) manda
+  `external_reference` = `store_id` e é a via primária; o telefone é o fallback.
 - Fallback do webhook: `POST /api/subscription/sync` (rota
-  `api.subscription.sync.ts`) busca o preapproval direto na API do MP. Exige
-  token de sessão e só age se o e-mail do pagador bater com o registrado na
-  linha — evita ativar o Premium de terceiros. A página `/admin/assinatura`
+  `api.subscription.sync.ts`) busca os pagamentos da LOJA
+  (`/payments/search?external_reference=<store_id>`) direto na API do MP. Exige
+  token de sessão e confirma a posse do restaurante com o RLS do próprio usuário
+  — a busca é pela loja, então sem essa checagem um token qualquer ativaria o
+  Premium de outra loja informando o `storeId` dela. A página `/admin/assinatura`
   usa esse sync automaticamente: depois que o dono abre o checkout, ao voltar
   para a aba (visibilitychange + poll de 6s) o status é conferido sozinho e o
   Premium é liberado sem recarregar. O link "Conferir agora" é o fallback
@@ -267,9 +285,8 @@
 - `/admin/assinatura` é organizada em torno de UM único bloco (plano + ação):
   o CTA "Assinar por R$ 199,99/ano" abre o Mercado Pago direto no clique. O
   modal só aparece quando o `window.open` é barrado (popup blocker) — antes o
-  modal era um passo obrigatório. O vínculo continua por e-mail/telefone
-  (pseudo-email `telefone@menufacil.local`), por isso o aviso fala em
-  "telefone" e nunca expõe o endereço interno.
+  modal era um passo obrigatório. O vínculo é por loja/telefone, por isso o
+  aviso fala em "telefone" e nunca expõe o pseudo-e-mail interno.
 
 ## Segurança e confiabilidade (não regredir)
 
@@ -287,7 +304,7 @@
   as policies são só para o dono (join `restaurants.owner_id = auth.uid()`), o
   GRANT para `anon` foi removido e os acessos que precisavam de outra identidade
   usam RPCs SECURITY DEFINER: `legacy_trials_for_owner()` (import legado por
-  e-mail/telefone) e `find_store_by_payer_email()` (webhook). O webhook precisa de
+  e-mail/telefone) e `find_store_by_phone()` (webhook). O webhook precisa de
   `SUPABASE_SERVICE_ROLE_KEY` para escrever (RLS não se aplica à service role).
 - `POST /api/payment/create-link` exige `Authorization: Bearer <token>` e confirma
   a posse do `storeId` via cliente Supabase com o RLS do próprio usuário — sem
@@ -302,6 +319,16 @@
 - O `runSync` de `/admin/assinatura` chama `POST /api/subscription/sync` (não só
   relê o status local); era por isso que "Conferir agora" não destravava o Premium
   quando o webhook atrasava.
+- **A ativação do Premium tem teste no código real, não só no E2E.** O E2E
+  (`premium-flow.spec.ts`) prova a regra de negócio com o stub do navegador, mas
+  não toca no webhook. `src/api/lib/mp-subscription.test.ts` exercita
+  `applyPreapproval`/`processPreapprovalById`/`syncSubscriptionForEmail` (o que
+  transforma "pagamento aprovado" em Premium) com dublê só na fronteira de
+  I/O, e `src/routes/api.webhook.mercadopago.test.ts` chama o **handler HTTP
+  real** da rota: fail-closed sem secret (503), assinatura forjada (401),
+  ativação por pagamento aprovado (upsert em `admin_trials`, expiração ~1 ano),
+  500 quando a ativação não persiste (para o MP reentregar) e pagamento não
+  aprovado ignorado. Se mexer no webhook, rode esses dois arquivos.
 - `SUPABASE_SERVICE_ROLE_KEY` / `MERCADOPAGO_ACCESS_TOKEN` são server-only. Nunca
   prefixar com `VITE_` (vai para o bundle) e nunca deixar valor real no
   `.env.example`.
@@ -341,6 +368,17 @@
 
 ## Painel (admin)
 
+- **Abas de área (`/admin/restaurante/$id`) vivem na URL (`?tab=`).** Trocar de
+  aba navega com `replace: true`, então recarregar/voltar mantém a área aberta e
+  o histórico não acumula uma entrada por toque. Não volte a guardar a aba em
+  `useState` — era o bug de o F5 cair sempre no Cardápio. A barra é `sticky` e
+  usa `-top-4/-mx-4` (`lg:-top-6/-mx-6`) para cancelar o padding do `main`:
+  sem isso o conteúdo passa pela faixa de 24px acima da barra enquanto rola.
+- `SegmentedControl` (`src/modules/ui/Controls.tsx`) é o primitivo de
+  filtro/ordenação (Pedidos, Clientes, fila do Modo Cozinha). É `radiogroup`,
+  não `tablist`: filtra a lista visível em vez de trocar de painel. Um só
+  segmento entra na tabulação (roving tabindex) e as setas/Home/End navegam.
+  Não duplique esse markup em telas novas.
 - A faixa `StorePulseBar` (`src/components/admin/StorePulseBar.tsx`) fica no topo
   do dashboard com o pulso do dia em uma linha: aberto agora / fechado / pausado
   (relógio de 60s, sem recarregar) e as ações que o dono mais repete — pausar,

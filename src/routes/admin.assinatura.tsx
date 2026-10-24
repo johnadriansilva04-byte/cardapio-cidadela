@@ -266,8 +266,9 @@ function SubscriptionPage() {
 
   async function openPayment() {
     if (!activeId) return;
-    // Registra o e-mail da conta para correlacionar o webhook com o restaurante.
-    if (user?.email) void registerPendingSubscription(activeId, user.email);
+    // Registra o telefone da conta para correlacionar o webhook com o restaurante.
+    // Telefone, não e-mail: o e-mail da conta é um pseudo-endereço interno.
+    if (accountPhone) void registerPendingSubscription(activeId, accountPhone);
 
     // Gera um link de pagamento com o external_reference correto
     try {

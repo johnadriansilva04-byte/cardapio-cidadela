@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   mpFetch,
   normalizePreapproval,
-  searchPreapprovals,
+  searchPaymentsByExternalReference,
   type PreapprovalInfo,
   type ServerEnv,
 } from "./mercadopago";
@@ -12,6 +12,11 @@ import {
  *
  * Compartilhado entre o webhook (automático) e a sincronização manual (botão
  * "Sincronizar", fallback quando o webhook não chega).
+ *
+ * A correlação com o restaurante é por LOJA (`external_reference` = store_id,
+ * enviado no link) e, como fallback, por TELEFONE do pagador. Nunca por e-mail:
+ * o app autentica por telefone e o e-mail da conta é um pseudo-endereço interno
+ * (`<ddd><numero>@menufacil.local`) que o Mercado Pago não conhece.
  */
 
 const ACTIVE_STATUSES = new Set(["authorized", "approved", "active"]);
@@ -25,17 +30,17 @@ export interface ProcessResult {
 }
 
 function isExternalReference(value: string): boolean {
-  // external_reference é o nome do restaurante que enviamos? Não — usamos o
-  // store_id (slug) do cardápio, que nunca é um e-mail.
+  // external_reference é o store_id que enviamos no link. Um e-mail nunca é um
+  // store_id válido — se vier um, é dado legado e deve ser descartado.
   return Boolean(value) && !value.includes("@");
 }
 
 /**
  * Descobre a qual restaurante um preapproval pertence.
  *
- * Ordem: `external_reference` (store_id enviado no link) → e-mail do pagador já
- * registrado em `admin_trials` → cria a linha a partir do e-mail (sem store_id,
- * será vinculada quando o usuário sincronizar pelo painel).
+ * Ordem: `external_reference` (store_id enviado no link) → telefone do pagador
+ * (RPC SECURITY DEFINER; o webhook/sync usa a service role). Sem correlação
+ * possível, devolve null e nada é ativado.
  */
 async function resolveStoreId(
   supabase: SupabaseClient,
@@ -43,11 +48,9 @@ async function resolveStoreId(
 ): Promise<string | null> {
   if (isExternalReference(info.externalReference)) return info.externalReference;
 
-  if (info.payerEmail) {
-    // Resolve pelo e-mail via RPC SECURITY DEFINER — funciona mesmo quando o
-    // webhook roda com a anon key (a tabela não é mais legível por anon).
-    const { data } = await supabase.rpc("find_store_by_payer_email", {
-      p_email: info.payerEmail,
+  if (info.payerPhone) {
+    const { data } = await supabase.rpc("find_store_by_phone", {
+      p_phone: info.payerPhone,
     });
     if (data) return data as string;
   }
@@ -94,7 +97,8 @@ export async function applyPreapproval(
         is_premium: true,
         premium_expires_at: nextBillingDate(info),
         mercadopago_preapproval_id: info.id,
-        mercadopago_payer_email: info.payerEmail || null,
+        // Telefone do pagador é a identidade de correlação (não há e-mail real).
+        admin_phone: info.payerPhone || null,
       },
       { onConflict: "store_id" },
     );
@@ -143,42 +147,52 @@ export async function processPreapprovalById(
 }
 
 /**
- * Sincronização manual: busca os preapprovals do e-mail do dono, acha um ativo
- * e aplica. Retorna o resultado para a UI.
+ * Sincronização manual: busca os pagamentos da LOJA pelo `external_reference`
+ * (o store_id que enviamos no link), acha um aprovado e ativa. Retorna o
+ * resultado para a UI.
  *
- * Só age sobre um restaurante cujo e-mail já esteja registrado na linha de
- * assinatura — assim o e-mail sozinho não permite ativar o Premium de terceiros.
+ * A busca é pela loja, não pelo pagador: o app é por telefone e o e-mail da
+ * conta é um pseudo-endereço que o Mercado Pago não conhece — procurar por ele
+ * nunca encontrava nada. A posse da loja já é validada na rota (token de sessão
+ * + RLS do próprio usuário) antes de chamar esta função.
  */
-export async function syncSubscriptionForEmail(
+export async function syncSubscriptionForStore(
   supabase: SupabaseClient,
   storeId: string,
-  payerEmail: string,
   env?: ServerEnv,
-): Promise<{ status: "premium" | "free" | "none" | "forbidden"; preapprovalId: string | null }> {
-  if (!storeId || !payerEmail) return { status: "none", preapprovalId: null };
+): Promise<{ status: "premium" | "free" | "none"; preapprovalId: string | null }> {
+  if (!storeId) return { status: "none", preapprovalId: null };
+
+  const payments = await searchPaymentsByExternalReference(storeId, env);
+  if (payments.length === 0) return { status: "none", preapprovalId: null };
+
+  // Prefere um aprovado; senão, assume que não há pagamento válido.
+  const approved = payments.find((p) => p.status === "approved");
+  if (!approved) {
+    return { status: "free", preapprovalId: payments[0]?.id ?? null };
+  }
 
   const { data: row } = await supabase
     .from("admin_trials")
-    .select("store_id, admin_email, mercadopago_payer_email")
+    .select("store_id, admin_phone")
     .eq("store_id", storeId)
     .maybeSingle();
 
-  const registered =
-    row &&
-    ((row.admin_email as string | null) === payerEmail ||
-      (row.mercadopago_payer_email as string | null) === payerEmail);
-  if (!registered) return { status: "forbidden", preapprovalId: null };
+  const expires = new Date();
+  expires.setFullYear(expires.getFullYear() + 1);
 
-  const preapprovals = await searchPreapprovals(payerEmail, env);
-  if (preapprovals.length === 0) return { status: "none", preapprovalId: null };
+  const { error } = await supabase.from("admin_trials").upsert(
+    {
+      store_id: storeId,
+      is_premium: true,
+      premium_expires_at: expires.toISOString(),
+      // Guarda o telefone do pagador quando o checkout o informa; senão mantém
+      // o que já estava registrado para a loja.
+      admin_phone: approved.payerPhone || (row?.admin_phone as string | null) || null,
+    },
+    { onConflict: "store_id" },
+  );
+  if (error) return { status: "none", preapprovalId: null };
 
-  // Prefere um ativo; senão, assume que não há assinatura válida.
-  const active = preapprovals.find((p) => ACTIVE_STATUSES.has(p.status));
-  const chosen = active ?? preapprovals[0];
-  await applyPreapproval(supabase, chosen);
-
-  return {
-    status: active ? "premium" : "free",
-    preapprovalId: chosen.id,
-  };
+  return { status: "premium", preapprovalId: approved.id };
 }

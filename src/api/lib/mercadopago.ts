@@ -199,10 +199,32 @@ export async function verifyMercadoPagoSignature(params: {
   return diff === 0;
 }
 
+/** Só dígitos — é assim que o telefone é gravado e comparado no banco. */
+export function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+/**
+ * Lê o telefone de um nó do Mercado Pago, que aparece como `{ area_code, number }`
+ * no pagamento ou como string em outros payloads. Devolve só os dígitos.
+ */
+function readPhone(node: unknown): string {
+  if (!node) return "";
+  if (typeof node === "string") return digitsOnly(node);
+  if (typeof node === "object") {
+    const o = node as Record<string, unknown>;
+    const area = o.area_code != null ? String(o.area_code) : "";
+    const num = o.number != null ? String(o.number) : "";
+    return digitsOnly(`${area}${num}`);
+  }
+  return "";
+}
+
 export interface PreapprovalInfo {
   id: string;
   status: string;
-  payerEmail: string;
+  /** Telefone do pagador (só dígitos) — a correlação com a loja é por telefone. */
+  payerPhone: string;
   externalReference: string;
   nextPaymentDate: string | null;
 }
@@ -218,25 +240,54 @@ export function normalizePreapproval(raw: unknown): PreapprovalInfo | null {
   return {
     id,
     status: String(r.status ?? ""),
-    payerEmail: String((r.payer_email as string) ?? ""),
+    payerPhone: readPhone(r.payer_phone),
     externalReference: String((r.external_reference as string) ?? ""),
     nextPaymentDate: next ?? null,
   };
 }
 
-/** Busca preapprovals de um pagador — usado pela sincronização manual. */
-export async function searchPreapprovals(
-  payerEmail: string,
+export interface PaymentInfo {
+  id: string;
+  status: string;
+  externalReference: string;
+  /** Telefone do pagador (só dígitos), quando o checkout o informa. */
+  payerPhone: string;
+}
+
+/** Normaliza o corpo de um pagamento pontual do Mercado Pago. */
+export function normalizePayment(raw: unknown): PaymentInfo | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const id = String(r.id ?? "");
+  if (!id) return null;
+  const payer = (r.payer ?? {}) as Record<string, unknown>;
+  return {
+    id,
+    status: String(r.status ?? ""),
+    externalReference: String((r.external_reference as string) ?? ""),
+    payerPhone: readPhone(payer.phone),
+  };
+}
+
+/**
+ * Busca os pagamentos de uma loja pelo `external_reference` (o store_id que
+ * enviamos no link). É a fonte de verdade da correlação: não depende de e-mail
+ * nem de telefone — o app é por telefone e o checkout não devolve e-mail real.
+ *
+ * A rota de busca é `/payments/search` (sem `/v1`) — é a que o SDK oficial usa.
+ * Já a busca por id (`/v1/payments/{id}`) EXIGE o `/v1`: sem ele a API devolve
+ * 404 "resource not found" e o Premium nunca ativava pelo link, em silêncio.
+ */
+export async function searchPaymentsByExternalReference(
+  externalReference: string,
   env?: ServerEnv,
-): Promise<PreapprovalInfo[]> {
+): Promise<PaymentInfo[]> {
   const { ok, data } = await mpFetch(
-    `/preapproval/search?payer_email=${encodeURIComponent(payerEmail)}&limit=20`,
+    `/v1/payments/search?external_reference=${encodeURIComponent(externalReference)}&limit=20`,
     {},
     env,
   );
   if (!ok || !data) return [];
   const results = (data as { results?: unknown[] }).results ?? [];
-  return results
-    .map((r) => normalizePreapproval(r))
-    .filter((p): p is PreapprovalInfo => p !== null);
+  return results.map((r) => normalizePayment(r)).filter((p): p is PaymentInfo => p !== null);
 }

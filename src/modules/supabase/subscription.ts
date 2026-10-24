@@ -23,11 +23,11 @@ export const MONTHLY_FREE_LIMIT = 5;
 export { PREMIUM_PRICE_LABEL } from "@/lib/pricing";
 
 const COLUMNS =
-  "store_id, admin_email, is_premium, premium_expires_at, monthly_order_count, monthly_order_reset_date";
+  "store_id, admin_phone, is_premium, premium_expires_at, monthly_order_count, monthly_order_reset_date";
 
 interface SubscriptionRow {
   store_id: string | null;
-  admin_email: string | null;
+  admin_phone: string | null;
   is_premium: boolean | null;
   premium_expires_at: string | null;
   monthly_order_count: number | null;
@@ -187,7 +187,7 @@ export async function checkMonthlyLimit(
 export async function activatePremium(
   storeId: string,
   preapprovalId: string,
-  payerEmail: string,
+  payerPhone: string,
   expiresAt?: string | null,
 ): Promise<boolean> {
   await ensureRow(storeId);
@@ -196,7 +196,7 @@ export async function activatePremium(
     is_premium: true,
     premium_expires_at: expires,
     mercadopago_preapproval_id: preapprovalId,
-    mercadopago_payer_email: payerEmail || null,
+    admin_phone: payerPhone || null,
   });
 }
 
@@ -216,32 +216,30 @@ function nextBillingDate(): string {
 }
 
 /**
- * Guarda o e-mail do pagador antes de abrir o checkout. É o que permite
- * correlacionar o webhook (que pode não trazer `external_reference`) com o
- * restaurante certo.
+ * Guarda o telefone do dono antes de abrir o checkout. É o fallback de
+ * correlação do webhook quando o pagamento não traz `external_reference`.
+ *
+ * Telefone, não e-mail: o app autentica por telefone e o e-mail da conta é um
+ * pseudo-endereço interno (`<ddd><numero>@menufacil.local`) que o Mercado Pago
+ * não conhece.
  */
 export async function registerPendingSubscription(
   storeId: string,
-  payerEmail: string,
+  payerPhone: string,
 ): Promise<void> {
-  if (!payerEmail) return;
+  const digits = payerPhone.replace(/\D/g, "");
+  if (!digits) return;
   await ensureRow(storeId);
-  try {
-    await patchRow(storeId, {
-      admin_email: payerEmail,
-      mercadopago_payer_email: payerEmail,
-    });
-  } catch {
-    /* admin_email é UNIQUE — colisão não deve derrubar o fluxo de pagamento */
-  }
+  await patchRow(storeId, { admin_phone: digits });
 }
 
-/** Resolve o restaurante pelo e-mail do pagador (fallback do webhook). */
-export async function findStoreIdByPayerEmail(payerEmail: string): Promise<string | null> {
-  if (!payerEmail) return null;
-  // A tabela não é legível por anon; a resolução por e-mail é feita pela RPC
-  // SECURITY DEFINER `find_store_by_payer_email`.
-  const { data, error } = await supabase.rpc("find_store_by_payer_email", { p_email: payerEmail });
+/** Resolve o restaurante pelo telefone do dono (fallback do webhook). */
+export async function findStoreIdByPhone(payerPhone: string): Promise<string | null> {
+  const digits = payerPhone.replace(/\D/g, "");
+  if (!digits) return null;
+  // A tabela não é legível por anon; a resolução por telefone é feita pela RPC
+  // SECURITY DEFINER `find_store_by_phone`.
+  const { data, error } = await supabase.rpc("find_store_by_phone", { p_phone: digits });
   if (error) return null;
   return (data as string | null) ?? null;
 }

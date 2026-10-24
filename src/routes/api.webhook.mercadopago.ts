@@ -6,6 +6,7 @@ import {
   getWebhookAllowUnsigned,
   getWebhookSecret,
   mpFetch,
+  normalizePayment,
 } from "@/api/lib/mercadopago";
 import { processPreapprovalById } from "@/api/lib/mp-subscription";
 
@@ -90,9 +91,34 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
             });
           }
 
-          // Pagamento pontual — ativa Premium por 1 ano
+          // Pagamento pontual — ativa Premium por 1 ano.
+          //
+          // `payment` traz o pagamento direto. `merchant_order` é o pedido do
+          // Checkout Pro e agrupa um ou mais pagamentos — resolve para o
+          // primeiro pagamento antes de ler status/telefone. Antes buscávamos
+          // `/payments/{merchant_order_id}`, ou seja, um recurso diferente: o
+          // id numérico podia colidir com o de um pagamento real e ativar o
+          // Premium errado.
           if (type === "payment" || type === "merchant_order") {
-            const { ok, data } = await mpFetch(`/payments/${resourceId}`);
+            let paymentId = resourceId;
+            if (type === "merchant_order") {
+              const order = await mpFetch(`/merchant_orders/${resourceId}`);
+              const orderPayments = (
+                (order.data as { payments?: { id?: unknown }[] } | null)?.payments ?? []
+              ).filter((p) => p?.id != null);
+              if (!order.ok || !order.data || orderPayments.length === 0) {
+                console.error("[webhook/mercadopago] merchant_order sem pagamento:", resourceId);
+                return new Response(
+                  JSON.stringify({ received: true, error: "order has no payment" }),
+                  { status: 200, headers: { "Content-Type": "application/json" } },
+                );
+              }
+              paymentId = String(orderPayments[0].id);
+            }
+
+            // O prefixo `/v1` é obrigatório: `/payments/{id}` responde 404 e o
+            // Premium nunca ativava pelo link de pagamento (falhava em silêncio).
+            const { ok, data } = await mpFetch(`/v1/payments/${paymentId}`);
             if (!ok || !data) {
               console.error("[webhook/mercadopago] Falha ao buscar pagamento:", resourceId);
               return new Response(JSON.stringify({ received: true, error: "payment not found" }), {
@@ -101,9 +127,15 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               });
             }
 
-            const payment = data as Record<string, unknown>;
-            const status = String(payment.status ?? "");
-            const externalReference = String(payment.external_reference ?? "");
+            const payment = normalizePayment(data);
+            if (!payment) {
+              console.error("[webhook/mercadopago] pagamento inválido:", resourceId);
+              return new Response(JSON.stringify({ received: true, error: "invalid payment" }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+            const status = payment.status;
 
             // Só processa pagamentos aprovados
             if (status !== "approved") {
@@ -113,10 +145,22 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               });
             }
 
-            // external_reference deve conter o store_id
-            if (!externalReference || externalReference.includes("@")) {
+            // Correlação por LOJA (external_reference = store_id). Se faltar,
+            // cai para o telefone do pagador — o app é por telefone e nunca por
+            // e-mail (o e-mail da conta é um pseudo-endereço interno).
+            let storeId = payment.externalReference;
+            if (!storeId || storeId.includes("@")) {
+              if (payment.payerPhone) {
+                const { data: found } = await supabase.rpc("find_store_by_phone", {
+                  p_phone: payment.payerPhone,
+                });
+                storeId = (found as string | null) ?? "";
+              }
+            }
+
+            if (!storeId || storeId.includes("@")) {
               // Não loga o valor: dados antigos podiam trazer um e-mail (PII) aqui.
-              console.warn("[webhook/mercadopago] external_reference inválido (ignorado)");
+              console.warn("[webhook/mercadopago] referência inválida (ignorado)");
               return new Response(JSON.stringify({ received: true, error: "invalid reference" }), {
                 status: 200,
                 headers: { "Content-Type": "application/json" },
@@ -133,9 +177,10 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               .from("admin_trials")
               .upsert(
                 {
-                  store_id: externalReference,
+                  store_id: storeId,
                   is_premium: true,
                   premium_expires_at: expiresAt.toISOString(),
+                  admin_phone: payment.payerPhone || null,
                 },
                 { onConflict: "store_id" },
               )
@@ -149,14 +194,11 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               );
             }
 
-            console.log("[webhook/mercadopago] Premium ativado para store:", externalReference);
-            return new Response(
-              JSON.stringify({ received: true, activated: true, storeId: externalReference }),
-              {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              },
-            );
+            console.log("[webhook/mercadopago] Premium ativado para store:", storeId);
+            return new Response(JSON.stringify({ received: true, activated: true, storeId }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
           }
 
           // Outros tipos — registramos o recebimento para não gerar reentrega

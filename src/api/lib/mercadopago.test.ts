@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import {
   authorizeWebhookRequest,
   getWebhookAllowUnsigned,
+  normalizePayment,
   normalizePreapproval,
   verifyMercadoPagoSignature,
 } from "./mercadopago";
@@ -190,18 +191,18 @@ describe("getWebhookAllowUnsigned", () => {
 });
 
 describe("normalizePreapproval", () => {
-  it("extrai id, status, pagador e renovação", () => {
+  it("extrai id, status, telefone do pagador e renovação", () => {
     const info = normalizePreapproval({
       id: "2c938084",
       status: "authorized",
-      payer_email: "dono@loja.com",
+      payer_phone: { area_code: "11", number: "999998888" },
       external_reference: "minha-loja",
       next_payment_date: "2026-05-01T00:00:00.000Z",
     });
     expect(info).toEqual({
       id: "2c938084",
       status: "authorized",
-      payerEmail: "dono@loja.com",
+      payerPhone: "11999998888",
       externalReference: "minha-loja",
       nextPaymentDate: "2026-05-01T00:00:00.000Z",
     });
@@ -210,5 +211,31 @@ describe("normalizePreapproval", () => {
   it("retorna null sem id", () => {
     expect(normalizePreapproval({ status: "authorized" })).toBeNull();
     expect(normalizePreapproval(null)).toBeNull();
+  });
+});
+
+describe("normalizePayment", () => {
+  it("extrai telefone do pagador em { area_code, number }", () => {
+    const payment = normalizePayment({
+      id: "pay-1",
+      status: "approved",
+      external_reference: "loja-x",
+      payer: { phone: { area_code: "11", number: "988887777" } },
+    });
+    expect(payment).toEqual({
+      id: "pay-1",
+      status: "approved",
+      externalReference: "loja-x",
+      payerPhone: "11988887777",
+    });
+  });
+
+  it("tolera pagamento sem telefone do pagador", () => {
+    const payment = normalizePayment({ id: "pay-2", status: "approved" });
+    expect(payment?.payerPhone).toBe("");
+  });
+
+  it("retorna null sem id", () => {
+    expect(normalizePayment({ status: "approved" })).toBeNull();
   });
 });

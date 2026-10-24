@@ -1266,18 +1266,31 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 $$;
 GRANT EXECUTE ON FUNCTION public.legacy_trials_for_owner() TO authenticated;
 
--- Webhook/fallback: resolve o restaurante pelo e-mail do pagador sem depender
+-- Webhook/fallback: resolve o restaurante pelo TELEFONE do pagador sem depender
 -- da policy pública. Sem EXECUTE para anon (o webhook usa service role).
-CREATE OR REPLACE FUNCTION public.find_store_by_payer_email(p_email TEXT)
+--
+-- Por telefone, não por e-mail: o app autentica por telefone e o e-mail da
+-- conta é um pseudo-endereço interno (`<ddd><numero>@menufacil.local`) que o
+-- Mercado Pago não conhece — casar por ele nunca encontrava a loja.
+CREATE OR REPLACE FUNCTION public.find_store_by_phone(p_phone TEXT)
 RETURNS TEXT
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   SELECT a.store_id::text
   FROM admin_trials a
   WHERE a.store_id IS NOT NULL
-    AND (a.mercadopago_payer_email = p_email OR a.admin_email = p_email)
+    AND regexp_replace(COALESCE(a.admin_phone, ''), '\D', '', 'g') = regexp_replace(p_phone, '\D', '', 'g')
+    AND regexp_replace(p_phone, '\D', '', 'g') <> ''
   LIMIT 1;
 $$;
-REVOKE ALL ON FUNCTION public.find_store_by_payer_email(TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.find_store_by_phone(TEXT) FROM PUBLIC, anon, authenticated;
+-- Só o webhook (service role) resolve a loja pelo telefone. REVOKE de PUBLIC
+-- também tira o EXECUTE do service_role (todo role herda PUBLIC), então o GRANT
+-- explícito é obrigatório — sem ele a RPC falharia no webhook.
+GRANT EXECUTE ON FUNCTION public.find_store_by_phone(TEXT) TO service_role;
+
+-- A RPC antiga (correlação por e-mail) sai de cena: o pseudo-e-mail da conta
+-- nunca casava com o pagador real.
+DROP FUNCTION IF EXISTS public.find_store_by_payer_email(TEXT);
 
 -- Tabelas legadas de chat/jogos. Antes eram `FOR ALL TO anon USING(true)`:
 -- qualquer visitante sem login podia ler/gravar/apagar tudo. Não são usadas

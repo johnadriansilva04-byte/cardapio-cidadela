@@ -486,9 +486,11 @@
 
 ## Banco de dados: aplicar as migrações
 
-- **Projeto Supabase: `xfgmnggdgnozyrluqabv`** (região `us-east-2`). O
-  `GOOGLE_AUTH_SETUP.md` cita um ref antigo (`hkzhksauilonqppipjyc`) — está
-  desatualizado; o banco vivo é o `xfgmnggdgnozyrluqabv`.
+- **Projeto Supabase: `wlznmlsvnlgsljanbjgy`** (produção). É o ref que o bundle
+  publicado usa (`cardapio-cidadela.vercel.app` embute
+  `VITE_SUPABASE_URL=https://wlznmlsvnlgsljanbjgy.supabase.co`). O
+  `GOOGLE_AUTH_SETUP.md` cita um ref antigo (`hkzhksauilonqppipjyc`) e este
+  arquivo citava `xfgmnggdgnozyrluqabv` — ambos desatualizados.
 - `supabase/apply-all.mjs` aplica **todas** as migrações na ordem correta via
   Management API (sem Docker, sem conexão direta ao Postgres — o host
   `db.<ref>.supabase.co` é IPv6-only e não resolve neste ambiente). Uso:

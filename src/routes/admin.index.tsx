@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Wallet,
   UtensilsCrossed,
-  Calendar,
   LayoutGrid,
   Copy,
   Check,
@@ -248,6 +247,24 @@ function AdminDashboardOverview() {
   const draftCount = restaurants.filter((r) => r.status === "draft").length;
   const activeRestaurant = restaurants.find((r) => r.id === activeId) ?? null;
 
+  // "Hoje" é a primeira pergunta do dono: quantos pedidos chegaram e quanto
+  // entrou. O período longo (7/30/90 dias) é leitura de desempenho e vive mais
+  // abaixo, junto do gráfico — antes os dois competiam no mesmo bloco.
+  const todayMetrics = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const today = orders.filter((o) => new Date(o.created_at) >= start);
+    const active = today.filter((o) => o.status !== "cancelled");
+    const revenue = active.reduce((s, o) => s + Number(o.total || 0), 0);
+    return {
+      count: today.length,
+      revenue,
+      averageTicket: active.length ? revenue / active.length : 0,
+      received: today.filter((o) => o.status === "received").length,
+      preparing: today.filter((o) => o.status === "preparing").length,
+    };
+  }, [orders]);
+
   async function handleCreate(values: RestaurantFormValues): Promise<Restaurant | null> {
     if (!user) return null;
     setSubmitting(true);
@@ -379,6 +396,11 @@ function AdminDashboardOverview() {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
+        subtitle={
+          activeRestaurant
+            ? `${activeRestaurant.name} • ${publishedCount > 0 ? "publicado" : "rascunho"}`
+            : undefined
+        }
         actions={
           <Button
             onClick={() => {
@@ -392,7 +414,8 @@ function AdminDashboardOverview() {
         }
       />
 
-      {/* Seletor de restaurante + período — só com restaurantes */}
+      {/* Seletor de restaurante + atalho de gestão. O período saiu daqui: ele é
+          filtro do gráfico e voltou para junto dele. */}
       {restaurants.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5">
           <div className="flex items-center gap-1.5 rounded-xl bg-white/[0.03] px-2.5 py-1.5">
@@ -409,22 +432,6 @@ function AdminDashboardOverview() {
                   {r.name}
                 </SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-          <span className="mx-1 hidden h-5 w-px bg-white/10 sm:block" />
-          <div className="flex items-center gap-1.5 rounded-xl bg-white/[0.03] px-2.5 py-1.5">
-            <Calendar className="size-3.5 text-gray-500" />
-            <span className="text-[11px] font-semibold text-gray-400">Período</span>
-          </div>
-          <Select value={range} onValueChange={(v) => setRange(v as RangeKey)}>
-            <SelectTrigger className="h-9 w-[150px] border-white/10 bg-white/[0.04] text-sm text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="border-white/10 bg-[#1a1a22] text-white">
-              <SelectItem value="7d">Últimos 7 dias</SelectItem>
-              <SelectItem value="30d">Últimos 30 dias</SelectItem>
-              <SelectItem value="90d">Últimos 90 dias</SelectItem>
-              <SelectItem value="all">Todo o período</SelectItem>
             </SelectContent>
           </Select>
           {activeId && (
@@ -450,43 +457,45 @@ function AdminDashboardOverview() {
         />
       )}
 
-      {/* KPI compactos */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard
-          icon={Store}
-          tone="cyan"
-          label="Restaurantes"
-          value={String(restaurants.length)}
-          hint={`${publishedCount} publicado${publishedCount === 1 ? "" : "s"} • ${draftCount} rascunho${draftCount === 1 ? "" : "s"}`}
-        />
-        <KpiCard
-          icon={ClipboardList}
-          tone="amber"
-          label="Pedidos no período"
-          value={String(financeMetrics.totalOrders)}
-          hint={
-            ordersLoading
-              ? "Carregando…"
-              : range === "all"
-                ? "Todo o histórico"
-                : `Filtro de ${range}`
-          }
-        />
-        <KpiCard
-          icon={Wallet}
-          tone="emerald"
-          label="Faturamento"
-          value={brl(financeMetrics.totalRevenue)}
-          hint="Cancelados não entram"
-        />
-        <KpiCard
-          icon={TrendingUp}
-          tone="violet"
-          label="Ticket médio"
-          value={brl(financeMetrics.averageTicket)}
-          hint="Por pedido não cancelado"
-        />
-      </div>
+      {/* KPIs de HOJE — a leitura operacional, no topo. */}
+      {restaurants.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <KpiCard
+            icon={ClipboardList}
+            tone="cyan"
+            label="Pedidos hoje"
+            value={String(todayMetrics.count)}
+            hint={
+              todayMetrics.received > 0
+                ? `${todayMetrics.received} aguardando aceite`
+                : ordersLoading
+                  ? "Carregando…"
+                  : "Tudo em dia"
+            }
+          />
+          <KpiCard
+            icon={Wallet}
+            tone="emerald"
+            label="Faturamento hoje"
+            value={brl(todayMetrics.revenue)}
+            hint="Cancelados não entram"
+          />
+          <KpiCard
+            icon={TrendingUp}
+            tone="violet"
+            label="Ticket médio hoje"
+            value={brl(todayMetrics.averageTicket)}
+            hint="Por pedido não cancelado"
+          />
+          <KpiCard
+            icon={Store}
+            tone="amber"
+            label="Restaurantes"
+            value={String(restaurants.length)}
+            hint={`${publishedCount} publicado${publishedCount === 1 ? "" : "s"} • ${draftCount} rascunho${draftCount === 1 ? "" : "s"}`}
+          />
+        </div>
+      )}
 
       {/* Termômetro de uso do plano: mostra a cota de 5 pedidos enchendo ao
           longo do mês. Substitui o banner que só aparecia no aperto — agora o
@@ -544,39 +553,43 @@ function AdminDashboardOverview() {
         </div>
       ) : (
         <>
-          {/* Pedidos por status + faturamento consolidado */}
+          {/* Pedidos por status + faturamento consolidado do período escolhido.
+              O período agora vive aqui, colado no gráfico que ele filtra. */}
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-bold tracking-tight text-white">Pedidos por status</h2>
                 <p className="text-[11px] font-medium text-gray-400">
                   {activeRestaurant?.name ?? "Todos os restaurantes"} •{" "}
-                  {range === "all" ? "todo o período" : `últimos ${range.replace("d", "")} dias`}
+                  {range === "all" ? "todo o período" : `últimos ${range.replace("d", "")} dias`} •{" "}
+                  {financeMetrics.totalOrders} pedido{financeMetrics.totalOrders === 1 ? "" : "s"} •{" "}
+                  {brl(financeMetrics.totalRevenue)}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {activeRestaurant ? (
-                  <Link
-                    to="/admin/pedidos"
-                    search={{ store: activeRestaurant.id }}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-                  >
-                    Ver pedidos <ArrowRight className="size-3" />
-                  </Link>
-                ) : (
-                  <Link
-                    to="/admin/pedidos"
-                    search={{ store: undefined }}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-                  >
-                    Ver pedidos <ArrowRight className="size-3" />
-                  </Link>
-                )}
+                <Select value={range} onValueChange={(v) => setRange(v as RangeKey)}>
+                  <SelectTrigger className="h-8 w-[130px] border-white/10 bg-white/[0.04] text-xs text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#1a1a22] text-white">
+                    <SelectItem value="7d">7 dias</SelectItem>
+                    <SelectItem value="30d">30 dias</SelectItem>
+                    <SelectItem value="90d">90 dias</SelectItem>
+                    <SelectItem value="all">Todo o período</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Link
-                  to="/admin/financeiro"
+                  to="/admin/pedidos"
+                  search={{ store: activeRestaurant?.id }}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
                 >
-                  Ver financeiro <ArrowRight className="size-3" />
+                  Ver pedidos <ArrowRight className="size-3" />
+                </Link>
+                <Link
+                  to="/admin/financeiro"
+                  className="hidden items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200 sm:inline-flex"
+                >
+                  Financeiro <ArrowRight className="size-3" />
                 </Link>
               </div>
             </div>

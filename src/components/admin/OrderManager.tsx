@@ -427,7 +427,6 @@ export function OrderManager({
     [orders, lockedStores],
   );
 
-
   // ---- Abas por status -------------------------------------------------------
   // Antes as quatro colunas do Kanban ficavam todas abertas ao mesmo tempo: os
   // "Recebidos" — o que o operador precisa ver primeiro — eram espremidos em um
@@ -483,9 +482,7 @@ export function OrderManager({
       };
       return [...displayedOrders].sort((a, b) => {
         const p = (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
-        return p !== 0
-          ? p
-          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return p !== 0 ? p : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
     }
     return [...displayedOrders].sort(
@@ -515,7 +512,6 @@ export function OrderManager({
       </div>
     );
   }
-
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -892,9 +888,7 @@ function OrderDetailDialog({
   if (!order) {
     return (
       <Dialog open onOpenChange={(o) => !o && onClose()}>
-        <DialogContent
-          className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden border-white/10 bg-[#0f0f14] text-white sm:max-w-3xl lg:max-w-4xl"
-        >
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden border-white/10 bg-[#0f0f14] text-white sm:max-w-3xl lg:max-w-4xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
               <span className="font-mono text-lg">{headerRow.comanda}</span>
@@ -919,9 +913,7 @@ function OrderDetailDialog({
                   <p className="text-[9px] font-bold uppercase tracking-widest text-gray-500">
                     Cliente
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-white">
-                    {headerRow.customer_name}
-                  </p>
+                  <p className="mt-1 text-sm font-semibold text-white">{headerRow.customer_name}</p>
                   <p className="mt-0.5 text-xs text-gray-400">{headerRow.customer_phone || "—"}</p>
                 </div>
                 <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
@@ -987,9 +979,7 @@ function OrderDetailDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden border-white/10 bg-[#0f0f14] text-white sm:max-w-3xl lg:max-w-4xl"
-      >
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden border-white/10 bg-[#0f0f14] text-white sm:max-w-3xl lg:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <span className="font-mono text-lg">{order.comanda}</span>
@@ -1003,164 +993,168 @@ function OrderDetailDialog({
 
         <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
           <div className="grid gap-3 md:grid-cols-2">
-          {/* Coluna esquerda: cliente e entrega */}
-          <div className="space-y-3">
-            {/* Cliente */}
-            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-              <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
-                <User className="size-3" /> Cliente
-              </p>
-              <p className="text-sm font-semibold text-white">{order.customer_name}</p>
-              {order.customer_email && (
-                <p className="mt-0.5 text-xs text-gray-400">{order.customer_email}</p>
-              )}
-              <p className="mt-1 text-xs text-gray-400">{order.customer_phone || "—"}</p>
-              {hasCustomerPhone && (
-                <button
-                  onClick={() => onWhatsApp(order)}
-                  className="mt-2 flex items-center gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-xs font-semibold text-green-400 transition-colors hover:bg-green-500/20"
-                >
-                  <MessageCircle className="size-3.5" /> Chamar no WhatsApp
-                </button>
-              )}
-            </div>
-
-            {/* Entrega */}
-            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-              <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
-                <MapPin className="size-3" />{" "}
-                {order.delivery_type === "entrega" ? "Entrega" : "Retirada"}
-              </p>
-              {order.delivery_type === "entrega" ? (
-                <>
-                  <p className="text-sm text-white">{order.delivery_address || "—"}</p>
-                  {(order.customer_complement ||
-                    order.customer_neighborhood ||
-                    order.customer_city) && (
-                    <p className="mt-1 text-xs text-gray-400">
-                      {[order.customer_complement, order.customer_neighborhood, order.customer_city]
-                        .filter(Boolean)
-                        .join(" • ")}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-white">Retirada no balcão</p>
-              )}
-            </div>
-          </div>
-
-          {/* Coluna direita: itens e pagamento */}
-          <div className="space-y-3">
-            {/* Itens */}
-            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-              <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
-                <ShoppingBag className="size-3" /> Pedido
-              </p>
-              {order.order_items && order.order_items.length > 0 && (
-                <div className="space-y-2">
-                  {order.order_items.map((item) => {
-                    const notes = (item as unknown as { notes?: string }).notes ?? "";
-                    const hasAddons = notes.toLowerCase().includes("adicionais:");
-                    return (
-                      <div
-                        key={item.id}
-                        className="rounded-lg border border-white/[0.04] bg-black/20 px-2.5 py-2"
-                      >
-                        <div className="flex items-center justify-between gap-3 text-sm">
-                          <span className="min-w-0 flex-1 truncate text-gray-200">
-                            <span className="font-bold text-white">{item.quantity}x</span>{" "}
-                            {item.product_name}
-                          </span>
-                          <span className="shrink-0 font-bold text-white">{brl(item.total)}</span>
-                        </div>
-                        {notes && (
-                          <p
-                            className={`mt-1 rounded-md px-2 py-1 text-[11px] leading-relaxed ${hasAddons ? "border border-violet-500/20 bg-violet-500/10 text-violet-200" : "bg-white/[0.04] text-gray-400"}`}
-                          >
-                            {notes}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {order.observations && (
-                <div className="mt-2 rounded bg-black/30 p-2">
-                  <p className="text-[10px] text-gray-500">Observações:</p>
-                  <p className="text-xs text-gray-300">{order.observations}</p>
-                </div>
-              )}
-              <div className="mt-2 space-y-1 border-t border-white/5 pt-2">
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>Subtotal</span>
-                  <span>{brl(order.subtotal)}</span>
-                </div>
-                {order.delivery_fee > 0 && (
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Taxa de entrega</span>
-                    <span>{brl(order.delivery_fee)}</span>
-                  </div>
+            {/* Coluna esquerda: cliente e entrega */}
+            <div className="space-y-3">
+              {/* Cliente */}
+              <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                  <User className="size-3" /> Cliente
+                </p>
+                <p className="text-sm font-semibold text-white">{order.customer_name}</p>
+                {order.customer_email && (
+                  <p className="mt-0.5 text-xs text-gray-400">{order.customer_email}</p>
                 )}
-                <div className="flex justify-between text-sm font-bold text-white">
-                  <span>Total</span>
-                  <span>{brl(order.total)}</span>
-                </div>
+                <p className="mt-1 text-xs text-gray-400">{order.customer_phone || "—"}</p>
+                {hasCustomerPhone && (
+                  <button
+                    onClick={() => onWhatsApp(order)}
+                    className="mt-2 flex items-center gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-xs font-semibold text-green-400 transition-colors hover:bg-green-500/20"
+                  >
+                    <MessageCircle className="size-3.5" /> Chamar no WhatsApp
+                  </button>
+                )}
+              </div>
+
+              {/* Entrega */}
+              <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                  <MapPin className="size-3" />{" "}
+                  {order.delivery_type === "entrega" ? "Entrega" : "Retirada"}
+                </p>
+                {order.delivery_type === "entrega" ? (
+                  <>
+                    <p className="text-sm text-white">{order.delivery_address || "—"}</p>
+                    {(order.customer_complement ||
+                      order.customer_neighborhood ||
+                      order.customer_city) && (
+                      <p className="mt-1 text-xs text-gray-400">
+                        {[
+                          order.customer_complement,
+                          order.customer_neighborhood,
+                          order.customer_city,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ")}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-white">Retirada no balcão</p>
+                )}
               </div>
             </div>
 
-            {/* Pagamento */}
-            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-              <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
-                <CreditCard className="size-3" /> Pagamento
-              </p>
-              <p className="text-sm font-semibold uppercase text-white">
-                {order.payment_method === "pix"
-                  ? "PIX"
-                  : order.payment_method === "dinheiro"
-                    ? "Dinheiro"
-                    : "Cartão"}
-              </p>
-              <p className="mt-1 text-[11px] text-gray-500 capitalize">
-                {order.payment_status?.replace(/_/g, " ")}
-              </p>
-            </div>
-          </div>
+            {/* Coluna direita: itens e pagamento */}
+            <div className="space-y-3">
+              {/* Itens */}
+              <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                  <ShoppingBag className="size-3" /> Pedido
+                </p>
+                {order.order_items && order.order_items.length > 0 && (
+                  <div className="space-y-2">
+                    {order.order_items.map((item) => {
+                      const notes = (item as unknown as { notes?: string }).notes ?? "";
+                      const hasAddons = notes.toLowerCase().includes("adicionais:");
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-lg border border-white/[0.04] bg-black/20 px-2.5 py-2"
+                        >
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="min-w-0 flex-1 truncate text-gray-200">
+                              <span className="font-bold text-white">{item.quantity}x</span>{" "}
+                              {item.product_name}
+                            </span>
+                            <span className="shrink-0 font-bold text-white">{brl(item.total)}</span>
+                          </div>
+                          {notes && (
+                            <p
+                              className={`mt-1 rounded-md px-2 py-1 text-[11px] leading-relaxed ${hasAddons ? "border border-violet-500/20 bg-violet-500/10 text-violet-200" : "bg-white/[0.04] text-gray-400"}`}
+                            >
+                              {notes}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {order.observations && (
+                  <div className="mt-2 rounded bg-black/30 p-2">
+                    <p className="text-[10px] text-gray-500">Observações:</p>
+                    <p className="text-xs text-gray-300">{order.observations}</p>
+                  </div>
+                )}
+                <div className="mt-2 space-y-1 border-t border-white/5 pt-2">
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Subtotal</span>
+                    <span>{brl(order.subtotal)}</span>
+                  </div>
+                  {order.delivery_fee > 0 && (
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>Taxa de entrega</span>
+                      <span>{brl(order.delivery_fee)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-bold text-white">
+                    <span>Total</span>
+                    <span>{brl(order.total)}</span>
+                  </div>
+                </div>
+              </div>
 
-          {/* Ações */}
-          <div className="flex flex-wrap gap-2 pt-1 md:col-span-2">
-            {next && (
+              {/* Pagamento */}
+              <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                <p className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                  <CreditCard className="size-3" /> Pagamento
+                </p>
+                <p className="text-sm font-semibold uppercase text-white">
+                  {order.payment_method === "pix"
+                    ? "PIX"
+                    : order.payment_method === "dinheiro"
+                      ? "Dinheiro"
+                      : "Cartão"}
+                </p>
+                <p className="mt-1 text-[11px] text-gray-500 capitalize">
+                  {order.payment_status?.replace(/_/g, " ")}
+                </p>
+              </div>
+            </div>
+
+            {/* Ações */}
+            <div className="flex flex-wrap gap-2 pt-1 md:col-span-2">
+              {next && (
+                <button
+                  onClick={() => onChangeStatus(order.id, next)}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white hover:bg-cyan-500"
+                >
+                  <CheckCircle2 className="size-3.5" /> {ORDER_STATUS_LABELS[next]}
+                </button>
+              )}
+              {order.status !== "cancelled" && order.status !== "delivered" && (
+                <button
+                  onClick={() => onChangeStatus(order.id, "cancelled")}
+                  className="rounded-lg border border-red-500/40 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10"
+                >
+                  Cancelar
+                </button>
+              )}
               <button
-                onClick={() => onChangeStatus(order.id, next)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white hover:bg-cyan-500"
+                onClick={() => onPrint(order)}
+                className="flex items-center gap-1 rounded-lg border border-cyan-500/40 px-3 py-2 text-xs text-cyan-300 hover:bg-cyan-500/10"
               >
-                <CheckCircle2 className="size-3.5" /> {ORDER_STATUS_LABELS[next]}
+                <Printer className="size-3" /> Imprimir
               </button>
-            )}
-            {order.status !== "cancelled" && order.status !== "delivered" && (
-              <button
-                onClick={() => onChangeStatus(order.id, "cancelled")}
-                className="rounded-lg border border-red-500/40 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10"
+              <a
+                href={`/pedido/${order.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 rounded-lg border border-gray-600/40 px-3 py-2 text-xs text-gray-400 hover:bg-white/5"
               >
-                Cancelar
-              </button>
-            )}
-            <button
-              onClick={() => onPrint(order)}
-              className="flex items-center gap-1 rounded-lg border border-cyan-500/40 px-3 py-2 text-xs text-cyan-300 hover:bg-cyan-500/10"
-            >
-              <Printer className="size-3" /> Imprimir
-            </button>
-            <a
-              href={`/pedido/${order.id}`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 rounded-lg border border-gray-600/40 px-3 py-2 text-xs text-gray-400 hover:bg-white/5"
-            >
-              <ExternalLink className="size-3" /> Rastrear
-            </a>
-          </div>
+                <ExternalLink className="size-3" /> Rastrear
+              </a>
+            </div>
           </div>
         </div>
       </DialogContent>

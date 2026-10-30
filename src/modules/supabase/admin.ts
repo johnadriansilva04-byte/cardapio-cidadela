@@ -67,7 +67,9 @@ export function useAdminTrial() {
         trial_expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
         created_at: new Date().toISOString(),
         is_active: true,
-        is_premium: true,
+        // Nunca nasce Premium: só o webhook do Mercado Pago ativa (o guard do
+        // banco rejeita `is_premium` sem data para quem não é service role).
+        is_premium: false,
       })
       .select()
       .single();
@@ -145,10 +147,7 @@ export function useAdminTrial() {
     return data;
   }
 
-  async function updateAdminConfig(
-    storeId: string,
-    config: Record<string, unknown>,
-  ) {
+  async function updateAdminConfig(storeId: string, config: Record<string, unknown>) {
     const { error } = await supabase
       .from("admin_trials")
       .update({ ...config, config_updated_at: new Date().toISOString() })

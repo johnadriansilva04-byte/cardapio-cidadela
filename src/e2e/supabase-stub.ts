@@ -348,7 +348,7 @@ function trialFor(db: E2EDb, storeId: string): Row | undefined {
 function isPremiumActive(trial: Row | undefined, now: number): boolean {
   if (!trial || !trial.is_premium) return false;
   const expires = trial.premium_expires_at;
-  return !expires || new Date(String(expires)).getTime() > now;
+  return Boolean(expires) && new Date(String(expires)).getTime() > now;
 }
 
 /** Pedidos do mês (não cancelados) do restaurante — base da cota do plano grátis. */

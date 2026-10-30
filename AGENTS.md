@@ -338,10 +338,23 @@
   ainda confere `activated.length` e devolve 500 para o MP reentregar.
 - Um trigger `guard_admin_trials_premium` (SECURITY INVOKER — se fosse DEFINER
   `current_user` viraria o owner e o guard sempre passaria) bloqueia
-  `is_premium`/`mercadopago_preapproval_id` para quem não é service role. Sem
-  ele, o dono dava `PATCH is_premium=true` na própria linha e burlava o
-  pagamento. `cancelPremium` (dono) continua podendo desligar; o webhook
-  (service role) liga.
+  `is_premium`/`premium_expires_at`/`mercadopago_preapproval_id` para quem não é
+  service role. Sem ele, o dono dava `PATCH is_premium=true` na própria linha e
+  burlava o pagamento. O dono só pode **desligar** (botão cancelar, que também
+  limpa a data); ligar e escrever o vencimento é só o webhook (service role).
+  `premium_expires_at` era o buraco mais barato: sem a proteção bastava um
+  `PATCH premium_expires_at='2099-01-01'` para virar Premium perpétuo.
+- **Sem data de vencimento não há Premium.** As três checagens
+  (`get_order_for_owner`, `owner_locked_stores` e `premiumActive` no cliente)
+  exigem `premium_expires_at IS NOT NULL AND > now()`. A regra antiga
+  (`IS NULL` = sem prazo) transformava qualquer linha malformada — ou o
+  `createTrial` legado, que gravava `is_premium: true` sem data — em assinatura
+  perpétua. É fail-closed de propósito: o webhook sempre grava a data.
+- `supabase/supabase_premium_guard_migration.sql` aplica só este endurecimento
+  (guard + as três RPCs) e é idempotente. Existe porque a produção estava
+  atrás do repositório: sem trigger e com as RPCs antigas contando
+  `monthly_order_count` (que o dono edita) em vez dos pedidos reais do mês.
+  Use-o para bancos que não receberam o `schema.sql` completo.
 - `order_status_history`: o cliente só pode inserir a entrada inicial `received`
   (policy `WITH CHECK (status = 'received')`) e só lê histórico de loja
   publicada. Antes qualquer anônimo podia forjar "entregue"/"cancelado" e ler
@@ -470,9 +483,14 @@
 
 ## Banco de dados: aplicar as migrações
 
-- **Projeto Supabase: `xfgmnggdgnozyrluqabv`** (região `us-east-2`). O
-  `GOOGLE_AUTH_SETUP.md` cita um ref antigo (`hkzhksauilonqppipjyc`) — está
-  desatualizado; o banco vivo é o `xfgmnggdgnozyrluqabv`.
+- **Projeto Supabase: `wlznmlsvnlgsljanbjgy`** (região `us-west-2`, nome
+  "Cardapio"). É o ref que o bundle de produção usa
+  (`https://wlznmlsvnlgsljanbjgy.supabase.co`). O `GOOGLE_AUTH_SETUP.md` cita um
+  ref antigo (`hkzhksauilonqppipjyc`) e este arquivo já citou
+  `xfgmnggdgnozyrluqabv` — ambos desatualizados; confirme pelo bundle em caso de
+  dúvida. A produção estava atrás do repositório (sem o guard do Premium e com
+  as RPCs antigas); `supabase/supabase_premium_guard_migration.sql` alinha o
+  essencial.
 - `supabase/apply-all.mjs` aplica **todas** as migrações na ordem correta via
   Management API (sem Docker, sem conexão direta ao Postgres — o host
   `db.<ref>.supabase.co` é IPv6-only e não resolve neste ambiente). Uso:

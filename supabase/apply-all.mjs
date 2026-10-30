@@ -33,6 +33,7 @@ const FILES = [
   "schema.sql",
   "supabase_customer_loyalty_migration.sql",
   "supabase_reviews_migration.sql",
+  "supabase_premium_guard_migration.sql",
   "supabase_rewards_migration.sql",
   "supabase_retention.sql",
 ];

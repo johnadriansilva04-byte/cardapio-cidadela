@@ -648,7 +648,7 @@ BEGIN
   FROM admin_trials a
   WHERE a.store_id::text = v_store_id::text;
 
-  IF NOT (COALESCE(v_premium, false) AND (v_expires IS NULL OR v_expires > now())) THEN
+  IF NOT (COALESCE(v_premium, false) AND v_expires IS NOT NULL AND v_expires > now()) THEN
     -- Conta os pedidos REAIS do mês em vez de confiar no contador gravável.
     -- Como qualquer escrita em admin_trials é do dono/webhook (a tabela deixou
     -- de ser pública), o contador no cliente nunca subia e o limite de 5
@@ -696,7 +696,8 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   WHERE is_restaurant_owner(r.id)
     AND NOT (
       COALESCE(a.is_premium, false)
-      AND (a.premium_expires_at IS NULL OR a.premium_expires_at > now())
+      AND a.premium_expires_at IS NOT NULL
+      AND a.premium_expires_at > now()
     )
     AND (
       SELECT count(*)
@@ -1231,19 +1232,35 @@ DECLARE
   is_privileged BOOLEAN := current_user IN ('service_role', 'postgres', 'supabase_admin');
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    IF COALESCE(NEW.is_premium, false) AND NOT is_privileged THEN
-      RAISE EXCEPTION 'is_premium só pode ser definido pelo webhook do Mercado Pago';
+    IF NOT is_privileged THEN
+      IF COALESCE(NEW.is_premium, false) THEN
+        RAISE EXCEPTION 'is_premium só pode ser definido pelo webhook do Mercado Pago';
+      END IF;
+      IF NEW.premium_expires_at IS NOT NULL THEN
+        RAISE EXCEPTION 'premium_expires_at só pode ser definido pelo webhook do Mercado Pago';
+      END IF;
     END IF;
     RETURN NEW;
   END IF;
 
-  IF COALESCE(NEW.is_premium, false) <> COALESCE(OLD.is_premium, false)
-     AND NOT is_privileged THEN
-    RAISE EXCEPTION 'is_premium só pode ser alterado pelo webhook do Mercado Pago';
-  END IF;
-  IF NEW.mercadopago_preapproval_id IS DISTINCT FROM OLD.mercadopago_preapproval_id
-     AND NOT is_privileged THEN
-    RAISE EXCEPTION 'mercadopago_preapproval_id é somente leitura para o cliente';
+  IF NOT is_privileged THEN
+    -- O dono só pode DESLIGAR o Premium (botão cancelar); ligar é só o webhook.
+    IF COALESCE(NEW.is_premium, false) AND NOT COALESCE(OLD.is_premium, false) THEN
+      RAISE EXCEPTION 'is_premium só pode ser ativado pelo webhook do Mercado Pago';
+    END IF;
+    -- A data de vencimento é do servidor: sem isto bastava um PATCH
+    -- premium_expires_at='2099-01-01' para ficar Premium de graça. Só o
+    -- cancelamento pode limpá-la (NULL).
+    IF NEW.premium_expires_at IS DISTINCT FROM OLD.premium_expires_at
+       AND NEW.premium_expires_at IS NOT NULL THEN
+      RAISE EXCEPTION 'premium_expires_at é somente leitura para o cliente';
+    END IF;
+    -- Idem para o vínculo do preapproval: só pode ser limpo (cancelar), nunca
+    -- forjado para outro id.
+    IF NEW.mercadopago_preapproval_id IS DISTINCT FROM OLD.mercadopago_preapproval_id
+       AND NEW.mercadopago_preapproval_id IS NOT NULL THEN
+      RAISE EXCEPTION 'mercadopago_preapproval_id é somente leitura para o cliente';
+    END IF;
   END IF;
   RETURN NEW;
 END;

@@ -81,3 +81,44 @@ describe("cota com pedidos bônus", () => {
     expect(limit.remaining).toBe(0);
   });
 });
+
+describe("validade do Premium", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.rpc.mockImplementation(() => Promise.resolve({ data: 0, error: null }));
+  });
+
+  function withTrial(row: Record<string, unknown>) {
+    mocks.from.mockReturnValue(trialsRow(row));
+  }
+
+  it("é Premium com data de vencimento no futuro", async () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    withTrial({ store_id: "store-1", is_premium: true, premium_expires_at: future });
+
+    const status = await checkSubscriptionStatus("store-1");
+
+    expect(status.isPremium).toBe(true);
+    expect(status.premiumExpiresAt).toBe(future);
+  });
+
+  it("deixa de ser Premium quando a data passou", async () => {
+    const past = new Date(Date.now() - 86_400_000).toISOString();
+    withTrial({ store_id: "store-1", is_premium: true, premium_expires_at: past });
+
+    const status = await checkSubscriptionStatus("store-1");
+
+    expect(status.isPremium).toBe(false);
+    expect(status.remainingOrders).toBe(MONTHLY_FREE_LIMIT);
+  });
+
+  it("NÃO é Premium eterno quando is_premium=true e a data é nula", async () => {
+    // Regressão: `null` já significou "sem prazo" e transformava uma linha
+    // malformada em assinatura perpétua. Sem data, não há Premium.
+    withTrial({ store_id: "store-1", is_premium: true, premium_expires_at: null });
+
+    const status = await checkSubscriptionStatus("store-1");
+
+    expect(status.isPremium).toBe(false);
+  });
+});

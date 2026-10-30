@@ -42,11 +42,16 @@ function monthKey(value: string): string {
   return value.slice(0, 7);
 }
 
-/** Premium só vale enquanto a data de expiração não passou (null = sem prazo). */
+/**
+ * Premium só vale com uma data de vencimento FUTURA. Sem data não há Premium:
+ * a regra anterior (`null` = eterno) transformava uma linha malformada em
+ * assinatura perpétua. O webhook sempre grava a data, então na prática isto só
+ * fecha o buraco.
+ */
 function premiumActive(expiresAt: string | null): boolean {
-  if (!expiresAt) return true;
+  if (!expiresAt) return false;
   const ts = Date.parse(expiresAt);
-  return Number.isFinite(ts) ? ts > Date.now() : true;
+  return Number.isFinite(ts) ? ts > Date.now() : false;
 }
 
 async function fetchRow(storeId: string): Promise<SubscriptionRow | null> {

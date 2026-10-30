@@ -356,7 +356,7 @@ BEGIN
   FROM admin_trials a
   WHERE a.store_id::text = v_store_id::text;
 
-  IF NOT (COALESCE(v_premium, false) AND (v_expires IS NULL OR v_expires > now())) THEN
+  IF NOT (COALESCE(v_premium, false) AND v_expires IS NOT NULL AND v_expires > now()) THEN
     SELECT count(*) INTO v_count
     FROM orders o
     WHERE o.restaurant_id = v_store_id
@@ -399,7 +399,8 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   WHERE is_restaurant_owner(r.id)
     AND NOT (
       COALESCE(a.is_premium, false)
-      AND (a.premium_expires_at IS NULL OR a.premium_expires_at > now())
+      AND a.premium_expires_at IS NOT NULL
+      AND a.premium_expires_at > now()
     )
     AND (
       SELECT count(*)

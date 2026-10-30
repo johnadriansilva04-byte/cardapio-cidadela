@@ -214,13 +214,23 @@ function LandingPage() {
             </Link>
           </div>
 
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="text-gray-400 md:hidden"
-            aria-label="Menu"
-          >
-            {menuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
-          </button>
+          <div className="flex items-center gap-1 md:hidden">
+            {/* Entrar fica visível no celular: dentro do hambúrguer ele não é
+                descoberto, e era por isso que a home só mostrava "Criar". */}
+            <Link
+              to="/login"
+              className="rounded-full px-3.5 py-2 text-sm font-semibold text-gray-300 transition-colors hover:text-white"
+            >
+              Entrar
+            </Link>
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="text-gray-400"
+              aria-label="Menu"
+            >
+              {menuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
+            </button>
+          </div>
         </div>
 
         {menuOpen && (
@@ -275,13 +285,19 @@ function LandingPage() {
               comanda chega pronta no seu painel. Sem comissão, sem app, sem gibi.
             </p>
 
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
               <Link
                 to="/login"
                 className="sheen group flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 px-7 py-3.5 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] sm:w-auto"
               >
                 Criar meu cardápio grátis
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              <Link
+                to="/login"
+                className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-7 py-3.5 text-sm font-semibold text-gray-300 transition-all hover:border-white/30 hover:text-white sm:w-auto"
+              >
+                Já tenho conta · Entrar
               </Link>
               <a
                 href="/cardapio/cidadela"

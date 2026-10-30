@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   PREMIUM_PRICE_LABEL,
   PREMIUM_PRICE_VALUE,
+  formatMonthlyEquivalent,
   formatPremiumPriceLabel,
   parsePriceValue,
 } from "@/lib/pricing";
@@ -27,6 +28,13 @@ describe("formatPremiumPriceLabel", () => {
   it("formata em pt-BR", () => {
     expect(formatPremiumPriceLabel(1)).toBe("R$ 1,00/ano");
     expect(formatPremiumPriceLabel(199.99)).toBe("R$ 199,99/ano");
+  });
+});
+
+describe("formatMonthlyEquivalent", () => {
+  it("divide o anual por 12, em pt-BR", () => {
+    expect(formatMonthlyEquivalent(199.99)).toBe("R$ 16,67");
+    expect(formatMonthlyEquivalent(12)).toBe("R$ 1,00");
   });
 });
 

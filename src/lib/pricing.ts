@@ -50,6 +50,14 @@ export function formatDayPassPriceLabel(value: number): string {
   return formatPriceLabel(value, "/dia");
 }
 
+/**
+ * Equivalente mensal do anual (ex.: 199.99 → "R$ 16,67"). Derivado do preço
+ * para a landing nunca anunciar um valor que não bate com a cobrança.
+ */
+export function formatMonthlyEquivalent(value: number): string {
+  return `R$ ${(value / 12).toFixed(2).replace(".", ",")}`;
+}
+
 /** Valor numérico do anual (fonte única — usado no link de pagamento do MP). */
 export const PREMIUM_PRICE_VALUE =
   parsePriceValue(readEnv("VITE_ANNUAL_PRICE_VALUE")) ??

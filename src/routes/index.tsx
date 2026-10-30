@@ -208,6 +208,7 @@ function LandingPage() {
             </Link>
             <Link
               to="/login"
+              search={{ mode: "register" }}
               className="sheen rounded-full bg-cyan-500 px-5 py-2 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.35)]"
             >
               Criar grátis
@@ -251,6 +252,7 @@ function LandingPage() {
             </Link>
             <Link
               to="/login"
+              search={{ mode: "register" }}
               className="mt-2 block rounded-full bg-cyan-500 px-5 py-3 text-center text-sm font-bold text-black"
             >
               Criar meu cardápio grátis
@@ -288,6 +290,7 @@ function LandingPage() {
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
               <Link
                 to="/login"
+                search={{ mode: "register" }}
                 className="sheen group flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 px-7 py-3.5 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] sm:w-auto"
               >
                 Criar meu cardápio grátis
@@ -395,6 +398,7 @@ function LandingPage() {
               </ul>
               <Link
                 to="/login"
+                search={{ mode: "register" }}
                 className="mt-7 flex w-full items-center justify-center gap-2 rounded-full border border-white/15 py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.06]"
               >
                 Começar grátis
@@ -456,6 +460,7 @@ function LandingPage() {
           <div className="mt-8">
             <Link
               to="/login"
+              search={{ mode: "register" }}
               className="sheen inline-flex items-center gap-2 rounded-full bg-cyan-500 px-9 py-4 text-base font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.4)]"
             >
               Criar meu cardápio grátis <ArrowRight className="size-5" />

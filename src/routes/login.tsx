@@ -48,19 +48,23 @@ function LoginPage() {
 
   // Read search params manually to avoid required param enforcement
   const searchParams = useMemo(() => {
-    if (typeof window === "undefined") return { returnTo: "/admin", error: "" };
+    if (typeof window === "undefined") return { returnTo: "/admin", error: "", mode: "" };
     const params = new URLSearchParams(window.location.search);
     return {
       // Só caminhos internos — um `returnTo` externo seria um open redirect.
       returnTo: safeInternalPath(params.get("returnTo")),
       error: params.get("error") || "",
+      // `?mode=register` abre a tela já em "Criar conta" (vindo da landing).
+      mode: params.get("mode") === "register" ? "register" : "",
     };
   }, []);
 
   const returnTo = searchParams.returnTo;
   const urlError = searchParams.error;
 
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(
+    searchParams.mode === "register" ? "register" : "login",
+  );
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -81,12 +85,15 @@ function LoginPage() {
     }
   }, []);
 
-  // Redirect if already authenticated
+  // Já logado: em vez de redirecionar em silêncio (o usuário clicava em "Criar
+  // conta" e era jogado no painel sem entender por quê), mostramos uma tela
+  // explícita com a conta atual e as saídas — continuar, trocar de conta ou
+  // criar outra. Só quem não pediu cadastro é levado direto ao painel.
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      navigate({ to: returnTo as "/", replace: true });
-    }
-  }, [authLoading, isAuthenticated, navigate, returnTo]);
+    if (authLoading || !isAuthenticated) return;
+    if (searchParams.mode === "register") return;
+    navigate({ to: returnTo as "/", replace: true });
+  }, [authLoading, isAuthenticated, navigate, returnTo, searchParams.mode]);
 
   if (authLoading) {
     return (
@@ -96,7 +103,10 @@ function LoginPage() {
     );
   }
 
-  if (isAuthenticated) return null;
+  if (isAuthenticated) {
+    if (searchParams.mode === "register") return <AlreadySignedIn returnTo={returnTo} />;
+    return null;
+  }
 
   function formatPhone(value: string): string {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -505,6 +515,114 @@ function LoginPage() {
               ← Voltar ao site
             </Link>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Tela para quem já está logado e clicou em "Criar conta".
+ *
+ * Antes o login redirecionava em silêncio para o painel e a pessoa não
+ * entendia por que não conseguia cadastrar. Aqui a conta atual fica explícita
+ * e cada saída é nomeada: continuar, trocar de conta ou abrir o cadastro.
+ */
+function AlreadySignedIn({ returnTo }: { returnTo: string }) {
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const [switching, setSwitching] = useState(false);
+
+  const identifier = user?.email || user?.phone || "";
+  const name = (user?.user_metadata?.name as string) || "";
+
+  async function handleSwitch() {
+    setSwitching(true);
+    try {
+      await signOut();
+    } finally {
+      // Sem sessão, o formulário reaparece em "Criar conta" para a nova conta.
+      setSwitching(false);
+      navigate({
+        to: "/login",
+        search: { mode: "register", returnTo } as never,
+        replace: true,
+      });
+    }
+  }
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0a0a0f] px-4 py-12">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 top-1/4 size-72 rounded-full bg-cyan-500/10 blur-[90px]" />
+        <div className="absolute -right-16 bottom-1/4 size-64 rounded-full bg-violet-500/10 blur-[80px]" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="mb-6 text-center">
+          <Link to="/" className="inline-flex items-center gap-2">
+            <span className="grid size-10 place-items-center rounded-xl border border-cyan-500/30 bg-cyan-500/10">
+              <UtensilsCrossed className="size-5 text-cyan-400" />
+            </span>
+            <span className="text-2xl font-black tracking-tight text-white">
+              Cardápio <span className="text-cyan-400">Cidadela</span>
+            </span>
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl sm:p-8">
+          <div className="flex items-start gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
+              <ShieldCheck className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-base font-black text-white">Você já está conectado</h1>
+              <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                Para criar outra conta, saia desta sessão primeiro — cada conta tem o seu próprio
+                painel e os seus restaurantes.
+              </p>
+            </div>
+          </div>
+
+          {(name || identifier) && (
+            <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/30 px-3.5 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                Conta atual
+              </p>
+              {name && <p className="mt-1 text-sm font-semibold text-white">{name}</p>}
+              {identifier && <p className="text-xs text-gray-400">{identifier}</p>}
+            </div>
+          )}
+
+          <div className="mt-5 space-y-2">
+            <button
+              type="button"
+              onClick={() => navigate({ to: returnTo as "/", replace: true })}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-500 py-3 text-sm font-bold text-black transition-colors hover:bg-cyan-400"
+            >
+              Ir para o meu painel <ArrowRight className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSwitch}
+              disabled={switching}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 py-3 text-sm font-semibold text-gray-200 transition-colors hover:bg-white/[0.06] disabled:opacity-50"
+            >
+              {switching ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Saindo…
+                </>
+              ) : (
+                "Sair e criar outra conta"
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-6 text-center">
+          <Link to="/" className="text-xs text-gray-600 transition-colors hover:text-gray-400">
+            ← Voltar ao site
+          </Link>
         </div>
       </div>
     </div>

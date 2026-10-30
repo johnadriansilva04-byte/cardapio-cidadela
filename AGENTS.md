@@ -240,9 +240,19 @@
 - As duas RPCs são aditivas: sem elas no banco, `getOrderForOwner` cai para
   `getOrderById` (schema antigo) e `getOwnerLockedStores` devolve vazio — nada
   trava, só perde o enforcement. Se o e-mail/telefone da conta muda,
-  `registerPendingSubscription` grava o novo; a vinculação do MP continua por
-  e-mail (pseudo-email `telefone@menufacil.local`), por isso o aviso do modal
-  fala em "telefone", nunca no endereço interno.
+  `registerPendingSubscription` grava o novo.
+- **O Mercado Pago identifica o pagador pelo e-mail.** O login é por telefone
+  (pseudo-e-mail `telefone@menufacil.local`), que o MP nunca usa — então o
+  vínculo automático só funciona com um e-mail real. `profiles.email` é
+  opcional e guarda esse endereço; `registerPendingSubscription` passa a
+  receber o e-mail real (`currentEmail || user.email`) em vez do pseudo. Sem
+  ele, a ativação automática pode falhar e o dono depende do "Conferir agora".
+  Não volte a gravar o pseudo-e-mail interno como `admin_email`.
+- `/admin/assinatura` é organizada em torno de UM único bloco (preço + CTA)
+  acima da dobra: o resto (cota, benefícios, comparativo, e-mail do MP) fica
+  recolhido em `ExpandableSection`, para o dono não ter que rolar a tela até
+  achar o botão de assinar. Mantenha o CTA no primeiro bloco ao mexer nessa
+  página.
 - O webhook é uma **server route** em `src/routes/api.webhook.mercadopago.ts`
   (`POST /api/webhook/mercadopago`), com a lógica compartilhada em
   `src/api/lib/{mercadopago,mp-subscription}.ts`. Rotas de API seguem a

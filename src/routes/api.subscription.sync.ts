@@ -27,9 +27,23 @@ export const Route = createFileRoute("/api/subscription/sync")({
         if (!supabase) return json({ error: "supabase não configurado" }, 500);
 
         const { data: userData, error: userError } = await supabase.auth.getUser(token);
-        const email = userData?.user?.email ?? "";
-        if (userError || !email) {
+        const authEmail = userData?.user?.email ?? "";
+        if (userError || !userData?.user?.id) {
           return json({ error: "invalid token" }, 401);
+        }
+
+        // O login é por telefone, então `auth.email` é o pseudo-e-mail interno
+        // (`telefone@menufacil.local`) — o Mercado Pago nunca usa esse endereço.
+        // Preferimos o e-mail real gravado em `profiles.email`; sem ele, não há
+        // como casar o preapproval e o vínculo automático fica indisponível.
+        const { data: profileRow } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", userData.user.id)
+          .maybeSingle();
+        const email = ((profileRow?.email as string | null) || authEmail).trim();
+        if (!email) {
+          return json({ error: "e-mail não cadastrado" }, 400);
         }
 
         let body: { storeId?: string } = {};

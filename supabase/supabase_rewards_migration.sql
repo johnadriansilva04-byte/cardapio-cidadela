@@ -222,7 +222,7 @@ BEGIN
           AND o.created_at >= date_trunc('month', CURRENT_DATE)
       )
       WHEN r.metric = 'usage_seconds' THEN (
-        SELECT COALESCE(SUM(u.seconds), 0) FROM store_usage u
+        SELECT COALESCE(SUM(u.seconds), 0)::bigint FROM store_usage u
         WHERE u.restaurant_id = p_store
           AND u.day >= date_trunc('month', CURRENT_DATE)::date
       )

@@ -1,11 +1,11 @@
 import { supabase } from "./client";
 
 /**
- * Recompensas por engajamento — a loja ganha PEDIDOS BÔNUS na cota.
+ * Recompensas por engajamento — a loja ganha DIÁRIAS (acesso de 24h).
  *
- * Tudo é leitura para o cliente; a concessão do bônus acontece no servidor
- * (`evaluate_rewards` no cron) e o saldo vive em `store_bonus_orders`, que o
- * dono não pode escrever. Aqui só lemos e enviamos o batimento de tempo online.
+ * Tudo é leitura para o cliente; a concessão das diárias acontece no servidor
+ * (`evaluate_rewards` no cron) e o saldo vive em `store_day_credits`, que o
+ * dono não pode escrever. O resgate (`redeemDayPass`) só consome o saldo.
  *
  * Degrada em silêncio: sem a migração aplicada as RPCs não existem e a UI
  * mostra a cota padrão, sem travar nada.
@@ -16,7 +16,10 @@ export interface RewardProgress {
   title: string;
   metric: "orders" | "usage_seconds" | string;
   threshold: number;
+  /** Legado: pedidos bônus (0 no modelo de diárias). */
   bonus_orders: number;
+  /** Quantas diárias a meta concede. */
+  day_credits: number;
   progress: number;
   granted: boolean;
 }
@@ -45,6 +48,7 @@ export async function fetchRewards(storeId: string): Promise<RewardProgress[]> {
     metric: String(r.metric ?? ""),
     threshold: Number(r.threshold ?? 0) || 0,
     bonus_orders: Number(r.bonus_orders ?? 0) || 0,
+    day_credits: Number(r.day_credits ?? 0) || 0,
     progress: Number(r.progress ?? 0) || 0,
     granted: Boolean(r.granted),
   }));

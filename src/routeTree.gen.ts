@@ -34,6 +34,7 @@ import { Route as MobileDashboardRouteImport } from './routes/mobile.dashboard'
 import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
 import { Route as AdminRestauranteIdRouteImport } from './routes/admin.restaurante.$id'
 import { Route as ApiPaymentCreateLinkRouteImport } from './routes/api.payment.create-link'
+import { Route as ApiPaymentDayPassRouteImport } from './routes/api.payment.day-pass'
 import { Route as ApiSubscriptionSyncRouteImport } from './routes/api.subscription.sync'
 import { Route as ApiWebhookMercadopagoRouteImport } from './routes/api.webhook.mercadopago'
 
@@ -162,6 +163,11 @@ const ApiPaymentCreateLinkRoute = ApiPaymentCreateLinkRouteImport.update({
   path: '/api/payment/create-link',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPaymentDayPassRoute = ApiPaymentDayPassRouteImport.update({
+  id: '/api/payment/day-pass',
+  path: '/api/payment/day-pass',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSubscriptionSyncRoute = ApiSubscriptionSyncRouteImport.update({
   id: '/api/subscription/sync',
   path: '/api/subscription/sync',
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
+  '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
@@ -226,6 +233,7 @@ export interface FileRoutesByTo {
   '/mobile': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
+  '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
@@ -256,6 +264,7 @@ export interface FileRoutesById {
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
+  '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/mobile/'
     | '/admin/restaurante/$id'
     | '/api/payment/create-link'
+    | '/api/payment/day-pass'
     | '/api/subscription/sync'
     | '/api/webhook/mercadopago'
   fileRoutesByTo: FileRoutesByTo
@@ -314,6 +324,7 @@ export interface FileRouteTypes {
     | '/mobile'
     | '/admin/restaurante/$id'
     | '/api/payment/create-link'
+    | '/api/payment/day-pass'
     | '/api/subscription/sync'
     | '/api/webhook/mercadopago'
   id:
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/mobile/'
     | '/admin/restaurante/$id'
     | '/api/payment/create-link'
+    | '/api/payment/day-pass'
     | '/api/subscription/sync'
     | '/api/webhook/mercadopago'
   fileRoutesById: FileRoutesById
@@ -360,6 +372,7 @@ export interface RootRouteChildren {
   CardapioSlugRoute: typeof CardapioSlugRoute
   PedidoOrderIdRoute: typeof PedidoOrderIdRoute
   ApiPaymentCreateLinkRoute: typeof ApiPaymentCreateLinkRoute
+  ApiPaymentDayPassRoute: typeof ApiPaymentDayPassRoute
   ApiSubscriptionSyncRoute: typeof ApiSubscriptionSyncRoute
   ApiWebhookMercadopagoRoute: typeof ApiWebhookMercadopagoRoute
 }
@@ -541,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPaymentCreateLinkRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/payment/day-pass': {
+      id: '/api/payment/day-pass'
+      path: '/api/payment/day-pass'
+      fullPath: '/api/payment/day-pass'
+      preLoaderRoute: typeof ApiPaymentDayPassRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/subscription/sync': {
       id: '/api/subscription/sync'
       path: '/api/subscription/sync'
@@ -614,6 +634,7 @@ const rootRouteChildren: RootRouteChildren = {
   CardapioSlugRoute: CardapioSlugRoute,
   PedidoOrderIdRoute: PedidoOrderIdRoute,
   ApiPaymentCreateLinkRoute: ApiPaymentCreateLinkRoute,
+  ApiPaymentDayPassRoute: ApiPaymentDayPassRoute,
   ApiSubscriptionSyncRoute: ApiSubscriptionSyncRoute,
   ApiWebhookMercadopagoRoute: ApiWebhookMercadopagoRoute,
 }

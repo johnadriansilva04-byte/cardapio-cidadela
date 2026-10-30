@@ -227,6 +227,8 @@ describe("normalizePayment", () => {
       status: "approved",
       externalReference: "8956f83c-f65e-41a1-b524-56c4434aa9a1",
       dateApproved: "2026-10-30T13:18:18.000-04:00",
+      kind: "",
+      quantity: 1,
     });
   });
 

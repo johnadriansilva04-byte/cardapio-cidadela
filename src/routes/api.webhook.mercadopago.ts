@@ -90,13 +90,17 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
             });
           }
 
-          // Pagamento pontual — ativa Premium por 1 ano
+          // Pagamento pontual — `metadata.kind` decide o que conceder:
+          //   'day_pass' → +24h de acesso (diária)
+          //   'annual'   → Premium por 1 ano (comportamento legado)
           if (type === "payment" || type === "merchant_order") {
             // `payment` traz o id do pagamento; `merchant_order` traz o id da
             // ordem. O endpoint de pagamento exige o prefixo /v1 — sem ele a
-            // API devolve 404 e o pagamento aprovado nunca vira Premium.
+            // API devolve 404 e o pagamento aprovado nunca vira acesso.
             let storeId = "";
             let approvedId = "";
+            let kind = "";
+            let quantity = 1;
 
             if (type === "payment") {
               const { ok, data } = await mpFetch(`/v1/payments/${resourceId}`);
@@ -118,6 +122,9 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               }
               storeId = String(payment.external_reference ?? "");
               approvedId = String(payment.id ?? resourceId);
+              const metadata = (payment.metadata ?? {}) as Record<string, unknown>;
+              kind = String(metadata.kind ?? "");
+              quantity = Math.max(1, Math.min(Math.floor(Number(metadata.quantity ?? 1) || 1), 60));
             } else {
               const { ok, data } = await mpFetch(`/merchant_orders/${resourceId}`);
               if (!ok || !data) {
@@ -138,6 +145,9 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
                 });
               }
               approvedId = String(approved.id ?? "");
+              const metadata = (order.metadata ?? {}) as Record<string, unknown>;
+              kind = String(metadata.kind ?? "");
+              quantity = Math.max(1, Math.min(Math.floor(Number(metadata.quantity ?? 1) || 1), 60));
             }
 
             // external_reference deve conter o store_id
@@ -150,9 +160,34 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               });
             }
 
-            // Ativa Premium por 1 ano. upsert para não depender de a linha já
-            // existir — um UPDATE sem linha não gera erro e o pagamento ficava
-            // "perdido" (200 ao MP, Premium nunca ativado).
+            // DIÁRIA (24h): concede pela RPC SECURITY DEFINER, idempotente pelo
+            // id do pagamento. O cliente nunca grava isto direto — o EXECUTE da
+            // função é só da service role.
+            if (kind === "day_pass") {
+              const { data: unlockedUntil, error } = await supabase.rpc("grant_day_pass", {
+                p_store: storeId,
+                p_mp_payment_id: approvedId || null,
+                p_amount_cents: 149,
+                p_source: "pix",
+                p_quantity: quantity,
+              });
+              if (error) {
+                console.error("[webhook/mercadopago] Erro ao conceder diária:", error);
+                return new Response(JSON.stringify({ received: true, error: error.message }), {
+                  status: 500,
+                  headers: { "Content-Type": "application/json" },
+                });
+              }
+              console.log("[webhook/mercadopago] Diária concedida para store:", storeId);
+              return new Response(
+                JSON.stringify({ received: true, dayPass: true, storeId, unlockedUntil }),
+                { status: 200, headers: { "Content-Type": "application/json" } },
+              );
+            }
+
+            // ANUAL: ativa Premium por 1 ano. upsert para não depender de a
+            // linha já existir — um UPDATE sem linha não gera erro e o
+            // pagamento ficava "perdido" (200 ao MP, Premium nunca ativado).
             const expiresAt = new Date();
             expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 

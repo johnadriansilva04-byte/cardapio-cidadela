@@ -127,8 +127,9 @@ export async function applyPreapproval(
 /**
  * Aplica um pagamento pontual aprovado ao restaurante do `external_reference`.
  *
- * Mesma regra do webhook (ativa por 1 ano), mas aqui o `store_id` já é o valor
- * que nós enviamos no link — não precisa adivinhar pelo e-mail.
+ * `metadata.kind` decide o produto:
+ * - `'day_pass'` → concede 24h via RPC `grant_day_pass` (idempotente pelo id);
+ * - caso contrário → ativa o Premium por 1 ano (comportamento legado).
  */
 export async function applyApprovedPayment(
   supabase: SupabaseClient,
@@ -146,6 +147,18 @@ export async function applyApprovedPayment(
   const storeId = payment.externalReference;
   if (!isExternalReference(storeId)) {
     return { handled: false, storeId: null, premium: false, reason: "external_reference inválido" };
+  }
+
+  if (payment.kind === "day_pass") {
+    const { error } = await supabase.rpc("grant_day_pass", {
+      p_store: storeId,
+      p_mp_payment_id: payment.id || null,
+      p_amount_cents: 149,
+      p_source: "pix",
+      p_quantity: Math.max(1, Math.min(Number(payment.quantity ?? 1) || 1, 60)),
+    });
+    if (error) return { handled: false, storeId, premium: false, reason: error.message };
+    return { handled: true, storeId, premium: false, reason: `diária ${payment.id} concedida` };
   }
 
   const expiresAt = new Date();

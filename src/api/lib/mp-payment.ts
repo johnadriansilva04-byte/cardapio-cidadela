@@ -14,6 +14,8 @@ export interface PaymentLinkConfig {
   backUrl?: string;
   /** URL que o Mercado Pago chama a cada mudança de status do pagamento. */
   notificationUrl?: string;
+  /** Metadados da preferência. `kind` diz ao webhook o que conceder. */
+  metadata?: Record<string, unknown>;
 }
 
 export async function createPaymentLink(
@@ -49,6 +51,9 @@ export async function createPaymentLink(
         external_reference: config.externalReference,
         // Sem isto o webhook só chega se estiver configurado no painel do MP.
         notification_url: config.notificationUrl,
+        // `kind` é o que permite o webhook único decidir entre diária (24h) e
+        // anual (1 ano) sem precisar de endpoint separado por produto.
+        ...(config.metadata ? { metadata: config.metadata } : {}),
         // Deixa o Mercado Pago decidir os métodos disponíveis
         // payment_methods: {
         //   excluded_payment_types: [],

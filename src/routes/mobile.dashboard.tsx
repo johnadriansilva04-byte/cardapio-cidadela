@@ -29,7 +29,14 @@ export const Route = createFileRoute("/mobile/dashboard")({
 function MobileDashboardPage() {
   const { restaurants, orders, loading, error, refresh, restaurantNames } = useMobileStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [sub, setSub] = useState<{ used: number; premium: boolean; bonus: number } | null>(null);
+  const [sub, setSub] = useState<{
+    used: number;
+    premium: boolean;
+    bonus: number;
+    dayActive: boolean;
+    dayUntil: string | null;
+    credits: number;
+  } | null>(null);
   const [rewards, setRewards] = useState<RewardProgress[]>([]);
 
   const metrics = useMemo(() => computeMetrics(orders, restaurantNames), [orders, restaurantNames]);
@@ -45,7 +52,14 @@ function MobileDashboardPage() {
     checkSubscriptionStatus(primaryId)
       .then((s) => {
         if (!cancelled)
-          setSub({ used: s.monthlyOrderCount, premium: s.isPremium, bonus: s.bonusOrders });
+          setSub({
+            used: s.monthlyOrderCount,
+            premium: s.isPremium,
+            bonus: s.bonusOrders,
+            dayActive: s.dayPassActive,
+            dayUntil: s.dayPassUntil,
+            credits: s.dayPassCredits,
+          });
       })
       .catch(() => {
         if (!cancelled) setSub(null);
@@ -68,7 +82,14 @@ function MobileDashboardPage() {
     if (primaryId) {
       try {
         const s = await checkSubscriptionStatus(primaryId);
-        setSub({ used: s.monthlyOrderCount, premium: s.isPremium, bonus: s.bonusOrders });
+        setSub({
+          used: s.monthlyOrderCount,
+          premium: s.isPremium,
+          bonus: s.bonusOrders,
+          dayActive: s.dayPassActive,
+          dayUntil: s.dayPassUntil,
+          credits: s.dayPassCredits,
+        });
       } catch {
         /* termômetro é best-effort */
       }
@@ -108,6 +129,9 @@ function MobileDashboardPage() {
           limit={MONTHLY_FREE_LIMIT}
           bonus={sub.bonus}
           isPremium={sub.premium}
+          dayPassActive={sub.dayActive}
+          dayPassUntil={sub.dayUntil}
+          dayPassCredits={sub.credits}
         />
       )}
 

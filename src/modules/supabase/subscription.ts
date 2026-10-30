@@ -20,7 +20,7 @@ import type { SubscriptionStatus } from "@/lib/types";
 
 export const MONTHLY_FREE_LIMIT = 5;
 
-export { PREMIUM_PRICE_LABEL } from "@/lib/pricing";
+export { PREMIUM_PRICE_LABEL, DAY_PASS_PRICE_LABEL, DAY_PASS_PRICE_VALUE } from "@/lib/pricing";
 
 const COLUMNS =
   "store_id, admin_email, is_premium, premium_expires_at, monthly_order_count, monthly_order_reset_date";
@@ -32,6 +32,41 @@ interface SubscriptionRow {
   premium_expires_at: string | null;
   monthly_order_count: number | null;
   monthly_order_reset_date: string | null;
+}
+
+/** Resposta da RPC `store_access_state` (aditiva — ausente em schema antigo). */
+interface AccessState {
+  unlocked: boolean;
+  source: "annual" | "day" | "free";
+  annual_expires_at: string | null;
+  unlocked_until: string | null;
+  quota_used: number;
+  quota_limit: number;
+  day_pass_credits?: number;
+}
+
+/**
+ * Estado de acesso pela RPC SECURITY DEFINER `store_access_state`.
+ *
+ * É a fonte do selo e do cronômetro: devolve o `unlocked_until` exato da
+ * diária e a origem do acesso (anual/diária/gratuito). Sem a migração da
+ * diária a RPC não existe — devolvemos `null` e a UI cai no comportamento
+ * anterior (só Premium + cota).
+ */
+async function fetchAccessState(storeId: string): Promise<AccessState | null> {
+  const { data, error } = await supabase.rpc("store_access_state", { p_store: storeId });
+  if (error || !data) return null;
+  const raw = data as Partial<AccessState> & { error?: string };
+  if (raw.error) return null;
+  return {
+    unlocked: Boolean(raw.unlocked),
+    source: (raw.source as AccessState["source"]) ?? "free",
+    annual_expires_at: raw.annual_expires_at ?? null,
+    unlocked_until: raw.unlocked_until ?? null,
+    quota_used: Math.max(0, Number(raw.quota_used ?? 0) || 0),
+    quota_limit: Math.max(0, Number(raw.quota_limit ?? MONTHLY_FREE_LIMIT) || 0),
+    day_pass_credits: Math.max(0, Number(raw.day_pass_credits ?? 0) || 0),
+  };
 }
 
 function todayISO(): string {
@@ -122,11 +157,26 @@ function toStatus(
   row: SubscriptionRow | null,
   usedOverride?: number,
   bonusOverride?: number,
+  access?: AccessState | null,
 ): SubscriptionStatus {
-  const used = Math.max(0, Number(usedOverride ?? row?.monthly_order_count ?? 0) || 0);
+  const used = Math.max(
+    0,
+    Number(access?.quota_used ?? usedOverride ?? row?.monthly_order_count ?? 0) || 0,
+  );
   const bonus = Math.max(0, Number(bonusOverride ?? 0) || 0);
-  const limit = MONTHLY_FREE_LIMIT + bonus;
+  const limit = access ? access.quota_limit : MONTHLY_FREE_LIMIT + bonus;
   const isPremium = Boolean(row?.is_premium) && premiumActive(row?.premium_expires_at ?? null);
+  const dayPassUntil = access?.unlocked_until ?? null;
+  const dayPassActive =
+    access?.source === "day" ||
+    (dayPassUntil !== null && Number.isFinite(Date.parse(dayPassUntil))
+      ? Date.parse(dayPassUntil) > Date.now()
+      : false);
+  const accessSource: SubscriptionStatus["accessSource"] = isPremium
+    ? "annual"
+    : dayPassActive
+      ? "day"
+      : (access?.source ?? "free");
   return {
     isPremium,
     monthlyOrderCount: used,
@@ -135,6 +185,10 @@ function toStatus(
     premiumExpiresAt: row?.premium_expires_at ?? null,
     resetDate: row?.monthly_order_reset_date ?? todayISO(),
     bonusOrders: bonus,
+    dayPassActive,
+    dayPassUntil,
+    dayPassCredits: Math.max(0, Number(access?.day_pass_credits ?? 0) || 0),
+    accessSource,
   };
 }
 
@@ -158,30 +212,30 @@ export async function resetMonthlyCountIfNeeded(storeId: string): Promise<void> 
 /** Verifica se é premium ou gratuito, com o uso do mês corrente. */
 export async function checkSubscriptionStatus(storeId: string): Promise<SubscriptionStatus> {
   await resetMonthlyCountIfNeeded(storeId);
-  const row = await fetchRow(storeId);
-  const [used, bonus] = await Promise.all([
-    fetchMonthlyOrderCount(storeId),
-    fetchBonusOrders(storeId),
-  ]);
-  return toStatus(row, used, bonus);
+  const [row, access] = await Promise.all([fetchRow(storeId), fetchAccessState(storeId)]);
+  // Com o access state, ele já traz cota e bônus; sem ele, cai nas RPCs avulsas.
+  const [used, bonus] = access
+    ? [access.quota_used, Math.max(0, access.quota_limit - MONTHLY_FREE_LIMIT)]
+    : await Promise.all([fetchMonthlyOrderCount(storeId), fetchBonusOrders(storeId)]);
+  return toStatus(row, used, bonus, access);
 }
 
 /**
  * Retorna se o restaurante ainda pode receber pedidos neste mês.
- * Premium nunca é bloqueado. A contagem vem dos pedidos reais do mês.
+ * Premium nunca é bloqueado; a diária libera enquanto vigorar. A contagem vem
+ * dos pedidos reais do mês.
  */
 export async function checkMonthlyLimit(
   storeId: string,
 ): Promise<{ allowed: boolean; remaining: number; used: number; isPremium: boolean }> {
   await resetMonthlyCountIfNeeded(storeId);
-  const row = await fetchRow(storeId);
-  const [used, bonus] = await Promise.all([
-    fetchMonthlyOrderCount(storeId),
-    fetchBonusOrders(storeId),
-  ]);
-  const status = toStatus(row, used, bonus);
+  const [row, access] = await Promise.all([fetchRow(storeId), fetchAccessState(storeId)]);
+  const [used, bonus] = access
+    ? [access.quota_used, Math.max(0, access.quota_limit - MONTHLY_FREE_LIMIT)]
+    : await Promise.all([fetchMonthlyOrderCount(storeId), fetchBonusOrders(storeId)]);
+  const status = toStatus(row, used, bonus, access);
   return {
-    allowed: status.isPremium || status.remainingOrders > 0,
+    allowed: status.isPremium || status.dayPassActive || status.remainingOrders > 0,
     remaining: status.remainingOrders,
     used: status.monthlyOrderCount,
     isPremium: status.isPremium,
@@ -260,4 +314,54 @@ export async function getPreapprovalId(storeId: string): Promise<string | null> 
     .maybeSingle();
   if (error || !data) return null;
   return (data.mercadopago_preapproval_id as string) ?? null;
+}
+
+/**
+ * Gera o link de pagamento da diária (24h) para o restaurante.
+ *
+ * A rota valida a sessão e a posse do restaurante; a concessão das 24h só
+ * acontece no webhook, quando o Mercado Pago confirma o pagamento. Devolve
+ * `null` em qualquer falha (a UI mostra um aviso e não abre o checkout).
+ */
+export async function createDayPassLink(
+  storeId: string,
+  accessToken: string | undefined,
+  quantity = 1,
+): Promise<string | null> {
+  if (!storeId || !accessToken) return null;
+  try {
+    const res = await fetch("/api/payment/day-pass", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ storeId, quantity: Math.max(1, Math.floor(quantity) || 1) }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json().catch(() => ({}))) as { initPoint?: string };
+    return data.initPoint ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resgata uma diária conquistada por recompensa.
+ *
+ * Consome 1 crédito do saldo e libera 24h. A RPC valida a posse e o saldo no
+ * servidor — o cliente nunca escreve o acesso. Devolve o fim da janela (ISO)
+ * ou `null` se não havia crédito/erro.
+ */
+export async function redeemDayPass(storeId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("redeem_day_pass", { p_store: storeId });
+  if (error) return null;
+  return (data as string | null) ?? null;
+}
+
+/** Saldo de diárias conquistadas (créditos não resgatados). */
+export async function fetchDayPassCredits(storeId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("owner_day_pass_credits", { p_store: storeId });
+  if (error) return 0;
+  return Math.max(0, Number(data ?? 0) || 0);
 }

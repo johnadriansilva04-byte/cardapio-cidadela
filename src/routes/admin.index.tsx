@@ -75,6 +75,9 @@ function AdminDashboardOverview() {
   const [subUsed, setSubUsed] = useState<number | null>(null);
   const [subPremium, setSubPremium] = useState(false);
   const [subBonus, setSubBonus] = useState(0);
+  const [subDay, setSubDay] = useState(false);
+  const [subDayUntil, setSubDayUntil] = useState<string | null>(null);
+  const [subCredits, setSubCredits] = useState(0);
 
   useEffect(() => {
     if (authLoading) return;
@@ -192,6 +195,9 @@ function AdminDashboardOverview() {
       setSubUsed(null);
       setSubPremium(false);
       setSubBonus(0);
+      setSubDay(false);
+      setSubDayUntil(null);
+      setSubCredits(0);
       return;
     }
     let cancelled = false;
@@ -201,6 +207,9 @@ function AdminDashboardOverview() {
         setSubUsed(s.monthlyOrderCount);
         setSubPremium(s.isPremium);
         setSubBonus(s.bonusOrders);
+        setSubDay(s.dayPassActive);
+        setSubDayUntil(s.dayPassUntil);
+        setSubCredits(s.dayPassCredits);
       })
       .catch(() => {
         if (!cancelled) setSubUsed(null);
@@ -506,6 +515,9 @@ function AdminDashboardOverview() {
           limit={MONTHLY_FREE_LIMIT}
           bonus={subBonus}
           isPremium={subPremium}
+          dayPassActive={subDay}
+          dayPassUntil={subDayUntil}
+          dayPassCredits={subCredits}
         />
       )}
 

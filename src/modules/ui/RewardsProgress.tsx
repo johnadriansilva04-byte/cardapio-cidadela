@@ -21,11 +21,11 @@ function metricUnit(metric: string): string {
 }
 
 /**
- * Metas de engajamento → pedidos bônus.
+ * Metas de engajamento → diárias grátis.
  *
  * Mostra o progresso do mês rumo a cada meta e celebra as conquistadas. É o
- * rosto da recompensa "use o sistema e ganhe pedidos a mais" — sem desconto,
- * sem cupom, só cota extra.
+ * rosto da recompensa "use o sistema e ganhe diárias" — sem desconto, sem
+ * cupom: bater a meta acumula acesso de 24h no saldo do restaurante.
  */
 export function RewardsProgress({ rewards, className }: RewardsProgressProps) {
   if (rewards.length === 0) return null;
@@ -42,9 +42,9 @@ export function RewardsProgress({ rewards, className }: RewardsProgressProps) {
           <Gift className="size-4" />
         </span>
         <div>
-          <h3 className="text-sm font-black text-white">Ganhe pedidos bônus</h3>
+          <h3 className="text-sm font-black text-white">Ganhe diárias grátis</h3>
           <p className="text-[11px] text-gray-500">
-            Use o sistema e a cota do mês cresce sozinha. Sem custo.
+            Use o sistema e acumule dias de acesso. Sem custo.
           </p>
         </div>
       </div>
@@ -90,7 +90,7 @@ export function RewardsProgress({ rewards, className }: RewardsProgressProps) {
                       : "bg-cyan-500/12 text-cyan-300",
                   )}
                 >
-                  {r.granted ? "Conquistado" : `+${r.bonus_orders} pedidos`}
+                  {r.granted ? "Conquistado" : `+${r.day_credits} diárias`}
                 </span>
               </div>
               <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">

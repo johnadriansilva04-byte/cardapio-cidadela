@@ -19,7 +19,8 @@ describe("RewardsProgress", () => {
             title: "Liga 20h no mês",
             metric: "usage_seconds",
             threshold: 72000,
-            bonus_orders: 5,
+            bonus_orders: 0,
+            day_credits: 5,
             progress: 36000,
             granted: false,
           },
@@ -28,7 +29,7 @@ describe("RewardsProgress", () => {
     );
     expect(screen.getByText("Liga 20h no mês")).toBeInTheDocument();
     expect(screen.getByText(/10h \/ 20h/)).toBeInTheDocument();
-    expect(screen.getByText("+5 pedidos")).toBeInTheDocument();
+    expect(screen.getByText("+5 diárias")).toBeInTheDocument();
   });
 
   it("marca a meta conquistada", () => {
@@ -40,7 +41,8 @@ describe("RewardsProgress", () => {
             title: "Mil pedidos",
             metric: "orders",
             threshold: 1000,
-            bonus_orders: 20,
+            bonus_orders: 0,
+            day_credits: 20,
             progress: 1000,
             granted: true,
           },

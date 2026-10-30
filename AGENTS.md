@@ -193,6 +193,36 @@
 
 ## Assinatura Premium (Mercado Pago)
 
+- **Modelo atual: anual (R$ 199,99) OU diária de 24h (R$ 1,49), comprável em
+  pacote.** A diária vive em `store_day_passes` (livro-razão, `mp_payment_id`
+  UNIQUE → webhook idempotente) e é concedida só pela RPC SECURITY DEFINER
+  `grant_day_pass(p_store, p_mp_payment_id, p_amount_cents, p_source,
+  p_quantity)` — EXECUTE só para a service role. O dono não tem EXECUTE nem
+  INSERT: se o acesso fosse gravável no cliente, bastaria um INSERT para liberar
+  a loja de graça.
+- **Comprar várias diárias empilha.** `grant_day_pass` soma `quantity × 24h`
+  sobre o `unlocked_until` vigente (comprar 2 diárias com 5h restantes → 53h).
+  Sem isso, uma segunda compra durante o período ativo desperdiçaria o restante.
+  O preço é recalculado no servidor (`api.payment.day-pass.ts`), que recebe só
+  `{ storeId, quantity }` — nunca o valor. A reentrega do mesmo pagamento não
+  estende de novo (idempotência por `mp_payment_id`).
+- Checkout da diária: `POST /api/payment/day-pass` (rota
+  `src/routes/api.payment.day-pass.ts`). Exige `Authorization: Bearer <token>` e
+  confirma a posse do `storeId` via RLS do próprio usuário, como o create-link.
+  Envia `metadata.kind = 'day_pass'` + `metadata.quantity`; a concessão só
+  acontece no webhook. O webhook e o sync (`mp-subscription.ts`) leem
+  `quantity` do metadata e repassam à RPC.
+- Recompensas concedem **diárias** (créditos), não pedidos bônus: ver
+  `supabase_day_pass_rewards_migration.sql` (`store_day_credits`,
+  `reward_grants.day_credits`, `rewards.day_credits`). `redeemDayPass` troca 1
+  crédito por 24h sem passar pelo Mercado Pago.
+- **Preços e env.** `src/lib/pricing.ts` é a fonte única: `PREMIUM_PRICE_VALUE`
+  (anual) e `DAY_PASS_PRICE_VALUE` (diária, padrão 1.49), configuráveis por
+  `VITE_ANNUAL_PRICE_VALUE` / `VITE_DAY_PASS_PRICE_VALUE` (+ `..._LABEL` para o
+  rótulo). Nomes legados `VITE_PREMIUM_PRICE_VALUE` /
+  `VITE_PREMIUM_ANNUAL_PRICE` continuam aceitos para o anual. **São `VITE_*`:
+  entram no bundle no momento do BUILD**, então mudar o valor exige um novo
+  deploy — trocar a env no painel não recompila o que já está no ar.
 - **Pagamento pontual exige `/v1/payments/{id}`.** O endpoint sem o `/v1`
   responde **404** e o webhook devolvia 200 com `payment not found` — o
   pagamento aprovado nunca virava Premium e o MP não reentregava. Vale para

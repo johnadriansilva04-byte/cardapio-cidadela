@@ -196,6 +196,14 @@ export interface SubscriptionStatus {
   resetDate: string;
   /** Pedidos bônus conquistados no mês (elevam a cota do plano gratuito). */
   bonusOrders: number;
+  /** Diária de 24h em vigor (Pay-per-Use). */
+  dayPassActive: boolean;
+  /** Fim exato da diária (ISO) — alimenta o cronômetro HH:MM:SS. */
+  dayPassUntil: string | null;
+  /** Diárias ganhas por recompensa, ainda não resgatadas. */
+  dayPassCredits: number;
+  /** Origem do acesso atual: 'annual' | 'day' | 'free'. */
+  accessSource: "annual" | "day" | "free";
 }
 
 // --- Cidadela ---

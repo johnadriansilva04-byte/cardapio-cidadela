@@ -246,6 +246,10 @@ export interface PaymentInfo {
   status: string;
   externalReference: string;
   dateApproved: string | null;
+  /** `metadata.kind` que enviamos na preferência: 'day_pass' | 'annual' | "". */
+  kind: string;
+  /** Quantas diárias o pagamento cobre (pacote). Mínimo 1. */
+  quantity: number;
 }
 
 /** Normaliza um pagamento pontual do Mercado Pago (Pix/cartão/boleto). */
@@ -254,11 +258,14 @@ export function normalizePayment(raw: unknown): PaymentInfo | null {
   const r = raw as Record<string, unknown>;
   const id = String(r.id ?? "");
   if (!id) return null;
+  const metadata = (r.metadata ?? {}) as Record<string, unknown>;
   return {
     id,
     status: String(r.status ?? ""),
     externalReference: String(r.external_reference ?? ""),
     dateApproved: (r.date_approved as string) ?? null,
+    kind: String(metadata.kind ?? ""),
+    quantity: Math.max(1, Math.min(Math.floor(Number(metadata.quantity ?? 1) || 1), 60)),
   };
 }
 

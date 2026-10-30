@@ -94,6 +94,7 @@ export const Route = createFileRoute("/api/payment/create-link")({
           externalReference: storeId,
           backUrl,
           notificationUrl,
+          metadata: { kind: "annual" },
         });
 
         if (!result) {

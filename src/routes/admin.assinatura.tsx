@@ -10,10 +10,12 @@ import {
   Loader2,
   Lock,
   Minus,
+  Plus,
   QrCode,
   ShieldCheck,
   Sparkles,
   Store as StoreIcon,
+  Timer,
   Zap,
   AlertCircle,
   Mail,
@@ -38,10 +40,15 @@ import {
   registerPendingSubscription,
   getPreapprovalId,
   MONTHLY_FREE_LIMIT,
+  createDayPassLink,
+  redeemDayPass,
 } from "@/modules/supabase/subscription";
 import { supabase } from "@/modules/supabase/client";
 import { fetchRewards, type RewardProgress } from "@/modules/supabase/rewards";
 import { RewardsProgress } from "@/modules/ui/RewardsProgress";
+import { DAY_PASS_PRICE_VALUE, PREMIUM_PRICE_LABEL } from "@/lib/pricing";
+import { brl } from "@/lib/utils";
+import { useCountdown } from "@/hooks/useCountdown";
 import type { Restaurant, SubscriptionStatus } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -59,8 +66,7 @@ const SUBSCRIPTION_LINK =
   (import.meta.env?.VITE_MERCADOPAGO_SUBSCRIPTION_LINK as string | undefined) ||
   "https://www.mercadopago.com.br/subscriptions";
 
-const ANNUAL_PRICE =
-  (import.meta.env?.VITE_PREMIUM_ANNUAL_PRICE as string | undefined) || "R$ 199,99/ano";
+const ANNUAL_PRICE = PREMIUM_PRICE_LABEL;
 
 const field =
   "w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30";
@@ -243,6 +249,9 @@ function SubscriptionPage() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [awaitingPayment, setAwaitingPayment] = useState(false);
+  const [awaitingDayPass, setAwaitingDayPass] = useState(false);
+  const [dayQty, setDayQty] = useState(1);
+  const [redeeming, setRedeeming] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -250,6 +259,11 @@ function SubscriptionPage() {
   // sozinha — o confete não deve ficar pendurado na tela.
   const [justActivated, setJustActivated] = useState(false);
   const retryRef = useRef(0);
+  // Cronômetro da diária: precisa ficar antes dos early returns (regra dos hooks).
+  const dayCountdown = useCountdown(
+    status?.dayPassUntil,
+    !status?.isPremium && (status?.dayPassActive ?? false),
+  );
 
   // E-mail para o Mercado Pago (opcional, editável aqui mesmo).
   const [currentEmail, setCurrentEmail] = useState(accountEmail);
@@ -428,6 +442,41 @@ function SubscriptionPage() {
     }
   }
 
+  /** Abre o checkout da diária (24h × quantidade). Concede só no webhook. */
+  async function openDayPass() {
+    if (!activeId) return;
+    const link = await createDayPassLink(activeId, session?.access_token, dayQty);
+    if (!link) {
+      toast.error("Não foi possível gerar o link de pagamento.");
+      return;
+    }
+    const win = window.open(link, "_blank", "noopener,noreferrer");
+    setAwaitingDayPass(true);
+    if (!win) {
+      setPaymentLink(link);
+      setPaymentOpen(true);
+    }
+  }
+
+  /** Troca 1 diária conquistada por 24h de acesso (só consome o saldo). */
+  async function redeemCredit() {
+    if (!activeId) return;
+    setRedeeming(true);
+    try {
+      const until = await redeemDayPass(activeId);
+      if (!until) {
+        toast.error("Sem diárias disponíveis para resgatar.");
+        return;
+      }
+      await loadStatus(activeId);
+      refreshPlan();
+      setJustActivated(true);
+      toast.success("Diária liberada! Acesso por 24 horas.");
+    } finally {
+      setRedeeming(false);
+    }
+  }
+
   async function runSync(): Promise<"premium" | "none" | "pending" | "error"> {
     if (!activeId || !session?.access_token) return "error";
     try {
@@ -523,11 +572,13 @@ function SubscriptionPage() {
   }
 
   const isPremium = status?.isPremium ?? false;
+  const dayPassActive = !isPremium && (status?.dayPassActive ?? false);
+  const dayPassCredits = status?.dayPassCredits ?? 0;
   const used = status?.monthlyOrderCount ?? 0;
   const bonus = status?.bonusOrders ?? 0;
   const limit = status?.monthlyLimit ?? MONTHLY_FREE_LIMIT;
   const remaining = status?.remainingOrders ?? 0;
-  const priceShort = ANNUAL_PRICE.replace(/\/ano$/, "");
+  const priceShort = PREMIUM_PRICE_LABEL.replace(/\/ano$/, "");
   const usagePct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
 
   return (
@@ -554,7 +605,50 @@ function SubscriptionPage() {
         </div>
       )}
 
-      {isPremium ? (
+      {dayPassActive ? (
+        /* Diária em vigor: o que importa é o cronômetro das 24h. */
+        <section className="animate-slide-up relative overflow-hidden rounded-3xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/[0.14] via-white/[0.03] to-transparent p-4">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-20 -top-20 size-52 rounded-full bg-cyan-500/25 blur-3xl"
+          />
+          <div className="relative">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300/90">
+              <Timer className="size-3.5" /> Acesso por 24h
+            </span>
+            <p className="mt-2 flex items-center gap-2 text-xl font-black tracking-tight text-white">
+              <Zap className="size-5 shrink-0 text-cyan-300" /> Pedidos ilimitados
+            </p>
+            <p className="mt-1 text-xs text-gray-300">
+              Liberado até{" "}
+              {status?.dayPassUntil
+                ? new Date(status.dayPassUntil).toLocaleString("pt-BR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "—"}
+              .
+            </p>
+            <div className="mt-4 flex items-center gap-3 rounded-2xl border border-cyan-400/20 bg-black/20 px-4 py-3">
+              <Timer className="size-4 shrink-0 text-cyan-300" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-200/70">
+                Restam
+              </span>
+              <span className="ml-auto font-mono text-lg font-black tabular-nums text-cyan-100">
+                {dayCountdown ?? "--:--:--"}
+              </span>
+            </div>
+            {dayPassCredits > 0 && (
+              <p className="mt-3 flex items-center gap-1.5 text-[11px] text-cyan-200/80">
+                <Gift className="size-3.5" /> Você ainda tem {dayPassCredits} diária
+                {dayPassCredits === 1 ? "" : "s"} grátis para usar.
+              </p>
+            )}
+          </div>
+        </section>
+      ) : isPremium ? (
         /* Passe ativo: estado + as duas ações. Nada mais na tela. */
         <section className="premium-pass animate-slide-up relative overflow-hidden rounded-3xl border border-amber-400/25 bg-gradient-to-br from-amber-500/[0.14] via-white/[0.03] to-transparent p-4">
           {justActivated && <CelebrationBurst />}
@@ -640,6 +734,76 @@ function SubscriptionPage() {
                 <Loader2 className="size-3.5 animate-spin" /> Confirmando pagamento…
               </p>
             )}
+
+            {/* Alternativa sem compromisso: libera só o dia de hoje. */}
+            <div className="mt-4 border-t border-white/[0.07] pt-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-white">
+                    <Timer className="size-3.5 text-cyan-300" /> Prefere só hoje?
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-gray-500">
+                    {brl(DAY_PASS_PRICE_VALUE * dayQty)} · {dayQty} × 24h
+                    {dayQty > 1 ? " (empilha)" : ""}
+                  </p>
+                </div>
+                {dayPassCredits > 0 ? (
+                  <Button
+                    onClick={redeemCredit}
+                    disabled={redeeming}
+                    className="tap shrink-0 rounded-full bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25"
+                  >
+                    {redeeming ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Gift className="size-4" />
+                    )}
+                    Usar 1 grátis ({dayPassCredits})
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={openDayPass}
+                    className="tap shrink-0 rounded-full bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25"
+                  >
+                    <Timer className="size-4" /> Liberar hoje
+                  </Button>
+                )}
+              </div>
+
+              {/* Pacote: quantas diárias comprar de uma vez. */}
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className="text-[11px] font-semibold text-gray-500">Quantas diárias?</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    aria-label="Menos uma diária"
+                    onClick={() => setDayQty((q) => Math.max(1, q - 1))}
+                    disabled={dayQty <= 1}
+                    className="tap grid size-8 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
+                  >
+                    <Minus className="size-4" />
+                  </button>
+                  <span className="w-8 text-center text-sm font-black tabular-nums text-white">
+                    {dayQty}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Mais uma diária"
+                    onClick={() => setDayQty((q) => Math.min(60, q + 1))}
+                    disabled={dayQty >= 60}
+                    className="tap grid size-8 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                </div>
+              </div>
+
+              {awaitingDayPass && (
+                <p className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-cyan-300">
+                  <Loader2 className="size-3.5 animate-spin" /> Confirmando o pagamento da diária…
+                </p>
+              )}
+            </div>
           </div>
         </section>
       )}

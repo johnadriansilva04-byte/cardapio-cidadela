@@ -1,16 +1,22 @@
 import { Link } from "@tanstack/react-router";
-import { Crown, Gift, Sparkles, Zap } from "lucide-react";
+import { Crown, Gift, Sparkles, Timer, Zap } from "lucide-react";
+import { useCountdown } from "@/hooks/useCountdown";
 import { cn } from "@/lib/utils";
 
 interface PremiumUsageMeterProps {
   /** Pedidos já usados no mês (derivado de `orders`, à prova de adulteração). */
   used: number;
   /** Cota do plano gratuito (ex.: 5), sem contar bônus. */
-  limit: number;
-  /** Pedidos bônus conquistados no mês (recompensas por engajamento). */
   bonus?: number;
+  limit: number;
   /** Assinante não vê termômetro: mostra o estado Premium. */
   isPremium?: boolean;
+  /** Diária de 24h em vigor. */
+  dayPassActive?: boolean;
+  /** Fim da diária (ISO) — alimenta o cronômetro HH:MM:SS. */
+  dayPassUntil?: string | null;
+  /** Diárias ganhas por recompensa, ainda não usadas. */
+  dayPassCredits?: number;
   /** Para onde leva o convite de upgrade. */
   to?: string;
   className?: string;
@@ -29,6 +35,9 @@ export function PremiumUsageMeter({
   limit,
   bonus = 0,
   isPremium = false,
+  dayPassActive = false,
+  dayPassUntil = null,
+  dayPassCredits = 0,
   to = "/admin/assinatura",
   className,
 }: PremiumUsageMeterProps) {
@@ -36,6 +45,7 @@ export function PremiumUsageMeter({
   const clampedUsed = Math.max(0, Math.min(used, safeLimit));
   const remaining = Math.max(0, safeLimit - clampedUsed);
   const ratio = clampedUsed / safeLimit;
+  const countdown = useCountdown(dayPassUntil, dayPassActive);
 
   if (isPremium) {
     return (
@@ -55,6 +65,31 @@ export function PremiumUsageMeter({
           </p>
         </div>
         <Zap className="size-4 shrink-0 text-amber-300/70" />
+      </div>
+    );
+  }
+
+  // Diária em vigor: o que importa é o tempo restante, não a cota do mês.
+  if (dayPassActive) {
+    return (
+      <div
+        className={cn(
+          "glow-cyan flex items-center gap-3 rounded-2xl border border-cyan-400/25 bg-gradient-to-r from-cyan-500/[0.08] to-cyan-500/[0.03] p-4",
+          className,
+        )}
+      >
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-400/15 text-cyan-300">
+          <Timer className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-cyan-100">Acesso por 24h ativo</p>
+          <p className="mt-0.5 text-xs text-cyan-200/70">
+            Pedidos ilimitados enquanto o contador estiver rodando.
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-cyan-500/15 px-2.5 py-1 font-mono text-[13px] font-bold tabular-nums text-cyan-200">
+          {countdown ?? "--:--:--"}
+        </span>
       </div>
     );
   }
@@ -104,6 +139,12 @@ export function PremiumUsageMeter({
           {bonus > 0 && (
             <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
               <Gift className="size-3" /> +{bonus} bônus conquistado{bonus === 1 ? "" : "s"}
+            </p>
+          )}
+          {dayPassCredits > 0 && (
+            <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-cyan-500/12 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
+              <Timer className="size-3" /> {dayPassCredits} diária{dayPassCredits === 1 ? "" : "s"}{" "}
+              grátis disponível{dayPassCredits === 1 ? "" : "eis"}
             </p>
           )}
         </div>

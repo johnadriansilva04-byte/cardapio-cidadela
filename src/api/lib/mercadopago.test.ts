@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import {
   authorizeWebhookRequest,
   getWebhookAllowUnsigned,
+  normalizePayment,
   normalizePreapproval,
   verifyMercadoPagoSignature,
 } from "./mercadopago";
@@ -210,5 +211,27 @@ describe("normalizePreapproval", () => {
   it("retorna null sem id", () => {
     expect(normalizePreapproval({ status: "authorized" })).toBeNull();
     expect(normalizePreapproval(null)).toBeNull();
+  });
+});
+
+describe("normalizePayment", () => {
+  it("extrai id, status, external_reference e data de aprovação", () => {
+    const p = normalizePayment({
+      id: 185834592921,
+      status: "approved",
+      external_reference: "8956f83c-f65e-41a1-b524-56c4434aa9a1",
+      date_approved: "2026-10-30T13:18:18.000-04:00",
+    });
+    expect(p).toEqual({
+      id: "185834592921",
+      status: "approved",
+      externalReference: "8956f83c-f65e-41a1-b524-56c4434aa9a1",
+      dateApproved: "2026-10-30T13:18:18.000-04:00",
+    });
+  });
+
+  it("retorna null sem id", () => {
+    expect(normalizePayment({ status: "approved" })).toBeNull();
+    expect(normalizePayment(null)).toBeNull();
   });
 });

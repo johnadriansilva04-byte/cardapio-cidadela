@@ -240,3 +240,47 @@ export async function searchPreapprovals(
     .map((r) => normalizePreapproval(r))
     .filter((p): p is PreapprovalInfo => p !== null);
 }
+
+export interface PaymentInfo {
+  id: string;
+  status: string;
+  externalReference: string;
+  dateApproved: string | null;
+}
+
+/** Normaliza um pagamento pontual do Mercado Pago (Pix/cartão/boleto). */
+export function normalizePayment(raw: unknown): PaymentInfo | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const id = String(r.id ?? "");
+  if (!id) return null;
+  return {
+    id,
+    status: String(r.status ?? ""),
+    externalReference: String(r.external_reference ?? ""),
+    dateApproved: (r.date_approved as string) ?? null,
+  };
+}
+
+/**
+ * Pagamentos pontuais de um restaurante, casados pelo `external_reference`.
+ *
+ * É o fallback do sync para quem pagou pelo link de pagamento (Pix/cartão) e
+ * não por uma assinatura: nesse caso não existe preapproval para procurar.
+ * Exige o prefixo `/v1` — sem ele a API devolve 404.
+ */
+export async function searchPaymentsByExternalReference(
+  externalReference: string,
+  env?: ServerEnv,
+): Promise<PaymentInfo[]> {
+  const { ok, data } = await mpFetch(
+    `/v1/payments/search?external_reference=${encodeURIComponent(externalReference)}&limit=20`,
+    {},
+    env,
+  );
+  if (!ok || !data) return [];
+  const results = (data as { results?: unknown[] }).results ?? [];
+  return results
+    .map((r) => normalizePayment(r))
+    .filter((p): p is PaymentInfo => p !== null);
+}

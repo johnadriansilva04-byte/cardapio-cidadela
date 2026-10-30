@@ -2,7 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   mpFetch,
   normalizePreapproval,
+  searchPaymentsByExternalReference,
   searchPreapprovals,
+  type PaymentInfo,
   type PreapprovalInfo,
   type ServerEnv,
 } from "./mercadopago";
@@ -122,8 +124,47 @@ export async function applyPreapproval(
   return { handled: true, storeId, premium: false, reason: `status ignorado: ${info.status}` };
 }
 
-/** Consulta o preapproval na API do MP e aplica. */
-export async function processPreapprovalById(
+/**
+ * Aplica um pagamento pontual aprovado ao restaurante do `external_reference`.
+ *
+ * Mesma regra do webhook (ativa por 1 ano), mas aqui o `store_id` já é o valor
+ * que nós enviamos no link — não precisa adivinhar pelo e-mail.
+ */
+export async function applyApprovedPayment(
+  supabase: SupabaseClient,
+  payment: PaymentInfo,
+): Promise<ProcessResult> {
+  if (payment.status !== "approved") {
+    return {
+      handled: true,
+      storeId: null,
+      premium: false,
+      reason: `pagamento ${payment.status}`,
+    };
+  }
+
+  const storeId = payment.externalReference;
+  if (!isExternalReference(storeId)) {
+    return { handled: false, storeId: null, premium: false, reason: "external_reference inválido" };
+  }
+
+  const expiresAt = new Date();
+  expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+  const { error } = await supabase.from("admin_trials").upsert(
+    {
+      store_id: storeId,
+      is_premium: true,
+      premium_expires_at: expiresAt.toISOString(),
+    },
+    { onConflict: "store_id" },
+  );
+  if (error) return { handled: false, storeId, premium: false, reason: error.message };
+
+  return { handled: true, storeId, premium: true, reason: `pagamento ${payment.id} aprovado` };
+}
+
+/** Consulta o preapproval na API do MP e aplica. */export async function processPreapprovalById(
   supabase: SupabaseClient,
   preapprovalId: string,
   env?: ServerEnv,
@@ -170,15 +211,25 @@ export async function syncSubscriptionForEmail(
   if (!registered) return { status: "forbidden", preapprovalId: null };
 
   const preapprovals = await searchPreapprovals(payerEmail, env);
-  if (preapprovals.length === 0) return { status: "none", preapprovalId: null };
+  if (preapprovals.length > 0) {
+    // Prefere um ativo; senão, assume que não há assinatura válida.
+    const active = preapprovals.find((p) => ACTIVE_STATUSES.has(p.status));
+    const chosen = active ?? preapprovals[0];
+    await applyPreapproval(supabase, chosen);
+    return {
+      status: active ? "premium" : "free",
+      preapprovalId: chosen.id,
+    };
+  }
 
-  // Prefere um ativo; senão, assume que não há assinatura válida.
-  const active = preapprovals.find((p) => ACTIVE_STATUSES.has(p.status));
-  const chosen = active ?? preapprovals[0];
-  await applyPreapproval(supabase, chosen);
+  // Sem assinatura: pode ter sido um pagamento pontual (Pix/cartão) pelo link
+  // de pagamento. Antes o sync só olhava preapproval e nunca achava o Pix.
+  const payments = await searchPaymentsByExternalReference(storeId, env);
+  const approved = payments.find((p) => p.status === "approved");
+  if (approved) {
+    const applied = await applyApprovedPayment(supabase, approved);
+    return { status: applied.premium ? "premium" : "none", preapprovalId: approved.id };
+  }
 
-  return {
-    status: active ? "premium" : "free",
-    preapprovalId: chosen.id,
-  };
+  return { status: "none", preapprovalId: null };
 }

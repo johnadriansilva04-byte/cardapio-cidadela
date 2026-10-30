@@ -17,20 +17,16 @@ import {
   Zap,
   AlertCircle,
   Mail,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { LoadingState, EmptyState, InlineError } from "@/modules/ui/Feedback";
-import { ExpandableSection, InfoRow } from "@/modules/ui/ExpandableSection";
+import { InfoRow } from "@/modules/ui/ExpandableSection";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
@@ -45,7 +41,6 @@ import {
 import { supabase } from "@/modules/supabase/client";
 import { fetchRewards, type RewardProgress } from "@/modules/supabase/rewards";
 import { RewardsProgress } from "@/modules/ui/RewardsProgress";
-import { PREMIUM_PRICE_VALUE } from "@/lib/pricing";
 import type { Restaurant, SubscriptionStatus } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -102,6 +97,82 @@ function AnimatedCount({ value }: { value: number }) {
   return <>{shown}</>;
 }
 
+/** Um e-mail que o Mercado Pago poderia reconhecer (não o pseudo interno). */
+function isRealEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && !email.includes("@menufacil.local");
+}
+
+/** Atalho do hub: abre uma aba de tela cheia, com prévia do conteúdo. */
+function HubTile({
+  icon: Icon,
+  tone,
+  title,
+  hint,
+  badge,
+  onClick,
+}: {
+  icon: LucideIcon;
+  tone: "cyan" | "emerald" | "amber" | "violet";
+  title: string;
+  hint: string;
+  badge?: React.ReactNode;
+  onClick: () => void;
+}) {
+  const toneCls = {
+    cyan: "bg-cyan-500/15 text-cyan-300",
+    emerald: "bg-emerald-500/15 text-emerald-300",
+    amber: "bg-amber-500/15 text-amber-300",
+    violet: "bg-violet-500/15 text-violet-300",
+  }[tone];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="tap flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-2.5 text-left transition-colors hover:border-white/15 hover:bg-white/[0.05]"
+    >
+      <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${toneCls}`}>
+        <Icon className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="truncate text-sm font-bold text-white">{title}</span>
+          {badge}
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] text-gray-400">{hint}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-gray-600" />
+    </button>
+  );
+}
+
+/** Cabeçalho de uma aba de tela cheia: título curto e seta de voltar. */
+function TabHeader({
+  icon: Icon,
+  title,
+  tone = "cyan",
+}: {
+  icon: LucideIcon;
+  title: string;
+  tone?: "cyan" | "emerald" | "amber" | "violet";
+}) {
+  const toneCls = {
+    cyan: "bg-cyan-500/15 text-cyan-300",
+    emerald: "bg-emerald-500/15 text-emerald-300",
+    amber: "bg-amber-500/15 text-amber-300",
+    violet: "bg-violet-500/15 text-violet-300",
+  }[tone];
+
+  return (
+    <div className="flex items-center gap-3">
+      <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${toneCls}`}>
+        <Icon className="size-4" />
+      </span>
+      <SheetTitle className="text-base font-black tracking-tight text-white">{title}</SheetTitle>
+    </div>
+  );
+}
+
 /** Pulso curto de comemoração (puramente visual, não captura cliques). */
 function CelebrationBurst() {
   const pieces = useMemo(
@@ -137,13 +208,26 @@ function CelebrationBurst() {
   );
 }
 
+/** Aba do hub: cada assunto abre em tela cheia por cima, sem rolar a página. */
+type HubTab = "planos" | "vantagens" | "email" | "detalhes";
+
+/**
+ * Hub de assinatura em uma tela só.
+ *
+ * A página não rola: mostra o estado do plano e quatro atalhos. Cada assunto
+ * abre num painel de tela cheia por cima (Sheet), que rola por dentro — o
+ * operador nunca precisa arrastar a página para achar o botão de assinar.
+ */
 function SubscriptionPage() {
   const { user, session, profile, loading: authLoading } = useAuth();
   const accountPhone = normalizePhone((user?.user_metadata?.phone as string) || user?.phone || "");
   // E-mail real (opcional): é o que o Mercado Pago usa para casar o pagamento
-  // quando o webhook chega sem o external_reference.
+  // quando o webhook chega sem o external_reference. Nunca exibimos o
+  // pseudo-e-mail interno (`...@menufacil.local`) — ele não serve para nada
+  // para o dono e só confundia.
+  const metaEmail = (user?.user_metadata?.email as string) || "";
   const accountEmail =
-    (profile?.email as string | undefined) || (user?.user_metadata?.email as string) || "";
+    (profile?.email as string | undefined) || (isRealEmail(metaEmail) ? metaEmail : "");
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [activeId, setActiveId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -168,6 +252,8 @@ function SubscriptionPage() {
   const [emailDraft, setEmailDraft] = useState(accountEmail);
   const [savingEmail, setSavingEmail] = useState(false);
   const [emailMsg, setEmailMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  // Aba de tela cheia aberta sobre o hub (null = hub).
+  const [tab, setTab] = useState<HubTab | null>(null);
 
   useEffect(() => {
     setCurrentEmail(accountEmail);
@@ -302,11 +388,11 @@ function SubscriptionPage() {
 
   async function openPayment() {
     if (!activeId) return;
-    // Registra o e-mail da conta para correlacionar o webhook com o restaurante.
-    // Prefere o e-mail real (opcional); sem ele, cai no pseudo-e-mail interno e
-    // o vínculo automático por e-mail não funciona — daí o aviso na tela.
-    const payerEmail = currentEmail || user?.email;
-    if (payerEmail) void registerPendingSubscription(activeId, payerEmail);
+    // Só registra o e-mail quando é um endereço real. Gravar o pseudo-e-mail
+    // interno (`...@menufacil.local`) como `admin_email` não ajuda o webhook e
+    // ainda o expunha na tela; sem e-mail, o `external_reference` do link já
+    // vincula o pagamento ao restaurante.
+    if (currentEmail) void registerPendingSubscription(activeId, currentEmail);
 
     // Gera um link de pagamento com o external_reference correto
     try {
@@ -435,27 +521,14 @@ function SubscriptionPage() {
   const limit = status?.monthlyLimit ?? MONTHLY_FREE_LIMIT;
   const remaining = status?.remainingOrders ?? 0;
   const priceShort = ANNUAL_PRICE.replace(/\/ano$/, "");
-  const pricePerMonth = `R$ ${(PREMIUM_PRICE_VALUE / 12).toFixed(2).replace(".", ",")}`;
   const usagePct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <PageHeader
-        title={
-          <span className="flex items-center gap-2">
-            <Crown className={isPremium ? "size-5 text-amber-300" : "size-5 text-cyan-300"} />
-            Assinatura Premium
-          </span>
-        }
-        subtitle="Pedidos ilimitados por 1 ano. Ativação automática após o pagamento via Pix, cartão ou boleto."
-      />
+    <div className="mx-auto max-w-md space-y-3">
+      <PageHeader title="Assinatura Premium" subtitle="Pedidos ilimitados por 1 ano." />
 
       {restaurants.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5">
-          <div className="flex items-center gap-1.5 rounded-xl bg-white/[0.03] px-2.5 py-1.5">
-            <StoreIcon className="size-3.5 text-gray-500" />
-            <span className="text-[11px] font-semibold text-gray-400">Restaurante</span>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
           {restaurants.map((r) => (
             <button
               key={r.id}
@@ -474,161 +547,130 @@ function SubscriptionPage() {
         </div>
       )}
 
-      {/* Confirmação do pagamento logo acima do plano: é o que o dono procura
-          quando volta do Mercado Pago sem recarregar a página. */}
-      {awaitingPayment && !isPremium && (
-        <div className="animate-slide-up flex items-center gap-3 rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.07] px-4 py-3">
-          <span className="relative grid size-9 shrink-0 place-items-center">
-            <span className="absolute inset-0 animate-pulse-ring rounded-full border border-cyan-400/30" />
-            <Loader2 className="size-4 animate-spin text-cyan-300" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-cyan-200">Confirmando seu pagamento…</p>
-            <p className="mt-0.5 text-[11px] text-cyan-200/70">
-              Conclua no Mercado Pago. Assim que aprovar, liberamos sozinho — sem recarregar.
-            </p>
-          </div>
-        </div>
-      )}
-
       {isPremium ? (
-        /* ------- Plano ativo: cartão de passe, não um formulário ------- */
-        <section className="premium-pass animate-slide-up relative overflow-hidden rounded-3xl border border-amber-400/25 bg-gradient-to-br from-amber-500/[0.14] via-white/[0.03] to-transparent p-5 sm:p-6">
+        /* Passe ativo: estado + as duas ações. Nada mais na tela. */
+        <section className="premium-pass animate-slide-up relative overflow-hidden rounded-3xl border border-amber-400/25 bg-gradient-to-br from-amber-500/[0.14] via-white/[0.03] to-transparent p-4">
           {justActivated && <CelebrationBurst />}
           <div
             aria-hidden
             className="pointer-events-none absolute -right-20 -top-20 size-52 rounded-full bg-amber-500/25 blur-3xl"
           />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -bottom-24 -left-16 size-48 rounded-full bg-cyan-500/10 blur-3xl"
-          />
-
-          <div className="relative flex items-start justify-between gap-3">
-            <div>
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-amber-300/90">
-                <Sparkles className="size-3.5" /> Passe Premium
-              </span>
-              <p className="mt-2 flex items-center gap-2 text-2xl font-black tracking-tight text-white">
-                <Crown className="size-6 shrink-0 text-amber-300" /> Pedidos ilimitados
-              </p>
-              <p className="mt-1 text-xs text-gray-300">
-                {status?.premiumExpiresAt
-                  ? `Ativo até ${new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")}.`
-                  : "Assinatura ativa, sem limite de pedidos."}
-              </p>
-            </div>
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-amber-200">
-              <span className="size-1.5 animate-pulse rounded-full bg-amber-300" aria-hidden />
-              Ativo
+          <div className="relative">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-amber-300/90">
+              <Sparkles className="size-3.5" /> Passe Premium
             </span>
-          </div>
-
-          <div className="relative mt-5 flex flex-wrap gap-2">
-            <Button
-              onClick={() =>
-                window.open(
-                  preapprovalId
-                    ? `https://www.mercadopago.com.br/subscriptions/${preapprovalId}`
-                    : SUBSCRIPTION_LINK,
-                  "_blank",
-                  "noopener,noreferrer",
-                )
-              }
-              className="tap rounded-full bg-white/[0.07] text-white hover:bg-white/[0.13]"
-            >
-              <ExternalLink className="size-4" /> Gerenciar assinatura
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setCancelOpen(true)}
-              className="tap rounded-full border-white/10 bg-transparent text-gray-400 hover:bg-white/[0.06] hover:text-white"
-            >
-              Cancelar
-            </Button>
+            <p className="mt-2 flex items-center gap-2 text-xl font-black tracking-tight text-white">
+              <Crown className="size-5 shrink-0 text-amber-300" /> Pedidos ilimitados
+            </p>
+            <p className="mt-1 text-xs text-gray-300">
+              {status?.premiumExpiresAt
+                ? `Ativo até ${new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")}.`
+                : "Assinatura ativa."}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                onClick={() =>
+                  window.open(
+                    preapprovalId
+                      ? `https://www.mercadopago.com.br/subscriptions/${preapprovalId}`
+                      : SUBSCRIPTION_LINK,
+                    "_blank",
+                    "noopener,noreferrer",
+                  )
+                }
+                className="tap rounded-full bg-white/[0.07] text-white hover:bg-white/[0.13]"
+              >
+                <ExternalLink className="size-4" /> Gerenciar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setCancelOpen(true)}
+                className="tap rounded-full border-white/10 bg-transparent text-gray-400 hover:bg-white/[0.06] hover:text-white"
+              >
+                Cancelar
+              </Button>
+            </div>
           </div>
         </section>
       ) : (
-        /* ------- Convite: preço + CTA acima da dobra; o resto recolhido ---- */
-        <div className="animate-slide-up space-y-3">
-          <section className="relative overflow-hidden rounded-3xl border border-white/[0.09] bg-gradient-to-b from-white/[0.055] to-white/[0.01]">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -right-24 -top-28 size-64 rounded-full bg-cyan-500/15 blur-3xl"
-            />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -bottom-28 -left-20 size-56 rounded-full bg-amber-500/10 blur-3xl"
-            />
-
-            <div className="relative p-5 sm:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-500">
-                  Plano gratuito
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  <ShieldCheck className="size-3.5 text-cyan-300" />
-                  <span className="text-white">
-                    <AnimatedCount value={used} />
-                  </span>
-                  /{limit} pedidos
-                </span>
-              </div>
-
-              {/* Preço-herói + CTA: tudo o que o dono precisa ver, sem rolar. */}
-              <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-cyan-300/80">
-                Premium · 1 ano
-              </p>
-              <p className="mt-0.5 flex items-baseline gap-1.5 text-white">
-                <span className="text-[clamp(2rem,9vw,2.75rem)] font-black leading-none tracking-tight">
-                  {priceShort}
-                </span>
-                <span className="text-sm font-semibold text-gray-500">/ano</span>
-              </p>
-              <p className="mt-1 text-xs text-gray-400">
-                Só {pricePerMonth}/mês · pedidos ilimitados
-              </p>
-
-              <Button
-                onClick={openPayment}
-                size="lg"
-                className="sheen tap mt-5 h-14 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black shadow-[0_10px_34px_rgba(6,182,212,0.35)] transition-transform hover:scale-[1.01] hover:from-cyan-300 hover:to-cyan-400"
-              >
-                <Crown className="size-5" /> Assinar por {priceShort}/ano
-              </Button>
-
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-gray-500">
-                <span className="inline-flex items-center gap-1.5">
-                  <ShieldCheck className="size-3.5 text-emerald-400" /> Pagamento seguro
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Zap className="size-3.5 text-cyan-400" /> Libera sozinho
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Lock className="size-3.5 text-gray-400" /> Cancele quando quiser
-                </span>
-              </div>
-
-              <p className="mt-3 text-center text-[11px] leading-relaxed text-gray-500">
-                Pagou e ainda aparece como gratuito?{" "}
-                <button
-                  type="button"
-                  onClick={syncNow}
-                  disabled={syncing}
-                  className="font-semibold text-cyan-400 underline-offset-2 transition-colors hover:text-cyan-300 hover:underline disabled:opacity-50"
-                >
-                  {syncing ? "Conferindo…" : "Conferir agora"}
-                </button>
-              </p>
+        /* Convite: preço e o botão. Só isso — sem parágrafo de venda. */
+        <section className="animate-slide-up relative overflow-hidden rounded-3xl border border-white/[0.09] bg-gradient-to-b from-white/[0.055] to-white/[0.01] p-4">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-24 -top-28 size-64 rounded-full bg-cyan-500/15 blur-3xl"
+          />
+          <div className="relative">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-500">
+                Plano gratuito
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-gray-300">
+                <AnimatedCount value={used} />/{limit} pedidos
+              </span>
             </div>
-          </section>
 
-          {/* Cota e recompensas: uma linha; o detalhe abre sob demanda. */}
-          <ExpandableSection
-            icon={<Gift className="size-5" />}
-            tone="emerald"
-            title="Pedidos do mês"
-            badge={
+            <p className="mt-3 flex items-baseline gap-1.5 text-white">
+              <span className="text-[clamp(2rem,10vw,2.5rem)] font-black leading-none tracking-tight">
+                {priceShort}
+              </span>
+              <span className="text-sm font-semibold text-gray-500">/ano</span>
+            </p>
+            <p className="mt-1 text-[11px] text-gray-500">pedidos ilimitados por 1 ano</p>
+
+            <Button
+              onClick={openPayment}
+              size="lg"
+              className="sheen tap mt-3.5 h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black shadow-[0_10px_34px_rgba(6,182,212,0.35)] transition-transform hover:scale-[1.01] hover:from-cyan-300 hover:to-cyan-400"
+            >
+              <Crown className="size-5" /> Assinar agora
+            </Button>
+            <p className="mt-2 text-center text-[11px] text-gray-500">
+              Pix, cartão ou boleto · cancele quando quiser
+            </p>
+
+            {awaitingPayment && (
+              <p className="mt-3 flex items-center justify-center gap-2 text-[11px] font-semibold text-cyan-300">
+                <Loader2 className="size-3.5 animate-spin" /> Confirmando pagamento…
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Atalhos: cada um abre uma aba de tela cheia por cima. */}
+      <div className="space-y-2">
+        <HubTile
+          icon={Sparkles}
+          tone="cyan"
+          title="O que muda"
+          hint="Benefícios e comparativo"
+          onClick={() => setTab("vantagens")}
+        />
+        <HubTile
+          icon={Mail}
+          tone={currentEmail ? "violet" : "amber"}
+          title="E-mail do Mercado Pago"
+          hint={currentEmail || "Toque para informar"}
+          badge={
+            currentEmail ? undefined : (
+              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                pendente
+              </span>
+            )
+          }
+          onClick={() => setTab("email")}
+        />
+        <HubTile
+          icon={Gift}
+          tone="emerald"
+          title="Pedidos e detalhes"
+          hint={
+            isPremium
+              ? "Premium ativo"
+              : `${used} de ${limit} usados${bonus > 0 ? ` · +${bonus} bônus` : ""}`
+          }
+          badge={
+            !isPremium ? (
               <span
                 className={
                   "rounded-full px-2 py-0.5 text-[10px] font-bold " +
@@ -639,52 +681,24 @@ function SubscriptionPage() {
                       : "bg-cyan-500/15 text-cyan-300")
                 }
               >
-                {remaining > 0 ? `${remaining} restantes` : "cota esgotada"}
+                {remaining > 0 ? `${remaining} restantes` : "esgotada"}
               </span>
-            }
-            summary={`${used} de ${limit} usados${bonus > 0 ? ` · +${bonus} bônus` : ""}`}
-          >
-            <div className="flex items-end justify-between gap-3">
-              <p className="text-[11px] font-semibold text-gray-400">
-                Pedidos usados{" "}
-                <span className="font-black text-white">
-                  <AnimatedCount value={used} />
-                </span>{" "}
-                de {limit}
-              </p>
-            </div>
-            <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
-              <div
-                className={
-                  "h-full rounded-full transition-all duration-700 " +
-                  (remaining <= 0
-                    ? "bg-red-500"
-                    : remaining <= 2
-                      ? "bg-amber-500"
-                      : "bg-gradient-to-r from-cyan-500 to-cyan-300")
-                }
-                style={{ width: `${usagePct}%` }}
-              />
-            </div>
-            {bonus > 0 && (
-              <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
-                <Gift className="size-3.5" /> +{bonus} pedidos bônus conquistados neste mês
-              </p>
-            )}
-            {rewards.length > 0 && (
-              <div className="mt-4">
-                <RewardsProgress rewards={rewards} />
-              </div>
-            )}
-          </ExpandableSection>
+            ) : undefined
+          }
+          onClick={() => setTab("detalhes")}
+        />
+      </div>
 
-          {/* O que muda no dia a dia + comparativo, recolhidos. */}
-          <ExpandableSection
-            icon={<Sparkles className="size-5" />}
-            tone="cyan"
-            title="O que você libera"
-            summary="Pedidos ilimitados e detalhes sempre abertos"
-          >
+      {/* ---- Aba: benefícios e comparativo ---- */}
+      <Sheet open={tab === "vantagens"} onOpenChange={(o) => !o && setTab(null)}>
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-0 border-white/10 bg-[#0b0b10] p-0 text-white sm:max-w-md"
+        >
+          <div className="border-b border-white/[0.07] px-4 py-3">
+            <TabHeader icon={Sparkles} title="O que muda" />
+          </div>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
             <ul className="space-y-2">
               {PREMIUM_BENEFITS.map(({ icon: Icon, title, text }) => (
                 <li
@@ -698,12 +712,11 @@ function SubscriptionPage() {
                     <p className="text-xs font-bold text-white">{title}</p>
                     <p className="mt-0.5 text-[11px] leading-relaxed text-gray-400">{text}</p>
                   </div>
-                  <Check className="ml-auto mt-1 size-4 shrink-0 text-emerald-400" />
                 </li>
               ))}
             </ul>
 
-            <div className="mt-4 overflow-hidden rounded-2xl border border-white/[0.06]">
+            <div className="overflow-hidden rounded-2xl border border-white/[0.06]">
               <div className="grid grid-cols-[1.4fr_1fr_1fr] bg-white/[0.03] px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
                 <span className="text-gray-500">Recurso</span>
                 <span className="text-center text-gray-500">Gratuito</span>
@@ -728,28 +741,39 @@ function SubscriptionPage() {
                 </div>
               ))}
             </div>
-          </ExpandableSection>
 
-          {/* E-mail do Mercado Pago: opcional, e o aviso que evita o bloqueio. */}
-          <ExpandableSection
-            icon={<Mail className="size-5" />}
-            tone={currentEmail ? "neutral" : "amber"}
-            title="E-mail do Mercado Pago"
-            badge={
-              currentEmail ? undefined : (
-                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                  pendente
-                </span>
-              )
-            }
-            summary={currentEmail || "Informe o mesmo e-mail da conta do MP"}
-          >
-            <p className="mb-3 flex items-start gap-2 rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] px-3.5 py-3 text-[11px] leading-relaxed text-amber-200/90">
-              <AlertCircle className="mt-0.5 size-3.5 shrink-0" />O Mercado Pago identifica o
-              pagamento pelo e-mail do pagador. Informe aqui o{" "}
-              <b className="font-semibold">mesmo e-mail que você usa na conta do MP</b> — se for
-              outro, a liberação automática pode não acontecer e você precisa usar "Conferir agora".
+            {!isPremium && (
+              <Button
+                onClick={() => {
+                  setTab(null);
+                  void openPayment();
+                }}
+                size="lg"
+                className="sheen tap h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black"
+              >
+                <Crown className="size-5" /> Assinar por {priceShort}/ano
+              </Button>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ---- Aba: e-mail do Mercado Pago ---- */}
+      <Sheet open={tab === "email"} onOpenChange={(o) => !o && setTab(null)}>
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-0 border-white/10 bg-[#0b0b10] p-0 text-white sm:max-w-md"
+        >
+          <div className="border-b border-white/[0.07] px-4 py-3">
+            <TabHeader icon={Mail} title="E-mail do Mercado Pago" tone="violet" />
+          </div>
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+            <p className="flex items-start gap-2 rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] px-3 py-2.5 text-[11px] leading-relaxed text-amber-200/90">
+              <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+              Informe o mesmo e-mail da sua conta do Mercado Pago. Se for outro, o Premium pode não
+              liberar sozinho.
             </p>
+
             <div className="flex gap-2">
               <input
                 className={field}
@@ -774,37 +798,102 @@ function SubscriptionPage() {
               </button>
             </div>
             {emailMsg && (
-              <p
-                className={`mt-1.5 text-xs ${emailMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}
-              >
+              <p className={`text-xs ${emailMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}>
                 {emailMsg.text}
               </p>
             )}
-          </ExpandableSection>
-        </div>
-      )}
 
-      {/* Histórico / detalhes */}
-      <ExpandableSection
-        icon={<Crown className="size-5" />}
-        tone="amber"
-        title="Detalhes da assinatura"
-        summary={isPremium ? "Premium ativo" : "Plano gratuito"}
-      >
-        <InfoRow label="Restaurante" value={activeRestaurant?.name ?? "—"} />
-        <InfoRow label="Status" value={isPremium ? "Premium" : "Gratuito"} />
-        <InfoRow label="Pedidos usados no mês" value={String(used)} />
-        <InfoRow label="Limite gratuito" value={`${MONTHLY_FREE_LIMIT}/mês`} />
-        {bonus > 0 && <InfoRow label="Pedidos bônus conquistados" value={`+${bonus}`} />}
-        <InfoRow
-          label="Renovação"
-          value={
-            status?.premiumExpiresAt
-              ? new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")
-              : "—"
-          }
-        />
-      </ExpandableSection>
+            <p className="text-[11px] leading-relaxed text-gray-500">
+              Opcional. O login continua pelo telefone
+              {accountPhone ? ` (${accountPhone})` : ""}.
+            </p>
+
+            {!isPremium && (
+              <button
+                type="button"
+                onClick={syncNow}
+                disabled={syncing}
+                className="w-full rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-[11px] font-semibold text-cyan-300 transition-colors hover:bg-white/[0.05] disabled:opacity-50"
+              >
+                {syncing ? "Conferindo…" : "Já paguei — conferir agora"}
+              </button>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ---- Aba: pedidos e detalhes ---- */}
+      <Sheet open={tab === "detalhes"} onOpenChange={(o) => !o && setTab(null)}>
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col gap-0 border-white/10 bg-[#0b0b10] p-0 text-white sm:max-w-md"
+        >
+          <div className="border-b border-white/[0.07] px-4 py-3">
+            <TabHeader icon={Gift} title="Pedidos e detalhes" tone="emerald" />
+          </div>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+            {!isPremium && (
+              <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4">
+                <div className="flex items-end justify-between gap-3">
+                  <p className="text-[11px] font-semibold text-gray-400">
+                    Pedidos usados{" "}
+                    <span className="font-black text-white">
+                      <AnimatedCount value={used} />
+                    </span>{" "}
+                    de {limit}
+                  </p>
+                  <p
+                    className={
+                      "text-[11px] font-bold " +
+                      (remaining <= 0
+                        ? "text-red-400"
+                        : remaining <= 2
+                          ? "text-amber-300"
+                          : "text-cyan-300")
+                    }
+                  >
+                    {remaining > 0 ? `${remaining} restantes` : "cota esgotada"}
+                  </p>
+                </div>
+                <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div
+                    className={
+                      "h-full rounded-full transition-all duration-700 " +
+                      (remaining <= 0
+                        ? "bg-red-500"
+                        : remaining <= 2
+                          ? "bg-amber-500"
+                          : "bg-gradient-to-r from-cyan-500 to-cyan-300")
+                    }
+                    style={{ width: `${usagePct}%` }}
+                  />
+                </div>
+                {bonus > 0 && (
+                  <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
+                    <Gift className="size-3.5" /> +{bonus} pedidos bônus neste mês
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-1.5">
+              <InfoRow label="Restaurante" value={activeRestaurant?.name ?? "—"} />
+              <InfoRow label="Status" value={isPremium ? "Premium" : "Gratuito"} />
+              <InfoRow label="Limite gratuito" value={`${MONTHLY_FREE_LIMIT}/mês`} />
+              <InfoRow
+                label="Renovação"
+                value={
+                  status?.premiumExpiresAt
+                    ? new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")
+                    : "—"
+                }
+              />
+            </div>
+
+            {!isPremium && rewards.length > 0 && <RewardsProgress rewards={rewards} />}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Fallback: só quando o navegador bloqueia a nova aba do checkout */}
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
@@ -823,7 +912,7 @@ function SubscriptionPage() {
                 Finalizar assinatura
               </DialogTitle>
               <DialogDescription className="mt-1 text-xs leading-relaxed text-gray-400">
-                {ANNUAL_PRICE} · pedidos ilimitados por 1 ano. Ativação automática após o pagamento.
+                {ANNUAL_PRICE} · pedidos ilimitados por 1 ano.
               </DialogDescription>
             </div>
 
@@ -859,20 +948,12 @@ function SubscriptionPage() {
               </Button>
             </div>
 
-            <p className="relative mt-4 flex items-start justify-center gap-1.5 rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] px-3 py-2 text-[11px] leading-relaxed text-amber-200/90">
-              <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
-              <span>
-                Pague com o <b className="font-semibold">mesmo e-mail da conta do Mercado Pago</b>
-                {currentEmail ? (
-                  <>
-                    {" "}
-                    (<span className="font-semibold">{currentEmail}</span>)
-                  </>
-                ) : null}
-                {accountPhone ? ` e o telefone (${accountPhone})` : ""}. É por eles que o Premium é
-                liberado sozinho.
-              </span>
-            </p>
+            {currentEmail && (
+              <p className="relative mt-4 flex items-center justify-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-500/[0.07] px-3 py-2 text-[11px] text-amber-200/90">
+                <ShieldCheck className="size-3.5 shrink-0" />
+                Use o e-mail {currentEmail} no Mercado Pago.
+              </p>
+            )}
           </div>
         </DialogContent>
       </Dialog>

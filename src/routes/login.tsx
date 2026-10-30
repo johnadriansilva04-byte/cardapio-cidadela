@@ -399,11 +399,9 @@ function LoginPage() {
                       disabled={loading}
                     />
                   </div>
-                  <p className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-300/80">
-                    <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-                    Use o <b className="font-semibold">mesmo e-mail da conta do Mercado Pago</b> — é
-                    por ele que o Premium é liberado sozinho. Se preferir, deixe em branco e libere
-                    pelo painel depois.
+                  <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-500">
+                    <AlertCircle className="size-3.5 shrink-0 text-amber-400/70" />
+                    Use o mesmo e-mail da sua conta do Mercado Pago.
                   </p>
                 </div>
               )}

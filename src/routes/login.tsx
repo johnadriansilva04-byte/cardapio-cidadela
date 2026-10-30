@@ -14,8 +14,14 @@ import {
   Zap,
   BarChart3,
   ShieldCheck,
+  Mail,
 } from "lucide-react";
-import { signInWithPhone, signUpWithPhone, isSupabaseConfigured } from "@/modules/supabase/auth";
+import {
+  signInWithPhone,
+  signUpWithPhone,
+  isSupabaseConfigured,
+  isValidEmail,
+} from "@/modules/supabase/auth";
 import { useAuth } from "@/components/AuthProvider";
 import { claimGuestData } from "@/modules/supabase/customer";
 import { safeInternalPath } from "@/lib/utils";
@@ -56,6 +62,7 @@ function LoginPage() {
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -136,6 +143,12 @@ function LoginPage() {
       return;
     }
 
+    if (mode === "register" && email.trim() && !isValidEmail(email)) {
+      setErrorMsg("Informe um e-mail válido ou deixe o campo vazio");
+      setErrorKey((k) => k + 1);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -163,7 +176,7 @@ function LoginPage() {
           navigate({ to: returnTo as "/", replace: true });
         }
       } else {
-        const { user, error } = await signUpWithPhone(digits, password, name.trim());
+        const { user, error } = await signUpWithPhone(digits, password, name.trim(), email.trim());
         if (error) {
           setErrorMsg(
             error.message.includes("already registered")
@@ -358,6 +371,40 @@ function LoginPage() {
                       className="w-full rounded-lg border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
                     />
                   </div>
+                </div>
+              )}
+
+              {/* E-mail (register only, opcional) */}
+              {mode === "register" && (
+                <div className="animate-slide-up">
+                  <label
+                    htmlFor="email"
+                    className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-400"
+                  >
+                    E-mail
+                    <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">
+                      opcional
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-600" />
+                    <input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="voce@email.com"
+                      className="w-full rounded-lg border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
+                      disabled={loading}
+                    />
+                  </div>
+                  <p className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-300/80">
+                    <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                    Use o <b className="font-semibold">mesmo e-mail da conta do Mercado Pago</b> — é
+                    por ele que o Premium é liberado sozinho. Se preferir, deixe em branco e libere
+                    pelo painel depois.
+                  </p>
                 </div>
               )}
 

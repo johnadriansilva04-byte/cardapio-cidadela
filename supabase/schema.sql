@@ -935,6 +935,10 @@ CREATE TABLE IF NOT EXISTS profiles (
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT '';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT '';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'owner';
+-- E-mail real (opcional). Serve para o dono informar o mesmo endereço usado no
+-- Mercado Pago, de modo que o Premium ative sozinho quando o webhook chega só
+-- com o e-mail do pagador. O login continua por telefone.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 

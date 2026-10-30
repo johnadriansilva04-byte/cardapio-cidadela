@@ -24,7 +24,7 @@ vi.mock("./client", () => ({
   },
 }));
 
-import { updateProfilePhone } from "./auth";
+import { updateProfilePhone, isValidEmail, updateProfileEmail } from "./auth";
 
 function signedInUser(overrides: Record<string, unknown> = {}) {
   return {
@@ -108,5 +108,67 @@ describe("updateProfilePhone", () => {
     mocks.profileEq.mockResolvedValue({ error: { message: "rls" } });
     const result = await updateProfilePhone("11988887777", "senha123");
     expect(result).toEqual({ ok: true, pending: false });
+  });
+});
+
+describe("isValidEmail", () => {
+  it("aceita e-mails plausíveis", () => {
+    expect(isValidEmail("dono@restaurante.com")).toBe(true);
+    expect(isValidEmail("  a.b+c@sub.dominio.com.br  ")).toBe(true);
+  });
+
+  it("recusa formatos inválidos", () => {
+    for (const bad of ["", "sem-arroba", "a@b", "a@b.", "@b.com", "a b@c.com"]) {
+      expect(isValidEmail(bad)).toBe(false);
+    }
+  });
+
+  it("recusa algo absurdamente longo", () => {
+    expect(isValidEmail(`${"a".repeat(250)}@x.com`)).toBe(false);
+  });
+});
+
+describe("updateProfileEmail", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getUser.mockResolvedValue({ data: { user: signedInUser() } });
+    mocks.profileEq.mockResolvedValue({ error: null });
+    mocks.updateUser.mockResolvedValue({ data: { user: {} }, error: null });
+  });
+
+  it("exige autenticação", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    const result = await updateProfileEmail("dono@x.com");
+    expect(result.ok).toBe(false);
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it("recusa e-mail inválido sem gravar", async () => {
+    const result = await updateProfileEmail("nao-e-email");
+    expect(result).toEqual({ ok: false, error: "Informe um e-mail válido." });
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it("salva o e-mail normalizado no perfil e no metadata", async () => {
+    const result = await updateProfileEmail("  Dono@X.COM  ");
+    expect(mocks.profileUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "dono@x.com" }),
+    );
+    expect(mocks.profileEq).toHaveBeenCalledWith("id", "u1");
+    expect(mocks.updateUser).toHaveBeenCalledWith({ data: { email: "dono@x.com" } });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("grava null quando o campo é esvaziado (remover e-mail)", async () => {
+    const result = await updateProfileEmail("   ");
+    expect(mocks.profileUpdate).toHaveBeenCalledWith(expect.objectContaining({ email: null }));
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("reporta erro quando o banco recusa", async () => {
+    mocks.profileEq.mockResolvedValue({ error: { message: "rls" } });
+    const result = await updateProfileEmail("dono@x.com");
+    expect(result.ok).toBe(false);
+    expect(mocks.updateUser).not.toHaveBeenCalled();
   });
 });

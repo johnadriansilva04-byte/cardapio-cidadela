@@ -29,8 +29,16 @@ export interface UserProfile {
   phone: string;
   name: string;
   role: UserRole;
+  /** E-mail real (opcional) — usado só para casar o pagamento do Mercado Pago. */
+  email?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Validação simples de e-mail — o suficiente para não gravar lixo. */
+export function isValidEmail(email: string): boolean {
+  const value = email.trim();
+  return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 // ============================================================
@@ -40,23 +48,30 @@ export interface UserProfile {
 /**
  * Sign up a new user with phone + password.
  * Also creates a profile row in the `profiles` table.
+ *
+ * O e-mail é opcional: o login continua por telefone (pseudo-e-mail interno).
+ * Ele serve para o Mercado Pago casar o pagamento com a conta quando o webhook
+ * chega sem o `external_reference`.
  */
 export async function signUpWithPhone(
   phone: string,
   password: string,
   name: string,
+  email?: string,
 ): Promise<{ user: User | null; error: AuthError | null }> {
-  const email = phoneToEmail(phone);
+  const pseudoEmail = phoneToEmail(phone);
   const normalizedPhone = normalizePhone(phone);
+  const cleanEmail = (email ?? "").trim().toLowerCase();
 
   const { data, error } = await supabase.auth.signUp({
-    email,
+    email: pseudoEmail,
     password,
     options: {
       data: {
         phone: normalizedPhone,
         name,
         display_phone: phone,
+        ...(cleanEmail ? { email: cleanEmail } : {}),
       },
     },
   });
@@ -66,12 +81,23 @@ export async function signUpWithPhone(
   }
 
   // Create profile row
-  const { error: profileError } = await supabase.from("profiles").insert({
-    id: data.user.id,
-    phone: normalizedPhone,
-    name,
-    role: "owner",
-  });
+  const profileRow: {
+    id: string;
+    phone: string;
+    name: string;
+    role: string;
+    email?: string;
+  } = { id: data.user.id, phone: normalizedPhone, name, role: "owner" };
+  if (cleanEmail) profileRow.email = cleanEmail;
+
+  let { error: profileError } = await supabase.from("profiles").insert(profileRow);
+
+  if (profileError && cleanEmail) {
+    // Coluna `email` ausente (migração ainda não aplicada) — não bloqueia o
+    // cadastro por causa do campo opcional.
+    delete profileRow.email;
+    ({ error: profileError } = await supabase.from("profiles").insert(profileRow));
+  }
 
   if (profileError) {
     console.error("Error creating profile:", profileError);
@@ -138,6 +164,32 @@ export async function updateProfileName(name: string): Promise<{ ok: boolean; er
     console.warn("[auth] update metadata error:", metaError.message);
   }
 
+  return { ok: true };
+}
+
+/**
+ * Atualiza o e-mail real (opcional) usado para casar o pagamento do Mercado
+ * Pago. Não mexe no login — a autenticação continua por telefone. Um valor
+ * vazio remove o e-mail.
+ */
+export async function updateProfileEmail(email: string): Promise<{ ok: boolean; error?: string }> {
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return { ok: false, error: "Você não está autenticado." };
+
+  const clean = email.trim().toLowerCase();
+  if (clean && !isValidEmail(clean)) return { ok: false, error: "Informe um e-mail válido." };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ email: clean || null, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+  if (error) {
+    console.error("[auth] update email error:", error.message);
+    return { ok: false, error: "Erro ao salvar o e-mail." };
+  }
+
+  await supabase.auth.updateUser({ data: { email: clean || null } });
   return { ok: true };
 }
 

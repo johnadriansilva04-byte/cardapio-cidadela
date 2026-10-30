@@ -164,11 +164,13 @@ function SubscriptionPage() {
   const retryRef = useRef(0);
 
   // E-mail para o Mercado Pago (opcional, editável aqui mesmo).
+  const [currentEmail, setCurrentEmail] = useState(accountEmail);
   const [emailDraft, setEmailDraft] = useState(accountEmail);
   const [savingEmail, setSavingEmail] = useState(false);
   const [emailMsg, setEmailMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   useEffect(() => {
+    setCurrentEmail(accountEmail);
     setEmailDraft(accountEmail);
   }, [accountEmail]);
 
@@ -181,7 +183,10 @@ function SubscriptionPage() {
       setEmailMsg({ type: "err", text: res.error ?? "Erro ao salvar." });
       return;
     }
-    setEmailMsg({ type: "ok", text: emailDraft.trim() ? "E-mail salvo!" : "E-mail removido." });
+    const clean = emailDraft.trim().toLowerCase();
+    setCurrentEmail(clean);
+    setEmailDraft(clean);
+    setEmailMsg({ type: "ok", text: clean ? "E-mail salvo!" : "E-mail removido." });
     setTimeout(() => setEmailMsg(null), 3000);
   }
 
@@ -300,7 +305,7 @@ function SubscriptionPage() {
     // Registra o e-mail da conta para correlacionar o webhook com o restaurante.
     // Prefere o e-mail real (opcional); sem ele, cai no pseudo-e-mail interno e
     // o vínculo automático por e-mail não funciona — daí o aviso na tela.
-    const payerEmail = accountEmail || user?.email;
+    const payerEmail = currentEmail || user?.email;
     if (payerEmail) void registerPendingSubscription(activeId, payerEmail);
 
     // Gera um link de pagamento com o external_reference correto
@@ -728,16 +733,16 @@ function SubscriptionPage() {
           {/* E-mail do Mercado Pago: opcional, e o aviso que evita o bloqueio. */}
           <ExpandableSection
             icon={<Mail className="size-5" />}
-            tone={accountEmail ? "neutral" : "amber"}
+            tone={currentEmail ? "neutral" : "amber"}
             title="E-mail do Mercado Pago"
             badge={
-              accountEmail ? undefined : (
+              currentEmail ? undefined : (
                 <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
                   pendente
                 </span>
               )
             }
-            summary={accountEmail || "Informe o mesmo e-mail da conta do MP"}
+            summary={currentEmail || "Informe o mesmo e-mail da conta do MP"}
           >
             <p className="mb-3 flex items-start gap-2 rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] px-3.5 py-3 text-[11px] leading-relaxed text-amber-200/90">
               <AlertCircle className="mt-0.5 size-3.5 shrink-0" />O Mercado Pago identifica o
@@ -858,10 +863,10 @@ function SubscriptionPage() {
               <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
               <span>
                 Pague com o <b className="font-semibold">mesmo e-mail da conta do Mercado Pago</b>
-                {accountEmail ? (
+                {currentEmail ? (
                   <>
                     {" "}
-                    (<span className="font-semibold">{accountEmail}</span>)
+                    (<span className="font-semibold">{currentEmail}</span>)
                   </>
                 ) : null}
                 {accountPhone ? ` e o telefone (${accountPhone})` : ""}. É por eles que o Premium é

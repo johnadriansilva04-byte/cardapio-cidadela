@@ -8,6 +8,8 @@ import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/ord
 import { notifyNewOrder } from "@/modules/mobile/preferences";
 import { AlertsBanner } from "@/components/mobile/AlertsBanner";
 import { StoreStatusBadge } from "@/modules/ui/PageHeader";
+import { PlanProvider } from "@/modules/premium/plan-context";
+import { PlanBadge } from "@/modules/premium/PlanBadge";
 import { signOut as supabaseSignOut } from "@/modules/supabase/auth";
 import { AppLayout, AppSidebar, BrandHeader, BottomNav, Badge } from "@/components/shared";
 
@@ -155,9 +157,12 @@ function MobileShell({ loading, userId }: { loading: boolean; userId: string | u
       </button>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-white">
-          {primary?.name ?? "Cardápio Cidadela"}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-bold text-white">
+            {primary?.name ?? "Cardápio Cidadela"}
+          </p>
+          <PlanBadge onClick={() => navigate({ to: "/admin/assinatura" })} />
+        </div>
         {primary && <StoreStatusBadge open={openNow} className="mt-0.5 px-2 py-0 text-[10px]" />}
       </div>
 
@@ -171,16 +176,18 @@ function MobileShell({ loading, userId }: { loading: boolean; userId: string | u
   );
 
   return (
-    <AppLayout loading={loading} sidebar={sidebar} header={header} className="pb-20 lg:pb-0">
-      {/* Preparo dos alertas só onde ainda falta um passo; some sozinho quando
-          já está tudo ativo e não reaparece em Configurações, que tem a versão
-          completa do convite. O `AppLayout` já aplica o padding da página, então
-          aqui só entra a folga inferior — com margem lateral o banner ficaria
-          desalinhado do resto do conteúdo. */}
-      {!onConfig && <AlertsBanner className="mb-4" />}
-      <Outlet />
-      <BottomNav items={bottomNavItems} activeId={activeNavId} />
-    </AppLayout>
+    <PlanProvider storeId={primary?.id}>
+      <AppLayout loading={loading} sidebar={sidebar} header={header} className="pb-20 lg:pb-0">
+        {/* Preparo dos alertas só onde ainda falta um passo; some sozinho quando
+            já está tudo ativo e não reaparece em Configurações, que tem a versão
+            completa do convite. O `AppLayout` já aplica o padding da página, então
+            aqui só entra a folga inferior — com margem lateral o banner ficaria
+            desalinhado do resto do conteúdo. */}
+        {!onConfig && <AlertsBanner className="mb-4" />}
+        <Outlet />
+        <BottomNav items={bottomNavItems} activeId={activeNavId} />
+      </AppLayout>
+    </PlanProvider>
   );
 }
 

@@ -248,11 +248,22 @@
   receber o e-mail real (`currentEmail || user.email`) em vez do pseudo. Sem
   ele, a ativação automática pode falhar e o dono depende do "Conferir agora".
   Não volte a gravar o pseudo-e-mail interno como `admin_email`.
-- `/admin/assinatura` é organizada em torno de UM único bloco (preço + CTA)
-  acima da dobra: o resto (cota, benefícios, comparativo, e-mail do MP) fica
-  recolhido em `ExpandableSection`, para o dono não ter que rolar a tela até
-  achar o botão de assinar. Mantenha o CTA no primeiro bloco ao mexer nessa
-  página.
+- `/admin/assinatura` é um **hub de uma tela só**: preço + CTA ("Assinar") e
+  três atalhos. Cada assunto (o que muda, e-mail do MP, pedidos/detalhes) abre
+  num painel de tela cheia por cima (`Sheet`, Radix), que rola por dentro — a
+  página de fundo não cresce. Antes tudo ficava empilhado numa coluna longa e
+  era preciso rolar para achar o botão. Mantenha o CTA e os atalhos no
+  primeiro bloco, e não traga conteúdo novo para o fluxo da página.
+- O **selo de plano** (`src/modules/premium/PlanBadge.tsx`) fica no cabeçalho de
+  toda tela autenticada, ao lado do botão de menu: "Grátis" com a cota
+  (`restantes/limite`) em tom neutro, ou "Premium" dourado com brilho e os dias
+  até vencer. Toca e vai para `/admin/assinatura`. O status vem do
+  `PlanProvider` (`src/modules/premium/plan-context.tsx`), montado **fora** do
+  `AppLayout` (o selo vive no header, que é irmão do conteúdo) — uma consulta
+  por layout, deduplicada por 30s, revalidada ao voltar para a aba e a cada
+  5min. Não chame `checkSubscriptionStatus` direto na tela: cada tela repetiria
+  a consulta. A tela de assinatura chama `refresh()` do contexto quando o sync
+  libera o Premium, para o selo virar sem esperar o ciclo.
 - O webhook é uma **server route** em `src/routes/api.webhook.mercadopago.ts`
   (`POST /api/webhook/mercadopago`), com a lógica compartilhada em
   `src/api/lib/{mercadopago,mp-subscription}.ts`. Rotas de API seguem a
@@ -264,8 +275,9 @@
 - O link de assinatura do Mercado Pago é estático
   (`VITE_MERCADOPAGO_SUBSCRIPTION_LINK`) e não carrega `external_reference`. Por
   isso o restaurante é resolvido pelo e-mail do pagador, registrado antes do
-  checkout via `registerPendingSubscription`. O aviso orienta o usuário a usar o
-  mesmo telefone da conta (o e-mail interno é um pseudo-endereço).
+  checkout via `registerPendingSubscription`. O aviso orienta o usuário a usar
+  o **mesmo e-mail da conta do Mercado Pago** — e o pseudo-e-mail interno
+  (`...@menufacil.local`) nunca aparece na UI nem é gravado.
 - Fallback do webhook: `POST /api/subscription/sync` (rota
   `api.subscription.sync.ts`) busca o preapproval direto na API do MP. Exige
   token de sessão e só age se o e-mail do pagador bater com o registrado na

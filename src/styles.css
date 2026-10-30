@@ -98,9 +98,7 @@
   --future-deep: oklch(0.18 0.06 285);
   --road: oklch(0.32 0.015 90);
 
-  --shadow-neon:
-    0 0 12px oklch(0.8 0.16 195 / 0.7),
-    0 0 34px oklch(0.8 0.16 195 / 0.35);
+  --shadow-neon: 0 0 12px oklch(0.8 0.16 195 / 0.7), 0 0 34px oklch(0.8 0.16 195 / 0.35);
 }
 
 .dark {
@@ -141,7 +139,9 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     font-weight: 700;
     letter-spacing: -0.01em;
   }
@@ -152,7 +152,8 @@
    ============================================================ */
 
 @keyframes lock-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 oklch(0.7 0.15 195 / 0.55);
   }
   50% {
@@ -161,41 +162,85 @@
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes drift {
-  from { transform: translate3d(-3%, 0, 0); opacity: 0.7; }
-  to { transform: translate3d(4%, -2%, 0); opacity: 1; }
+  from {
+    transform: translate3d(-3%, 0, 0);
+    opacity: 0.7;
+  }
+  to {
+    transform: translate3d(4%, -2%, 0);
+    opacity: 1;
+  }
 }
 
 @keyframes pulseGlow {
-  0%, 100% { opacity: 0.65; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes flicker {
-  0%, 100% { opacity: 1; }
-  47% { opacity: 1; }
-  48% { opacity: 0.45; }
-  52% { opacity: 1; }
-  74% { opacity: 0.7; }
-  76% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  47% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 0.45;
+  }
+  52% {
+    opacity: 1;
+  }
+  74% {
+    opacity: 0.7;
+  }
+  76% {
+    opacity: 1;
+  }
 }
 
 @keyframes dashUp {
-  to { background-position-y: -96px; }
+  to {
+    background-position-y: -96px;
+  }
 }
 
 @keyframes graf-pulse {
-  0%, 100% { transform: rotate(-3deg) scale(1); filter: brightness(1); }
-  50% { transform: rotate(-2deg) scale(1.07); filter: brightness(1.35); }
+  0%,
+  100% {
+    transform: rotate(-3deg) scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: rotate(-2deg) scale(1.07);
+    filter: brightness(1.35);
+  }
 }
 
 @utility animate-float {
@@ -208,42 +253,91 @@
    ============================================================ */
 
 @keyframes pop-in {
-  0% { opacity: 0; transform: scale(0.6); }
-  60% { opacity: 1; transform: scale(1.08); }
-  100% { opacity: 1; transform: scale(1); }
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes shake-x {
-  10%, 90% { transform: translateX(-1px); }
-  20%, 80% { transform: translateX(2px); }
-  30%, 50%, 70% { transform: translateX(-3px); }
-  40%, 60% { transform: translateX(3px); }
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-3px);
+  }
+  40%,
+  60% {
+    transform: translateX(3px);
+  }
 }
 
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.45); }
-  70% { box-shadow: 0 0 0 12px rgba(34, 211, 238, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(34, 211, 238, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
+  }
 }
 
 @keyframes shimmer-x {
-  from { background-position: -200% 0; }
-  to { background-position: 200% 0; }
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes confetti-fall {
-  0% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 1; }
-  100% { transform: translate3d(var(--cx, 0), 320px, 0) rotate(720deg); opacity: 0; }
+  0% {
+    transform: translate3d(0, -10px, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--cx, 0), 320px, 0) rotate(720deg);
+    opacity: 0;
+  }
 }
 
 @keyframes float-tilt {
-  0%, 100% { transform: translateY(0) rotate(-4deg); }
-  50% { transform: translateY(-10px) rotate(4deg); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(4deg);
+  }
 }
 
 @utility animate-pop-in {
@@ -293,8 +387,12 @@
    ============================================================ */
 
 @keyframes sheen-sweep {
-  from { transform: translateX(-130%) skewX(-18deg); }
-  to { transform: translateX(260%) skewX(-18deg); }
+  from {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(260%) skewX(-18deg);
+  }
 }
 
 /* Card que levanta no hover. DONO de todas as transições do elemento:
@@ -328,12 +426,7 @@
     bottom: 0;
     left: 0;
     width: 45%;
-    background: linear-gradient(
-      100deg,
-      transparent,
-      rgba(255, 255, 255, 0.09),
-      transparent
-    );
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.09), transparent);
     transform: translateX(-130%) skewX(-18deg);
     pointer-events: none;
   }
@@ -518,7 +611,11 @@
     rgba(34, 211, 238, 0.85) 345deg,
     transparent 360deg
   );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    #000 calc(100% - 1.5px)
+  );
   mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
   animation: cidadela-orbit 6s linear infinite;
   pointer-events: none;
@@ -575,11 +672,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(
-      60% 50% at 30% 70%,
-      oklch(0.74 0.06 88 / 0.22),
-      transparent 70%
-    );
+    background: radial-gradient(60% 50% at 30% 70%, oklch(0.74 0.06 88 / 0.22), transparent 70%);
     animation: drift 16s ease-in-out infinite alternate;
   }
 }
@@ -590,11 +683,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(
-      55% 45% at 70% 30%,
-      oklch(0.82 0.17 195 / 0.18),
-      transparent 72%
-    );
+    background: radial-gradient(55% 45% at 70% 30%, oklch(0.82 0.17 195 / 0.18), transparent 72%);
     animation: pulseGlow 6s ease-in-out infinite;
   }
 }
@@ -615,21 +704,39 @@
 }
 
 /* Cidadela era text colors */
-@utility text-war-dust { color: var(--war-dust); }
-@utility text-modern-glow { color: var(--modern-glow); }
-@utility text-neon { color: var(--neon); }
-@utility text-neon-2 { color: var(--neon-2); }
-@utility text-war-deep { color: var(--war-deep); }
-@utility text-modern-deep { color: var(--modern-deep); }
-@utility text-future { color: var(--future); }
-@utility text-future-deep { color: var(--future-deep); }
+@utility text-war-dust {
+  color: var(--war-dust);
+}
+@utility text-modern-glow {
+  color: var(--modern-glow);
+}
+@utility text-neon {
+  color: var(--neon);
+}
+@utility text-neon-2 {
+  color: var(--neon-2);
+}
+@utility text-war-deep {
+  color: var(--war-deep);
+}
+@utility text-modern-deep {
+  color: var(--modern-deep);
+}
+@utility text-future {
+  color: var(--future);
+}
+@utility text-future-deep {
+  color: var(--future-deep);
+}
 
 /* ============================================================
    Passe Premium — presença de convite (anel orbitando + brilho dourado)
    ============================================================ */
 
 @keyframes premium-orbit {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Anel cônico girando na borda do "passe": um convite, não um selo estático. */
@@ -674,9 +781,65 @@
   }
 }
 
-/* Acessibilidade: quem pediu menos movimento no sistema não deve receber
-   pulsos, brilhos e transições animadas. Reduzimos a duração a quase zero em
-   vez de desligar as animações, para que os estados finais continuem corretos. */
+/* ============================================================
+   Selo de plano — vive no cabeçalho de toda tela autenticada
+   ============================================================ */
+
+/* Brilho que atravessa o selo Premium de tempos em tempos: dá a sensação de
+   "coisa viva", sem piscar e sem competir com o conteúdo. */
+@keyframes plan-sheen {
+  0% {
+    transform: translateX(-130%);
+  }
+  55%,
+  100% {
+    transform: translateX(240%);
+  }
+}
+
+/* Ponto pulsante do plano gratuito — discreto, só para o selo não parecer morto. */
+@keyframes plan-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.72);
+  }
+}
+
+.plan-badge {
+  position: relative;
+  overflow: hidden;
+}
+
+.plan-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 42%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+
+.plan-badge-premium::after {
+  animation: plan-sheen 3.6s ease-in-out infinite;
+}
+
+.plan-badge-free .plan-dot {
+  animation: plan-dot 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-badge-premium::after,
+  .plan-badge-free .plan-dot {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -8,6 +8,8 @@ interface AppHeaderProps {
   showBack?: boolean;
   showMenu?: boolean;
   onMenuClick?: () => void;
+  /** Conteúdo colado no botão de menu (ex.: selo do plano). */
+  leftContent?: ReactNode;
   rightContent?: ReactNode;
   className?: string;
 }
@@ -17,6 +19,7 @@ export function AppHeader({
   showBack = true,
   showMenu = false,
   onMenuClick,
+  leftContent,
   rightContent,
   className,
 }: AppHeaderProps) {
@@ -36,6 +39,8 @@ export function AppHeader({
           <Menu className="size-5" />
         </button>
       )}
+
+      {leftContent}
 
       {showBack && (
         <Link

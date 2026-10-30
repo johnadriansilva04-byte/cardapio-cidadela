@@ -29,6 +29,7 @@ import { LoadingState, EmptyState, InlineError } from "@/modules/ui/Feedback";
 import { InfoRow } from "@/modules/ui/ExpandableSection";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useAuth } from "@/components/AuthProvider";
+import { usePlan } from "@/modules/premium/plan-context";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { normalizePhone, updateProfileEmail } from "@/modules/supabase/auth";
 import {
@@ -220,6 +221,9 @@ type HubTab = "planos" | "vantagens" | "email" | "detalhes";
  */
 function SubscriptionPage() {
   const { user, session, profile, loading: authLoading } = useAuth();
+  // O selo do cabeçalho mostra o plano em todas as telas; quando o Premium é
+  // liberado aqui, ele precisa refletir sem esperar o próximo ciclo.
+  const { refresh: refreshPlan } = usePlan();
   const accountPhone = normalizePhone((user?.user_metadata?.phone as string) || user?.phone || "");
   // E-mail real (opcional): é o que o Mercado Pago usa para casar o pagamento
   // quando o webhook chega sem o external_reference. Nunca exibimos o
@@ -447,7 +451,10 @@ function SubscriptionPage() {
       // Recarrega o status local (o sync já aplicou no banco).
       await loadStatus(activeId);
 
-      if (data.status === "premium") return "premium";
+      if (data.status === "premium") {
+        refreshPlan();
+        return "premium";
+      }
       if (data.status === "free") return "none";
       if (data.status === "none") return "none";
       return "pending";

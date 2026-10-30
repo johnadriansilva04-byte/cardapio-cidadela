@@ -8,6 +8,8 @@ import type { Restaurant } from "@/lib/types";
 import { subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import { useStoreUsage } from "@/modules/mobile/useStoreUsage";
+import { PlanProvider } from "@/modules/premium/plan-context";
+import { PlanBadge } from "@/modules/premium/PlanBadge";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
 import { maybeAutoPrintOrder } from "@/modules/mobile/autoPrint";
 import {
@@ -217,11 +219,20 @@ function AdminLayout() {
     </AppSidebar>
   );
 
-  const header = <AppHeader showMenu onMenuClick={() => setSidebarOpen(true)} />;
+  const header = (
+    <AppHeader
+      showMenu
+      showBack={false}
+      onMenuClick={() => setSidebarOpen(true)}
+      leftContent={<PlanBadge onClick={() => navigate({ to: "/admin/assinatura" })} />}
+    />
+  );
 
   return (
-    <AppLayout loading={loading} sidebar={sidebar} header={header}>
-      <Outlet />
-    </AppLayout>
+    <PlanProvider storeId={restaurants[0]?.id}>
+      <AppLayout loading={loading} sidebar={sidebar} header={header}>
+        <Outlet />
+      </AppLayout>
+    </PlanProvider>
   );
 }

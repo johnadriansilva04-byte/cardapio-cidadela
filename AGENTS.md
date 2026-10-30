@@ -202,6 +202,12 @@
 - O sync manual (`syncSubscriptionForEmail`) procura **preapproval e depois
   pagamento pontual** pelo `external_reference` — antes só olhava assinatura e
   nunca achava o Pix/cartão.
+- **`MERCADOPAGO_WEBHOOK_SECRET` é a assinatura secreta do webhook, não o Client
+  Secret.** O Client Secret (o que autentica em `/oauth/token`) assina diferente
+  e faz o MP receber 401 — o painel mostra "0% de notificações entregues" e
+  "401 - Com erro". A chave certa está em **Suas integrações → Webhooks →
+  Configurar notificação** (64 hex). Trocar essa env exige redeploy: env
+  alterada não entra em deploy já existente.
 - Preço único: `PREMIUM_PRICE_LABEL` em `src/lib/pricing.ts` (R$ 199,99/ano).
   Fica fora de `modules/supabase` de propósito: a landing precisa exibir o preço
   sem arrastar o cliente Supabase para o bundle público. `subscription.ts`

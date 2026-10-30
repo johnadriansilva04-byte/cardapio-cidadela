@@ -102,19 +102,30 @@ test("mobile: 40 pedidos aparecem como 2 + 'Ver mais', sem esticar a tela", asyn
   await expect.poll(() => cardCount(page)).toBe(2);
 });
 
-test("admin: a coluna do Kanban também resume o volume", async ({ page }) => {
+test("admin: a aba de status mostra a fila em grade, sem esticar a tela", async ({ page }) => {
   await loginAsOwner(page);
   await seedManyOrders(page);
 
   await page.goto("/admin/pedidos");
+
+  // Abre em "Recebidos" (visão inicial) e todos os 40 estão na grade — sem
+  // colunas laterais empurrando os recebidos para um canto.
   await expect(page.getByText("PED-40")).toBeVisible();
+  await expect.poll(() => cardCount(page)).toBe(40);
 
-  // A coluna "Recebidos" tem 40, mas monta só 2 cards + resumo.
-  await expect.poll(() => cardCount(page)).toBe(2);
-  await expect(page.getByRole("button", { name: /Ver mais 8 pedidos/ })).toBeVisible();
+  // A aba "Recebidos" está ativa e as demais são navegação própria.
+  await expect(page.getByRole("button", { name: /^Recebidos/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Em preparo/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Prontos/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^A caminho/ })).toBeVisible();
 
-  await page.getByRole("button", { name: /Ver mais 8 pedidos/ }).click();
-  await expect.poll(() => cardCount(page)).toBe(10);
+  // A grade rola por dentro: o corpo da página não cresce além da viewport.
+  const overflow = await page.evaluate(() => {
+    const main = document.querySelector("main");
+    if (!main) return 999;
+    return main.scrollHeight - main.clientHeight;
+  });
+  expect(overflow).toBeLessThanOrEqual(2);
 });
 
 test("criar pedidos reais pelo cardápio continua funcionando", async ({ page }) => {

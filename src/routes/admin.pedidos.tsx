@@ -77,7 +77,7 @@ function PedidosPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <PageHeader
         title="Pedidos"
         subtitle={`${

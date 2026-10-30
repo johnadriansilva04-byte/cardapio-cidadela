@@ -193,6 +193,15 @@
 
 ## Assinatura Premium (Mercado Pago)
 
+- **Pagamento pontual exige `/v1/payments/{id}`.** O endpoint sem o `/v1`
+  responde **404** e o webhook devolvia 200 com `payment not found` — o
+  pagamento aprovado nunca virava Premium e o MP não reentregava. Vale para
+  `payments/search` também. Preapproval continua em `/preapproval/...` (sem v1).
+  O webhook trata `payment` (id do pagamento) e `merchant_order` (id da ordem,
+  cujo pagamento aprovado vem dentro de `payments[]`).
+- O sync manual (`syncSubscriptionForEmail`) procura **preapproval e depois
+  pagamento pontual** pelo `external_reference` — antes só olhava assinatura e
+  nunca achava o Pix/cartão.
 - Preço único: `PREMIUM_PRICE_LABEL` em `src/lib/pricing.ts` (R$ 199,99/ano).
   Fica fora de `modules/supabase` de propósito: a landing precisa exibir o preço
   sem arrastar o cliente Supabase para o bundle público. `subscription.ts`

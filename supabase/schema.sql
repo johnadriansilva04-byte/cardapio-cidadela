@@ -1634,5 +1634,21 @@ GRANT ALL ON TABLE chat_messages, game_sessions, game_moves, profiles TO authent
 -- podia escrever direto em admin_trials/orders. Mantemos os grants de anon só
 -- onde há policy pública de verdade (orders, order_status_history,
 -- cidadela_unlocks, reviews, catálogo).
-REVOKE ALL ON TABLE admin_trials, app_settings, store_bonus_orders, store_usage,
-  rewards, reward_grants FROM anon;
+REVOKE ALL ON TABLE admin_trials FROM anon;
+
+-- As tabelas abaixo só existem depois da migração de recompensas (e a de
+-- diárias). O REVOKE precisa ser condicional: citar uma tabela inexistente
+-- aborta o schema inteiro (`relation "app_settings" does not exist`), o que
+-- quebrava o bootstrap em bancos onde a migração ainda não rodou.
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'app_settings', 'store_bonus_orders', 'store_usage', 'rewards',
+    'reward_grants', 'store_day_passes', 'store_day_credits'
+  ] LOOP
+    IF to_regclass('public.' || t) IS NOT NULL THEN
+      EXECUTE format('REVOKE ALL ON TABLE public.%I FROM anon', t);
+    END IF;
+  END LOOP;
+END $$;

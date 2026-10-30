@@ -531,3 +531,45 @@
 - Verificação rápida após aplicar: todas as tabelas `public` com
   `relrowsecurity = true`; `evaluate_rewards()` roda sem erro; o job
   `cidadela-rewards` (`10 * * * *`) está ativo em `cron.job`.
+
+## Painel: organização da fila de pedidos (UX)
+
+- `OrderManager` (`src/components/admin/OrderManager.tsx`) **não é mais um Kanban
+  de quatro colunas**. As colunas ficavam todas abertas ao mesmo tempo e os
+  "Recebidos" — a primeira coisa que o operador precisa ver — eram espremidos em
+  um quarto da largura. Agora cada status é uma **aba** (`filter`, que inicia em
+  `"received"`) e a aba ativa ocupa a tela inteira. A ordem das abas é
+  `TAB_ORDER` (Recebidos → Em preparo → Prontos → A caminho → Todos → Entregues →
+  Cancelados) e os rótulos vivem em `TAB_LABEL` (plural, minúsculo — não reusa
+  `ORDER_STATUS_LABELS`, que é caixa alta de selo).
+- A aba renderiza uma **grade compacta** dentro de um container `h-full` com
+  `overflow-y-auto`: a página não cresce, a grade rola por dentro. O root do
+  `OrderManager` é `flex h-full min-h-0 flex-col` e `admin.pedidos.tsx` repassa
+  `h-full` (o `AppLayout` já dá a altura). Não volte a `ProgressiveList` aqui —
+  o corte por altura é o que mantém o `main` sem overflow (o E2E mede isso).
+- `OrderCard` ganhou `showStatus` (some o selo de status quando a aba já é o
+  status) e o bloqueio do plano **não esconde mais o card inteiro**: só a linha
+  de itens vira "Itens bloqueados" + convite de assinatura; comanda, cliente,
+  horário, valor e ações continuam visíveis. O mesmo vale para o painel de
+  detalhes (`OrderDetailDialog`): com `blocked`, mostra cliente/total e só troca
+  a lista de itens pelo CTA.
+- O detalhe abre num painel largo sobreposto (`DialogContent` com
+  `max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] sm:max-w-3xl lg:max-w-4xl`),
+  não num diálogo estreito.
+- **Hooks antes dos returns.** `tabOrders` (o `useMemo` de ordenação) precisa
+  ficar **acima** dos `if (loading…)`/`if (error…)`. Declarar um hook depois de
+  um return antecipado faz o React lançar "Rendered more hooks than during the
+  previous render" e a rota cai no error boundary.
+- O Dashboard (`admin.index.tsx`) abre com os KPIs de **hoje** (pedidos,
+  faturamento, ticket) e o seletor de período (7/30/90 dias) vive junto do
+  gráfico, que é o que ele filtra. Não devolva o período para a barra do topo.
+
+## Login: "Criar conta" com sessão ativa
+
+- `/login` aceita `?mode=register`, que abre o formulário já em "Criar conta".
+  Os CTAs de criação da landing apontam para lá.
+- Quem já está logado e pede `mode=register` **não é mais redirecionado em
+  silêncio** para o painel (parecia que o cadastro estava quebrado). O login
+  renderiza `AlreadySignedIn`, que mostra a conta atual e oferece "Ir para o meu
+  painel" ou "Sair e criar outra conta" (faz `signOut` e volta para
+  `?mode=register`). Sem `mode=register`, o redirecionamento direto continua.

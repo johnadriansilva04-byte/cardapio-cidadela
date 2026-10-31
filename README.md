@@ -76,6 +76,32 @@ Não usa Firebase nem variáveis de ambiente — a chave VAPID é gerada automat
 
 Esse projeto usa o [Lovable](https://lovable.dev) — commits pushados aparecem no editor.
 
+## Cobrança (Mercado Pago)
+
+Três produtos, todos com o preço recalculado no servidor (o cliente nunca manda
+o valor) e a ativação só no webhook:
+
+| Produto | Como cobra | Rota que cria |
+| --- | --- | --- |
+| **Premium mensal** | Assinatura recorrente (todo mês) | `POST /api/payment/subscribe` `{billing:"monthly"}` |
+| **Premium anual** | Assinatura recorrente (a cada 12 meses) | `POST /api/payment/subscribe` `{billing:"annual"}` |
+| **Diária (24h)** | Pagamento pontual, empilhável | `POST /api/payment/day-pass` |
+
+A assinatura é um **preapproval** do Mercado Pago: ele cobra sozinho a cada
+ciclo, então a loja não bloqueia quando o dono esquece de renovar. Cancelar
+(`POST /api/subscription/cancel`) **avisa o Mercado Pago** antes de limpar o
+acesso — sem isso o cartão continuaria sendo cobrado.
+
+Configure no `.env` (ver [`.env.example`](./.env.example)):
+`MERCADOPAGO_ACCESS_TOKEN` (server-only) e `MERCADOPAGO_WEBHOOK_SECRET` (a
+assinatura secreta do webhook, não o Client Secret). Aponte o webhook do painel
+do Mercado Pago para `https://SEU-DOMINIO/api/webhook/mercadopago`.
+
+> ⚠️ **Nota fiscal:** o app **não emite** NF-e nem NFS-e — a comanda térmica é
+> cupom não fiscal. Para emitir nota do serviço é preciso integrar um provedor
+> de NFS-e, e o enquadramento fiscal precisa comportar venda de software
+> (ver `AGENTS.md`).
+
 ## Build with Lovable
 
 Open your project in the [Lovable editor](https://lovable.dev) and keep building.

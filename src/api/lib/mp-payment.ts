@@ -74,3 +74,79 @@ export async function createPaymentLink(
     initPoint: data.init_point,
   };
 }
+
+/**
+ * Assinatura recorrente (preapproval) do Mercado Pago.
+ *
+ * Diferente do link pontual, o preapproval cobra sozinho a cada ciclo e só
+ * pode ser cancelado por `cancelPreapproval` — parar de cobrar depende de
+ * avisar o Mercado Pago, não basta limpar o acesso local.
+ */
+export interface PreapprovalConfig {
+  reason: string;
+  externalReference: string;
+  /** Valor cobrado a cada ciclo, em reais. */
+  unitPrice: number;
+  payerEmail?: string;
+  backUrl?: string;
+  notificationUrl?: string;
+  /** Ciclo da cobrança. Padrão: 1 mês. */
+  frequencyType?: "months" | "days";
+  frequency?: number;
+}
+
+/**
+ * Monta o corpo do preapproval. É função pura para o formato (o mais fácil de
+ * errar) ficar coberto por teste sem rede.
+ */
+export function buildPreapprovalBody(config: PreapprovalConfig): Record<string, unknown> {
+  return {
+    reason: config.reason,
+    external_reference: config.externalReference,
+    ...(config.payerEmail ? { payer_email: config.payerEmail } : {}),
+    ...(config.backUrl ? { back_url: config.backUrl } : {}),
+    ...(config.notificationUrl ? { notification_url: config.notificationUrl } : {}),
+    // "pending" = a assinatura só existe depois que o pagador autorizar no
+    // checkout; o webhook confirma e ativa.
+    status: "pending",
+    auto_recurring: {
+      frequency: config.frequency ?? 1,
+      frequency_type: config.frequencyType ?? "months",
+      transaction_amount: config.unitPrice,
+      currency_id: "BRL",
+    },
+  };
+}
+
+/** Cria a assinatura recorrente e devolve o link de autorização. */
+export async function createPreapproval(
+  config: PreapprovalConfig,
+  env?: ServerEnv,
+): Promise<{ preapprovalId: string; initPoint: string } | null> {
+  const response = await mpFetch(
+    "/preapproval",
+    { method: "POST", body: JSON.stringify(buildPreapprovalBody(config)) },
+    env,
+  );
+  if (!response.ok || !response.data) return null;
+
+  const data = response.data as { id?: string; init_point?: string };
+  if (!data.id || !data.init_point) return null;
+  return { preapprovalId: data.id, initPoint: data.init_point };
+}
+
+/**
+ * Cancela a assinatura no Mercado Pago (PUT com status `cancelled`).
+ *
+ * Sem isto, cancelar no painel só limpava o acesso local e o Mercado Pago
+ * continuava cobrando o cartão — o pior defeito possível numa assinatura.
+ */
+export async function cancelPreapproval(preapprovalId: string, env?: ServerEnv): Promise<boolean> {
+  if (!preapprovalId) return false;
+  const response = await mpFetch(
+    `/preapproval/${encodeURIComponent(preapprovalId)}`,
+    { method: "PUT", body: JSON.stringify({ status: "cancelled" }) },
+    env,
+  );
+  return response.ok;
+}

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { COMPANY, COMPANY_LEGAL_LINE, hasSupportContact } from "./company";
+import {
+  COMPANY,
+  COMPANY_LEGAL_LINE,
+  hasFiscalData,
+  hasSupportContact,
+  missingFiscalFields,
+} from "./company";
 
 /** Valida um CNPJ pelo algoritmo oficial (módulo 11). */
 function isValidCnpj(digits: string): boolean {
@@ -52,5 +58,19 @@ describe("COMPANY (dados legais do fornecedor)", () => {
     if (COMPANY.supportPhone) {
       expect(COMPANY.supportPhone).toMatch(/^\d{12,13}$/);
     }
+  });
+
+  it("lista os campos fiscais pendentes enquanto não há dados completos", () => {
+    // Sem dados fiscais preenchidos, a lista tem os obrigatórios (menos o
+    // complemento, que é opcional). É o que a UI usa para dizer o que falta.
+    expect(missingFiscalFields).not.toContain("complemento");
+    expect(hasFiscalData).toBe(missingFiscalFields.length === 0);
+    if (!hasFiscalData) {
+      expect(missingFiscalFields.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("o CEP, quando preenchido, é só dígitos", () => {
+    if (COMPANY.fiscal.zip) expect(COMPANY.fiscal.zip).toMatch(/^\d{8}$/);
   });
 });

@@ -337,6 +337,28 @@
   modal era um passo obrigatório. O vínculo continua por e-mail/telefone
   (pseudo-email `telefone@menufacil.local`), por isso o aviso fala em
   "telefone" e nunca expõe o endereço interno.
+- **A assinatura do Premium é RECORRENTE (preapproval), não pagamento pontual.**
+  `POST /api/payment/subscribe` cria um preapproval no Mercado Pago
+  (`createPreapproval`/`buildPreapprovalBody` em `src/api/lib/mp-payment.ts`):
+  mensal = `frequency 1`, anual = `frequency 12`. Antes o CTA criava um link
+  pontual de 30 dias/1 ano, que **não renovava** — quando o dono esquecia de
+  recomprar, a loja bloqueava sozinha. O webhook já tratava `preapproval`
+  (`processPreapprovalById` → `applyPreapproval`), só faltava quem criasse a
+  assinatura. `buildPreapprovalBody` é pura e tem teste próprio
+  (`mp-payment.test.ts`): é o contrato com o MP que, se errado, cobra o valor
+  errado ou não cobra.
+- **Cancelar avisa o Mercado Pago.** `POST /api/subscription/cancel`
+  (`cancelPreapproval` = PUT status `cancelled`) roda ANTES de limpar o acesso
+  local. `cancelPremium` (cliente) só limpa o banco local — se fosse ele no
+  botão, o cartão continuaria sendo cobrado todo mês. `cancelSubscription`
+  chama a rota e só cai no local quando não há preapproval (Premium por diária
+  ou pagamento pontual). Se o MP recusar o cancelamento, a rota devolve 502 e
+  **não** limpa o acesso: melhor o dono continuar Premium por um ciclo do que
+  ficar pagando por um acesso que já perdeu.
+- `createMonthlyLink` foi removida (código morto: o CTA passou a usar
+  `createSubscriptionLink`). `POST /api/payment/monthly` e
+  `POST /api/payment/create-link` continuam existindo como caminho pontual,
+  mas a UI não os usa mais.
 
 ## Segurança e confiabilidade (não regredir)
 
@@ -691,6 +713,16 @@
   integração com prefeitura/SEFAZ. A "comanda" (`buildThermalTicket` em
   `src/lib/utils.ts` + `autoPrint.ts`) é cupom não fiscal da cozinha. Se a venda
   exigir nota do serviço, é integração nova (provedor de NFS-e), não uma flag.
+- `COMPANY.fiscal` reúne os dados que a NFS-e exige (logradouro, CEP, código
+  IBGE do município, inscrição municipal, CNAE, item da LC 116, alíquota do ISS,
+  e-mail) e estão **vazios** de propósito: `missingFiscalFields` lista o que
+  falta e a aba "Pedidos e detalhes" da assinatura mostra o que está pendente.
+  Preencher **não** liga a emissão — só evita perder o dado quando a integração
+  for feita. Não apresente esses campos como "emissão de nota" na UI.
+- A aba "Pedidos e detalhes" (`admin.assinatura.tsx`) traz um bloco "Nota
+  fiscal" com razão social + CNPJ e o caminho para pedir o documento pelo canal
+  de suporte enquanto a emissão não existe. É o mínimo para o dono não descobrir
+  na hora de faturar que a cobrança não veio com nota.
 - **Alerta fiscal:** o CNAE principal do MEI é 4781400 (vestuário) e não há CNAE
   de desenvolvimento de software/serviços de TI. Emitir nota de SaaS nesse
   enquadramento é risco de glosa; o caminho usual é abrir ME (não MEI) com CNAE

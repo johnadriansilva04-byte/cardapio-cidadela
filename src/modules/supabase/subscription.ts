@@ -275,6 +275,35 @@ export async function cancelPremium(storeId: string): Promise<boolean> {
   });
 }
 
+/**
+ * Cancela a assinatura recorrente de verdade.
+ *
+ * Diferente de `cancelPremium` (que só limpa o acesso local), esta chama a rota
+ * que avisa o Mercado Pago — sem isso o cartão continuaria sendo cobrado todo
+ * mês. Só cai no `cancelPremium` local quando não há assinatura no Mercado Pago
+ * (ex.: Premium concedido por diária/pagamento pontual).
+ */
+export async function cancelSubscription(
+  storeId: string,
+  accessToken: string | undefined,
+): Promise<boolean> {
+  if (!storeId) return false;
+  if (!accessToken) return cancelPremium(storeId);
+  try {
+    const res = await fetch("/api/subscription/cancel", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ storeId }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 function nextBillingDate(): string {
   const d = new Date();
   d.setMonth(d.getMonth() + 1);
@@ -354,24 +383,26 @@ export async function createDayPassLink(
 }
 
 /**
- * Gera o link de pagamento do plano mensal (30 dias) para o restaurante.
+ * Gera o link da ASSINATURA RECORRENTE (mensal ou anual).
  *
- * Mesma validação da diária: a rota confere sessão e posse; a ativação só
- * acontece no webhook, quando o Mercado Pago confirma o pagamento.
+ * Diferente do link pontual, o Mercado Pago cobra sozinho a cada ciclo. A
+ * ativação continua só no webhook; aqui apenas devolvemos o link de
+ * autorização. `null` em qualquer falha (a UI avisa e não abre o checkout).
  */
-export async function createMonthlyLink(
+export async function createSubscriptionLink(
   storeId: string,
   accessToken: string | undefined,
+  billing: "monthly" | "annual" = "monthly",
 ): Promise<string | null> {
   if (!storeId || !accessToken) return null;
   try {
-    const res = await fetch("/api/payment/monthly", {
+    const res = await fetch("/api/payment/subscribe", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ storeId }),
+      body: JSON.stringify({ storeId, billing }),
     });
     if (!res.ok) return null;
     const data = (await res.json().catch(() => ({}))) as { initPoint?: string };

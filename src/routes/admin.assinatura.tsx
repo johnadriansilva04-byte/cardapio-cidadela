@@ -37,18 +37,19 @@ import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supab
 import { normalizePhone, updateProfileEmail } from "@/modules/supabase/auth";
 import {
   checkSubscriptionStatus,
-  cancelPremium,
+  cancelSubscription,
   registerPendingSubscription,
   getPreapprovalId,
   MONTHLY_FREE_LIMIT,
   createDayPassLink,
-  createMonthlyLink,
+  createSubscriptionLink,
   redeemDayPass,
 } from "@/modules/supabase/subscription";
 import { supabase } from "@/modules/supabase/client";
 import { fetchRewards, type RewardProgress } from "@/modules/supabase/rewards";
 import { RewardsProgress } from "@/modules/ui/RewardsProgress";
 import { DAY_PASS_PRICE_VALUE, MONTHLY_PRICE_LABEL, PREMIUM_PRICE_LABEL } from "@/lib/pricing";
+import { COMPANY, hasFiscalData, missingFiscalFields } from "@/lib/company";
 import { brl } from "@/lib/utils";
 import { useCountdown } from "@/hooks/useCountdown";
 import type { Restaurant, SubscriptionStatus } from "@/lib/types";
@@ -353,24 +354,12 @@ function SubscriptionPage() {
     // vincula o pagamento ao restaurante.
     if (currentEmail) void registerPendingSubscription(activeId, currentEmail);
 
-    // O período escolhido decide a rota: o mensal usa a janela de 30 dias.
+    // O período escolhido define o ciclo da assinatura recorrente: mensal (1
+    // mês) ou anual (12 meses). É o Mercado Pago que cobra sozinho a cada
+    // ciclo — antes era um pagamento pontual que não renovava e a loja
+    // bloqueava quando o dono esquecia.
     try {
-      let initPoint: string | undefined;
-      if (billing === "monthly") {
-        const link = await createMonthlyLink(activeId, session?.access_token);
-        initPoint = link ?? undefined;
-      } else {
-        const res = await fetch("/api/payment/create-link", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ storeId: activeId }),
-        });
-        const data = (await res.json().catch(() => ({}))) as { initPoint?: string };
-        if (res.ok) initPoint = data.initPoint;
-      }
+      const initPoint = await createSubscriptionLink(activeId, session?.access_token, billing);
 
       if (!initPoint) {
         toast.error("Não foi possível gerar o link de pagamento.");
@@ -492,12 +481,15 @@ function SubscriptionPage() {
     if (!activeId) return;
     setCancelling(true);
     try {
-      const ok = await cancelPremium(activeId);
+      // Cancela no Mercado Pago (quando há assinatura recorrente) e só então
+      // limpa o acesso local — antes o cartão continuava sendo cobrado.
+      const ok = await cancelSubscription(activeId, session?.access_token);
       if (!ok) {
         toast.error("Não foi possível cancelar agora.");
         return;
       }
       await loadStatus(activeId);
+      refreshPlan();
       setCancelOpen(false);
       toast.success("Assinatura cancelada. Você voltou ao plano gratuito.");
     } finally {
@@ -1058,6 +1050,23 @@ function SubscriptionPage() {
                   : "—"
               }
             />
+          </div>
+
+          {/* Nota fiscal: o dono precisa saber que a cobrança não vem com nota
+              e que dá para pedir o documento pelo canal de suporte. */}
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3">
+            <p className="text-[11px] font-bold text-gray-300">Nota fiscal</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
+              A cobrança do Mercado Pago é emitida por {COMPANY.legalName} (CNPJ {COMPANY.cnpj}).
+              {hasFiscalData
+                ? " Os dados fiscais do prestador já estão cadastrados."
+                : " A emissão automática de nota ainda não está ligada — peça o documento pelo canal de suporte informando o e-mail da compra."}
+            </p>
+            {!hasFiscalData && missingFiscalFields.length > 0 && (
+              <p className="mt-1.5 text-[10px] leading-relaxed text-gray-600">
+                Pendente no cadastro fiscal: {missingFiscalFields.join(", ")}.
+              </p>
+            )}
           </div>
 
           {!isPremium && rewards.length > 0 && <RewardsProgress rewards={rewards} />}

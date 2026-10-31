@@ -36,6 +36,8 @@ import { Route as AdminRestauranteIdRouteImport } from './routes/admin.restauran
 import { Route as ApiPaymentCreateLinkRouteImport } from './routes/api.payment.create-link'
 import { Route as ApiPaymentDayPassRouteImport } from './routes/api.payment.day-pass'
 import { Route as ApiPaymentMonthlyRouteImport } from './routes/api.payment.monthly'
+import { Route as ApiPaymentSubscribeRouteImport } from './routes/api.payment.subscribe'
+import { Route as ApiSubscriptionCancelRouteImport } from './routes/api.subscription.cancel'
 import { Route as ApiSubscriptionSyncRouteImport } from './routes/api.subscription.sync'
 import { Route as ApiWebhookMercadopagoRouteImport } from './routes/api.webhook.mercadopago'
 
@@ -174,6 +176,16 @@ const ApiPaymentMonthlyRoute = ApiPaymentMonthlyRouteImport.update({
   path: '/api/payment/monthly',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPaymentSubscribeRoute = ApiPaymentSubscribeRouteImport.update({
+  id: '/api/payment/subscribe',
+  path: '/api/payment/subscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSubscriptionCancelRoute = ApiSubscriptionCancelRouteImport.update({
+  id: '/api/subscription/cancel',
+  path: '/api/subscription/cancel',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSubscriptionSyncRoute = ApiSubscriptionSyncRouteImport.update({
   id: '/api/subscription/sync',
   path: '/api/subscription/sync',
@@ -213,6 +225,8 @@ export interface FileRoutesByFullPath {
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
   '/api/payment/monthly': typeof ApiPaymentMonthlyRoute
+  '/api/payment/subscribe': typeof ApiPaymentSubscribeRoute
+  '/api/subscription/cancel': typeof ApiSubscriptionCancelRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
@@ -242,6 +256,8 @@ export interface FileRoutesByTo {
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
   '/api/payment/monthly': typeof ApiPaymentMonthlyRoute
+  '/api/payment/subscribe': typeof ApiPaymentSubscribeRoute
+  '/api/subscription/cancel': typeof ApiSubscriptionCancelRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
@@ -274,6 +290,8 @@ export interface FileRoutesById {
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
   '/api/payment/monthly': typeof ApiPaymentMonthlyRoute
+  '/api/payment/subscribe': typeof ApiPaymentSubscribeRoute
+  '/api/subscription/cancel': typeof ApiSubscriptionCancelRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
@@ -307,6 +325,8 @@ export interface FileRouteTypes {
     | '/api/payment/create-link'
     | '/api/payment/day-pass'
     | '/api/payment/monthly'
+    | '/api/payment/subscribe'
+    | '/api/subscription/cancel'
     | '/api/subscription/sync'
     | '/api/webhook/mercadopago'
   fileRoutesByTo: FileRoutesByTo
@@ -336,6 +356,8 @@ export interface FileRouteTypes {
     | '/api/payment/create-link'
     | '/api/payment/day-pass'
     | '/api/payment/monthly'
+    | '/api/payment/subscribe'
+    | '/api/subscription/cancel'
     | '/api/subscription/sync'
     | '/api/webhook/mercadopago'
   id:
@@ -367,6 +389,8 @@ export interface FileRouteTypes {
     | '/api/payment/create-link'
     | '/api/payment/day-pass'
     | '/api/payment/monthly'
+    | '/api/payment/subscribe'
+    | '/api/subscription/cancel'
     | '/api/subscription/sync'
     | '/api/webhook/mercadopago'
   fileRoutesById: FileRoutesById
@@ -386,6 +410,8 @@ export interface RootRouteChildren {
   ApiPaymentCreateLinkRoute: typeof ApiPaymentCreateLinkRoute
   ApiPaymentDayPassRoute: typeof ApiPaymentDayPassRoute
   ApiPaymentMonthlyRoute: typeof ApiPaymentMonthlyRoute
+  ApiPaymentSubscribeRoute: typeof ApiPaymentSubscribeRoute
+  ApiSubscriptionCancelRoute: typeof ApiSubscriptionCancelRoute
   ApiSubscriptionSyncRoute: typeof ApiSubscriptionSyncRoute
   ApiWebhookMercadopagoRoute: typeof ApiWebhookMercadopagoRoute
 }
@@ -581,6 +607,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPaymentMonthlyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/payment/subscribe': {
+      id: '/api/payment/subscribe'
+      path: '/api/payment/subscribe'
+      fullPath: '/api/payment/subscribe'
+      preLoaderRoute: typeof ApiPaymentSubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/subscription/cancel': {
+      id: '/api/subscription/cancel'
+      path: '/api/subscription/cancel'
+      fullPath: '/api/subscription/cancel'
+      preLoaderRoute: typeof ApiSubscriptionCancelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/subscription/sync': {
       id: '/api/subscription/sync'
       path: '/api/subscription/sync'
@@ -656,6 +696,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPaymentCreateLinkRoute: ApiPaymentCreateLinkRoute,
   ApiPaymentDayPassRoute: ApiPaymentDayPassRoute,
   ApiPaymentMonthlyRoute: ApiPaymentMonthlyRoute,
+  ApiPaymentSubscribeRoute: ApiPaymentSubscribeRoute,
+  ApiSubscriptionCancelRoute: ApiSubscriptionCancelRoute,
   ApiSubscriptionSyncRoute: ApiSubscriptionSyncRoute,
   ApiWebhookMercadopagoRoute: ApiWebhookMercadopagoRoute,
 }

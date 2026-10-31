@@ -440,6 +440,31 @@
 
 ## Painel (admin)
 
+- **Loja ativa é única e global** (`src/modules/store/active-store-context.tsx`).
+  O `ActiveStoreProvider` vive acima das rotas em `admin.tsx`, carrega os
+  restaurantes uma vez e expõe `active`/`activeId`/`setActiveId`/`reload`. Antes
+  cada tela escolhia a própria loja (`data[0]`, estado local ou filtro "todas"),
+  então trocar de loja no dashboard não mudava Pedidos nem Financeiro — o dono
+  via números de lojas diferentes na mesma sessão. Toda tela nova lê
+  `useActiveStore()` em vez de recarregar a lista. O mobile
+  (`store-context.tsx`) segue a mesma escolha via `readStoredStoreId`, para as
+  duas telas não divergirem.
+- A escolha vive em `localStorage` (`cidadela:active-store`, helpers em
+  `active-store-storage.ts`) e é validada contra a lista: se a loja lembrada não
+  existir mais, cai na primeira. É por dispositivo, não por conta.
+- `StoreSwitcher` (cabeçalho) é o único lugar de troca; só renderiza com mais
+  de uma loja. Não reintroduza um seletor por tela (o dashboard tinha pílulas e
+  o Compartilhar tinha um `Select`) — era a mesma decisão em dois lugares, com
+  risco de divergirem. O Financeiro é a exceção deliberada: mantém um filtro
+  local com a opção "Todos" (visão consolidada), mas escolher uma loja ali
+  também muda a loja ativa global.
+- A sidebar separa **Operar loja** (Dashboard, Pedidos, Financeiro,
+  Compartilhar) de **Conta** (Restaurantes, Assinatura) — a grade de
+  restaurantes e o botão "Criar restaurante" vivem só na aba Restaurantes; o
+  dashboard não repete os mesmos cards.
+- O dashboard não tem mais um seletor de loja nem a grade "Seus restaurantes":
+  a troca está no cabeçalho e a grade na aba Restaurantes.
+
 - O fundo do painel é um céu vivo em `<canvas>`: `SpaceBackdrop`
   (`src/components/shared/SpaceBackdrop.tsx`), montado uma vez no `AppLayout`
   (vale para admin e mobile). Estrelas com paralaxe + repulsão suave no

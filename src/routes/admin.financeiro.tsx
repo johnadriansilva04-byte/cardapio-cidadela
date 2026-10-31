@@ -25,7 +25,7 @@ import {
 import { FinanceSummary } from "@/components/admin/FinanceSummary";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { EmptyState, LoadingState } from "@/modules/ui/Feedback";
-import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
+import { useActiveStore } from "@/modules/store/active-store-context";
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { ORDER_STATUS_LABELS, type OrderStatus, type Restaurant } from "@/lib/types";
@@ -107,15 +107,20 @@ function rangeStart(range: RangeKey): Date | null {
 }
 
 function FinanceiroPage() {
-  const { user, loading: authLoading } = useAuth();
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [activeId, setActiveId] = useState<RestaurantFilter>("all");
+  const {
+    restaurants,
+    activeId: globalActiveId,
+    setActiveId: setGlobalActiveId,
+    loading,
+  } = useActiveStore();
+  // O filtro daqui segue a loja ativa global; "all" é a visão consolidada,
+  // uma escolha só desta tela — trocar para uma loja específica muda a loja
+  // ativa para o resto do painel também.
+  const [activeId, setActiveId] = useState<RestaurantFilter>(globalActiveId ?? "all");
   const [range, setRange] = useState<RangeKey>("30d");
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [prevOrders, setPrevOrders] = useState<OrderRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // chart toggle states
   const [dailyChartType, setDailyChartType] = useState<ChartType>("bar");
@@ -124,47 +129,18 @@ function FinanceiroPage() {
   // collapsible history
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const retryRef = useRef(0);
-
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setLoading(false);
-      setRestaurants([]);
+    setActiveId((prev) => (prev === "all" ? "all" : (globalActiveId ?? prev)));
+  }, [globalActiveId]);
+
+  const selectStore = (value: string) => {
+    if (value === "all") {
+      setActiveId("all");
       return;
     }
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        await ensureRestaurantsForUser(user!);
-        if (cancelled) return;
-        const data = await getRestaurantsByOwner(user!.id);
-        if (cancelled) return;
-        setRestaurants(data);
-        if (data.length > 0) {
-          retryRef.current = 0;
-          setActiveId((prev) => (prev === "all" ? "all" : prev || data[0].id));
-        } else if (retryRef.current < 3) {
-          retryRef.current++;
-          await new Promise((r) => setTimeout(r, retryRef.current * 400));
-          if (cancelled) return;
-          const retry = await getRestaurantsByOwner(user!.id);
-          if (!cancelled) setRestaurants(retry);
-        }
-      } catch (e) {
-        console.error("[financeiro] load", e);
-        if (!cancelled) setError("Falha ao carregar dados financeiros.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, authLoading]);
+    setGlobalActiveId(value);
+    setActiveId(value);
+  };
 
   useEffect(() => {
     if (restaurants.length === 0) {
@@ -327,22 +303,8 @@ function FinanceiroPage() {
     toast.success("CSV exportado.");
   }
 
-  if (authLoading || loading) {
+  if (loading) {
     return <LoadingState label="Carregando financeiro…" />;
-  }
-  if (error) {
-    return (
-      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
-        <AlertCircle className="mx-auto size-8 text-red-400" />
-        <p className="mt-3 text-sm text-red-300">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400"
-        >
-          <RefreshCw className="size-4" /> Tentar novamente
-        </button>
-      </div>
-    );
   }
   if (restaurants.length === 0) {
     return (
@@ -392,7 +354,7 @@ function FinanceiroPage() {
       {/* ─── FILTERS ─── */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
         <Store className="size-3.5 text-gray-500" />
-        <Select value={activeId} onValueChange={setActiveId}>
+        <Select value={activeId} onValueChange={selectStore}>
           <SelectTrigger className="h-8 w-[180px] border-white/10 bg-white/[0.04] text-xs text-white">
             <SelectValue placeholder="Todos" />
           </SelectTrigger>

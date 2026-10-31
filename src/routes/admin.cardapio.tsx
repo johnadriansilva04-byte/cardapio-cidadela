@@ -1,8 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
-import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
-import { useAuth } from "@/components/AuthProvider";
+import { useEffect } from "react";
 import { LoadingState } from "@/modules/ui/Feedback";
+import { useActiveStore } from "@/modules/store/active-store-context";
 
 export const Route = createFileRoute("/admin/cardapio")({
   head: () => ({ meta: [{ title: "Cardápio — Cardápio Cidadela" }] }),
@@ -11,68 +10,26 @@ export const Route = createFileRoute("/admin/cardapio")({
 
 /**
  * Rota legada: o gerenciamento de cardápio agora vive dentro de cada
- * restaurante (/admin/restaurante/$id?tab=cardapio). Redireciona para
- * o primeiro restaurante do dono para não quebrar links antigos.
+ * restaurante (/admin/restaurante/$id?tab=cardapio). Redireciona para a loja
+ * ativa para não quebrar links antigos.
  */
 function CardapioPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const retryRef = useRef(0);
+  const { active, loading } = useActiveStore();
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setLoading(false);
+    if (loading) return;
+    if (active) {
+      navigate({
+        to: "/admin/restaurante/$id",
+        params: { id: active.id },
+        search: { tab: "cardapio" },
+        replace: true,
+      });
       return;
     }
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        await ensureRestaurantsForUser(user!);
-        if (cancelled) return;
-        const data = await getRestaurantsByOwner(user!.id);
-        if (cancelled) return;
-        if (data.length > 0) {
-          navigate({
-            to: "/admin/restaurante/$id",
-            params: { id: data[0].id },
-            search: { tab: "cardapio" },
-            replace: true,
-          });
-          return;
-        }
-        if (retryRef.current < 3) {
-          retryRef.current++;
-          await new Promise((r) => setTimeout(r, retryRef.current * 400));
-          if (cancelled) return;
-          const retry = await getRestaurantsByOwner(user!.id);
-          if (!cancelled && retry.length > 0) {
-            navigate({
-              to: "/admin/restaurante/$id",
-              params: { id: retry[0].id },
-              search: { tab: "cardapio" },
-              replace: true,
-            });
-          }
-        }
-        if (!cancelled) navigate({ to: "/admin/restaurantes", replace: true });
-      } catch {
-        if (!cancelled) navigate({ to: "/admin/restaurantes", replace: true });
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, authLoading, navigate]);
+    navigate({ to: "/admin/restaurantes", replace: true });
+  }, [active, loading, navigate]);
 
-  if (authLoading || loading) {
-    return <LoadingState label="Abrindo o cardápio…" />;
-  }
-
-  return null;
+  return <LoadingState label="Abrindo o cardápio…" />;
 }

@@ -26,6 +26,7 @@ import {
   updateRestaurant,
 } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
+import { useActiveStore } from "@/modules/store/active-store-context";
 import { serializeHours } from "@/lib/operatingHours";
 import type { Restaurant } from "@/lib/types";
 import { brl } from "@/lib/utils";
@@ -57,6 +58,7 @@ function RestaurantDetailPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { setActiveId } = useActiveStore();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,9 +74,10 @@ function RestaurantDetailPage() {
   // Pedidos deixaram de ser uma aba daqui e viraram a rota global /admin/pedidos.
   useEffect(() => {
     if (search.tab === "pedidos") {
-      navigate({ to: "/admin/pedidos", search: { store: id }, replace: true });
+      setActiveId(id);
+      navigate({ to: "/admin/pedidos", replace: true });
     }
-  }, [search.tab, id, navigate]);
+  }, [search.tab, id, navigate, setActiveId]);
 
   // A guia aberta vive na URL: recarregar ou voltar mantém o mesmo painel, e o
   // link pode ser compartilhado. `replace` evita empilhar histórico a cada

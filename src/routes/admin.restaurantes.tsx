@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Store, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,8 @@ import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
+import { useActiveStore } from "@/modules/store/active-store-context";
 import {
-  getRestaurantsByOwner,
-  ensureRestaurantsForUser,
   createRestaurant,
   updateRestaurant,
   deleteRestaurant,
@@ -27,10 +26,9 @@ export const Route = createFileRoute("/admin/restaurantes")({
 });
 
 function RestaurantesPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { restaurants, activeId, setActiveId, reload, loading } = useActiveStore();
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -39,45 +37,6 @@ function RestaurantesPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [productCounts, setProductCounts] = useState<Record<string, number>>({});
-  const retryRef = useRef(0);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setLoading(false);
-      setRestaurants([]);
-      return;
-    }
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        await ensureRestaurantsForUser(user!);
-        if (cancelled) return;
-        const data = await getRestaurantsByOwner(user!.id);
-        if (cancelled) return;
-        setRestaurants(data);
-        if (data.length > 0) retryRef.current = 0;
-        else if (retryRef.current < 3) {
-          retryRef.current++;
-          await new Promise((r) => setTimeout(r, retryRef.current * 400));
-          if (cancelled) return;
-          const retry = await getRestaurantsByOwner(user!.id);
-          if (!cancelled) setRestaurants(retry);
-        }
-      } catch (e) {
-        console.error("[restaurantes] load", e);
-        if (!cancelled) setError("Falha ao carregar restaurantes.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, authLoading]);
 
   // Contagem de produtos por restaurante (dados reais)
   useEffect(() => {
@@ -133,7 +92,8 @@ function RestaurantesPage() {
         toast.error(createError ?? "Erro ao criar restaurante.");
         return null;
       }
-      setRestaurants((prev) => [created, ...prev]);
+      reload();
+      setActiveId(created.id);
       toast.success("Restaurante criado e configurado!");
       return created;
     } finally {
@@ -166,18 +126,8 @@ function RestaurantesPage() {
         toast.error("Erro ao salvar.");
         return;
       }
-      setRestaurants((prev) =>
-        prev.map((r) =>
-          r.id === targetId
-            ? ({
-                ...r,
-                ...values,
-                delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-              } as Restaurant)
-            : r,
-        ),
-      );
       setEditing(null);
+      reload();
       // A segunda passada (upload das imagens) é continuação do mesmo save:
       // evita um segundo toast logo depois do "criado".
       if (!patchId) toast.success("Restaurante atualizado!");
@@ -195,7 +145,7 @@ function RestaurantesPage() {
       toast.error("Falha ao alterar status.");
       return;
     }
-    setRestaurants((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
+    reload();
     toast.success(next === "published" ? "Publicado!" : "Despublicado (pausado).");
   }
 
@@ -206,8 +156,8 @@ function RestaurantesPage() {
       toast.error("Erro ao excluir.");
       return;
     }
-    setRestaurants((prev) => prev.filter((r) => r.id !== deleting.id));
     setDeleting(null);
+    reload();
     toast.success("Restaurante excluído.");
   }
 
@@ -247,7 +197,7 @@ function RestaurantesPage() {
       {error && <InlineError message={error} onRetry={() => window.location.reload()} />}
 
       {!error &&
-        (authLoading || loading ? (
+        (loading ? (
           <LoadingState label="Carregando restaurantes…" />
         ) : filtered.length === 0 ? (
           <EmptyState
@@ -307,12 +257,10 @@ function RestaurantesPage() {
                     search: { tab: "cardapio" },
                   })
                 }
-                onManageOrders={() =>
-                  navigate({
-                    to: "/admin/pedidos",
-                    search: { store: r.id },
-                  })
-                }
+                onManageOrders={() => {
+                  setActiveId(r.id);
+                  navigate({ to: "/admin/pedidos" });
+                }}
                 onSettings={() =>
                   navigate({
                     to: "/admin/restaurante/$id",

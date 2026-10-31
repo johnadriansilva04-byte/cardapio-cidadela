@@ -131,7 +131,12 @@ export function OrderManager({
   const [error, setError] = useState<string | null>(null);
   // A visão inicial é "Recebidos": é o que o operador precisa ver ao abrir.
   const [filter, setFilter] = useState<OrderStatus | "all">("received");
+  // A loja vem do seletor do cabeçalho; trocar aqui muda a loja ativa do painel.
   const [storeFilter, setStoreFilter] = useState<string>(initialStoreId ?? "all");
+
+  useEffect(() => {
+    if (initialStoreId) setStoreFilter(initialStoreId);
+  }, [initialStoreId]);
   const [q, setQ] = useState("");
   const [period, setPeriod] = useState<PeriodKey>("all");
   const [detailPreview, setDetailPreview] = useState<Order | null>(null);

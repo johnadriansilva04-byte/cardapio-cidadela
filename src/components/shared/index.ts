@@ -6,3 +6,4 @@ export { AppHeader } from "./AppHeader";
 export { BrandHeader } from "./BrandHeader";
 export { AccountMenu } from "./AccountMenu";
 export { BottomNav } from "./BottomNav";
+export { StoreSwitcher } from "./StoreSwitcher";

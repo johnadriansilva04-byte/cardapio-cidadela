@@ -34,6 +34,7 @@ import {
 } from "@/modules/supabase/restaurants";
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { useActiveStore } from "@/modules/store/active-store-context";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { PremiumUsageMeter } from "@/modules/ui/PremiumUsageMeter";
 import { checkSubscriptionStatus, MONTHLY_FREE_LIMIT } from "@/modules/supabase/subscription";
@@ -52,10 +53,9 @@ type RangeKey = "7d" | "30d" | "90d" | "all";
 function AdminDashboardOverview() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [activeId, setActiveId] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { restaurants, active: activeRestaurant, activeId, setActiveId, reload } = useActiveStore();
+  const loading = false;
+  const error: string | null = null;
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [orders, setOrders] = useState<
     { id: string; status: OrderStatus; total: number; created_at: string; restaurant_id: string }[]
@@ -66,56 +66,12 @@ function AdminDashboardOverview() {
   const [deleting, setDeleting] = useState<Restaurant | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const retryRef = useRef(0);
   const [subUsed, setSubUsed] = useState<number | null>(null);
   const [subPremium, setSubPremium] = useState(false);
   const [subBonus, setSubBonus] = useState(0);
   const [subDay, setSubDay] = useState(false);
   const [subDayUntil, setSubDayUntil] = useState<string | null>(null);
   const [subCredits, setSubCredits] = useState(0);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setLoading(false);
-      setRestaurants([]);
-      return;
-    }
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        await ensureRestaurantsForUser(user!);
-        if (cancelled) return;
-        const data = await getRestaurantsByOwner(user!.id);
-        if (cancelled) return;
-        setRestaurants(data);
-        if (data.length > 0) {
-          retryRef.current = 0;
-          setActiveId((prev) => prev || data[0].id);
-        } else if (retryRef.current < 3) {
-          retryRef.current++;
-          await new Promise((r) => setTimeout(r, retryRef.current * 400));
-          if (cancelled) return;
-          const retry = await getRestaurantsByOwner(user!.id);
-          if (!cancelled) {
-            setRestaurants(retry);
-            if (retry.length > 0) setActiveId((p) => p || retry[0].id);
-          }
-        }
-      } catch (e) {
-        console.error("[dashboard] load", e);
-        if (!cancelled) setError("Falha ao carregar o dashboard.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, authLoading]);
 
   // Contagem de produtos por restaurante (dados reais) para enriquecer os cards
   const [productCounts, setProductCounts] = useState<Record<string, number>>({});
@@ -247,8 +203,6 @@ function AdminDashboardOverview() {
     };
   }, [orders, counts]);
 
-  const activeRestaurant = restaurants.find((r) => r.id === activeId) ?? null;
-
   // "Hoje" é a primeira pergunta do dono: quantos pedidos chegaram e quanto
   // entrou. O período longo (7/30/90 dias) é leitura de desempenho e vive mais
   // abaixo, junto do gráfico — antes os dois competiam no mesmo bloco.
@@ -291,7 +245,7 @@ function AdminDashboardOverview() {
         toast.error(createError ?? "Erro ao criar restaurante.");
         return null;
       }
-      setRestaurants((prev) => [r, ...prev]);
+      reload();
       setActiveId(r.id);
       toast.success("Restaurante criado e configurado!");
       return r;
@@ -324,18 +278,8 @@ function AdminDashboardOverview() {
         toast.error("Erro ao salvar.");
         return;
       }
-      setRestaurants((prev) =>
-        prev.map((r) =>
-          r.id === targetId
-            ? {
-                ...r,
-                ...values,
-                delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
-              }
-            : r,
-        ),
-      );
       setEditing(null);
+      reload();
       // A segunda passada (upload das imagens) é continuação do mesmo save:
       // evita um segundo toast logo depois do "criado".
       if (!patchId) toast.success("Restaurante atualizado!");
@@ -353,7 +297,7 @@ function AdminDashboardOverview() {
       toast.error("Falha ao alterar status.");
       return;
     }
-    setRestaurants((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
+    reload();
     toast.success(next === "published" ? "Restaurante publicado!" : "Restaurante despublicado.");
   }
 
@@ -364,10 +308,8 @@ function AdminDashboardOverview() {
       toast.error("Erro ao excluir.");
       return;
     }
-    setRestaurants((prev) => prev.filter((r) => r.id !== deleting.id));
-    if (activeId === deleting.id)
-      setActiveId((prev) => restaurants.find((r) => r.id !== prev)?.id ?? restaurants[0]?.id ?? "");
     setDeleting(null);
+    reload();
     toast.success("Restaurante excluído.");
   }
 
@@ -392,42 +334,10 @@ function AdminDashboardOverview() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Dashboard"
-        actions={
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setDialogOpen(true);
-            }}
-            className="shrink-0 rounded-full bg-cyan-500 px-5 text-sm font-bold text-black shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:bg-cyan-400"
-          >
-            <Plus className="size-4" /> Criar restaurante
-          </Button>
-        }
-      />
+      <PageHeader title="Dashboard" />
 
-      {/* Troca de loja: só aparece com mais de uma. Com uma só, o pulso da
-          loja logo abaixo já carrega o nome — repetir era ruído. */}
-      {restaurants.length > 1 && (
-        <div className="flex flex-wrap gap-1.5">
-          {restaurants.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => setActiveId(r.id)}
-              className={
-                "rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors " +
-                (r.id === activeId
-                  ? "bg-cyan-500 text-black"
-                  : "border border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white")
-              }
-            >
-              {r.name}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* A troca de loja vive no cabeçalho (StoreSwitcher) — repetir as pílulas
+          aqui era a mesma decisão em dois lugares. */}
 
       {/* Sua loja agora — o pulso do dia em uma linha, com as ações que o dono
           mais repete (abrir/fechar e mandar o link) a um toque. */}
@@ -528,6 +438,9 @@ function AdminDashboardOverview() {
         </div>
       ) : (
         <>
+          {/* Seus restaurantes vive na aba Restaurantes — repetir a grade aqui
+              empilhava os mesmos cards duas vezes na mesma sessão. */}
+
           {/* Pedidos por status + faturamento consolidado do período escolhido.
               O período agora vive aqui, colado no gráfico que ele filtra. */}
           <section className="space-y-3">
@@ -581,64 +494,6 @@ function AdminDashboardOverview() {
                 cancelledRevenue={financeMetrics.cancelledRevenue}
               />
             )}
-          </section>
-
-          {/* Seus restaurantes - grid compacto */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold tracking-tight text-white">Seus restaurantes</h2>
-              </div>
-              <Link
-                to="/admin/restaurantes"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-              >
-                Ver todos <ArrowRight className="size-3" />
-              </Link>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {restaurants.map((r) => (
-                <RestaurantCardCompact
-                  key={r.id}
-                  restaurant={r}
-                  menuItemCount={productCounts[r.id] ?? null}
-                  onOpen={() =>
-                    navigate({
-                      to: "/admin/restaurante/$id",
-                      params: { id: r.id },
-                      search: { tab: undefined },
-                    })
-                  }
-                  onEdit={() => {
-                    setEditing(r);
-                    setDialogOpen(true);
-                  }}
-                  onTogglePublish={() => handleTogglePublish(r)}
-                  onDelete={() => setDeleting(r)}
-                  onManageMenu={() =>
-                    navigate({
-                      to: "/admin/restaurante/$id",
-                      params: { id: r.id },
-                      search: { tab: "cardapio" },
-                    })
-                  }
-                  onManageOrders={() =>
-                    navigate({
-                      to: "/admin/pedidos",
-                      search: { store: r.id },
-                    })
-                  }
-                  onSettings={() =>
-                    navigate({
-                      to: "/admin/restaurante/$id",
-                      params: { id: r.id },
-                      search: { tab: "config" },
-                    })
-                  }
-                  toggling={togglingId === r.id}
-                />
-              ))}
-            </div>
           </section>
         </>
       )}

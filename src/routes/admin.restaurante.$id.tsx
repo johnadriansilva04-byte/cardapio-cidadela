@@ -18,6 +18,7 @@ import { NeighborhoodManager } from "@/components/admin/NeighborhoodManager";
 import { PromotionsManager } from "@/components/admin/PromotionsManager";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { LoadingState } from "@/modules/ui/Feedback";
+import { GuidePanel } from "@/modules/ui/GuidePanel";
 import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
 import {
   getRestaurantsByOwner,
@@ -64,7 +65,7 @@ function RestaurantDetailPage() {
   const [editing, setEditing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [publishConfirm, setPublishConfirm] = useState(false);
-  const [tab, setTab] = useState<string>(search.tab ?? "cardapio");
+  const [tab, setTab] = useState<string | null>(search.tab ?? null);
   const [menuCount, setMenuCount] = useState<number | null>(null);
   const retryRef = useRef(0);
 
@@ -74,6 +75,22 @@ function RestaurantDetailPage() {
       navigate({ to: "/admin/pedidos", search: { store: id }, replace: true });
     }
   }, [search.tab, id, navigate]);
+
+  // A guia aberta vive na URL: recarregar ou voltar mantém o mesmo painel, e o
+  // link pode ser compartilhado. `replace` evita empilhar histórico a cada
+  // abertura/fechamento.
+  useEffect(() => {
+    const current = search.tab ?? undefined;
+    const next = tab && tab !== "pedidos" ? (tab as TabValue) : undefined;
+    if (current !== next) {
+      navigate({
+        to: "/admin/restaurante/$id",
+        params: { id },
+        search: { tab: next },
+        replace: true,
+      });
+    }
+  }, [tab, search.tab, id, navigate]);
 
   // Contador ao vivo do cardápio
   const restaurantIdForStats = restaurant?.id;
@@ -351,10 +368,34 @@ function RestaurantDetailPage() {
         </div>
       )}
 
-      <AdminModuleNav tab={tab} onSelect={setTab} menuCount={menuCount} />
+      <AdminModuleNav
+        tab={tab}
+        onSelect={setTab}
+        menuCount={menuCount}
+        storeName={restaurant.name}
+      />
 
-      {tab === "cardapio" && <MenuManager key={restaurant.id} restaurant={restaurant} />}
-      {tab === "config" && (
+      <GuidePanel
+        open={tab === "cardapio"}
+        onOpenChange={(o) => !o && setTab(null)}
+        title="Cardápio"
+        description={restaurant.name}
+        icon={<UtensilsCrossed className="size-4" />}
+        tone="emerald"
+        width="xl"
+      >
+        <MenuManager key={restaurant.id} restaurant={restaurant} />
+      </GuidePanel>
+
+      <GuidePanel
+        open={tab === "config"}
+        onOpenChange={(o) => !o && setTab(null)}
+        title="Configurações da loja"
+        description={restaurant.name}
+        icon={<Settings2 className="size-4" />}
+        tone="cyan"
+        width="xl"
+      >
         <div className="grid items-start gap-5 lg:grid-cols-2">
           <div className="min-w-0 space-y-5">
             <RestaurantCardSummary restaurant={restaurant} onEdit={() => setEditOpen(true)} />
@@ -364,7 +405,7 @@ function RestaurantDetailPage() {
             <NeighborhoodManager restaurant={restaurant} />
           </div>
         </div>
-      )}
+      </GuidePanel>
 
       <ConfirmDialog
         open={publishConfirm}
@@ -422,10 +463,12 @@ function AdminModuleNav({
   tab,
   onSelect,
   menuCount,
+  storeName,
 }: {
-  tab: string;
+  tab: string | null;
   onSelect: (tab: "cardapio" | "config") => void;
   menuCount: number | null;
+  storeName: string;
 }) {
   return (
     <nav className="space-y-3">
@@ -441,7 +484,8 @@ function AdminModuleNav({
             <button
               key={m.id}
               onClick={() => onSelect(m.id)}
-              aria-pressed={active}
+              aria-expanded={active}
+              aria-label={`Abrir ${m.label} de ${storeName}`}
               className={`group flex items-center gap-4 rounded-2xl border bg-gradient-to-br p-5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${m.accent} ${
                 active
                   ? "ring-2 ring-white/50 shadow-lg"

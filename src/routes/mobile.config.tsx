@@ -19,7 +19,8 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import { InstallCard } from "@/components/pwa/InstallCard";
 import { AnalyticsConsentCard } from "@/components/analytics/AnalyticsConsentCard";
-import { ExpandableSection, InfoRow } from "@/modules/ui/ExpandableSection";
+import { InfoRow } from "@/modules/ui/ExpandableSection";
+import { GuidePanel, GuideTile } from "@/modules/ui/GuidePanel";
 import {
   loadPreferences,
   notificationPermission,
@@ -69,6 +70,9 @@ function MobileConfigPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [guide, setGuide] = useState<
+    "instalar" | "alertas" | "operacao" | "atalhos" | "conta" | "sobre" | null
+  >(null);
 
   const { isStandalone } = usePwaInstall();
   const wakeLock = useWakeLock(prefs.keepAwake && !loading);
@@ -178,24 +182,79 @@ function MobileConfigPage() {
       {/* Dispositivo: o que o dono ajusta no celular do balcão. */}
       <GroupLabel>Este dispositivo</GroupLabel>
 
-      {/* Instalação — junto dos alertas que ela ativa (o cardápio não repete) */}
-      <ExpandableSection
+      <GuideTile
         icon={<MonitorSmartphone className="size-5" />}
         tone="cyan"
         title="Instalar aplicativo"
-        summary="Tela cheia e alerta sonoro de novos pedidos"
-      >
-        <InstallCard className="rounded-xl border-white/[0.06] bg-black/20" />
-      </ExpandableSection>
+        hint="Tela cheia e alerta sonoro de novos pedidos"
+        onClick={() => setGuide("instalar")}
+      />
 
-      {/* Alertas */}
-      <ExpandableSection
+      <GuideTile
         icon={<BellRing className="size-5" />}
         tone="cyan"
         title="Alertas de novos pedidos"
-        summary={`Som ${prefs.sound ? "ligado" : "desligado"} · Notificações ${
+        hint={`Som ${prefs.sound ? "ligado" : "desligado"} · Notificações ${
           permission === "granted" ? "ligadas" : "desligadas"
         }`}
+        onClick={() => setGuide("alertas")}
+      />
+
+      <GuideTile
+        icon={<Clock className="size-5" />}
+        tone="violet"
+        title="Operação na tela"
+        hint={`Tela ${prefs.keepAwake ? "sempre ligada" : "normal"} · Cards ${
+          prefs.compactCards ? "recolhidos" : "abertos"
+        }`}
+        onClick={() => setGuide("operacao")}
+      />
+
+      {/* Atalhos */}
+      <GroupLabel>Conta e atalhos</GroupLabel>
+
+      <GuideTile
+        icon={<ExternalLink className="size-5" />}
+        title="Atalhos"
+        hint="Painel administrativo, cardápio público e privacidade"
+        onClick={() => setGuide("atalhos")}
+      />
+
+      <GuideTile
+        icon={<ShieldCheck className="size-5" />}
+        title="Conta"
+        hint={displayName}
+        onClick={() => setGuide("conta")}
+      />
+
+      {/* Privacidade e informações do app — separadas da conta para não
+          parecerem ajustes do usuário. */}
+      <GroupLabel>Privacidade e app</GroupLabel>
+
+      {/* Estatísticas de uso (consentimento por dispositivo) */}
+      <AnalyticsConsentCard />
+
+      <GuideTile
+        icon={<Info className="size-5" />}
+        title="Sobre o aplicativo"
+        hint={`Cardápio Cidadela v${APP_VERSION}`}
+        onClick={() => setGuide("sobre")}
+      />
+
+      <GuidePanel
+        open={guide === "instalar"}
+        onOpenChange={(o) => !o && setGuide(null)}
+        title="Instalar aplicativo"
+        icon={<MonitorSmartphone className="size-4" />}
+      >
+        <InstallCard className="rounded-xl border-white/[0.06] bg-black/20" />
+      </GuidePanel>
+
+      <GuidePanel
+        open={guide === "alertas"}
+        onOpenChange={(o) => !o && setGuide(null)}
+        title="Alertas de novos pedidos"
+        icon={<BellRing className="size-4" />}
       >
         <div className="space-y-3">
           <ToggleRow
@@ -285,16 +344,14 @@ function MobileConfigPage() {
             )}
           </div>
         </div>
-      </ExpandableSection>
+      </GuidePanel>
 
-      {/* Operação */}
-      <ExpandableSection
-        icon={<Clock className="size-5" />}
-        tone="violet"
+      <GuidePanel
+        open={guide === "operacao"}
+        onOpenChange={(o) => !o && setGuide(null)}
         title="Operação na tela"
-        summary={`Tela ${prefs.keepAwake ? "sempre ligada" : "normal"} · Cards ${
-          prefs.compactCards ? "recolhidos" : "abertos"
-        }`}
+        icon={<Clock className="size-4" />}
+        tone="violet"
       >
         <div className="space-y-3">
           <ToggleRow
@@ -338,15 +395,13 @@ function MobileConfigPage() {
             Recarregar dados
           </button>
         </div>
-      </ExpandableSection>
+      </GuidePanel>
 
-      {/* Atalhos */}
-      <GroupLabel>Conta e atalhos</GroupLabel>
-
-      <ExpandableSection
-        icon={<ExternalLink className="size-5" />}
+      <GuidePanel
+        open={guide === "atalhos"}
+        onOpenChange={(o) => !o && setGuide(null)}
         title="Atalhos"
-        summary="Painel administrativo, cardápio público e privacidade"
+        icon={<ExternalLink className="size-4" />}
       >
         <div className="space-y-2">
           <ShortcutLink
@@ -367,13 +422,13 @@ function MobileConfigPage() {
             description="Como tratamos os dados"
           />
         </div>
-      </ExpandableSection>
+      </GuidePanel>
 
-      {/* Conta */}
-      <ExpandableSection
-        icon={<ShieldCheck className="size-5" />}
+      <GuidePanel
+        open={guide === "conta"}
+        onOpenChange={(o) => !o && setGuide(null)}
         title="Conta"
-        summary={displayName}
+        icon={<ShieldCheck className="size-4" />}
       >
         <div className="space-y-3">
           <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
@@ -399,20 +454,13 @@ function MobileConfigPage() {
             <LogOut className="size-3.5" /> Sair da conta
           </button>
         </div>
-      </ExpandableSection>
+      </GuidePanel>
 
-      {/* Privacidade e informações do app — separadas da conta para não
-          parecerem ajustes do usuário. */}
-      <GroupLabel>Privacidade e app</GroupLabel>
-
-      {/* Estatísticas de uso (consentimento por dispositivo) */}
-      <AnalyticsConsentCard />
-
-      {/* Sobre */}
-      <ExpandableSection
-        icon={<Info className="size-5" />}
+      <GuidePanel
+        open={guide === "sobre"}
+        onOpenChange={(o) => !o && setGuide(null)}
         title="Sobre o aplicativo"
-        summary={`Cardápio Cidadela v${APP_VERSION}`}
+        icon={<Info className="size-4" />}
       >
         <div className="space-y-2 text-xs leading-relaxed text-gray-400">
           <p>Cardápio digital e gestão de pedidos em tempo real.</p>
@@ -421,7 +469,7 @@ function MobileConfigPage() {
             <InfoRow label="Modo" value={isStandalone ? "App instalado" : "Navegador"} />
           </div>
         </div>
-      </ExpandableSection>
+      </GuidePanel>
     </div>
   );
 }

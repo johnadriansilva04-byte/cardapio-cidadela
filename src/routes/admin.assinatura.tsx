@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { GuidePanel, GuideTile } from "@/modules/ui/GuidePanel";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { LoadingState, EmptyState, InlineError } from "@/modules/ui/Feedback";
@@ -108,77 +109,6 @@ function AnimatedCount({ value }: { value: number }) {
 /** Um e-mail que o Mercado Pago poderia reconhecer (não o pseudo interno). */
 function isRealEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && !email.includes("@menufacil.local");
-}
-
-/** Atalho do hub: abre uma aba de tela cheia, com prévia do conteúdo. */
-function HubTile({
-  icon: Icon,
-  tone,
-  title,
-  hint,
-  badge,
-  onClick,
-}: {
-  icon: LucideIcon;
-  tone: "cyan" | "emerald" | "amber" | "violet";
-  title: string;
-  hint: string;
-  badge?: React.ReactNode;
-  onClick: () => void;
-}) {
-  const toneCls = {
-    cyan: "bg-cyan-500/15 text-cyan-300",
-    emerald: "bg-emerald-500/15 text-emerald-300",
-    amber: "bg-amber-500/15 text-amber-300",
-    violet: "bg-violet-500/15 text-violet-300",
-  }[tone];
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="tap flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-2.5 text-left transition-colors hover:border-white/15 hover:bg-white/[0.05]"
-    >
-      <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${toneCls}`}>
-        <Icon className="size-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="truncate text-sm font-bold text-white">{title}</span>
-          {badge}
-        </span>
-        <span className="mt-0.5 block truncate text-[11px] text-gray-400">{hint}</span>
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-gray-600" />
-    </button>
-  );
-}
-
-/** Cabeçalho de uma aba de tela cheia: título curto e seta de voltar. */
-function TabHeader({
-  icon: Icon,
-  title,
-  tone = "cyan",
-}: {
-  icon: LucideIcon;
-  title: string;
-  tone?: "cyan" | "emerald" | "amber" | "violet";
-}) {
-  const toneCls = {
-    cyan: "bg-cyan-500/15 text-cyan-300",
-    emerald: "bg-emerald-500/15 text-emerald-300",
-    amber: "bg-amber-500/15 text-amber-300",
-    violet: "bg-violet-500/15 text-violet-300",
-  }[tone];
-
-  return (
-    <div className="flex items-center gap-3">
-      <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${toneCls}`}>
-        <Icon className="size-4" />
-      </span>
-      <SheetTitle className="text-base font-black tracking-tight text-white">{title}</SheetTitle>
-    </div>
-  );
 }
 
 /** Pulso curto de comemoração (puramente visual, não captura cliques). */
@@ -876,17 +806,19 @@ function SubscriptionPage() {
         </section>
       )}
 
-      {/* Atalhos: cada um abre uma aba de tela cheia por cima. */}
+      {/* Atalhos: cada um abre uma guia de tela cheia por cima. */}
       <div className="space-y-2">
-        <HubTile
-          icon={Sparkles}
+        <GuideTile
+          size="sm"
+          icon={<Sparkles className="size-4" />}
           tone="cyan"
           title="O que muda"
           hint="Benefícios e comparativo"
           onClick={() => setTab("vantagens")}
         />
-        <HubTile
-          icon={Mail}
+        <GuideTile
+          size="sm"
+          icon={<Mail className="size-4" />}
           tone={currentEmail ? "violet" : "amber"}
           title="E-mail do Mercado Pago"
           hint={currentEmail || "Toque para informar"}
@@ -899,8 +831,9 @@ function SubscriptionPage() {
           }
           onClick={() => setTab("email")}
         />
-        <HubTile
-          icon={Gift}
+        <GuideTile
+          size="sm"
+          icon={<Gift className="size-4" />}
           tone="emerald"
           title="Pedidos e detalhes"
           hint={
@@ -929,211 +862,207 @@ function SubscriptionPage() {
       </div>
 
       {/* ---- Aba: benefícios e comparativo ---- */}
-      <Sheet open={tab === "vantagens"} onOpenChange={(o) => !o && setTab(null)}>
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col gap-0 border-white/10 bg-[#0b0b10] p-0 text-white sm:max-w-md"
-        >
-          <div className="border-b border-white/[0.07] px-4 py-3">
-            <TabHeader icon={Sparkles} title="O que muda" />
-          </div>
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-            <ul className="space-y-2">
-              {PREMIUM_BENEFITS.map(({ icon: Icon, title, text }) => (
-                <li
-                  key={title}
-                  className="flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3"
-                >
-                  <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-cyan-500/12 text-cyan-300">
-                    <Icon className="size-4" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-white">{title}</p>
-                    <p className="mt-0.5 text-[11px] leading-relaxed text-gray-400">{text}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            <div className="overflow-hidden rounded-2xl border border-white/[0.06]">
-              <div className="grid grid-cols-[1.4fr_1fr_1fr] bg-white/[0.03] px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
-                <span className="text-gray-500">Recurso</span>
-                <span className="text-center text-gray-500">Gratuito</span>
-                <span className="text-center text-cyan-300">Premium</span>
-              </div>
-              {PLAN_COMPARISON.map((row, i) => (
-                <div
-                  key={row.feature}
-                  className={
-                    "grid grid-cols-[1.4fr_1fr_1fr] items-center px-3 py-2.5 text-[11px] " +
-                    (i % 2 ? "bg-white/[0.015]" : "")
-                  }
-                >
-                  <span className="pr-2 font-medium text-gray-300">{row.feature}</span>
-                  <span className="flex items-center justify-center gap-1 text-center text-gray-500">
-                    {row.free === "—" ? <Minus className="size-3.5" /> : row.free}
-                  </span>
-                  <span className="flex items-center justify-center gap-1 text-center font-semibold text-white">
-                    <Check className="size-3.5 shrink-0 text-emerald-400" />
-                    {row.premium}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {!isPremium && (
-              <Button
-                onClick={() => {
-                  setTab(null);
-                  void openPayment();
-                }}
-                size="lg"
-                className="sheen tap h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black"
+      <GuidePanel
+        open={tab === "vantagens"}
+        onOpenChange={(o) => !o && setTab(null)}
+        title="O que muda"
+        icon={<Sparkles className="size-4" />}
+        width="md"
+      >
+        <div className="space-y-4">
+          <ul className="space-y-2">
+            {PREMIUM_BENEFITS.map(({ icon: Icon, title, text }) => (
+              <li
+                key={title}
+                className="flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3"
               >
-                <Crown className="size-5" /> Assinar por {selectedPrice}
-                {selectedSuffix}
-              </Button>
-            )}
+                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-cyan-500/12 text-cyan-300">
+                  <Icon className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-white">{title}</p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-gray-400">{text}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="overflow-hidden rounded-2xl border border-white/[0.06]">
+            <div className="grid grid-cols-[1.4fr_1fr_1fr] bg-white/[0.03] px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+              <span className="text-gray-500">Recurso</span>
+              <span className="text-center text-gray-500">Gratuito</span>
+              <span className="text-center text-cyan-300">Premium</span>
+            </div>
+            {PLAN_COMPARISON.map((row, i) => (
+              <div
+                key={row.feature}
+                className={
+                  "grid grid-cols-[1.4fr_1fr_1fr] items-center px-3 py-2.5 text-[11px] " +
+                  (i % 2 ? "bg-white/[0.015]" : "")
+                }
+              >
+                <span className="pr-2 font-medium text-gray-300">{row.feature}</span>
+                <span className="flex items-center justify-center gap-1 text-center text-gray-500">
+                  {row.free === "—" ? <Minus className="size-3.5" /> : row.free}
+                </span>
+                <span className="flex items-center justify-center gap-1 text-center font-semibold text-white">
+                  <Check className="size-3.5 shrink-0 text-emerald-400" />
+                  {row.premium}
+                </span>
+              </div>
+            ))}
           </div>
-        </SheetContent>
-      </Sheet>
+
+          {!isPremium && (
+            <Button
+              onClick={() => {
+                setTab(null);
+                void openPayment();
+              }}
+              size="lg"
+              className="sheen tap h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black"
+            >
+              <Crown className="size-5" /> Assinar por {selectedPrice}
+              {selectedSuffix}
+            </Button>
+          )}
+        </div>
+      </GuidePanel>
 
       {/* ---- Aba: e-mail do Mercado Pago ---- */}
-      <Sheet open={tab === "email"} onOpenChange={(o) => !o && setTab(null)}>
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col gap-0 border-white/10 bg-[#0b0b10] p-0 text-white sm:max-w-md"
-        >
-          <div className="border-b border-white/[0.07] px-4 py-3">
-            <TabHeader icon={Mail} title="E-mail do Mercado Pago" tone="violet" />
+      <GuidePanel
+        open={tab === "email"}
+        onOpenChange={(o) => !o && setTab(null)}
+        title="E-mail do Mercado Pago"
+        icon={<Mail className="size-4" />}
+        tone="violet"
+        width="md"
+      >
+        <div className="space-y-3">
+          <p className="flex items-start gap-2 rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] px-3 py-2.5 text-[11px] leading-relaxed text-amber-200/90">
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+            Informe o mesmo e-mail da sua conta do Mercado Pago. Se for outro, o Premium pode não
+            liberar sozinho.
+          </p>
+
+          <div className="flex gap-2">
+            <input
+              className={field}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={emailDraft}
+              onChange={(e) => setEmailDraft(e.target.value)}
+              placeholder="voce@email.com"
+            />
+            <button
+              onClick={handleSaveEmail}
+              disabled={savingEmail}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
+            >
+              {savingEmail ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Check className="size-4" />
+              )}
+              Salvar
+            </button>
           </div>
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-            <p className="flex items-start gap-2 rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] px-3 py-2.5 text-[11px] leading-relaxed text-amber-200/90">
-              <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-              Informe o mesmo e-mail da sua conta do Mercado Pago. Se for outro, o Premium pode não
-              liberar sozinho.
+          {emailMsg && (
+            <p className={`text-xs ${emailMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}>
+              {emailMsg.text}
             </p>
+          )}
 
-            <div className="flex gap-2">
-              <input
-                className={field}
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={emailDraft}
-                onChange={(e) => setEmailDraft(e.target.value)}
-                placeholder="voce@email.com"
-              />
-              <button
-                onClick={handleSaveEmail}
-                disabled={savingEmail}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
-              >
-                {savingEmail ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Check className="size-4" />
-                )}
-                Salvar
-              </button>
-            </div>
-            {emailMsg && (
-              <p className={`text-xs ${emailMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}>
-                {emailMsg.text}
-              </p>
-            )}
+          <p className="text-[11px] leading-relaxed text-gray-500">
+            Opcional. O login continua pelo telefone
+            {accountPhone ? ` (${accountPhone})` : ""}.
+          </p>
 
-            <p className="text-[11px] leading-relaxed text-gray-500">
-              Opcional. O login continua pelo telefone
-              {accountPhone ? ` (${accountPhone})` : ""}.
-            </p>
-
-            {!isPremium && (
-              <button
-                type="button"
-                onClick={syncNow}
-                disabled={syncing}
-                className="w-full rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-[11px] font-semibold text-cyan-300 transition-colors hover:bg-white/[0.05] disabled:opacity-50"
-              >
-                {syncing ? "Conferindo…" : "Já paguei — conferir agora"}
-              </button>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+          {!isPremium && (
+            <button
+              type="button"
+              onClick={syncNow}
+              disabled={syncing}
+              className="w-full rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-[11px] font-semibold text-cyan-300 transition-colors hover:bg-white/[0.05] disabled:opacity-50"
+            >
+              {syncing ? "Conferindo…" : "Já paguei — conferir agora"}
+            </button>
+          )}
+        </div>
+      </GuidePanel>
 
       {/* ---- Aba: pedidos e detalhes ---- */}
-      <Sheet open={tab === "detalhes"} onOpenChange={(o) => !o && setTab(null)}>
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col gap-0 border-white/10 bg-[#0b0b10] p-0 text-white sm:max-w-md"
-        >
-          <div className="border-b border-white/[0.07] px-4 py-3">
-            <TabHeader icon={Gift} title="Pedidos e detalhes" tone="emerald" />
-          </div>
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-            {!isPremium && (
-              <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4">
-                <div className="flex items-end justify-between gap-3">
-                  <p className="text-[11px] font-semibold text-gray-400">
-                    Pedidos usados{" "}
-                    <span className="font-black text-white">
-                      <AnimatedCount value={used} />
-                    </span>{" "}
-                    de {limit}
-                  </p>
-                  <p
-                    className={
-                      "text-[11px] font-bold " +
-                      (remaining <= 0
-                        ? "text-red-400"
-                        : remaining <= 2
-                          ? "text-amber-300"
-                          : "text-cyan-300")
-                    }
-                  >
-                    {remaining > 0 ? `${remaining} restantes` : "cota esgotada"}
-                  </p>
-                </div>
-                <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
-                  <div
-                    className={
-                      "h-full rounded-full transition-all duration-700 " +
-                      (remaining <= 0
-                        ? "bg-red-500"
-                        : remaining <= 2
-                          ? "bg-amber-500"
-                          : "bg-gradient-to-r from-cyan-500 to-cyan-300")
-                    }
-                    style={{ width: `${usagePct}%` }}
-                  />
-                </div>
-                {bonus > 0 && (
-                  <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
-                    <Gift className="size-3.5" /> +{bonus} pedidos bônus neste mês
-                  </p>
-                )}
+      <GuidePanel
+        open={tab === "detalhes"}
+        onOpenChange={(o) => !o && setTab(null)}
+        title="Pedidos e detalhes"
+        icon={<Gift className="size-4" />}
+        tone="emerald"
+        width="md"
+      >
+        <div className="space-y-4">
+          {!isPremium && (
+            <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4">
+              <div className="flex items-end justify-between gap-3">
+                <p className="text-[11px] font-semibold text-gray-400">
+                  Pedidos usados{" "}
+                  <span className="font-black text-white">
+                    <AnimatedCount value={used} />
+                  </span>{" "}
+                  de {limit}
+                </p>
+                <p
+                  className={
+                    "text-[11px] font-bold " +
+                    (remaining <= 0
+                      ? "text-red-400"
+                      : remaining <= 2
+                        ? "text-amber-300"
+                        : "text-cyan-300")
+                  }
+                >
+                  {remaining > 0 ? `${remaining} restantes` : "cota esgotada"}
+                </p>
               </div>
-            )}
-
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-1.5">
-              <InfoRow label="Restaurante" value={activeRestaurant?.name ?? "—"} />
-              <InfoRow label="Status" value={isPremium ? "Premium" : "Gratuito"} />
-              <InfoRow label="Limite gratuito" value={`${MONTHLY_FREE_LIMIT}/mês`} />
-              <InfoRow
-                label="Renovação"
-                value={
-                  status?.premiumExpiresAt
-                    ? new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")
-                    : "—"
-                }
-              />
+              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className={
+                    "h-full rounded-full transition-all duration-700 " +
+                    (remaining <= 0
+                      ? "bg-red-500"
+                      : remaining <= 2
+                        ? "bg-amber-500"
+                        : "bg-gradient-to-r from-cyan-500 to-cyan-300")
+                  }
+                  style={{ width: `${usagePct}%` }}
+                />
+              </div>
+              {bonus > 0 && (
+                <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/12 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
+                  <Gift className="size-3.5" /> +{bonus} pedidos bônus neste mês
+                </p>
+              )}
             </div>
+          )}
 
-            {!isPremium && rewards.length > 0 && <RewardsProgress rewards={rewards} />}
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-1.5">
+            <InfoRow label="Restaurante" value={activeRestaurant?.name ?? "—"} />
+            <InfoRow label="Status" value={isPremium ? "Premium" : "Gratuito"} />
+            <InfoRow label="Limite gratuito" value={`${MONTHLY_FREE_LIMIT}/mês`} />
+            <InfoRow
+              label="Renovação"
+              value={
+                status?.premiumExpiresAt
+                  ? new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")
+                  : "—"
+              }
+            />
           </div>
-        </SheetContent>
-      </Sheet>
+
+          {!isPremium && rewards.length > 0 && <RewardsProgress rewards={rewards} />}
+        </div>
+      </GuidePanel>
 
       {/* Fallback: só quando o navegador bloqueia a nova aba do checkout */}
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>

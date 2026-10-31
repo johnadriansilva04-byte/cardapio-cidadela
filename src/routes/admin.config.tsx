@@ -17,7 +17,7 @@ import { getRestaurantsByOwner } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { PageHeader } from "@/modules/ui/PageHeader";
-import { ExpandableSection } from "@/modules/ui/ExpandableSection";
+import { GuidePanel, GuideTile } from "@/modules/ui/GuidePanel";
 
 export const Route = createFileRoute("/admin/config")({
   head: () => ({ meta: [{ title: "Configurações — Cardápio Cidadela" }] }),
@@ -40,17 +40,26 @@ function ConfigPage() {
   const [openAccount] = useState(
     () => typeof window !== "undefined" && window.location.hash === "#conta",
   );
+  const [guide, setGuide] = useState<"conta" | "senha" | "acoes" | null>(
+    openAccount ? "conta" : null,
+  );
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <PageHeader title="Configurações" />
 
-      <AccountSection defaultOpen={openAccount} />
+      <AccountSection guide={guide} onGuideChange={setGuide} />
     </div>
   );
 }
 
-function AccountSection({ defaultOpen }: { defaultOpen: boolean }) {
+function AccountSection({
+  guide,
+  onGuideChange,
+}: {
+  guide: "conta" | "senha" | "acoes" | null;
+  onGuideChange: (guide: "conta" | "senha" | "acoes" | null) => void;
+}) {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const displayName = (user?.user_metadata?.name as string) || profile?.name || "";
@@ -146,12 +155,33 @@ function AccountSection({ defaultOpen }: { defaultOpen: boolean }) {
   }
 
   return (
-    <div id="conta" className="scroll-mt-6 space-y-4">
-      <ExpandableSection
+    <div id="conta" className="scroll-mt-6 space-y-2">
+      <GuideTile
         icon={<User className="size-5" />}
         title="Dados da conta"
-        summary={displayName || "Nome e telefone do acesso"}
-        defaultOpen={defaultOpen}
+        hint={displayName || "Nome e telefone do acesso"}
+        onClick={() => onGuideChange("conta")}
+      />
+      <GuideTile
+        icon={<KeyRound className="size-5" />}
+        tone="violet"
+        title="Alterar senha"
+        hint="Troque a senha de acesso ao painel"
+        onClick={() => onGuideChange("senha")}
+      />
+      <GuideTile
+        icon={<UserRound className="size-5" />}
+        tone="red"
+        title="Ações da conta"
+        hint="Sair ou excluir a conta"
+        onClick={() => onGuideChange("acoes")}
+      />
+
+      <GuidePanel
+        open={guide === "conta"}
+        onOpenChange={(o) => !o && onGuideChange(null)}
+        title="Dados da conta"
+        icon={<User className="size-4" />}
       >
         <div className="mb-4 flex items-center gap-3">
           <span className="size-14 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-cyan-500/30 to-violet-500/20 ring-1 ring-white/10">
@@ -206,13 +236,14 @@ function AccountSection({ defaultOpen }: { defaultOpen: boolean }) {
             {nameMsg.text}
           </p>
         )}
-      </ExpandableSection>
+      </GuidePanel>
 
-      <ExpandableSection
-        icon={<KeyRound className="size-5" />}
+      <GuidePanel
+        open={guide === "senha"}
+        onOpenChange={(o) => !o && onGuideChange(null)}
         title="Alterar senha"
-        summary="Troque a senha de acesso ao painel"
-        defaultOpen={defaultOpen}
+        icon={<KeyRound className="size-4" />}
+        tone="violet"
       >
         <div className="space-y-3">
           <div>
@@ -260,13 +291,14 @@ function AccountSection({ defaultOpen }: { defaultOpen: boolean }) {
         >
           {savingPwd ? "Alterando..." : "Alterar senha"}
         </button>
-      </ExpandableSection>
+      </GuidePanel>
 
-      <ExpandableSection
-        icon={<UserRound className="size-5" />}
-        tone="red"
+      <GuidePanel
+        open={guide === "acoes"}
+        onOpenChange={(o) => !o && onGuideChange(null)}
         title="Ações da conta"
-        summary="Sair ou excluir a conta"
+        icon={<UserRound className="size-4" />}
+        tone="amber"
       >
         <div className="space-y-2">
           <button
@@ -287,7 +319,7 @@ function AccountSection({ defaultOpen }: { defaultOpen: boolean }) {
             <span className="text-[11px] text-gray-600">Apaga tudo</span>
           </button>
         </div>
-      </ExpandableSection>
+      </GuidePanel>
 
       <ConfirmDialog
         open={confirmDeleteOpen}

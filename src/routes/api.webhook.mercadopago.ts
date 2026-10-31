@@ -151,9 +151,27 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
                 });
               }
               approvedId = String(approved.id ?? "");
-              const metadata = (order.metadata ?? {}) as Record<string, unknown>;
+              // O `metadata` da preferência viaja no PAGAMENTO, não no topo da
+              // ordem. Ler só `order.metadata` vinha vazio, então diária/mensal
+              // caía no ramo anual — 1 ano pelo preço de um dia. Prefere o
+              // metadata do próprio pagamento; se faltar, busca o pagamento.
+              let metaSource = approved.metadata ?? null;
+              if (!metaSource) {
+                const { ok: pOk, data: pData } = await mpFetch(`/v1/payments/${approvedId}`);
+                metaSource =
+                  (pOk && pData ? (pData as Record<string, unknown>).metadata : null) ?? null;
+              }
+              const metadata = (metaSource ?? order.metadata ?? {}) as Record<string, unknown>;
               kind = String(metadata.kind ?? "");
               quantity = Math.max(1, Math.min(Math.floor(Number(metadata.quantity ?? 1) || 1), 60));
+              if (!kind) {
+                // Sem `kind` não há como distinguir o produto: o ramo final
+                // concede 1 ano. Loga para não passar em silêncio.
+                console.warn(
+                  "[webhook/mercadopago] metadata.kind ausente; assumindo anual (legado) para store:",
+                  storeId,
+                );
+              }
             }
 
             // external_reference deve conter o store_id

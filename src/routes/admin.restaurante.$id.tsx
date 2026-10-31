@@ -17,6 +17,7 @@ import { MenuManager } from "@/components/admin/MenuManager";
 import { NeighborhoodManager } from "@/components/admin/NeighborhoodManager";
 import { PromotionsManager } from "@/components/admin/PromotionsManager";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { LoadingState } from "@/modules/ui/Feedback";
 import { RestaurantStatusBadge } from "@/components/admin/StatusBadge";
 import {
   getRestaurantsByOwner,
@@ -231,11 +232,7 @@ function RestaurantDetailPage() {
   }
 
   if (authLoading || loading) {
-    return (
-      <div className="flex justify-center py-24">
-        <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-      </div>
-    );
+    return <LoadingState label="Carregando restaurante…" />;
   }
 
   if (!user) return null;

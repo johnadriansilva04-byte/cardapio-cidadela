@@ -28,7 +28,7 @@ import { EmptyState, LoadingState } from "@/modules/ui/Feedback";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
-import type { OrderStatus, Restaurant } from "@/lib/types";
+import { ORDER_STATUS_LABELS, type OrderStatus, type Restaurant } from "@/lib/types";
 import { brl } from "@/lib/utils";
 import {
   BarChart,
@@ -311,7 +311,7 @@ function FinanceiroPage() {
         d,
         o.comanda,
         `"${o.customer_name.replace(/"/g, '""')}"`,
-        o.status,
+        ORDER_STATUS_LABELS[o.status],
         String(o.total).replace(".", ","),
         `"${restName.replace(/"/g, '""')}"`,
       ].join(";");
@@ -784,7 +784,7 @@ function FinanceiroPage() {
                               <span
                                 className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${o.status === "cancelled" ? "border-red-500/30 bg-red-500/10 text-red-300" : o.status === "delivered" ? "border-zinc-500/30 bg-zinc-500/10 text-zinc-300" : "border-cyan-500/20 bg-cyan-500/10 text-cyan-200"}`}
                               >
-                                {o.status}
+                                {ORDER_STATUS_LABELS[o.status]}
                               </span>
                             </td>
                             <td className="px-3 py-1.5 text-right text-[11px] font-bold text-white">

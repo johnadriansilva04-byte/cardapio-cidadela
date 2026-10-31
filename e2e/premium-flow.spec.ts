@@ -129,7 +129,7 @@ test("cota estourada bloqueia os detalhes e oferece assinar", async ({ page }) =
   // Os itens NÃO podem vazar enquanto está bloqueado.
   await expect(card.getByText("X-Burger Especial")).toHaveCount(0);
   // Sem ações de operação no card bloqueado.
-  await expect(card.getByRole("button", { name: "Preparando" })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Começar preparo" })).toHaveCount(0);
   await expect(card.getByRole("link", { name: /Assinar Premium agora/i })).toBeVisible();
 });
 
@@ -151,7 +151,7 @@ test("assinar destrava os pedidos que chegaram bloqueados", async ({ page }) => 
     timeout: 10_000,
   });
   await expect(card.getByText(/detalhes deste pedido estão bloqueados/i)).toHaveCount(0);
-  await expect(card.getByRole("button", { name: "Preparando" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Começar preparo" })).toBeVisible();
 });
 
 test("dentro da cota os detalhes ficam liberados e sem aviso de plano", async ({ page }) => {
@@ -167,7 +167,7 @@ test("dentro da cota os detalhes ficam liberados e sem aviso de plano", async ({
   await expect(card.getByRole("listitem").filter({ hasText: /X-Burger Especial/ })).toBeVisible({
     timeout: 10_000,
   });
-  await expect(card.getByRole("button", { name: "Preparando" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Começar preparo" })).toBeVisible();
 });
 
 test("pedidos bônus elevam a cota e destravam os detalhes", async ({ page }) => {
@@ -200,5 +200,5 @@ test("pedidos bônus elevam a cota e destravam os detalhes", async ({ page }) =>
     timeout: 10_000,
   });
   await expect(card.getByText(/detalhes deste pedido estão bloqueados/i)).toHaveCount(0);
-  await expect(card.getByRole("button", { name: "Preparando" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Começar preparo" })).toBeVisible();
 });

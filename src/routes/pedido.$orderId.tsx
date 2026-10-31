@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  Bike,
   Check,
   ClipboardList,
   ChefHat,
@@ -16,8 +17,9 @@ import {
 } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import { brl, formatDate } from "@/lib/utils";
-import { ORDER_STATUS_LABELS } from "@/lib/types";
+import { ORDER_STATUS_LABELS, paymentMethodLabel } from "@/lib/types";
 import type { Order, OrderStatus } from "@/lib/types";
+import { LoadingState } from "@/modules/ui/Feedback";
 
 export const Route = createFileRoute("/pedido/$orderId")({
   head: () => ({
@@ -26,21 +28,43 @@ export const Route = createFileRoute("/pedido/$orderId")({
   component: OrderTrackingPage,
 });
 
-const STATUS_STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
+const BASE_STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
   { status: "received", label: "Recebido", icon: ClipboardList },
   { status: "preparing", label: "Preparando", icon: ChefHat },
   { status: "ready", label: "Pronto", icon: PackageCheck },
+  { status: "out_for_delivery", label: "A caminho", icon: Bike },
   { status: "delivered", label: "Entregue", icon: PartyPopper },
 ];
+
+/**
+ * Passos mostrados ao cliente. "A caminho" só existe quando há entrega; num
+ * pedido de retirada o stepper ia de "Pronto" direto para "Entregue" e o
+ * cliente via uma etapa que nunca aconteceria.
+ */
+function stepsFor(deliveryType: string) {
+  if (deliveryType === "entrega") return BASE_STEPS;
+  return BASE_STEPS.filter((s) => s.status !== "out_for_delivery");
+}
 
 const STEP_HINTS: Partial<Record<OrderStatus, string>> = {
   received: "A cozinha já foi avisada do seu pedido.",
   preparing: "Seu pedido está sendo preparado agora.",
-  ready: "Tudo pronto! Já está saindo.",
   delivered: "Pedido finalizado. Bom apetite!",
   out_for_delivery: "Saiu para entrega — já está a caminho!",
   cancelled: "Este pedido foi cancelado.",
 };
+
+// "Pronto" significa coisas diferentes conforme a modalidade: retirada espera
+// o cliente no balcão, entrega ainda vai sair. Um texto único mentia para um
+// dos dois casos.
+function hintFor(order: Pick<Order, "status" | "delivery_type">): string | undefined {
+  if (order.status === "ready") {
+    return order.delivery_type === "entrega"
+      ? "Tudo pronto! Já está saindo para entrega."
+      : "Tudo pronto! Seu pedido já pode ser retirado.";
+  }
+  return STEP_HINTS[order.status];
+}
 
 function OrderTrackingPage() {
   const { orderId } = Route.useParams();
@@ -143,8 +167,8 @@ function OrderTrackingPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#07070b]">
-        <div className="size-8 animate-spin rounded-full border-2 border-cyan-400/80 border-t-transparent" />
+      <div className="min-h-screen bg-[#07070b]">
+        <LoadingState label="Buscando seu pedido…" />
       </div>
     );
   }
@@ -170,10 +194,10 @@ function OrderTrackingPage() {
     );
   }
 
-  const currentStepIndex = STATUS_STEPS.findIndex((s) => s.status === order.status);
+  const steps = stepsFor(order.delivery_type);
+  const currentStepIndex = steps.findIndex((s) => s.status === order.status);
   const isCanceled = order.status === "cancelled";
-  const hint = STEP_HINTS[order.status];
-  const currentIcon = currentStepIndex >= 0 ? STATUS_STEPS[currentStepIndex].icon : ClipboardList;
+  const hint = hintFor(order);
 
   return (
     <div className="min-h-screen bg-[#07070b] px-4 py-8">
@@ -187,10 +211,7 @@ function OrderTrackingPage() {
             {ORDER_STATUS_LABELS[order.status] ?? order.status}
           </h1>
           {hint && !isCanceled && (
-            <p
-              key={order.status}
-              className="mt-1.5 animate-slide-up text-sm text-gray-400"
-            >
+            <p key={order.status} className="mt-1.5 animate-slide-up text-sm text-gray-400">
               {hint}
             </p>
           )}
@@ -201,7 +222,7 @@ function OrderTrackingPage() {
         {!isCanceled && (
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5">
             <div className="flex items-center">
-              {STATUS_STEPS.map((step, idx) => {
+              {steps.map((step, idx) => {
                 const done = currentStepIndex >= 0 && idx < currentStepIndex;
                 const current = idx === currentStepIndex;
                 const Icon = step.icon;
@@ -220,9 +241,7 @@ function OrderTrackingPage() {
                         {done ? (
                           <Check className="size-4" />
                         ) : (
-                          <Icon
-                            className={`size-4 ${current ? "animate-float" : ""}`}
-                          />
+                          <Icon className={`size-4 ${current ? "animate-float" : ""}`} />
                         )}
                       </span>
                       <span
@@ -233,7 +252,7 @@ function OrderTrackingPage() {
                         {step.label}
                       </span>
                     </div>
-                    {idx < STATUS_STEPS.length - 1 && (
+                    {idx < steps.length - 1 && (
                       <span className="mx-1.5 mb-5 h-0.5 flex-1 overflow-hidden rounded-full bg-white/[0.07]">
                         <span
                           className="block h-full rounded-full bg-cyan-500/70 transition-all duration-700 ease-out"
@@ -295,8 +314,8 @@ function OrderTrackingPage() {
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-gray-400">
               {order.delivery_type === "entrega" ? "Entrega" : "Retirada"}
             </span>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium capitalize text-gray-400">
-              {order.payment_method}
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-gray-400">
+              {paymentMethodLabel(order.payment_method)}
             </span>
           </div>
 

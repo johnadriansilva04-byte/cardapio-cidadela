@@ -7,7 +7,12 @@ import { useAuth } from "@/components/AuthProvider";
 import { subscribeToOrders } from "@/modules/supabase/orders";
 import { supabase } from "@/modules/supabase/client";
 import { brl, formatDate } from "@/lib/utils";
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, type GuestOrderSummary } from "@/lib/types";
+import {
+  ORDER_STATUS_LABELS,
+  ORDER_STATUS_COLORS,
+  paymentMethodLabel,
+  type GuestOrderSummary,
+} from "@/lib/types";
 
 export const Route = createFileRoute("/meus-pedidos")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -237,7 +242,7 @@ function OrderCard({ order }: { order: GuestOrderSummary }) {
           <span className="inline-flex items-center gap-1">
             <Clock className="size-3" /> {formatDate(order.created_at)}
           </span>
-          <span className="capitalize">{order.payment_method}</span>
+          <span>{paymentMethodLabel(order.payment_method)}</span>
           <span className="uppercase">{order.delivery_type}</span>
         </div>
         <div className="flex items-center gap-2">

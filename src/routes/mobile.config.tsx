@@ -32,7 +32,7 @@ import {
 import { subscribePush, unsubscribePush, getExistingSubscription } from "@/modules/mobile/push";
 import { useMobileStore } from "@/modules/mobile/store-context";
 import { PageHeader } from "@/modules/ui/PageHeader";
-import { LoadingState } from "@/modules/ui/Feedback";
+import { InlineError, LoadingState } from "@/modules/ui/Feedback";
 import { previewOrderAlert } from "@/lib/orderAlertSound";
 import { printOrderTicket } from "@/modules/mobile/autoPrint";
 import { useWakeLock } from "@/modules/mobile/useWakeLock";
@@ -61,7 +61,7 @@ const APP_VERSION = "1.1";
 function MobileConfigPage() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const { restaurants, orders, loading, refresh } = useMobileStore();
+  const { restaurants, orders, loading, error, refresh } = useMobileStore();
 
   const [prefs, setPrefs] = useState<MobilePreferences>(() => loadPreferences());
   const [permission, setPermission] = useState<NotificationPermissionState>("default");
@@ -172,6 +172,8 @@ function MobileConfigPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Configurações" subtitle={`${displayName} · ${storeStatus}`} />
+
+      {error && <InlineError message={error} onRetry={handleRefresh} retrying={refreshing} />}
 
       {/* Dispositivo: o que o dono ajusta no celular do balcão. */}
       <GroupLabel>Este dispositivo</GroupLabel>

@@ -18,14 +18,16 @@ import {
 import { ExpandableSection, InfoRow } from "@/modules/ui/ExpandableSection";
 import { OrderStatusBadge } from "@/components/admin/StatusBadge";
 import {
-  NEXT_STATUS,
   STATUS_LABELS,
+  advanceActionLabel,
   formatElapsed,
+  nextStatusFor,
   orderTimer,
   trackingUrl,
 } from "@/modules/mobile/orders";
 import { getOrderForOwner } from "@/modules/supabase/orders";
 import { PREMIUM_PRICE_LABEL } from "@/lib/pricing";
+import { paymentMethodLabel } from "@/lib/types";
 import {
   brl,
   buildThermalTicket,
@@ -86,7 +88,7 @@ export function OrderCard({
   const [detailError, setDetailError] = useState<string | null>(null);
 
   const isFinished = order.status === "delivered" || order.status === "cancelled";
-  const nextStatus = NEXT_STATUS[order.status];
+  const nextStatus = nextStatusFor(order);
   const timer = orderTimer(order.created_at, now);
 
   // Relógio próprio do card: sem ele o "tempo parado" congela no valor da montagem.
@@ -284,7 +286,7 @@ export function OrderCard({
                 minute: "2-digit",
               })}
             />
-            <InfoRow label="Pagamento" value={order.payment_method || "—"} />
+            <InfoRow label="Pagamento" value={paymentMethodLabel(order.payment_method)} />
             {order.delivery_type === "entrega" && (
               <InfoRow
                 label="Endereço"
@@ -348,7 +350,7 @@ export function OrderCard({
                 onClick={() => onAdvance(order, nextStatus)}
                 className="min-w-[8rem] flex-1 rounded-xl bg-cyan-500 px-3 py-2.5 text-xs font-bold uppercase text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
               >
-                {STATUS_LABELS[nextStatus]}
+                {advanceActionLabel(order)}
               </button>
             )}
             {!isFinished && (

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { RestaurantCardCompact } from "@/components/admin/RestaurantCardCompact";
 import { StorePulseBar } from "@/components/admin/StorePulseBar";
+import { LoadingState } from "@/modules/ui/Feedback";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
 import { OrdersDonut } from "@/components/admin/OrdersDonut";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
@@ -371,11 +372,7 @@ function AdminDashboardOverview() {
   }
 
   if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="size-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-      </div>
-    );
+    return <LoadingState label="Carregando seu painel…" />;
   }
 
   if (error) {

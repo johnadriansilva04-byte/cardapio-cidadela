@@ -29,6 +29,40 @@ export const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
   cancelled: null,
 };
 
+/**
+ * Próximo passo considerando a modalidade. Pedido de retirada não passa por
+ * "saiu para entrega" — não há entrega para sair. Sem isto o dono clicava em
+ * "A caminho" e o cliente lia "Saiu para entrega" num pedido que ele mesmo
+ * busca no balcão.
+ */
+export function nextStatusFor(order: Pick<Order, "status" | "delivery_type">): OrderStatus | null {
+  const next = NEXT_STATUS[order.status];
+  if (next === "out_for_delivery" && order.delivery_type !== "entrega") return "delivered";
+  return next;
+}
+
+/**
+ * Rótulo do BOTÃO de avanço: diz a ação, não o status. "ENTREGUE" num botão lê
+ * como estado; "Marcar entregue" lê como o que o toque faz. O texto de
+ * "entregue" muda com a modalidade (entrega x retirada no balcão).
+ */
+export function advanceActionLabel(order: Pick<Order, "status" | "delivery_type">): string | null {
+  const next = nextStatusFor(order);
+  if (!next) return null;
+  if (next === "delivered") {
+    return order.delivery_type === "entrega" ? "Marcar entregue" : "Marcar retirado";
+  }
+  const labels: Record<OrderStatus, string> = {
+    received: "Recebido",
+    preparing: "Começar preparo",
+    ready: "Marcar pronto",
+    out_for_delivery: "Saiu para entrega",
+    delivered: "Marcar entregue",
+    cancelled: "Cancelado",
+  };
+  return labels[next];
+}
+
 export function isActive(status: OrderStatus): boolean {
   return ACTIVE_STATUSES.includes(status);
 }

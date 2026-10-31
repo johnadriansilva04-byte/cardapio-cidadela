@@ -13,25 +13,13 @@ import {
   XCircle,
 } from "lucide-react";
 import { ORDER_STATUS_LABELS, type Order, type OrderStatus } from "@/lib/types";
-import { formatElapsed, orderTimer } from "@/modules/mobile/orders";
+import {
+  advanceActionLabel,
+  formatElapsed,
+  nextStatusFor,
+  orderTimer,
+} from "@/modules/mobile/orders";
 import { brl, cn } from "@/lib/utils";
-
-const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
-  received: "preparing",
-  preparing: "ready",
-  ready: "out_for_delivery",
-  out_for_delivery: "delivered",
-  delivered: null,
-  cancelled: null,
-};
-
-/** Verbos de ação, no lugar do nome do status — o botão diz o que vai acontecer. */
-const ACTION_LABEL: Partial<Record<OrderStatus, string>> = {
-  preparing: "Começar preparo",
-  ready: "Marcar pronto",
-  out_for_delivery: "Saiu para entrega",
-  delivered: "Entregue",
-};
 
 const QUEUE_TABS: { key: string; label: string; statuses: OrderStatus[] }[] = [
   { key: "queue", label: "Fila", statuses: ["received", "preparing"] },
@@ -122,7 +110,7 @@ export function KitchenMode({
   const current = queue[0] ?? null;
   const nextUp = queue.slice(1, 5);
   const timer = current ? orderTimer(current.created_at, now) : null;
-  const next = current ? NEXT_STATUS[current.status] : null;
+  const next = current ? nextStatusFor(current) : null;
   const locked = current ? lockedStores.has(current.restaurant_id) : false;
   const itemsCount = current
     ? (current.order_items ?? []).reduce((sum, i) => sum + i.quantity, 0)
@@ -345,7 +333,7 @@ export function KitchenMode({
                     onClick={() => onAdvance(current, next)}
                     className="flex h-16 flex-1 items-center justify-center gap-2 rounded-2xl bg-cyan-500 text-lg font-black uppercase tracking-wide text-black transition-all hover:bg-cyan-400 active:scale-[0.99]"
                   >
-                    {ACTION_LABEL[next] ?? ORDER_STATUS_LABELS[next]}
+                    {advanceActionLabel(current)}
                   </button>
                 ) : (
                   <span className="flex h-16 flex-1 items-center justify-center rounded-2xl bg-white/[0.04] text-sm font-bold text-gray-500">

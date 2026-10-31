@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { Loader2 } from "lucide-react";
 import { getRestaurantsByOwner, ensureRestaurantsForUser } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
+import { LoadingState } from "@/modules/ui/Feedback";
 
 export const Route = createFileRoute("/admin/cardapio")({
   head: () => ({ meta: [{ title: "Cardápio — Cardápio Cidadela" }] }),
@@ -71,11 +71,7 @@ function CardapioPage() {
   }, [user, authLoading, navigate]);
 
   if (authLoading || loading) {
-    return (
-      <div className="flex justify-center py-24">
-        <Loader2 className="size-8 animate-spin text-cyan-400" />
-      </div>
-    );
+    return <LoadingState label="Abrindo o cardápio…" />;
   }
 
   return null;

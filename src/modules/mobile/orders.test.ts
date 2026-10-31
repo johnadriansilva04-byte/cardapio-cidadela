@@ -8,6 +8,8 @@ import {
   isActive,
   isFinished,
   NEXT_STATUS,
+  advanceActionLabel,
+  nextStatusFor,
   orderTimer,
   trackingUrl,
 } from "@/modules/mobile/orders";
@@ -56,6 +58,33 @@ describe("status helpers", () => {
     expect(NEXT_STATUS.ready).toBe("out_for_delivery");
     expect(NEXT_STATUS.delivered).toBeNull();
     expect(NEXT_STATUS.cancelled).toBeNull();
+  });
+
+  it("pula 'saiu para entrega' quando o pedido é de retirada", () => {
+    // Retirada não tem entrega para sair: de "pronto" vai direto para entregue.
+    expect(nextStatusFor({ status: "ready", delivery_type: "retirada" })).toBe("delivered");
+    expect(nextStatusFor({ status: "ready", delivery_type: "entrega" })).toBe("out_for_delivery");
+    // Os passos anteriores são iguais nas duas modalidades.
+    expect(nextStatusFor({ status: "received", delivery_type: "retirada" })).toBe("preparing");
+    expect(nextStatusFor({ status: "preparing", delivery_type: "entrega" })).toBe("ready");
+    expect(nextStatusFor({ status: "delivered", delivery_type: "entrega" })).toBeNull();
+  });
+
+  it("rotula o botão com a ação, não com o status", () => {
+    expect(advanceActionLabel({ status: "received", delivery_type: "retirada" })).toBe(
+      "Começar preparo",
+    );
+    expect(advanceActionLabel({ status: "ready", delivery_type: "entrega" })).toBe(
+      "Saiu para entrega",
+    );
+    // O verbo final muda com a modalidade.
+    expect(advanceActionLabel({ status: "ready", delivery_type: "retirada" })).toBe(
+      "Marcar retirado",
+    );
+    expect(advanceActionLabel({ status: "out_for_delivery", delivery_type: "entrega" })).toBe(
+      "Marcar entregue",
+    );
+    expect(advanceActionLabel({ status: "delivered", delivery_type: "entrega" })).toBeNull();
   });
 });
 

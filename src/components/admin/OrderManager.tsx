@@ -51,7 +51,13 @@ import {
   sendToWhatsApp,
   formatDate,
 } from "@/lib/utils";
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/lib/types";
+import {
+  ORDER_STATUS_LABELS,
+  ORDER_STATUS_COLORS,
+  paymentMethodLabel,
+  paymentStatusLabel,
+} from "@/lib/types";
+import { advanceActionLabel, nextStatusFor } from "@/modules/mobile/orders";
 import { OrderStatusBadge } from "@/components/admin/StatusBadge";
 import { KitchenMode } from "@/components/admin/KitchenMode";
 import { ProgressiveList } from "@/modules/ui/ProgressiveList";
@@ -72,15 +78,6 @@ const KANBAN_COLUMNS: { status: OrderStatus; label: string; icon: typeof Clock }
   { status: "ready", label: "Prontos", icon: CheckCircle2 },
   { status: "out_for_delivery", label: "A caminho", icon: Bike },
 ];
-
-const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
-  received: "preparing",
-  preparing: "ready",
-  ready: "out_for_delivery",
-  out_for_delivery: "delivered",
-  delivered: null,
-  cancelled: null,
-};
 
 const COLUMN_ACCENT: Record<OrderStatus, string> = {
   received: "border-sky-500/20",
@@ -676,7 +673,7 @@ export function OrderManager({
                     showStatus={filter === "all"}
                     onOpen={() => openDetail(order)}
                     onAdvance={
-                      locked ? undefined : () => changeStatus(order.id, NEXT_STATUS[order.status]!)
+                      locked ? undefined : () => changeStatus(order.id, nextStatusFor(order)!)
                     }
                     onCancel={locked ? undefined : () => requestCancel(order)}
                   />
@@ -742,8 +739,8 @@ function OrderCard({
   onCancel?: () => void;
   compact?: boolean;
 }) {
-  const next = NEXT_STATUS[order.status];
-  const nextLabel = next ? ORDER_STATUS_LABELS[next] : null;
+  const next = nextStatusFor(order);
+  const nextLabel = advanceActionLabel(order);
   const items = order.order_items ?? [];
   return (
     <div
@@ -973,7 +970,7 @@ function OrderDetailDialog({
     );
   }
 
-  const next = NEXT_STATUS[order.status];
+  const next = nextStatusFor(order);
   const hasCustomerPhone =
     Boolean(order.customer_phone) && order.customer_phone.replace(/\D/g, "").length >= 10;
 
@@ -1110,14 +1107,10 @@ function OrderDetailDialog({
                   <CreditCard className="size-3" /> Pagamento
                 </p>
                 <p className="text-sm font-semibold uppercase text-white">
-                  {order.payment_method === "pix"
-                    ? "PIX"
-                    : order.payment_method === "dinheiro"
-                      ? "Dinheiro"
-                      : "Cartão"}
+                  {paymentMethodLabel(order.payment_method)}
                 </p>
-                <p className="mt-1 text-[11px] text-gray-500 capitalize">
-                  {order.payment_status?.replace(/_/g, " ")}
+                <p className="mt-1 text-[11px] text-gray-500">
+                  {paymentStatusLabel(order.payment_status)}
                 </p>
               </div>
             </div>
@@ -1129,7 +1122,7 @@ function OrderDetailDialog({
                   onClick={() => onChangeStatus(order.id, next)}
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-bold text-white hover:bg-cyan-500"
                 >
-                  <CheckCircle2 className="size-3.5" /> {ORDER_STATUS_LABELS[next]}
+                  <CheckCircle2 className="size-3.5" /> {advanceActionLabel(order)}
                 </button>
               )}
               {order.status !== "cancelled" && order.status !== "delivered" && (

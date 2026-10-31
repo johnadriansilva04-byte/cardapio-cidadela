@@ -26,6 +26,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { claimGuestData } from "@/modules/supabase/customer";
 import { safeInternalPath } from "@/lib/utils";
 
+import { LoadingState } from "@/modules/ui/Feedback";
+
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [{ title: "Entrar — Cardápio Cidadela" }],
@@ -97,8 +99,8 @@ function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f]">
-        <Loader2 className="size-8 animate-spin text-cyan-400" />
+      <div className="min-h-screen bg-[#0a0a0f]">
+        <LoadingState label="Verificando sua sessão…" />
       </div>
     );
   }

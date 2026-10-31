@@ -22,6 +22,8 @@ import {
   formatMonthlyEquivalent,
 } from "@/lib/pricing";
 
+import { brl } from "@/lib/utils";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -47,10 +49,6 @@ const DEMO_ITEMS = [
   { id: "p2", emoji: "🍔", name: "Burger artesanal", price: 26 },
   { id: "p3", emoji: "🥤", name: "Refri lata", price: 6 },
 ];
-
-function brl(n: number) {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 /** Demo viva: o visitante monta um pedido de verdade na própria landing. */
 function LiveMenuDemo() {

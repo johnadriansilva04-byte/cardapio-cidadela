@@ -253,3 +253,32 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   delivered: "bg-gray-500/20 text-gray-300 border-gray-500/30",
   cancelled: "bg-red-500/20 text-red-300 border-red-500/30",
 };
+
+// --- Payment labels ---
+// O banco guarda o código cru ("cartao", "awaiting_confirmation"); a tela mostra
+// a forma legível. Sem isto o dono lia "cartao" sem acento e "awaiting
+// confirmation" em inglês no detalhe do pedido.
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  pix: "PIX",
+  dinheiro: "Dinheiro",
+  cartao: "Cartão",
+};
+
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  pending: "Aguardando pagamento",
+  awaiting_confirmation: "Aguardando confirmação",
+  paid: "Pago",
+  confirmed: "Confirmado",
+  refunded: "Estornado",
+  cancelled: "Cancelado",
+};
+
+export function paymentMethodLabel(method: string | null | undefined): string {
+  if (!method) return "—";
+  return PAYMENT_METHOD_LABELS[method] ?? method;
+}
+
+export function paymentStatusLabel(status: string | null | undefined): string {
+  if (!status) return "—";
+  return PAYMENT_STATUS_LABELS[status] ?? status.replace(/_/g, " ");
+}

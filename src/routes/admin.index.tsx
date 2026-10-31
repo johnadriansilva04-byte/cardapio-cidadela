@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Store,
   ClipboardList,
   TrendingUp,
   Plus,
@@ -10,11 +9,6 @@ import {
   RefreshCw,
   Wallet,
   UtensilsCrossed,
-  LayoutGrid,
-  Copy,
-  Check,
-  ExternalLink,
-  Power,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -252,8 +246,6 @@ function AdminDashboardOverview() {
     };
   }, [orders, counts]);
 
-  const publishedCount = restaurants.filter((r) => r.status === "published").length;
-  const draftCount = restaurants.filter((r) => r.status === "draft").length;
   const activeRestaurant = restaurants.find((r) => r.id === activeId) ?? null;
 
   // "Hoje" é a primeira pergunta do dono: quantos pedidos chegaram e quanto
@@ -405,11 +397,6 @@ function AdminDashboardOverview() {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        subtitle={
-          activeRestaurant
-            ? `${activeRestaurant.name} • ${publishedCount > 0 ? "publicado" : "rascunho"}`
-            : undefined
-        }
         actions={
           <Button
             onClick={() => {
@@ -423,36 +410,25 @@ function AdminDashboardOverview() {
         }
       />
 
-      {/* Seletor de restaurante + atalho de gestão. O período saiu daqui: ele é
-          filtro do gráfico e voltou para junto dele. */}
-      {restaurants.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5">
-          <div className="flex items-center gap-1.5 rounded-xl bg-white/[0.03] px-2.5 py-1.5">
-            <Store className="size-3.5 text-gray-500" />
-            <span className="text-[11px] font-semibold text-gray-400">Restaurante</span>
-          </div>
-          <Select value={activeId} onValueChange={(v) => setActiveId(v)}>
-            <SelectTrigger className="h-9 w-auto min-w-[200px] border-white/10 bg-white/[0.04] text-sm text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="border-white/10 bg-[#1a1a22] text-white">
-              {restaurants.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {activeId && (
-            <Link
-              to="/admin/restaurante/$id"
-              params={{ id: activeId }}
-              search={{ tab: undefined }}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-bold text-cyan-300 transition-colors hover:border-cyan-500/60 hover:bg-cyan-500/20 hover:text-cyan-200"
+      {/* Troca de loja: só aparece com mais de uma. Com uma só, o pulso da
+          loja logo abaixo já carrega o nome — repetir era ruído. */}
+      {restaurants.length > 1 && (
+        <div className="flex flex-wrap gap-1.5">
+          {restaurants.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setActiveId(r.id)}
+              className={
+                "rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors " +
+                (r.id === activeId
+                  ? "bg-cyan-500 text-black"
+                  : "border border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white")
+              }
             >
-              <LayoutGrid className="size-3" /> Abrir gestão <ArrowRight className="size-3" />
-            </Link>
-          )}
+              {r.name}
+            </button>
+          ))}
         </div>
       )}
 
@@ -466,51 +442,45 @@ function AdminDashboardOverview() {
         />
       )}
 
-      {/* KPIs de HOJE — a leitura operacional, no topo. */}
+      {/* KPIs de HOJE — a leitura operacional, no topo. "Hoje" fica no título
+          da seção (uma vez) em vez de repetir em cada rótulo. */}
       {restaurants.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard
-            icon={ClipboardList}
-            tone="cyan"
-            label="Pedidos hoje"
-            value={String(todayMetrics.count)}
-            hint={
-              todayMetrics.received > 0 ? `${todayMetrics.received} aguardando aceite` : undefined
-            }
-          />
-          <KpiCard
-            icon={Wallet}
-            tone="emerald"
-            label="Faturamento hoje"
-            value={brl(todayMetrics.revenue)}
-            hint="sem cancelados"
-          />
-          <KpiCard
-            icon={TrendingUp}
-            tone="violet"
-            label="Ticket médio hoje"
-            value={brl(todayMetrics.averageTicket)}
-            hint="média por pedido"
-          />
-          <KpiCard
-            icon={Store}
-            tone="amber"
-            label="Restaurantes"
-            value={String(restaurants.length)}
-            hint={`${publishedCount} publicado${publishedCount === 1 ? "" : "s"} • ${draftCount} rascunho${draftCount === 1 ? "" : "s"}`}
-          />
-        </div>
+        <section className="space-y-2.5">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500">Hoje</h2>
+          <div className="grid grid-cols-3 gap-3">
+            <KpiCard
+              icon={ClipboardList}
+              tone="cyan"
+              label="Pedidos"
+              value={String(todayMetrics.count)}
+              hint={todayMetrics.received > 0 ? `${todayMetrics.received} a aceitar` : undefined}
+            />
+            <KpiCard
+              icon={Wallet}
+              tone="emerald"
+              label="Faturamento"
+              value={brl(todayMetrics.revenue)}
+            />
+            <KpiCard
+              icon={TrendingUp}
+              tone="violet"
+              label="Ticket médio"
+              value={brl(todayMetrics.averageTicket)}
+            />
+          </div>
+        </section>
       )}
 
-      {/* Termômetro de uso do plano: mostra a cota de 5 pedidos enchendo ao
-          longo do mês. Substitui o banner que só aparecia no aperto — agora o
-          dono vê o consumo a qualquer momento, com convite suave ao upgrade. */}
-      {restaurants.length > 0 && subUsed !== null && (
+      {/* Termômetro de uso do plano gratuito: mostra a cota enchendo ao longo do
+          mês, com convite suave ao upgrade. Assinante não vê nada aqui — o
+          estado Premium já aparece no selo do topo, e repetir virava poluição
+          no meio do dashboard. */}
+      {restaurants.length > 0 && subUsed !== null && !subPremium && (
         <PremiumUsageMeter
           used={subUsed}
           limit={MONTHLY_FREE_LIMIT}
           bonus={subBonus}
-          isPremium={subPremium}
+          isPremium={false}
           dayPassActive={subDay}
           dayPassUntil={subDayUntil}
           dayPassCredits={subCredits}

@@ -421,6 +421,21 @@
 
 ## Painel (admin)
 
+- O fundo do painel é um céu vivo em `<canvas>`: `SpaceBackdrop`
+  (`src/components/shared/SpaceBackdrop.tsx`), montado uma vez no `AppLayout`
+  (vale para admin e mobile). Estrelas com paralaxe + repulsão suave no
+  ponteiro, cometas/meteoros cruzando, e raro um planeta ou uma nave; toque
+  solta faíscas. Sem imagem nem rede, `pointer-events-none` e atrás do conteúdo
+  (`z-0` no canvas, `z-10` no wrapper) para não roubar cliques. Desliga com
+  `prefers-reduced-motion` (um quadro estático) e pausa com a aba oculta.
+- O Dashboard não repete o nome da loja: o `PageHeader` mostra só "Dashboard"
+  e o nome vive no `StorePulseBar`. O seletor de restaurante só aparece com
+  mais de uma loja (pills); com uma só virava ruído.
+- KPI "Restaurantes" saiu do topo (a seção "Seus restaurantes" já cobre) e o
+  "hoje" ficou no título da seção, não em cada rótulo.
+- Assinante **não** vê o `PremiumUsageMeter` no meio do dashboard — o estado
+  Premium já aparece no `PlanBadge` do topo. O termômetro é só para o plano
+  gratuito/diária (convite ao upgrade).
 - A faixa `StorePulseBar` (`src/components/admin/StorePulseBar.tsx`) fica no topo
   do dashboard com o pulso do dia em uma linha: aberto agora / fechado / pausado
   (relógio de 60s, sem recarregar) e as ações que o dono mais repete — pausar,

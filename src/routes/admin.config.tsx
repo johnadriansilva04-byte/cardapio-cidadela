@@ -43,7 +43,7 @@ function ConfigPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <PageHeader title="Configurações" subtitle="Sua conta e o acesso ao painel." />
+      <PageHeader title="Configurações" />
 
       <AccountSection defaultOpen={openAccount} />
     </div>

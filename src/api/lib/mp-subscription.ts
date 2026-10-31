@@ -129,6 +129,7 @@ export async function applyPreapproval(
  *
  * `metadata.kind` decide o produto:
  * - `'day_pass'` → concede 24h via RPC `grant_day_pass` (idempotente pelo id);
+ * - `'monthly'`  → ativa o Premium por 30 dias;
  * - caso contrário → ativa o Premium por 1 ano (comportamento legado).
  */
 export async function applyApprovedPayment(
@@ -162,7 +163,11 @@ export async function applyApprovedPayment(
   }
 
   const expiresAt = new Date();
-  expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+  if (payment.kind === "monthly") {
+    expiresAt.setDate(expiresAt.getDate() + 30);
+  } else {
+    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+  }
 
   const { error } = await supabase.from("admin_trials").upsert(
     {
@@ -177,7 +182,7 @@ export async function applyApprovedPayment(
   return { handled: true, storeId, premium: true, reason: `pagamento ${payment.id} aprovado` };
 }
 
-/** Consulta o preapproval na API do MP e aplica. */export async function processPreapprovalById(
+/** Consulta o preapproval na API do MP e aplica. */ export async function processPreapprovalById(
   supabase: SupabaseClient,
   preapprovalId: string,
   env?: ServerEnv,

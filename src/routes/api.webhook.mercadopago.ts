@@ -129,10 +129,10 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               const { ok, data } = await mpFetch(`/merchant_orders/${resourceId}`);
               if (!ok || !data) {
                 console.error("[webhook/mercadopago] Falha ao buscar ordem:", resourceId);
-                return new Response(
-                  JSON.stringify({ received: true, error: "order not found" }),
-                  { status: 200, headers: { "Content-Type": "application/json" } },
-                );
+                return new Response(JSON.stringify({ received: true, error: "order not found" }), {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                });
               }
               const order = data as Record<string, unknown>;
               storeId = String(order.external_reference ?? "");
@@ -185,6 +185,41 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               );
             }
 
+            // MENSAL (30 dias): ativa Premium até daqui a 30 dias. Mesmo upsert
+            // do anual, só muda a janela — o `kind` vem do metadata que a rota
+            // /api/payment/monthly gravou na preferência.
+            if (kind === "monthly") {
+              const monthlyExpires = new Date();
+              monthlyExpires.setDate(monthlyExpires.getDate() + 30);
+
+              const { data: activated, error } = await supabase
+                .from("admin_trials")
+                .upsert(
+                  {
+                    store_id: storeId,
+                    is_premium: true,
+                    premium_expires_at: monthlyExpires.toISOString(),
+                    mercadopago_preapproval_id: approvedId || null,
+                  },
+                  { onConflict: "store_id" },
+                )
+                .select("store_id");
+
+              if (error || !activated?.length) {
+                console.error("[webhook/mercadopago] Erro ao ativar mensal:", error);
+                return new Response(
+                  JSON.stringify({ received: true, error: error?.message ?? "not activated" }),
+                  { status: 500, headers: { "Content-Type": "application/json" } },
+                );
+              }
+
+              console.log("[webhook/mercadopago] Premium mensal ativado para store:", storeId);
+              return new Response(
+                JSON.stringify({ received: true, activated: true, monthly: true, storeId }),
+                { status: 200, headers: { "Content-Type": "application/json" } },
+              );
+            }
+
             // ANUAL: ativa Premium por 1 ano. upsert para não depender de a
             // linha já existir — um UPDATE sem linha não gera erro e o
             // pagamento ficava "perdido" (200 ao MP, Premium nunca ativado).
@@ -213,13 +248,10 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
             }
 
             console.log("[webhook/mercadopago] Premium ativado para store:", storeId);
-            return new Response(
-              JSON.stringify({ received: true, activated: true, storeId }),
-              {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
-              },
-            );
+            return new Response(JSON.stringify({ received: true, activated: true, storeId }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
           }
 
           // Outros tipos — registramos o recebimento para não gerar reentrega

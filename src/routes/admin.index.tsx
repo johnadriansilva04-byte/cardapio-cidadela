@@ -475,11 +475,7 @@ function AdminDashboardOverview() {
             label="Pedidos hoje"
             value={String(todayMetrics.count)}
             hint={
-              todayMetrics.received > 0
-                ? `${todayMetrics.received} aguardando aceite`
-                : ordersLoading
-                  ? "Carregando…"
-                  : "Tudo em dia"
+              todayMetrics.received > 0 ? `${todayMetrics.received} aguardando aceite` : undefined
             }
           />
           <KpiCard
@@ -487,14 +483,14 @@ function AdminDashboardOverview() {
             tone="emerald"
             label="Faturamento hoje"
             value={brl(todayMetrics.revenue)}
-            hint="Cancelados não entram"
+            hint="sem cancelados"
           />
           <KpiCard
             icon={TrendingUp}
             tone="violet"
             label="Ticket médio hoje"
             value={brl(todayMetrics.averageTicket)}
-            hint="Por pedido não cancelado"
+            hint="média por pedido"
           />
           <KpiCard
             icon={Store}
@@ -529,7 +525,7 @@ function AdminDashboardOverview() {
             </div>
             <h3 className="mt-4 text-lg font-black text-white">Vamos abrir sua loja</h3>
             <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-gray-400">
-              Três passos e o cliente já pode pedir pelo celular. Nada de configuração complicada.
+              Três passos e o cliente já pede pelo celular.
             </p>
           </div>
 
@@ -753,7 +749,7 @@ function KpiCard({
   tone: keyof typeof KPI_TONES;
   label: string;
   value: string;
-  hint: string;
+  hint?: string;
 }) {
   // Count-up vivo: anima de 0 até o valor na montagem (e re-anima se mudar).
   const target = useMemo(() => parseKpiValue(value), [value]);

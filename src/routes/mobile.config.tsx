@@ -199,7 +199,7 @@ function MobileConfigPage() {
           <ToggleRow
             icon={<Volume2 className="size-4" />}
             title="Alerta sonoro"
-            description="Sirene alta e insistente — três rodadas, ~14s, com vibração a cada pedido novo."
+            description="Três rodadas de sirene, ~14s."
             checked={prefs.sound}
             onChange={(value) => {
               update("sound", value);
@@ -210,7 +210,7 @@ function MobileConfigPage() {
           <ToggleRow
             icon={<Bell className="size-4" />}
             title="Notificação do sistema"
-            description="Mostra o aviso na tela mesmo com o app em segundo plano."
+            description="Aviso na tela em segundo plano."
             checked={prefs.notifications && permission === "granted"}
             onChange={(value) => {
               if (value && permission !== "granted") {
@@ -224,16 +224,15 @@ function MobileConfigPage() {
           <ToggleRow
             icon={<BellRing className="size-4" />}
             title="Push (app fechado)"
-            description="Receba notificações mesmo com o app fechado ou navegador minimizado."
+            description="Alerta mesmo com o app fechado."
             checked={pushEnabled}
             onChange={handleTogglePush}
-            hint="Receba o alerta mesmo com o app fechado."
           />
 
           <ToggleRow
             icon={<Printer className="size-4" />}
             title="Impressão automática"
-            description="Imprime a comanda sozinho quando um pedido novo chega, na impressora padrão do computador."
+            description="Imprime a comanda na impressora padrão."
             checked={prefs.autoPrint}
             onChange={(value) => update("autoPrint", value)}
             hint={
@@ -299,7 +298,7 @@ function MobileConfigPage() {
           <ToggleRow
             icon={prefs.keepAwake ? <Sun className="size-4" /> : <Moon className="size-4" />}
             title="Manter a tela ligada"
-            description="Útil no balcão: a tela não apaga enquanto o painel estiver aberto."
+            description="A tela não apaga com o painel aberto."
             checked={prefs.keepAwake}
             onChange={(value) => {
               update("keepAwake", value);
@@ -317,7 +316,7 @@ function MobileConfigPage() {
           <ToggleRow
             icon={<MonitorSmartphone className="size-4" />}
             title="Cards recolhidos por padrão"
-            description="A lista mostra o resumo; os itens do pedido abrem ao tocar."
+            description="Resumo na lista; itens abrem ao tocar."
             checked={prefs.compactCards}
             onChange={(value) => update("compactCards", value)}
           />
@@ -357,7 +356,7 @@ function MobileConfigPage() {
             <ShortcutLink
               to={`/cardapio/${restaurants[0].slug}`}
               label="Ver cardápio público"
-              description="Exatamente como o cliente vê"
+              description="Como o cliente vê"
             />
           )}
           <ShortcutLink
@@ -414,10 +413,7 @@ function MobileConfigPage() {
         summary={`Cardápio Cidadela v${APP_VERSION}`}
       >
         <div className="space-y-2 text-xs leading-relaxed text-gray-400">
-          <p>
-            Sistema de cardápio digital e gestão de pedidos para restaurantes: pedido em tempo real,
-            PIX, comanda térmica e painel de faturamento.
-          </p>
+          <p>Cardápio digital e gestão de pedidos em tempo real.</p>
           <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
             <InfoRow label="Versão" value={`v${APP_VERSION}`} />
             <InfoRow label="Modo" value={isStandalone ? "App instalado" : "Navegador"} />

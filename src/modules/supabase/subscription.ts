@@ -20,7 +20,14 @@ import type { SubscriptionStatus } from "@/lib/types";
 
 export const MONTHLY_FREE_LIMIT = 5;
 
-export { PREMIUM_PRICE_LABEL, DAY_PASS_PRICE_LABEL, DAY_PASS_PRICE_VALUE } from "@/lib/pricing";
+export {
+  PREMIUM_PRICE_LABEL,
+  PREMIUM_PRICE_VALUE,
+  MONTHLY_PRICE_LABEL,
+  MONTHLY_PRICE_VALUE,
+  DAY_PASS_PRICE_LABEL,
+  DAY_PASS_PRICE_VALUE,
+} from "@/lib/pricing";
 
 const COLUMNS =
   "store_id, admin_email, is_premium, premium_expires_at, monthly_order_count, monthly_order_reset_date";
@@ -337,6 +344,34 @@ export async function createDayPassLink(
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({ storeId, quantity: Math.max(1, Math.floor(quantity) || 1) }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json().catch(() => ({}))) as { initPoint?: string };
+    return data.initPoint ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Gera o link de pagamento do plano mensal (30 dias) para o restaurante.
+ *
+ * Mesma validação da diária: a rota confere sessão e posse; a ativação só
+ * acontece no webhook, quando o Mercado Pago confirma o pagamento.
+ */
+export async function createMonthlyLink(
+  storeId: string,
+  accessToken: string | undefined,
+): Promise<string | null> {
+  if (!storeId || !accessToken) return null;
+  try {
+    const res = await fetch("/api/payment/monthly", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ storeId }),
     });
     if (!res.ok) return null;
     const data = (await res.json().catch(() => ({}))) as { initPoint?: string };

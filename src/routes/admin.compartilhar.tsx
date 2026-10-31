@@ -111,10 +111,7 @@ function CompartilharPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Compartilhar"
-        subtitle="Link público, QR Code e WhatsApp — pronto para enviar ao cliente"
-      />
+      <PageHeader title="Compartilhar" />
 
       <div className="max-w-xs">
         <Select value={selectedId} onValueChange={setSelectedId}>

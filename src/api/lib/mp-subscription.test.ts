@@ -49,4 +49,23 @@ describe("applyApprovedPayment", () => {
     expect(result.premium).toBe(false);
     expect(upsert).not.toHaveBeenCalled();
   });
+
+  it("ativa Premium por ~30 dias quando kind é 'monthly'", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const result = await applyApprovedPayment(fakeSupabase(upsert), {
+      id: "p-mensal",
+      status: "approved",
+      externalReference: "store-mensal",
+      dateApproved: null,
+      kind: "monthly",
+      quantity: 1,
+    });
+
+    expect(result.premium).toBe(true);
+    const [row] = upsert.mock.calls[0];
+    const days = (Date.parse(row.premium_expires_at) - Date.now()) / 86_400_000;
+    // ~30 dias: folga para o tempo de execução do teste.
+    expect(days).toBeGreaterThan(29.9);
+    expect(days).toBeLessThan(30.1);
+  });
 });

@@ -41,12 +41,13 @@ import {
   getPreapprovalId,
   MONTHLY_FREE_LIMIT,
   createDayPassLink,
+  createMonthlyLink,
   redeemDayPass,
 } from "@/modules/supabase/subscription";
 import { supabase } from "@/modules/supabase/client";
 import { fetchRewards, type RewardProgress } from "@/modules/supabase/rewards";
 import { RewardsProgress } from "@/modules/ui/RewardsProgress";
-import { DAY_PASS_PRICE_VALUE, PREMIUM_PRICE_LABEL } from "@/lib/pricing";
+import { DAY_PASS_PRICE_VALUE, MONTHLY_PRICE_LABEL, PREMIUM_PRICE_LABEL } from "@/lib/pricing";
 import { brl } from "@/lib/utils";
 import { useCountdown } from "@/hooks/useCountdown";
 import type { Restaurant, SubscriptionStatus } from "@/lib/types";
@@ -251,6 +252,9 @@ function SubscriptionPage() {
   const [awaitingPayment, setAwaitingPayment] = useState(false);
   const [awaitingDayPass, setAwaitingDayPass] = useState(false);
   const [dayQty, setDayQty] = useState(1);
+  // Período do Premium: mensal (30 dias) ou anual (1 ano). Padrão anual —
+  // é o melhor preço por mês e o que já era anunciado.
+  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const [redeeming, setRedeeming] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -412,29 +416,37 @@ function SubscriptionPage() {
     // vincula o pagamento ao restaurante.
     if (currentEmail) void registerPendingSubscription(activeId, currentEmail);
 
-    // Gera um link de pagamento com o external_reference correto
+    // O período escolhido decide a rota: o mensal usa a janela de 30 dias.
     try {
-      const res = await fetch("/api/payment/create-link", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ storeId: activeId }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { initPoint?: string };
-      if (!res.ok || !data.initPoint) {
+      let initPoint: string | undefined;
+      if (billing === "monthly") {
+        const link = await createMonthlyLink(activeId, session?.access_token);
+        initPoint = link ?? undefined;
+      } else {
+        const res = await fetch("/api/payment/create-link", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ storeId: activeId }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { initPoint?: string };
+        if (res.ok) initPoint = data.initPoint;
+      }
+
+      if (!initPoint) {
         toast.error("Não foi possível gerar o link de pagamento.");
         return;
       }
 
       // Guarda o link dinâmico (com external_reference) para o modal de
       // fallback — o link estático não vincula o pagamento ao restaurante.
-      setPaymentLink(data.initPoint);
+      setPaymentLink(initPoint);
 
       // Abre o checkout no mesmo gesto do clique. O modal é só fallback para
       // quando o navegador bloqueia o popup — antes era sempre um clique extra.
-      const win = window.open(data.initPoint, "_blank", "noopener,noreferrer");
+      const win = window.open(initPoint, "_blank", "noopener,noreferrer");
       setAwaitingPayment(true);
       if (!win) setPaymentOpen(true);
     } catch {
@@ -552,7 +564,7 @@ function SubscriptionPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Assinatura Premium" subtitle="Gerencie seu plano." />
+        <PageHeader title="Assinatura Premium" />
         <InlineError message={error} />
       </div>
     );
@@ -561,7 +573,7 @@ function SubscriptionPage() {
   if (restaurants.length === 0) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Assinatura Premium" subtitle="Gerencie seu plano." />
+        <PageHeader title="Assinatura Premium" />
         <EmptyState
           icon={StoreIcon}
           title="Nenhum restaurante ainda"
@@ -579,11 +591,17 @@ function SubscriptionPage() {
   const limit = status?.monthlyLimit ?? MONTHLY_FREE_LIMIT;
   const remaining = status?.remainingOrders ?? 0;
   const priceShort = PREMIUM_PRICE_LABEL.replace(/\/ano$/, "");
+  const monthlyShort = MONTHLY_PRICE_LABEL.replace(/\/mês$/, "");
+  // Preço exibido no convite: segue o período escolhido.
+  const selectedPrice = billing === "monthly" ? monthlyShort : priceShort;
+  const selectedSuffix = billing === "monthly" ? "/mês" : "/ano";
+  const selectedNote =
+    billing === "monthly" ? "pedidos ilimitados por 30 dias" : "pedidos ilimitados por 1 ano";
   const usagePct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
 
   return (
     <div className="mx-auto max-w-md space-y-3">
-      <PageHeader title="Assinatura Premium" subtitle="Pedidos ilimitados por 1 ano." />
+      <PageHeader title="Assinatura Premium" />
 
       {restaurants.length > 1 && (
         <div className="flex flex-wrap items-center gap-2">
@@ -710,13 +728,47 @@ function SubscriptionPage() {
               </span>
             </div>
 
+            {/* Período: mensal ou anual. Um toque troca o preço e o link. */}
+            <div className="mt-3 flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
+              {[
+                { key: "monthly" as const, label: "Mensal", price: monthlyShort },
+                { key: "annual" as const, label: "Anual", price: priceShort },
+              ].map((option) => {
+                const active = billing === option.key;
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setBilling(option.key)}
+                    className={
+                      "tap flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition-all " +
+                      (active
+                        ? "bg-cyan-500 text-black shadow-[0_4px_16px_rgba(6,182,212,0.25)]"
+                        : "text-gray-400 hover:bg-white/[0.05] hover:text-gray-200")
+                    }
+                  >
+                    {option.label}
+                    <span
+                      className={
+                        "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums " +
+                        (active ? "bg-black/20 text-black" : "bg-white/10 text-gray-400")
+                      }
+                    >
+                      {option.price}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
             <p className="mt-3 flex items-baseline gap-1.5 text-white">
               <span className="text-[clamp(2rem,10vw,2.5rem)] font-black leading-none tracking-tight">
-                {priceShort}
+                {selectedPrice}
               </span>
-              <span className="text-sm font-semibold text-gray-500">/ano</span>
+              <span className="text-sm font-semibold text-gray-500">{selectedSuffix}</span>
             </p>
-            <p className="mt-1 text-[11px] text-gray-500">pedidos ilimitados por 1 ano</p>
+            <p className="mt-1 text-[11px] text-gray-500">{selectedNote}</p>
 
             <Button
               onClick={openPayment}
@@ -922,7 +974,8 @@ function SubscriptionPage() {
                 size="lg"
                 className="sheen tap h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black"
               >
-                <Crown className="size-5" /> Assinar por {priceShort}/ano
+                <Crown className="size-5" /> Assinar por {selectedPrice}
+                {selectedSuffix}
               </Button>
             )}
           </div>

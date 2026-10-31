@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  MONTHLY_PRICE_LABEL,
+  MONTHLY_PRICE_VALUE,
   PREMIUM_PRICE_LABEL,
   PREMIUM_PRICE_VALUE,
   formatMonthlyEquivalent,
+  formatMonthlyPriceLabel,
   formatPremiumPriceLabel,
   parsePriceValue,
 } from "@/lib/pricing";
@@ -38,9 +41,18 @@ describe("formatMonthlyEquivalent", () => {
   });
 });
 
+describe("formatMonthlyPriceLabel", () => {
+  it("formata em pt-BR com sufixo /mês", () => {
+    expect(formatMonthlyPriceLabel(28.99)).toBe("R$ 28,99/mês");
+    expect(formatMonthlyPriceLabel(1)).toBe("R$ 1,00/mês");
+  });
+});
+
 describe("defaults de produção", () => {
-  it("sem env, mantém o preço e o rótulo padrão", () => {
+  it("sem env, mantém os preços e rótulos padrão", () => {
     expect(PREMIUM_PRICE_VALUE).toBe(199.99);
     expect(PREMIUM_PRICE_LABEL).toBe("R$ 199,99/ano");
+    expect(MONTHLY_PRICE_VALUE).toBe(28.99);
+    expect(MONTHLY_PRICE_LABEL).toBe("R$ 28,99/mês");
   });
 });

@@ -4,10 +4,12 @@
  * público.
  *
  * Configuráveis por env para permitir testes de cobrança sem alterar código:
- * - `VITE_ANNUAL_PRICE_VALUE`   → valor numérico do anual (padrão 199.00)
- * - `VITE_ANNUAL_PRICE_LABEL`   → rótulo do anual exibido na UI
- * - `VITE_DAY_PASS_PRICE_VALUE` → valor numérico da diária (padrão 1.49)
- * - `VITE_DAY_PASS_PRICE_LABEL` → rótulo da diária exibido na UI
+ * - `VITE_ANNUAL_PRICE_VALUE`    → valor numérico do anual (padrão 199.00)
+ * - `VITE_ANNUAL_PRICE_LABEL`    → rótulo do anual exibido na UI
+ * - `VITE_MONTHLY_PRICE_VALUE`   → valor numérico do mensal (padrão 28.99)
+ * - `VITE_MONTHLY_PRICE_LABEL`   → rótulo do mensal exibido na UI
+ * - `VITE_DAY_PASS_PRICE_VALUE`  → valor numérico da diária (padrão 1.49)
+ * - `VITE_DAY_PASS_PRICE_LABEL`  → rótulo da diária exibido na UI
  *
  * `VITE_PREMIUM_PRICE_VALUE` / `VITE_PREMIUM_ANNUAL_PRICE` continuam aceitos
  * como nomes legados do anual (deploys antigos já os têm configurados).
@@ -15,6 +17,9 @@
 
 /** Valor padrão do plano anual, em reais. */
 const DEFAULT_ANNUAL_PRICE_VALUE = 199.99;
+
+/** Valor padrão do plano mensal, em reais. */
+const DEFAULT_MONTHLY_PRICE_VALUE = 28.99;
 
 /** Valor padrão da diária (24h), em reais. */
 const DEFAULT_DAY_PASS_PRICE_VALUE = 1.49;
@@ -45,6 +50,11 @@ export function formatPremiumPriceLabel(value: number): string {
   return formatPriceLabel(value, "/ano");
 }
 
+/** Rótulo pt-BR do plano mensal (ex.: 28.99 → "R$ 28,99/mês"). */
+export function formatMonthlyPriceLabel(value: number): string {
+  return formatPriceLabel(value, "/mês");
+}
+
 /** Rótulo pt-BR da diária (ex.: 1.49 → "R$ 1,49/dia"). */
 export function formatDayPassPriceLabel(value: number): string {
   return formatPriceLabel(value, "/dia");
@@ -68,6 +78,13 @@ export const PREMIUM_PRICE_LABEL =
   readEnv("VITE_ANNUAL_PRICE_LABEL") ||
   readEnv("VITE_PREMIUM_ANNUAL_PRICE") ||
   formatPremiumPriceLabel(PREMIUM_PRICE_VALUE);
+
+/** Valor numérico do plano mensal (fonte única — usado no link de pagamento do MP). */
+export const MONTHLY_PRICE_VALUE =
+  parsePriceValue(readEnv("VITE_MONTHLY_PRICE_VALUE")) ?? DEFAULT_MONTHLY_PRICE_VALUE;
+
+export const MONTHLY_PRICE_LABEL =
+  readEnv("VITE_MONTHLY_PRICE_LABEL") || formatMonthlyPriceLabel(MONTHLY_PRICE_VALUE);
 
 /** Valor numérico da diária de 24h. */
 export const DAY_PASS_PRICE_VALUE =

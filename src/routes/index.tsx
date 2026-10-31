@@ -15,7 +15,12 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { PREMIUM_PRICE_LABEL, PREMIUM_PRICE_VALUE, formatMonthlyEquivalent } from "@/lib/pricing";
+import {
+  MONTHLY_PRICE_LABEL,
+  PREMIUM_PRICE_LABEL,
+  PREMIUM_PRICE_VALUE,
+  formatMonthlyEquivalent,
+} from "@/lib/pricing";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -421,7 +426,8 @@ function LandingPage() {
                 </div>
                 <p className="mt-3 text-4xl font-black text-white">{PREMIUM_PRICE_LABEL}</p>
                 <p className="mt-1 text-sm text-gray-400">
-                  pagamento único · equivale a {formatMonthlyEquivalent(PREMIUM_PRICE_VALUE)} por mês
+                  ou {MONTHLY_PRICE_LABEL} · equivale a{" "}
+                  {formatMonthlyEquivalent(PREMIUM_PRICE_VALUE)} por mês no anual
                 </p>
                 <ul className="mt-6 space-y-2.5 text-sm text-gray-200">
                   {[

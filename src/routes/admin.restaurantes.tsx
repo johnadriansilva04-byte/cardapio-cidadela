@@ -215,7 +215,7 @@ function RestaurantesPage() {
     <div className="space-y-5">
       <PageHeader
         title="Restaurantes"
-        subtitle="Cada restaurante tem seu link público em /cardapio/seu-slug. Gerencie tudo por aqui."
+
         actions={
           <Button
             onClick={() => {

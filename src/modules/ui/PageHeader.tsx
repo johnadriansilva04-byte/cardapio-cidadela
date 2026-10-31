@@ -3,33 +3,28 @@ import { cn } from "@/lib/utils";
 
 export interface PageHeaderProps {
   title: ReactNode;
-  /** Linha de contexto sob o título — o "onde estou" que o operador lê de relance. */
+  /** Linha de contexto sob o título — só quando acrescenta algo ao título. */
   subtitle?: ReactNode;
   /** Ações à direita (atualizar, novo, som). */
   actions?: ReactNode;
-  /** Faixa de destaque abaixo do título (métricas, status da loja). */
-  meta?: ReactNode;
   className?: string;
 }
 
 /**
  * Cabeçalho de página único.
  *
- * Antes cada aba repetia seu próprio título e subtítulo com espaçamentos
- * diferentes; aqui a hierarquia é uma só: título, contexto e ações alinhados
- * na mesma linha de base.
+ * Título, contexto e ações na mesma linha de base. No celular as ações descem
+ * para uma linha própria em vez de espremer o título — antes o título truncava
+ * ("Restaurantes" virava "Restau…") quando havia dois botões.
  */
-export function PageHeader({ title, subtitle, actions, meta, className }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, actions, className }: PageHeaderProps) {
   return (
-    <header className={cn("space-y-3", className)}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-black tracking-tight text-white">{title}</h1>
-          {subtitle && <p className="mt-0.5 text-xs leading-relaxed text-gray-400">{subtitle}</p>}
-        </div>
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+    <header className={cn("flex flex-wrap items-start justify-between gap-x-3 gap-y-2", className)}>
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-xl font-black tracking-tight text-white">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-xs leading-relaxed text-gray-400">{subtitle}</p>}
       </div>
-      {meta}
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </header>
   );
 }

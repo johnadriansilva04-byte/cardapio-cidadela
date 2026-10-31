@@ -77,7 +77,11 @@ const RESTAURANT_COLORS = [
   "#f97316",
 ];
 
-const tooltipStyle = {
+// recharts só aplica estilo de caixa via `contentStyle`; `background`,
+// `border` e `color` soltos no <Tooltip> são ignorados e o balão cai no
+// branco default — com o texto branco de itemStyle/labelStyle, ficava letra
+// branca em quadrado branco. Por isso tudo aqui vive dentro de contentStyle.
+const tooltipContentStyle = {
   background: "#0f0f14",
   border: "1px solid rgba(255,255,255,0.1)",
   borderRadius: 12,
@@ -88,7 +92,7 @@ const tooltipStyle = {
 // recharts pinta item/label no default #666 — invisível sobre o fundo escuro
 // do tooltip. O objeto base já leva branco forçado em alto contraste.
 const tooltipHighContrast = {
-  ...tooltipStyle,
+  contentStyle: tooltipContentStyle,
   itemStyle: { color: "#FFFFFF" },
   labelStyle: { color: "#FFFFFF", fontWeight: 700 },
 };

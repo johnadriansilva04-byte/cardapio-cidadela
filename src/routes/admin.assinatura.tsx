@@ -365,8 +365,10 @@ function SubscriptionPage() {
 
   // Depois de mandar o dono ao checkout, quando ele volta para esta aba o
   // status é conferido sozinho — sem ele ter que achar o botão "Sincronizar".
+  // Vale para os dois checkouts: Premium (anual/mensal) e diária.
+  const awaitingCheckout = awaitingPayment || awaitingDayPass;
   useEffect(() => {
-    if (!awaitingPayment || !activeId || status?.isPremium) return;
+    if (!awaitingCheckout || !activeId || status?.isPremium) return;
     let checking = false;
     const check = async () => {
       if (document.visibilityState !== "visible" || checking) return;
@@ -375,8 +377,13 @@ function SubscriptionPage() {
       checking = false;
       if (result === "premium") {
         setAwaitingPayment(false);
+        setAwaitingDayPass(false);
         setJustActivated(true);
         toast.success("Assinatura Premium ativada!");
+      } else if (result === "day") {
+        setAwaitingDayPass(false);
+        setJustActivated(true);
+        toast.success("Acesso liberado por 24 horas!");
       }
     };
     document.addEventListener("visibilitychange", check);
@@ -387,7 +394,7 @@ function SubscriptionPage() {
     };
     // runSync é estável o bastante (lê activeId/session atuais) para o efeito.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [awaitingPayment, activeId, status?.isPremium]);
+  }, [awaitingCheckout, activeId, status?.isPremium]);
 
   const activeRestaurant = useMemo(
     () => restaurants.find((r) => r.id === activeId) ?? null,
@@ -489,7 +496,7 @@ function SubscriptionPage() {
     }
   }
 
-  async function runSync(): Promise<"premium" | "none" | "pending" | "error"> {
+  async function runSync(): Promise<"premium" | "day" | "none" | "pending" | "error"> {
     if (!activeId || !session?.access_token) return "error";
     try {
       // O endpoint busca o preapproval na API do Mercado Pago pelo e-mail da
@@ -516,6 +523,10 @@ function SubscriptionPage() {
         refreshPlan();
         return "premium";
       }
+      if (data.status === "day") {
+        refreshPlan();
+        return "day";
+      }
       if (data.status === "free") return "none";
       if (data.status === "none") return "none";
       return "pending";
@@ -534,8 +545,13 @@ function SubscriptionPage() {
     setSyncing(false);
     if (result === "premium") {
       setAwaitingPayment(false);
+      setAwaitingDayPass(false);
       setJustActivated(true);
       toast.success("Assinatura Premium ativada!");
+    } else if (result === "day") {
+      setAwaitingDayPass(false);
+      setJustActivated(true);
+      toast.success("Acesso liberado por 24 horas!");
     } else if (result === "none") toast.message("Nenhuma assinatura encontrada ainda.");
     else if (result === "pending")
       toast.message("Assinatura ainda não está ativa no Mercado Pago.");

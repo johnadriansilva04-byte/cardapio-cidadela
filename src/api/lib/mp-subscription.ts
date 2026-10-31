@@ -87,6 +87,22 @@ export async function applyPreapproval(
   const cancelled = CANCEL_STATUSES.has(info.status);
 
   if (active) {
+    // Nunca ENCURTA um acesso já vigente: o preapproval traz o próximo ciclo
+    // (≈1 mês), mas a loja pode ter comprado o anual (1 ano). Sobrescrever
+    // derrubava 2027 → 30 dias. Mantém a data maior das duas.
+    const candidate = nextBillingDate(info);
+    const { data: current } = await supabase
+      .from("admin_trials")
+      .select("premium_expires_at")
+      .eq("store_id", storeId)
+      .maybeSingle();
+    const currentTs = Date.parse((current?.premium_expires_at as string | null) ?? "");
+    const candidateTs = Date.parse(candidate);
+    const expiresAt =
+      Number.isFinite(currentTs) && currentTs > candidateTs
+        ? new Date(currentTs).toISOString()
+        : candidate;
+
     // upsert: cria a linha se ainda não existir. Um UPDATE silenciosamente sem
     // efeito (0 linhas) fazia o Premium nunca ativar sem erro — o webhook
     // devolvia 200 e o Mercado Pago não reentregava.
@@ -94,7 +110,7 @@ export async function applyPreapproval(
       {
         store_id: storeId,
         is_premium: true,
-        premium_expires_at: nextBillingDate(info),
+        premium_expires_at: expiresAt,
         mercadopago_preapproval_id: info.id,
         mercadopago_payer_email: info.payerEmail || null,
       },
@@ -213,7 +229,10 @@ export async function syncSubscriptionForEmail(
   storeId: string,
   payerEmail: string,
   env?: ServerEnv,
-): Promise<{ status: "premium" | "free" | "none" | "forbidden"; preapprovalId: string | null }> {
+): Promise<{
+  status: "premium" | "day" | "free" | "none" | "forbidden";
+  preapprovalId: string | null;
+}> {
   if (!storeId || !payerEmail) return { status: "none", preapprovalId: null };
 
   const { data: row } = await supabase
@@ -243,9 +262,20 @@ export async function syncSubscriptionForEmail(
   // Sem assinatura: pode ter sido um pagamento pontual (Pix/cartão) pelo link
   // de pagamento. Antes o sync só olhava preapproval e nunca achava o Pix.
   const payments = await searchPaymentsByExternalReference(storeId, env);
-  const approved = payments.find((p) => p.status === "approved");
+  // O mais recente primeiro: uma compra antiga (ex.: anual) não pode mascarar
+  // a diária recém-paga, que é o pagamento que o dono está esperando ver.
+  const approved = payments
+    .filter((p) => p.status === "approved")
+    .sort(
+      (a, b) => (Date.parse(b.dateApproved ?? "") || 0) - (Date.parse(a.dateApproved ?? "") || 0),
+    )[0];
   if (approved) {
     const applied = await applyApprovedPayment(supabase, approved);
+    // A diária não é Premium: sem isto o poll de confirmação devolvia "none" e
+    // a tela nunca dava a diária por liberada, mesmo com o pagamento aprovado.
+    if (applied.handled && approved.kind === "day_pass") {
+      return { status: "day", preapprovalId: approved.id };
+    }
     return { status: applied.premium ? "premium" : "none", preapprovalId: approved.id };
   }
 

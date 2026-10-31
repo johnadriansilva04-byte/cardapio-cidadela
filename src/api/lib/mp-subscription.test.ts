@@ -68,4 +68,30 @@ describe("applyApprovedPayment", () => {
     expect(days).toBeGreaterThan(29.9);
     expect(days).toBeLessThan(30.1);
   });
+
+  it("concede a diária (day_pass) pela RPC, sem tocar em admin_trials", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: "2026-11-01T00:00:00.000Z", error: null });
+    const upsert = vi.fn();
+    const supabase = {
+      rpc,
+      from: () => ({ upsert }),
+    } as unknown as SupabaseClient;
+
+    const result = await applyApprovedPayment(supabase, {
+      id: "p-diaria",
+      status: "approved",
+      externalReference: "store-diaria",
+      dateApproved: null,
+      kind: "day_pass",
+      quantity: 3,
+    });
+
+    // Não é Premium — a diária é acesso temporário, não assinatura.
+    expect(result.premium).toBe(false);
+    expect(result.handled).toBe(true);
+    expect(upsert).not.toHaveBeenCalled();
+    const [fn, args] = rpc.mock.calls[0];
+    expect(fn).toBe("grant_day_pass");
+    expect(args).toMatchObject({ p_store: "store-diaria", p_quantity: 3 });
+  });
 });

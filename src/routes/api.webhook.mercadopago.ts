@@ -9,6 +9,7 @@ import {
 } from "@/api/lib/mercadopago";
 import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-limit";
 import { processPreapprovalById } from "@/api/lib/mp-subscription";
+import { DAY_PASS_PRICE_VALUE } from "@/lib/pricing";
 
 /**
  * POST /api/webhook/mercadopago
@@ -107,6 +108,7 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
             let approvedId = "";
             let kind = "";
             let quantity = 1;
+            let amountCents = 0;
 
             if (type === "payment") {
               const { ok, data } = await mpFetch(`/v1/payments/${resourceId}`);
@@ -128,6 +130,10 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               }
               storeId = String(payment.external_reference ?? "");
               approvedId = String(payment.id ?? resourceId);
+              amountCents = Math.max(
+                0,
+                Math.round(Number(payment.transaction_amount ?? 0) * 100) || 0,
+              );
               const metadata = (payment.metadata ?? {}) as Record<string, unknown>;
               kind = String(metadata.kind ?? "");
               quantity = Math.max(1, Math.min(Math.floor(Number(metadata.quantity ?? 1) || 1), 60));
@@ -151,6 +157,10 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
                 });
               }
               approvedId = String(approved.id ?? "");
+              amountCents = Math.max(
+                0,
+                Math.round(Number(approved.transaction_amount ?? 0) * 100) || 0,
+              );
               // O `metadata` da preferência viaja no PAGAMENTO, não no topo da
               // ordem. Ler só `order.metadata` vinha vazio, então diária/mensal
               // caía no ramo anual — 1 ano pelo preço de um dia. Prefere o
@@ -158,8 +168,14 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               let metaSource = approved.metadata ?? null;
               if (!metaSource) {
                 const { ok: pOk, data: pData } = await mpFetch(`/v1/payments/${approvedId}`);
-                metaSource =
-                  (pOk && pData ? (pData as Record<string, unknown>).metadata : null) ?? null;
+                const fetched = pOk && pData ? (pData as Record<string, unknown>) : null;
+                metaSource = (fetched?.metadata as Record<string, unknown> | undefined) ?? null;
+                if (!amountCents && fetched) {
+                  amountCents = Math.max(
+                    0,
+                    Math.round(Number(fetched.transaction_amount ?? 0) * 100) || 0,
+                  );
+                }
               }
               const metadata = (metaSource ?? order.metadata ?? {}) as Record<string, unknown>;
               kind = String(metadata.kind ?? "");
@@ -191,7 +207,8 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
               const { data: unlockedUntil, error } = await supabase.rpc("grant_day_pass", {
                 p_store: storeId,
                 p_mp_payment_id: approvedId || null,
-                p_amount_cents: 149,
+                // Valor real pago; sem ele, o preço da diária do servidor.
+                p_amount_cents: amountCents || Math.round(DAY_PASS_PRICE_VALUE * 100),
                 p_source: "pix",
                 p_quantity: quantity,
               });
@@ -223,7 +240,6 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
                     store_id: storeId,
                     is_premium: true,
                     premium_expires_at: monthlyExpires.toISOString(),
-                    mercadopago_preapproval_id: approvedId || null,
                   },
                   { onConflict: "store_id" },
                 )

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { DAY_PASS_PRICE_VALUE } from "@/lib/pricing";
 import {
   mpFetch,
   normalizePreapproval,
@@ -170,7 +171,8 @@ export async function applyApprovedPayment(
     const { error } = await supabase.rpc("grant_day_pass", {
       p_store: storeId,
       p_mp_payment_id: payment.id || null,
-      p_amount_cents: 149,
+      // Valor real pago; cai no preço da diária quando o MP não informa.
+      p_amount_cents: payment.amountCents || Math.round(DAY_PASS_PRICE_VALUE * 100),
       p_source: "pix",
       p_quantity: Math.max(1, Math.min(Number(payment.quantity ?? 1) || 1, 60)),
     });

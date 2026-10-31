@@ -221,6 +221,7 @@ describe("normalizePayment", () => {
       status: "approved",
       external_reference: "8956f83c-f65e-41a1-b524-56c4434aa9a1",
       date_approved: "2026-10-30T13:18:18.000-04:00",
+      transaction_amount: 1.49,
     });
     expect(p).toEqual({
       id: "185834592921",
@@ -229,6 +230,7 @@ describe("normalizePayment", () => {
       dateApproved: "2026-10-30T13:18:18.000-04:00",
       kind: "",
       quantity: 1,
+      amountCents: 149,
     });
   });
 

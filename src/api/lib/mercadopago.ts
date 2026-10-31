@@ -250,6 +250,8 @@ export interface PaymentInfo {
   kind: string;
   /** Quantas diárias o pagamento cobre (pacote). Mínimo 1. */
   quantity: number;
+  /** Valor efetivamente cobrado, em centavos (0 quando o MP não informa). */
+  amountCents: number;
 }
 
 /** Normaliza um pagamento pontual do Mercado Pago (Pix/cartão/boleto). */
@@ -266,6 +268,7 @@ export function normalizePayment(raw: unknown): PaymentInfo | null {
     dateApproved: (r.date_approved as string) ?? null,
     kind: String(metadata.kind ?? ""),
     quantity: Math.max(1, Math.min(Math.floor(Number(metadata.quantity ?? 1) || 1), 60)),
+    amountCents: Math.max(0, Math.round(Number(r.transaction_amount ?? 0) * 100) || 0),
   };
 }
 
@@ -287,7 +290,5 @@ export async function searchPaymentsByExternalReference(
   );
   if (!ok || !data) return [];
   const results = (data as { results?: unknown[] }).results ?? [];
-  return results
-    .map((r) => normalizePayment(r))
-    .filter((p): p is PaymentInfo => p !== null);
+  return results.map((r) => normalizePayment(r)).filter((p): p is PaymentInfo => p !== null);
 }

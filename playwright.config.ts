@@ -23,7 +23,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command:
-      "E2E=1 VITE_SUPABASE_URL=https://e2e.supabase.co VITE_SUPABASE_ANON_KEY=e2e-anon-key vite dev --port 8099 --strictPort",
+      "E2E=1 VITE_E2E=1 VITE_SUPABASE_URL=https://e2e.supabase.co VITE_SUPABASE_ANON_KEY=e2e-anon-key vite dev --port 8099 --strictPort",
     url: "http://127.0.0.1:8099",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

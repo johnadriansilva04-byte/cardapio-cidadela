@@ -7,6 +7,7 @@ import {
   getWebhookSecret,
   mpFetch,
 } from "@/api/lib/mercadopago";
+import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-limit";
 import { processPreapprovalById } from "@/api/lib/mp-subscription";
 
 /**
@@ -27,6 +28,11 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // O Mercado Pago reenvia em rajada e o webhook é público, então o teto
+        // é alto — serve só para barrar flood, não para limitar entrega legítima.
+        const rl = checkRateLimit(`webhook:${getClientIp(request)}`, 120, 60_000);
+        if (!rl.ok) return tooManyRequests(rl.retryAfter);
+
         const url = new URL(request.url);
         const secret = getWebhookSecret();
         const allowUnsigned = getWebhookAllowUnsigned();

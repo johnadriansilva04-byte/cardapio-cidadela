@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   X,
   Bike,
@@ -10,6 +10,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { brl, hexToRgba } from "@/lib/utils";
+import { looksLikeBot } from "@/lib/antispam";
 import type { DeliveryNeighborhood } from "@/lib/types";
 
 export interface CheckoutForm {
@@ -74,6 +75,12 @@ export default function CheckoutModal({
   });
   const [error, setError] = useState("");
   const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Antispam no navegador: bots preenchem todo campo que veem, então um campo
+  // escondido que o humano nunca toca vira a armadilha (honeypot). Somado a
+  // isso, um pedido enviado rápido demais (menos de 3s) é quase sempre script.
+  const [honeypot, setHoneypot] = useState("");
+  const openedAt = useRef(Date.now());
 
   const isDelivery = form.delivery_type === "entrega";
 
@@ -146,6 +153,12 @@ export default function CheckoutModal({
       return;
     }
     if (submitting) return;
+    // Bot: preencheu o campo escondido ou mandou rápido demais. Falha em
+    // silêncio (mensagem genérica) para não ensinar o script a se ajustar.
+    if (looksLikeBot({ honeypot, openedAt: openedAt.current })) {
+      setError("Não foi possível concluir o pedido. Revise os dados e tente novamente.");
+      return;
+    }
     setError("");
     onConfirm({ ...form, delivery_fee: appliedFee });
   }
@@ -248,6 +261,24 @@ export default function CheckoutModal({
               {serverError}
             </p>
           )}
+
+          {/* Honeypot: invisível para humanos (fora do fluxo e do tab), mas
+              presente no DOM — só bots preenchem. `hidden` de verdade faria
+              alguns bots pularem; por isso o campo fica apenas afastado. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden"
+          >
+            <label htmlFor="co-company">Empresa</label>
+            <input
+              id="co-company"
+              name="company"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </div>
 
           {step === 1 && (
             <div className="space-y-3">

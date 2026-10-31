@@ -224,6 +224,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key
   ON orders (idempotency_key)
   WHERE idempotency_key IS NOT NULL;
 
+-- Sustenta a checagem antiflood da RPC (por loja + janela de tempo).
+CREATE INDEX IF NOT EXISTS idx_orders_store_created ON orders(restaurant_id, created_at DESC);
+
 -- ============================================================
 -- ORDER ITEMS
 -- ============================================================
@@ -440,6 +443,8 @@ DECLARE
   v_neighborhood TEXT;
   v_fee RECORD;
   v_order_row JSONB;
+  v_recent INTEGER;
+  v_phone TEXT;
 BEGIN
   IF p_restaurant_id IS NULL THEN
     RAISE EXCEPTION 'Restaurante inválido.';
@@ -543,6 +548,24 @@ BEGIN
       'order', to_jsonb(v_existing),
       'items', v_priced_items
     );
+  END IF;
+
+  -- 3.5) Antiflood: o telefone é a identidade do cliente. Sem isso, um script
+  --      podia criar centenas de pedidos por minuto e encher a fila do dono.
+  --      O limite é por telefone (não por IP, que muda fácil) e conta só os
+  --      pedidos recentes e não cancelados. Fica no banco porque a RPC é o
+  --      único caminho de escrita — o cliente não tem como pular este check.
+  v_phone := regexp_replace(COALESCE(p_order->>'customer_phone', ''), '\D', '', 'g');
+  IF length(v_phone) >= 8 THEN
+    SELECT count(*) INTO v_recent
+      FROM orders
+     WHERE restaurant_id = p_restaurant_id
+       AND regexp_replace(COALESCE(customer_phone, ''), '\D', '', 'g') = v_phone
+       AND status <> 'cancelled'
+       AND created_at > now() - interval '10 minutes';
+    IF v_recent >= 5 THEN
+      RAISE EXCEPTION 'Muitos pedidos seguidos deste telefone. Aguarde alguns minutos e tente de novo.';
+    END IF;
   END IF;
 
   -- 4) Insere o pedido; em corrida de idempotência gera uma chave nova.

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { getServerSupabase, getSupabaseForUser, getMercadoPagoToken } from "@/api/lib/mercadopago";
 import { createPaymentLink } from "@/api/lib/mp-payment";
+import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-limit";
 import { DAY_PASS_PRICE_VALUE } from "@/lib/pricing";
 
 const FALLBACK_ORIGIN = "https://cardapio-cidadela.vercel.app";
@@ -24,6 +25,11 @@ export const Route = createFileRoute("/api/payment/day-pass")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Abuso em link de pagamento: poucas criações por IP/minuto já bastam
+        // (o dono clica uma vez; um bot geraria centenas).
+        const rl = checkRateLimit(`day-pass:${getClientIp(request)}`, 10, 60_000);
+        if (!rl.ok) return tooManyRequests(rl.retryAfter);
+
         const auth = request.headers.get("authorization") ?? "";
         const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
         if (!token) {

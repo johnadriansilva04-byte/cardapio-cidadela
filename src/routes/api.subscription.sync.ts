@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { getServerSupabase } from "@/api/lib/mercadopago";
+import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-limit";
 import { syncSubscriptionForEmail } from "@/api/lib/mp-subscription";
 
 /**
@@ -17,6 +18,9 @@ export const Route = createFileRoute("/api/subscription/sync")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const rl = checkRateLimit(`sub-sync:${getClientIp(request)}`, 20, 60_000);
+        if (!rl.ok) return tooManyRequests(rl.retryAfter);
+
         const auth = request.headers.get("authorization") ?? "";
         const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
         if (!token) {

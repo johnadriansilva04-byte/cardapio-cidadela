@@ -340,6 +340,25 @@
 
 ## Segurança e confiabilidade (não regredir)
 
+- **Defesa em camadas contra abuso/flood.** Nenhuma camada sozinha segura:
+  - *Borda (Vercel):* DDoS volumétrico e bot são absorvidos pela rede/CDN da
+    Vercel (mitigação automática em qualquer plano). Regras de WAF/firewall
+    customizado e "Attack Challenge" são recursos pagos — no plano atual a API
+    devolve 402. Se o ataque for dirigido, é aí que se contrata (ou se coloca
+    Cloudflare na frente).
+  - *Aplicação:* `src/api/lib/rate-limit.ts` limita requisições por IP nas rotas
+    de API (`checkRateLimit` + `tooManyRequests`, 429 com `Retry-After`). É em
+    memória: **por instância** e efêmero em serverless, então é melhor-esforço.
+    Teto por rota: 10/min (links de pagamento), 20/min (sync), 120/min (webhook).
+  - *Navegador:* honeypot + tempo mínimo de preenchimento (`src/lib/antispam.ts`,
+    usado no `CheckoutModal`). Burlável por um cliente malicioso — é ruído para
+    bots comuns, não barreira de segurança. No E2E a regra de tempo desliga
+    (`VITE_E2E=1`) porque o preenchimento é instantâneo; o honeypot continua.
+  - *Banco:* `create_order_atomic` recusa mais de 5 pedidos do mesmo telefone em
+    10 min (conta só os não cancelados). É o bloqueio que realmente conta, porque
+    a RPC é o único caminho de escrita de pedido.
+- Nunca confie só no cliente para bloquear: qualquer check em JS é contornável.
+  O que vale é o que está no servidor/banco.
 - **Preço é do servidor.** `createOrder` ignora `unit_price`/`total` do cliente e
   recalcula tudo em `resolveOrderPricing` (`src/modules/supabase/pricing.ts`) a
   partir de `products`, `product_addons` e `delivery_neighborhoods`. O cliente só

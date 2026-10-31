@@ -7,6 +7,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start";
+import { SITE_URL } from "@/lib/site";
 
 function normalizeNeighborhoodName(raw: string): string {
   return raw.replace(/\s+/g, " ").replace(/^Bairro\s+/i, "").trim();
@@ -38,7 +39,7 @@ async function fetchViaGet(baseUrl: string, query: string, signal: AbortSignal):
     method: "GET",
     headers: {
       Accept: "application/json",
-      "User-Agent": "cardapio-cidadela/1.0 (+https://cardapio-cidadela.vercel.app)",
+      "User-Agent": `cardapio-cidadela/1.0 (+${SITE_URL})`,
     },
     signal,
   });
@@ -50,7 +51,7 @@ async function fetchViaPost(baseUrl: string, query: string, signal: AbortSignal)
     headers: {
       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
       Accept: "application/json",
-      "User-Agent": "cardapio-cidadela/1.0 (+https://cardapio-cidadela.vercel.app)",
+      "User-Agent": `cardapio-cidadela/1.0 (+${SITE_URL})`,
     },
     body: `data=${encodeURIComponent(query)}`,
     signal,

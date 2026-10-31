@@ -1,4 +1,5 @@
 import { mpFetch, type ServerEnv } from "./mercadopago";
+import { SITE_URL } from "@/lib/site";
 
 /**
  * Cria um link de pagamento pontual (checkout pro) com Pix habilitado.
@@ -40,13 +41,13 @@ export async function createPaymentLink(
         back_urls: {
           success: config.backUrl
             ? `${config.backUrl}?payment=success`
-            : "https://cardapiocidadela.com.br/admin/assinatura?payment=success",
+            : `${SITE_URL}/admin/assinatura?payment=success`,
           failure: config.backUrl
             ? `${config.backUrl}?payment=failure`
-            : "https://cardapiocidadela.com.br/admin/assinatura?payment=failure",
+            : `${SITE_URL}/admin/assinatura?payment=failure`,
           pending: config.backUrl
             ? `${config.backUrl}?payment=pending`
-            : "https://cardapiocidadela.com.br/admin/assinatura?payment=pending",
+            : `${SITE_URL}/admin/assinatura?payment=pending`,
         },
         external_reference: config.externalReference,
         // Sem isto o webhook só chega se estiver configurado no painel do MP.

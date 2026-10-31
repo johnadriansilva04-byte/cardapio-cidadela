@@ -4,6 +4,7 @@ import { Check, Copy, ExternalLink, LayoutGrid, Power } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isOpenNow, normalizeOperatingHours } from "@/lib/operatingHours";
 import type { Restaurant } from "@/lib/types";
+import { currentOrigin } from "@/lib/site";
 
 interface StorePulseBarProps {
   restaurant: Restaurant;
@@ -32,11 +33,7 @@ export function StorePulseBar({ restaurant, toggling, onToggle }: StorePulseBarP
   );
 
   const publicUrl = useMemo(() => {
-    const base =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "https://cardapio-cidadela.vercel.app";
-    return `${base}/cardapio/${restaurant.slug}`;
+    return `${currentOrigin()}/cardapio/${restaurant.slug}`;
   }, [restaurant.slug]);
 
   async function copyLink() {

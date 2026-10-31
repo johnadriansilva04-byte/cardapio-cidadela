@@ -9,6 +9,7 @@ import {
   Printer,
 } from "lucide-react";
 import type { Restaurant } from "@/lib/types";
+import { currentOrigin } from "@/lib/site";
 
 export function SharePanel({ restaurant }: { restaurant: Restaurant }) {
   const [copied, setCopied] = useState(false);
@@ -18,11 +19,7 @@ export function SharePanel({ restaurant }: { restaurant: Restaurant }) {
   const publicUrl = useMemo(() => {
     // Usa a origem atual em vez de um domínio fixo: assim o link compartilhado
     // aponta sempre para a mesma implantação em que o painel está rodando.
-    const baseUrl =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "https://cardapio-cidadela.vercel.app";
-    return `${baseUrl}${publicPath}`;
+    return `${currentOrigin()}${publicPath}`;
   }, [publicPath]);
 
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;

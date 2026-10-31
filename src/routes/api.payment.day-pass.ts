@@ -3,9 +3,10 @@ import type {} from "@tanstack/react-start";
 import { getServerSupabase, getSupabaseForUser, getMercadoPagoToken } from "@/api/lib/mercadopago";
 import { createPaymentLink } from "@/api/lib/mp-payment";
 import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-limit";
+import { SITE_URL } from "@/lib/site";
 import { DAY_PASS_PRICE_VALUE } from "@/lib/pricing";
 
-const FALLBACK_ORIGIN = "https://cardapio-cidadela.vercel.app";
+const FALLBACK_ORIGIN = SITE_URL;
 
 /**
  * POST /api/payment/day-pass

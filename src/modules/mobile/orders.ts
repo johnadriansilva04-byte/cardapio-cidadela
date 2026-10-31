@@ -1,4 +1,5 @@
 import type { Order, OrderStatus } from "@/lib/types";
+import { SITE_URL } from "@/lib/site";
 
 export const ACTIVE_STATUSES: OrderStatus[] = [
   "received",
@@ -38,7 +39,7 @@ export function isFinished(status: OrderStatus): boolean {
 
 /** Link público de acompanhamento enviado ao cliente. */
 export function trackingUrl(orderId: string): string {
-  const baseUrl = "https://cardapio-cidadela.vercel.app";
+  const baseUrl = SITE_URL;
   return `${baseUrl}/pedido/${orderId}`;
 }
 

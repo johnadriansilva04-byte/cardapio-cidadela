@@ -17,8 +17,7 @@ config/setup) · ❌ fantasia (só visual, sem backend).
 | Kanban de pedidos em `/admin/pedidos` | ✅ | Realtime `orders_pedidos_${id}` + polling 15s |
 | Badge/som de novo pedido no layout | ✅ | Canal `admin_alert_${id}` (`admin.tsx`) |
 | Financeiro (`/admin/financeiro`) | ✅ | Gráficos + CSV exportado dos pedidos reais; comparação com período anterior |
-| URLs de compartilhamento (`/admin/compartilhar`, `SharePanel`) | 🟡 | Link correto, mas base **hardcoded** `https://cardapio-cidadela.vercel.app` (produção real). Se mudar de domínio, trocar a constante — ideal `window.location.origin` |
-| Componente `src/components/admin/AdminDashboard.tsx` | ❌ | **Código morto** — não importado por nenhuma rota. Contém preview de slug com URL hardcoded. Mantido intacto por ser legado upstream |
+| URLs de compartilhamento (`/admin/compartilhar`, `SharePanel`) | ✅ | Base centralizada em `src/lib/site.ts` (`SITE_URL` / `currentOrigin()`, configurável por `VITE_SITE_URL`). Não há mais literal hardcoded |
 | Seed de menus (`seedDefaultMenu`) | ✅ | Cria Lanches/Bebidas/Combos reais no primeiro acesso |
 | `ensureRestaurantsForUser` (admin_trials) | 🟡 | Legado de trials; inócuo quando não há linha em `admin_trials` |
 
@@ -30,10 +29,9 @@ config/setup) · ❌ fantasia (só visual, sem backend).
 | Checkout (taxa por bairro, PIX, WhatsApp) | ✅ | `createOrder` com idempotência por comanda |
 | Rastreio de pedido (`/pedido/$id`) | ✅ | View `order_tracking` (sem PII) |
 | Avaliações (`ReviewsSection`) | 🟡 | Requer migração `supabase_reviews_migration.sql`; some sozinha se ausente |
-| Push de novo pedido (celular toca) | 🟡 | Requer deploy das Edge Functions (`notify-new-order`, `push-vapid-key`) |
+| Push de novo pedido (celular toca) | 🟡 | Requer deploy das Edge Functions (`notify-new-order`, `notify-reward`, `push-vapid-key`) |
 | Landing `/` | ✅ | Após refactor: sem métricas inventadas (removidos "200+ restaurantes" e "4.9/5.0"); os selos listam apenas recursos que existem |
 | Analytics (`src/modules/analytics`) | 🟡 | Só envia quando `VITE_ANALYTICS_ENDPOINT` está definido; consentimento por dispositivo |
-| PRACINHA (assistente Gemini) | 🟡 | Requer `GEMINI_API_KEY` nas configurações; responde com aviso quando ausente |
 
 ## Multi-tenancy (isolation audit)
 
@@ -50,7 +48,7 @@ config/setup) · ❌ fantasia (só visual, sem backend).
 
 ## Dívida conhecida (não bloqueia)
 
-- `AdminDashboard.tsx` e `RestaurantManager.tsx` são legados mortos (sem
-  importadores); não receberam refactor para não inflar o diff.
-- Base URL de produção hardcoded em 5 arquivos (ver tabela acima) —
-  centralizar em `window.location.origin` quando houver domínio próprio.
+- Lint com ~490 erros pré-existentes repo-wide (baseline do Lovable); não quebra
+  build. Confira apenas os arquivos que você tocou.
+- Sem `LICENSE` no repositório e sem CI (`.github/workflows`) rodando typecheck,
+  testes e build a cada push.

@@ -124,3 +124,12 @@ test("smoke acompanhamento de pedido", async ({ page }) => {
   await page.waitForTimeout(600);
   await expect(page.locator("body")).not.toContainText(CRASH);
 });
+
+// O CNPJ do fornecedor precisa aparecer nas páginas legais e no rodapé da
+// landing — é o que identifica quem vende o SaaS para o cliente.
+for (const route of ["/", "/terms", "/privacy"]) {
+  test(`CNPJ visível em ${route}`, async ({ page }) => {
+    await page.goto(route);
+    await expect(page.locator("body")).toContainText("65.025.130/0001-24");
+  });
+}

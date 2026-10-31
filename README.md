@@ -5,17 +5,57 @@ Cardápio digital profissional para restaurantes. Pedidos em tempo real, pagamen
 ## Setup do Supabase
 
 1. Crie um projeto em [supabase.com](https://supabase.com).
-2. Defina as variáveis de ambiente no seu `.env.local`:
+2. Defina as variáveis de ambiente no seu `.env.local`. O mínimo para o app
+   subir é o Supabase; o restante (pagamento, analytics) é opcional e está
+   documentado em [`.env.example`](./.env.example):
 
    ```
+   # Cliente (vão para o bundle — prefixo VITE_)
    VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
    VITE_SUPABASE_ANON_KEY=sua-chave-anon
+
+   # Servidor (NUNCA com prefixo VITE_ — usadas pelas rotas de API)
+   SUPABASE_URL=https://SEU-PROJETO.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key
+   MERCADOPAGO_ACCESS_TOKEN=seu-access-token
+   MERCADOPAGO_WEBHOOK_SECRET=seu-webhook-secret
    ```
 
-3. **Aplique o schema** abrindo o banco do projeto → **SQL Editor** → cole o conteúdo de [`supabase/schema.sql`](./supabase/schema.sql) → **Run**. Esse arquivo único substitui qualquer schema anterior, cria as tabelas, políticas RLS (insert anônimo de pedidos + leitura pública do cardápio), funções de rastreamento (`get_order_tracking`) e o seed de exemplo.
+   > ⚠️ `SUPABASE_SERVICE_ROLE_KEY` e `MERCADOPAGO_ACCESS_TOKEN` são **server-only**.
+   > Nunca use o prefixo `VITE_` nelas: tudo com `VITE_` é embutido no bundle e
+   > fica visível para qualquer visitante.
 
-> ⚠️ O arquivo `supabase/schema.sql` é a **única** fonte da verdade do banco.
-> Execute-o por inteiro no SQL Editor sempre que atualizar o schema.
+3. **Aplique as migrações** — o banco não vem de um arquivo só. Rode **todos**
+   os arquivos de [`supabase/`](./supabase), **nesta ordem**:
+
+   | # | Arquivo | O que cria |
+   | --- | --- | --- |
+   | 1 | `schema.sql` | Base: tabelas, RLS, `create_order_atomic`, `get_order_tracking`, seed |
+   | 2 | `supabase_customer_loyalty_migration.sql` | Pontos de fidelidade do cliente |
+   | 3 | `supabase_reviews_migration.sql` | Avaliações (tabela `reviews`) |
+   | 4 | `supabase_premium_guard_migration.sql` | Guard do Premium + RPCs de cota |
+   | 5 | `supabase_rewards_migration.sql` | Bônus por engajamento + `pg_cron` |
+   | 6 | `supabase_day_pass_migration.sql` | Diária de 24h (`store_day_passes`) |
+   | 7 | `supabase_day_pass_rewards_migration.sql` | Diárias como recompensa |
+   | 8 | `supabase_retention.sql` | Retenção de 30 dias + `pg_cron` |
+
+   **Maneira recomendada (sem Docker, sem conexão direta ao Postgres):**
+
+   ```sh
+   SUPABASE_ACCESS_TOKEN=sbp_xxx \
+   SUPABASE_PROJECT_REF=xxxxxxxxxxxxxxxxxxxx \
+   node supabase/apply-all.mjs
+   ```
+
+   `DRY_RUN=1 node supabase/apply-all.mjs` só lista os arquivos e valida o token.
+   O script aplica os 8 arquivos na ordem acima via Management API.
+
+   **Alternativa manual:** abra o banco do projeto → **SQL Editor** → cole o
+   conteúdo de cada arquivo, na mesma ordem, e rode um por um.
+
+> ⚠️ `schema.sql` é a base, mas **não é a única fonte da verdade**: as migrações
+> 2–8 são incrementais e obrigatórias. Rodar só o `schema.sql` deixa o banco sem
+> avaliações, recompensas, diária e sem o guard do Premium.
 
 ## Notificações push (celular toca com o app fechado)
 
@@ -23,11 +63,12 @@ Fluxo: **novo pedido → cliente chama a Edge Function → Web Push nativo (RFC 
 
 Não usa Firebase nem variáveis de ambiente — a chave VAPID é gerada automaticamente na primeira execução e guardada no banco (`push_vapid`).
 
-1. **Banco** — no SQL Editor, rode [`supabase/schema.sql`](./supabase/schema.sql) (uma vez). Ele já cria `push_vapid` e `push_subscriptions`.
+1. **Banco** — aplique as migrações (passo 3 acima, uma vez). O `schema.sql` já cria `push_vapid` e `push_subscriptions`.
 2. **Edge Functions** — faça o deploy uma vez:
 
    ```sh
    supabase functions deploy notify-new-order
+   supabase functions deploy notify-reward
    supabase functions deploy push-vapid-key
    ```
 

@@ -41,6 +41,7 @@ import { isOpenNow } from "@/lib/operatingHours";
 import { usePwaInstall } from "@/modules/pwa/usePwaInstall";
 import { signOut } from "@/modules/supabase/auth";
 import { cn } from "@/lib/utils";
+import { COMPANY, hasSupportContact } from "@/lib/company";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/mobile/config")({
@@ -467,7 +468,23 @@ function MobileConfigPage() {
           <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
             <InfoRow label="Versão" value={`v${APP_VERSION}`} />
             <InfoRow label="Modo" value={isStandalone ? "App instalado" : "Navegador"} />
+            <InfoRow label="CNPJ" value={COMPANY.cnpj} />
           </div>
+          <p className="px-1 text-[10px] leading-relaxed text-gray-600">
+            {COMPANY.legalName} · {COMPANY.city}/{COMPANY.state}
+          </p>
+          {hasSupportContact && (
+            <a
+              href={
+                COMPANY.supportEmail
+                  ? `mailto:${COMPANY.supportEmail}`
+                  : `https://wa.me/${COMPANY.supportPhone}`
+              }
+              className="block px-1 text-[11px] font-semibold text-cyan-400 underline"
+            >
+              Falar com o suporte
+            </a>
+          )}
         </div>
       </GuidePanel>
     </div>

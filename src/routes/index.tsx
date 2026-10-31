@@ -23,6 +23,7 @@ import {
 } from "@/lib/pricing";
 
 import { brl } from "@/lib/utils";
+import { COMPANY, hasSupportContact } from "@/lib/company";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -489,10 +490,25 @@ function LandingPage() {
             <Link to="/privacy" className="transition-colors hover:text-gray-300">
               Privacidade
             </Link>
+            {hasSupportContact && (
+              <a
+                href={
+                  COMPANY.supportEmail
+                    ? `mailto:${COMPANY.supportEmail}`
+                    : `https://wa.me/${COMPANY.supportPhone}`
+                }
+                className="transition-colors hover:text-gray-300"
+              >
+                Suporte
+              </a>
+            )}
           </div>
         </div>
         <p className="mt-6 text-center text-[11px] text-gray-600">
-          © {new Date().getFullYear()} Cardápio Cidadela · Feito para quem vive da cozinha.
+          © {new Date().getFullYear()} {COMPANY.brandName} · Feito para quem vive da cozinha.
+        </p>
+        <p className="mt-1 text-center text-[11px] text-gray-600">
+          {COMPANY.legalName} · CNPJ {COMPANY.cnpj} · {COMPANY.city}/{COMPANY.state}
         </p>
       </footer>
     </div>

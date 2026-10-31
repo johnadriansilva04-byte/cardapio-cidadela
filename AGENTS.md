@@ -415,7 +415,7 @@
   `createTrial` legado, que gravava `is_premium: true` sem data — em assinatura
   perpétua. É fail-closed de propósito: o webhook sempre grava a data.
 - `supabase/supabase_premium_guard_migration.sql` aplica só este endurecimento
-  (guard + as três RPCs) e é idempotente. Existe porque a produção estava
+  (guard + as três RPCs) e é idempotente. Foi criado porque a produção estava
   atrás do repositório: sem trigger e com as RPCs antigas contando
   `monthly_order_count` (que o dono edita) em vez dos pedidos reais do mês.
   Use-o para bancos que não receberam o `schema.sql` completo.
@@ -592,9 +592,16 @@
   (`https://wlznmlsvnlgsljanbjgy.supabase.co`). O `GOOGLE_AUTH_SETUP.md` cita um
   ref antigo (`hkzhksauilonqppipjyc`) e este arquivo já citou
   `xfgmnggdgnozyrluqabv` — ambos desatualizados; confirme pelo bundle em caso de
-  dúvida. A produção estava atrás do repositório (sem o guard do Premium e com
-  as RPCs antigas); `supabase/supabase_premium_guard_migration.sql` alinha o
-  essencial.
+  dúvida.
+- **Estado do banco de produção (verificado em 2026-10-31):** alinhado com o
+  repositório. As 31 tabelas existem com RLS ligado; todas as RPCs
+  (`create_order_atomic`, `get_order_for_owner`, `owner_locked_stores`,
+  `grant_day_pass`, `evaluate_rewards`, ...) estão presentes; o guard
+  `trg_guard_admin_trials_premium` é a versão endurecida (SECURITY INVOKER) e
+  `store_is_unlocked` exige `premium_expires_at > now()`; os três jobs
+  `pg_cron` (`cidadela-rewards`, `mata-fome-cleanup`, `mata-fome-reset-monthly`)
+  estão ativos. Não há mais defasagem a corrigir — se um banco novo for criado,
+  rode `apply-all.mjs`.
 - `supabase/apply-all.mjs` aplica **todas** as migrações na ordem correta via
   Management API (sem Docker, sem conexão direta ao Postgres — o host
   `db.<ref>.supabase.co` é IPv6-only e não resolve neste ambiente). Uso:
@@ -662,3 +669,32 @@
   renderiza `AlreadySignedIn`, que mostra a conta atual e oferece "Ir para o meu
   painel" ou "Sair e criar outra conta" (faz `signOut` e volta para
   `?mode=register`). Sem `mode=register`, o redirecionamento direto continua.
+
+## Identidade legal e fiscal (venda do SaaS)
+
+- `src/lib/company.ts` é a **fonte única** dos dados do fornecedor (razão social,
+  CNPJ, cidade/UF, regime, canal de suporte). Termos (`terms.tsx`), Privacidade
+  (`privacy.tsx`), rodapé da landing (`index.tsx`) e "Sobre o aplicativo"
+  (`mobile.config.tsx`) leem de lá — não duplique o CNPJ em JSX.
+- CNPJ `65.025.130/0001-24` = `65.025.130 JOHN ADRIAN DA SILVA DO ROSARIO`,
+  **MEI**, Florianópolis/SC, situação ATIVA (confirmado na Receita em
+  2026-10-31). MEI usa o nome do titular como razão social; não há nome fantasia
+  registrado, então a marca exibida continua "Cardápio Cidadela".
+- `COMPANY.supportEmail` / `COMPANY.supportPhone` estão **vazios** de propósito:
+  as telas omitem o canal em vez de inventar um contato. Preencher antes de
+  vender — suporte sem canal é suporte nenhum. `hasSupportContact` controla a
+  exibição; o telefone, quando preenchido, é só dígitos com DDI (`5548...`).
+- `company.test.ts` valida o dígito verificador do CNPJ (módulo 11) e a coerência
+  dos campos; o E2E `smoke-routes.spec.ts` exige o CNPJ visível em `/`, `/terms`
+  e `/privacy`. Trocar o CNPJ sem atualizar `company.ts` quebra os dois.
+- **Não existe emissão de nota fiscal no código** — nem NFS-e, nem NF-e, nem
+  integração com prefeitura/SEFAZ. A "comanda" (`buildThermalTicket` em
+  `src/lib/utils.ts` + `autoPrint.ts`) é cupom não fiscal da cozinha. Se a venda
+  exigir nota do serviço, é integração nova (provedor de NFS-e), não uma flag.
+- **Alerta fiscal:** o CNAE principal do MEI é 4781400 (vestuário) e não há CNAE
+  de desenvolvimento de software/serviços de TI. Emitir nota de SaaS nesse
+  enquadramento é risco de glosa; o caminho usual é abrir ME (não MEI) com CNAE
+  de desenvolvimento (ex.: 6201-5/01, 6202-3/00) ou confirmar com o contador.
+  Além disso, MEI tem **teto anual de faturamento** — um SaaS por assinatura
+  pode estourar. Nada disso é resolvido em código.
+

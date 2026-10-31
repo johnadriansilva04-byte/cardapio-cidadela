@@ -729,4 +729,14 @@
   de desenvolvimento (ex.: 6201-5/01, 6202-3/00) ou confirmar com o contador.
   Além disso, MEI tem **teto anual de faturamento** — um SaaS por assinatura
   pode estourar. Nada disso é resolvido em código.
+- **Checklist do que só o humano fecha (o código não resolve):**
+  1. `COMPANY.supportEmail`/`supportPhone` — hoje vazios; as telas escondem o
+     canal, mas vender sem canal de suporte é vender sem suporte.
+  2. `COMPANY.fiscal` — hoje vazio; sem ele não há NFS-e possível
+     (`missingFiscalFields` lista o que falta).
+  3. Enquadramento fiscal (MEI × ME) confirmado com o contador; sem isso a
+     emissão de nota é risco, não recurso.
+  4. Deploy: as mudanças de identidade legal/cobrança só aparecem em produção
+     depois de publicar (o CNPJ não existe no bundle antigo — conferir em
+     `/terms`).
 

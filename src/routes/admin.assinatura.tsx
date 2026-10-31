@@ -534,7 +534,9 @@ function SubscriptionPage() {
   const selectedPrice = billing === "monthly" ? monthlyShort : priceShort;
   const selectedSuffix = billing === "monthly" ? "/mês" : "/ano";
   const selectedNote =
-    billing === "monthly" ? "pedidos ilimitados por 30 dias" : "pedidos ilimitados por 1 ano";
+    billing === "monthly"
+      ? "pedidos ilimitados · renova todo mês"
+      : "pedidos ilimitados · renova a cada ano";
   const usagePct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
 
   return (
@@ -716,7 +718,7 @@ function SubscriptionPage() {
               <Crown className="size-5" /> Assinar agora
             </Button>
             <p className="mt-2 text-center text-[11px] text-gray-500">
-              Pix, cartão ou boleto · cancele quando quiser
+              Assinatura no cartão · cancele quando quiser
             </p>
 
             {awaitingPayment && (
@@ -1090,7 +1092,7 @@ function SubscriptionPage() {
                 Finalizar assinatura
               </DialogTitle>
               <DialogDescription className="mt-1 text-xs leading-relaxed text-gray-400">
-                {ANNUAL_PRICE} · pedidos ilimitados por 1 ano.
+                {ANNUAL_PRICE} · pedidos ilimitados, renova a cada ano.
               </DialogDescription>
             </div>
 

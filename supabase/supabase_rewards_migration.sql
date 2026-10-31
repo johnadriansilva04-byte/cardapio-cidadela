@@ -192,6 +192,11 @@ $$;
 GRANT EXECUTE ON FUNCTION public.owner_usage_seconds(UUID) TO authenticated;
 
 -- Recompensas do mês com progresso (para o banner e o "próximo objetivo").
+-- O DROP é obrigatório: a migração de day-pass recria esta função com uma
+-- coluna a mais (day_credits). `CREATE OR REPLACE` recusa mudar o tipo de
+-- retorno, então sem o DROP a migração quebra ao re-rodar num banco que já
+-- recebeu a versão mais nova.
+DROP FUNCTION IF EXISTS public.owner_rewards(UUID);
 CREATE OR REPLACE FUNCTION public.owner_rewards(p_store UUID)
 RETURNS TABLE(
   reward_id UUID,
@@ -246,6 +251,9 @@ GRANT EXECUTE ON FUNCTION public.owner_rewards(UUID) TO authenticated;
 -- Chama a Edge Function `notify-reward`, que faz o Web Push para os
 -- dispositivos do restaurante. Se pg_net ou a URL não estiverem configurados,
 -- apenas loga — a recompensa (o bônus) já foi concedida de qualquer forma.
+-- O DROP é obrigatório: a migração de day-pass renomeia o 3º parâmetro
+-- (p_bonus → p_day_credits). Sem ele, o CREATE OR REPLACE falha ao re-rodar.
+DROP FUNCTION IF EXISTS public.notify_reward_push(UUID, TEXT, INTEGER);
 CREATE OR REPLACE FUNCTION public.notify_reward_push(
   p_store UUID, p_title TEXT, p_bonus INTEGER
 ) RETURNS void

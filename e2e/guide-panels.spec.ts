@@ -43,7 +43,7 @@ test.beforeEach(async ({ page }) => {
 test("restaurante: a área abre em guia por cima e fecha no X", async ({ page }) => {
   await page.goto(`/admin/restaurante/${RESTAURANT_ID}`);
 
-  const openMenu = page.getByRole("button", { name: /Abrir Cardápio de/i });
+  const openMenu = page.getByRole("radio", { name: /Abrir Cardápio de/i });
   await expect(openMenu).toBeVisible();
 
   // Fechada, o conteúdo do cardápio não está montado na página.

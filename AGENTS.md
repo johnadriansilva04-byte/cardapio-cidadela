@@ -702,9 +702,8 @@
   **MEI**, Florianópolis/SC, situação ATIVA (confirmado na Receita em
   2026-10-31). MEI usa o nome do titular como razão social; não há nome fantasia
   registrado, então a marca exibida continua "Cardápio Cidadela".
-- `COMPANY.supportEmail` / `COMPANY.supportPhone` estão **vazios** de propósito:
-  as telas omitem o canal em vez de inventar um contato. Preencher antes de
-  vender — suporte sem canal é suporte nenhum. `hasSupportContact` controla a
+- `COMPANY.supportEmail` = `variantfeb@gmail.com`; `COMPANY.supportPhone` segue
+  **vazio** (as telas mostram só o e-mail). `hasSupportContact` controla a
   exibição; o telefone, quando preenchido, é só dígitos com DDI (`5548...`).
 - `company.test.ts` valida o dígito verificador do CNPJ (módulo 11) e a coerência
   dos campos; o E2E `smoke-routes.spec.ts` exige o CNPJ visível em `/`, `/terms`

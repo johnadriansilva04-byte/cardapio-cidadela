@@ -20,14 +20,8 @@ export const COMPANY = {
   state: "SC",
   /** Regime tributário — relevante para o que pode ser faturado. */
   taxRegime: "MEI (Microempreendedor Individual)",
-  /**
-   * Canal de suporte exibido ao cliente.
-   *
-   * TODO: preencher com um e-mail real e um telefone/WhatsApp de atendimento.
-   * Enquanto estiver vazio, as telas omitem o canal em vez de mostrar um dado
-   * falso — mas vender sem canal de suporte é vender sem suporte.
-   */
-  supportEmail: "",
+  /** Canal de suporte exibido ao cliente. */
+  supportEmail: "variantfeb@gmail.com",
   /** Telefone/WhatsApp de suporte, só dígitos com DDI (ex.: "5548999999999"). */
   supportPhone: "",
   /**

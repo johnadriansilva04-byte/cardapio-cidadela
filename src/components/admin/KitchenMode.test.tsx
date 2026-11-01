@@ -96,4 +96,20 @@ describe("KitchenMode", () => {
     expect(screen.queryByText("Pizza secreta")).not.toBeInTheDocument();
     expect(screen.getByText(/detalhes bloqueados pelo plano/i)).toBeInTheDocument();
   });
+
+  it("troca de aba pela fila e mostra a contagem de cada etapa", async () => {
+    const user = userEvent.setup();
+    const received = makeOrder({ id: "o1", status: "received" });
+    const ready = makeOrder({ id: "o2", status: "ready", comanda: "PRONTO-1" });
+
+    render(<KitchenMode {...baseProps} orders={[received, ready]} />);
+
+    // "Fila" está acesa por padrão e mostra o recebido; "Prontos" fica com 1.
+    expect(screen.getByRole("radio", { name: /Fila/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: /Prontos/ })).toHaveTextContent("1");
+    expect(screen.queryByText("PRONTO-1")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: /Prontos/ }));
+    expect(screen.getByText("PRONTO-1")).toBeInTheDocument();
+  });
 });

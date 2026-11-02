@@ -72,6 +72,23 @@ export async function getExistingSubscription(): Promise<PushSubscription | null
   }
 }
 
+/**
+ * Garante que a permissão já concedida resulte numa subscription salva.
+ *
+ * O navegador pode trocar/expirar o endpoint sem avisar: a permissão continua
+ * `granted`, o banner de alertas se esconde (nada a pedir) e nenhuma
+ * subscription nova é gravada — o push silencia e o dono só descobre quando o
+ * pedido não toca. Aqui reidratamos quando já há permissão, sem pedir nada ao
+ * usuário. É best-effort: qualquer falha (sem service worker, offline) é
+ * ignorada.
+ */
+export async function ensurePushSubscription(): Promise<void> {
+  if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  if (Notification.permission !== "granted") return;
+  await subscribePush();
+}
+
 /** Store the subscription in Supabase so the Edge Function can send to it. */
 async function saveSubscriptionToSupabase(subscription: PushSubscription): Promise<void> {
   try {

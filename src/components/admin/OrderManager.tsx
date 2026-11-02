@@ -374,19 +374,11 @@ export function OrderManager({
     sendToWhatsApp(phone, msg);
   }
 
-  const statusCounts = useMemo(
-    () =>
-      orders.reduce(
-        (acc, o) => {
-          acc[o.status] = (acc[o.status] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>,
-      ),
-    [orders],
-  );
-
-  const displayedOrders = useMemo(() => {
+  // Filtros de contexto (loja, período, busca) SEM o status. As abas contam a
+  // partir daqui: antes contávamos sobre `displayedOrders`, que já recortava
+  // pelo status ativo, então todas as outras abas apareciam com 0 e o número
+  // só "aparecia" ao clicar na aba (quando o próprio filtro mudava).
+  const contextOrders = useMemo(() => {
     let list = [...orders];
     if (storeFilter !== "all") {
       list = list.filter((o) => o.restaurant_id === storeFilter);
@@ -406,6 +398,11 @@ export function OrderManager({
           o.id.toLowerCase().includes(needle),
       );
     }
+    return list;
+  }, [orders, period, q, storeFilter]);
+
+  const displayedOrders = useMemo(() => {
+    let list = [...contextOrders];
     if (filter !== "all") {
       list = list.filter((o) => o.status === filter);
     } else {
@@ -422,7 +419,16 @@ export function OrderManager({
       });
     }
     return list;
-  }, [orders, period, q, filter, storeFilter]);
+  }, [contextOrders, filter]);
+
+  // Contagem por aba: um pedido que sai de "Recebidos" para "Em preparo"
+  // precisa mover o número de uma aba para a outra na hora.
+  const tabCounts = useMemo(() => {
+    const counts = {} as Record<string, number>;
+    for (const o of contextOrders) counts[o.status] = (counts[o.status] ?? 0) + 1;
+    counts.all = contextOrders.length;
+    return counts;
+  }, [contextOrders]);
 
   const lockedCount = useMemo(
     () => orders.filter((o) => lockedStores.has(o.restaurant_id)).length,
@@ -549,10 +555,7 @@ export function OrderManager({
       {/* Abas de status — a navegação da fila. Cada aba ocupa a tela inteira. */}
       <div className="-mx-1 flex shrink-0 gap-1.5 overflow-x-auto px-1 pb-0.5">
         {TAB_ORDER.map((key) => {
-          const count =
-            key === "all"
-              ? displayedOrders.length
-              : displayedOrders.filter((o) => o.status === key).length;
+          const count = tabCounts[key] ?? 0;
           const active = filter === key;
           const Icon = key === "all" ? LayoutGrid : KANBAN_ICON[key as OrderStatus];
           return (

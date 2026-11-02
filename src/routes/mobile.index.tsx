@@ -8,6 +8,7 @@ import {
   Package,
   RefreshCw,
   Search,
+  Share2,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import {
   subscribePreferences,
 } from "@/modules/mobile/preferences";
 import { previewOrderAlert } from "@/lib/orderAlertSound";
+import { SITE_URL } from "@/lib/site";
 import { updateOrderStatus } from "@/modules/supabase/orders";
 import { brl } from "@/lib/utils";
 import type { Order, OrderStatus } from "@/lib/types";
@@ -146,6 +148,33 @@ function MobileOrdersPage() {
     toast.success(next ? "Alerta sonoro ativado." : "Alerta sonoro desativado.");
   }
 
+  /** Compartilha o cardápio público. O link usa o domínio canônico. */
+  async function shareMenu() {
+    const primary = restaurants[0];
+    if (!primary) {
+      toast.error("Nenhum restaurante para compartilhar.");
+      return;
+    }
+    const url = `${SITE_URL}/cardapio/${primary.slug}`;
+    const text = `🍽️ *${primary.name}*\n\nConfira nosso cardápio e faça seu pedido online:\n${url}`;
+
+    // Compartilhamento nativo (WhatsApp, Instagram…) quando disponível.
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: primary.name, text, url });
+        return;
+      } catch {
+        // Cancelado pelo usuário ou indisponível: cai no copiar.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link do cardápio copiado!");
+    } catch {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    }
+  }
+
   const lockedCount = useMemo(
     () => orders.filter((o) => lockedStores.has(o.restaurant_id)).length,
     [orders, lockedStores],
@@ -182,6 +211,12 @@ function MobileOrdersPage() {
               tone={prefs.sound ? "cyan" : "neutral"}
               struck={!prefs.sound}
               onClick={toggleSound}
+            />
+            <HeaderIconButton
+              icon={Share2}
+              label="Compartilhar cardápio"
+              tone="cyan"
+              onClick={shareMenu}
             />
             <HeaderIconButton
               icon={RefreshCw}

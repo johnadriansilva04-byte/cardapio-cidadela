@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Mail,
   ChevronRight,
+  Receipt,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,17 @@ import { fetchRewards, type RewardProgress } from "@/modules/supabase/rewards";
 import { RewardsProgress } from "@/modules/ui/RewardsProgress";
 import { DAY_PASS_PRICE_VALUE, MONTHLY_PRICE_LABEL, PREMIUM_PRICE_LABEL } from "@/lib/pricing";
 import { COMPANY, hasFiscalData, missingFiscalFields } from "@/lib/company";
+import {
+  createInvoiceRequest,
+  getInvoiceRequests,
+  type InvoiceRequest,
+} from "@/modules/supabase/invoice";
+import {
+  INVOICE_KIND_LABELS,
+  formatTaxId,
+  validateInvoiceRequest,
+  type InvoicePersonType,
+} from "@/lib/invoice";
 import { brl } from "@/lib/utils";
 import { useCountdown } from "@/hooks/useCountdown";
 import type { Restaurant, SubscriptionStatus } from "@/lib/types";
@@ -148,7 +160,101 @@ function CelebrationBurst() {
 }
 
 /** Aba do hub: cada assunto abre em tela cheia por cima, sem rolar a página. */
-type HubTab = "planos" | "vantagens" | "email" | "detalhes";
+type HubTab = "planos" | "vantagens" | "email" | "detalhes" | "nota";
+
+/**
+ * Compra de diárias (24h), reutilizada nos dois estados do plano.
+ *
+ * Fica num componente próprio porque precisa aparecer TAMBÉM com a diária já em
+ * vigor: antes esse bloco só existia no convite do plano gratuito, então depois
+ * de comprar a primeira diária a opção de comprar mais (e de empilhar)
+ * simplesmente desaparecia. Comprar durante um período ativo é suportado de
+ * propósito — `grant_day_pass` soma as horas sobre o `unlocked_until` vigente.
+ */
+function DayPassPurchase({
+  dayQty,
+  setDayQty,
+  credits,
+  redeeming,
+  awaiting,
+  onRedeem,
+  onBuy,
+}: {
+  dayQty: number;
+  setDayQty: (updater: (q: number) => number) => void;
+  credits: number;
+  redeeming: boolean;
+  awaiting: boolean;
+  onRedeem: () => void;
+  onBuy: () => void;
+}) {
+  return (
+    <div className="mt-4 border-t border-white/[0.07] pt-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-xs font-bold text-white">
+            <Timer className="size-3.5 text-cyan-300" /> Prefere só hoje?
+          </p>
+          <p className="mt-0.5 text-[11px] text-gray-500">
+            {brl(DAY_PASS_PRICE_VALUE * dayQty)} · {dayQty} × 24h
+            {dayQty > 1 ? " (empilha)" : ""}
+          </p>
+        </div>
+        {credits > 0 ? (
+          <Button
+            onClick={onRedeem}
+            disabled={redeeming}
+            className="tap shrink-0 rounded-full bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25"
+          >
+            {redeeming ? <Loader2 className="size-4 animate-spin" /> : <Gift className="size-4" />}
+            Usar 1 grátis ({credits})
+          </Button>
+        ) : (
+          <Button
+            onClick={onBuy}
+            className="tap shrink-0 rounded-full bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25"
+          >
+            <Timer className="size-4" /> Liberar hoje
+          </Button>
+        )}
+      </div>
+
+      {/* Pacote: quantas diárias comprar de uma vez. */}
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <span className="text-[11px] font-semibold text-gray-500">Quantas diárias?</span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            aria-label="Menos uma diária"
+            onClick={() => setDayQty((q) => Math.max(1, q - 1))}
+            disabled={dayQty <= 1}
+            className="tap grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
+          >
+            <Minus className="size-4" />
+          </button>
+          <span className="w-8 text-center text-sm font-black tabular-nums text-white">
+            {dayQty}
+          </span>
+          <button
+            type="button"
+            aria-label="Mais uma diária"
+            onClick={() => setDayQty((q) => Math.min(60, q + 1))}
+            disabled={dayQty >= 60}
+            className="tap grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
+          >
+            <Plus className="size-4" />
+          </button>
+        </div>
+      </div>
+
+      {awaiting && (
+        <p className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-cyan-300">
+          <Loader2 className="size-3.5 animate-spin" /> Confirmando o pagamento da diária…
+        </p>
+      )}
+    </div>
+  );
+}
 
 /**
  * Hub de assinatura em uma tela só.
@@ -207,6 +313,25 @@ function SubscriptionPage() {
   const [emailMsg, setEmailMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   // Aba de tela cheia aberta sobre o hub (null = hub).
   const [tab, setTab] = useState<HubTab | null>(null);
+
+  // ---- Pedido de nota fiscal (NFS-e) ----
+  // O app não emite: só registra o pedido para o fornecedor emitir depois.
+  const [invoices, setInvoices] = useState<InvoiceRequest[]>([]);
+  const [invoicesUnavailable, setInvoicesUnavailable] = useState(false);
+  const [invoiceForm, setInvoiceForm] = useState<{
+    kind: "annual" | "monthly" | "day_pass";
+    referenceId: string | null;
+    quantity: number;
+    label: string;
+  } | null>(null);
+  const [invPersonType, setInvPersonType] = useState<InvoicePersonType>("cnpj");
+  const [invTaxId, setInvTaxId] = useState("");
+  const [invName, setInvName] = useState("");
+  const [invEmail, setInvEmail] = useState("");
+  const [invAddress, setInvAddress] = useState("");
+  const [invNotes, setInvNotes] = useState("");
+  const [invError, setInvError] = useState<string | null>(null);
+  const [invSaving, setInvSaving] = useState(false);
 
   useEffect(() => {
     setCurrentEmail(accountEmail);
@@ -293,6 +418,82 @@ function SubscriptionPage() {
       cancelled = true;
     };
   }, [activeId, loadStatus]);
+
+  // Pedidos de nota da loja ativa. Sem a migração aplicada, `unavailable` fica
+  // `true` e a UI esconde a seção em vez de quebrar (como em reviews).
+  const loadInvoices = useCallback(async (storeId: string) => {
+    const { requests, unavailable } = await getInvoiceRequests(storeId);
+    setInvoices(requests);
+    setInvoicesUnavailable(unavailable);
+  }, []);
+
+  useEffect(() => {
+    if (!activeId) return;
+    let cancelled = false;
+    loadInvoices(activeId).catch(() => {
+      if (!cancelled) setInvoicesUnavailable(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeId, loadInvoices]);
+
+  /** Abre o formulário já sabendo qual compra será faturada. */
+  function openInvoiceForm(
+    kind: "annual" | "monthly" | "day_pass",
+    referenceId: string | null,
+    quantity: number,
+    label: string,
+  ) {
+    setInvoiceForm({ kind, referenceId, quantity, label });
+    setInvError(null);
+    setInvNotes("");
+    // Pré-preenche com o e-mail do Mercado Pago quando já houver.
+    if (currentEmail) setInvEmail(currentEmail);
+    setTab("nota");
+  }
+
+  async function submitInvoice() {
+    if (!activeId || !invoiceForm) return;
+    const message = validateInvoiceRequest({
+      personType: invPersonType,
+      taxId: invTaxId,
+      legalName: invName,
+      email: invEmail,
+      address: invAddress,
+      notes: invNotes,
+    });
+    if (message) {
+      setInvError(message);
+      return;
+    }
+    setInvSaving(true);
+    setInvError(null);
+    const { request, error } = await createInvoiceRequest({
+      restaurantId: activeId,
+      kind: invoiceForm.kind,
+      referenceId: invoiceForm.referenceId,
+      quantity: invoiceForm.quantity,
+      personType: invPersonType,
+      taxId: invTaxId,
+      legalName: invName,
+      email: invEmail,
+      address: invAddress,
+      notes: invNotes,
+    });
+    setInvSaving(false);
+    if (!request) {
+      setInvError(error ?? "Não foi possível registrar o pedido.");
+      return;
+    }
+    setInvoices((prev) => [request, ...prev]);
+    setInvoiceForm(null);
+    setInvTaxId("");
+    setInvName("");
+    setInvAddress("");
+    setInvNotes("");
+    toast.success("Pedido de nota registrado! Vamos emitir e enviar por e-mail.");
+  }
 
   // Depois de mandar o dono ao checkout, quando ele volta para esta aba o
   // status é conferido sozinho — sem ele ter que achar o botão "Sincronizar".
@@ -538,6 +739,7 @@ function SubscriptionPage() {
       ? "pedidos ilimitados · renova todo mês"
       : "pedidos ilimitados · renova a cada ano";
   const usagePct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
+  const pendingInvoices = invoices.filter((i) => i.status === "pending").length;
 
   return (
     <div className="mx-auto max-w-md space-y-3">
@@ -604,6 +806,35 @@ function SubscriptionPage() {
                 {dayPassCredits === 1 ? "" : "s"} grátis para usar.
               </p>
             )}
+
+            {/* Comprar mais diárias DURANTE o período ativo: o tempo empilha
+                (`grant_day_pass` soma sobre o `unlocked_until` vigente). Antes
+                este bloco só existia no convite do plano gratuito, então a
+                opção de comprar/empilhar desaparecia depois da 1ª compra. */}
+            <DayPassPurchase
+              dayQty={dayQty}
+              setDayQty={setDayQty}
+              credits={dayPassCredits}
+              redeeming={redeeming}
+              awaiting={awaitingDayPass}
+              onRedeem={redeemCredit}
+              onBuy={openDayPass}
+            />
+
+            <button
+              type="button"
+              onClick={() =>
+                openInvoiceForm(
+                  "day_pass",
+                  null,
+                  dayQty,
+                  `${dayQty} × diária (24h)`,
+                )
+              }
+              className="tap mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] py-2.5 text-[11px] font-bold text-gray-300 hover:bg-white/[0.07] hover:text-white"
+            >
+              <Receipt className="size-3.5" /> Pedir nota fiscal
+            </button>
           </div>
         </section>
       ) : isPremium ? (
@@ -649,6 +880,21 @@ function SubscriptionPage() {
                 Cancelar
               </Button>
             </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                openInvoiceForm(
+                  billing === "monthly" ? "monthly" : "annual",
+                  preapprovalId,
+                  1,
+                  billing === "monthly" ? "Assinatura mensal" : "Assinatura anual",
+                )
+              }
+              className="tap mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] py-2.5 text-[11px] font-bold text-gray-300 hover:bg-white/[0.07] hover:text-white"
+            >
+              <Receipt className="size-3.5" /> Pedir nota fiscal
+            </button>
           </div>
         </section>
       ) : (
@@ -728,74 +974,26 @@ function SubscriptionPage() {
             )}
 
             {/* Alternativa sem compromisso: libera só o dia de hoje. */}
-            <div className="mt-4 border-t border-white/[0.07] pt-3.5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 text-xs font-bold text-white">
-                    <Timer className="size-3.5 text-cyan-300" /> Prefere só hoje?
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-gray-500">
-                    {brl(DAY_PASS_PRICE_VALUE * dayQty)} · {dayQty} × 24h
-                    {dayQty > 1 ? " (empilha)" : ""}
-                  </p>
-                </div>
-                {dayPassCredits > 0 ? (
-                  <Button
-                    onClick={redeemCredit}
-                    disabled={redeeming}
-                    className="tap shrink-0 rounded-full bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25"
-                  >
-                    {redeeming ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Gift className="size-4" />
-                    )}
-                    Usar 1 grátis ({dayPassCredits})
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={openDayPass}
-                    className="tap shrink-0 rounded-full bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25"
-                  >
-                    <Timer className="size-4" /> Liberar hoje
-                  </Button>
-                )}
-              </div>
+            <DayPassPurchase
+              dayQty={dayQty}
+              setDayQty={setDayQty}
+              credits={dayPassCredits}
+              redeeming={redeeming}
+              awaiting={awaitingDayPass}
+              onRedeem={redeemCredit}
+              onBuy={openDayPass}
+            />
 
-              {/* Pacote: quantas diárias comprar de uma vez. */}
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <span className="text-[11px] font-semibold text-gray-500">Quantas diárias?</span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    aria-label="Menos uma diária"
-                    onClick={() => setDayQty((q) => Math.max(1, q - 1))}
-                    disabled={dayQty <= 1}
-                    className="tap grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
-                  >
-                    <Minus className="size-4" />
-                  </button>
-                  <span className="w-8 text-center text-sm font-black tabular-nums text-white">
-                    {dayQty}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="Mais uma diária"
-                    onClick={() => setDayQty((q) => Math.min(60, q + 1))}
-                    disabled={dayQty >= 60}
-                    className="tap grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
-                  >
-                    <Plus className="size-4" />
-                  </button>
-                </div>
-              </div>
-
-              {awaitingDayPass && (
-                <p className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-cyan-300">
-                  <Loader2 className="size-3.5 animate-spin" /> Confirmando o pagamento da diária…
-                </p>
-              )}
-            </div>
+            {invoices.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setTab("nota")}
+                className="tap mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] py-2.5 text-[11px] font-bold text-gray-300 hover:bg-white/[0.07] hover:text-white"
+              >
+                <Receipt className="size-3.5" /> Minhas notas
+                {pendingInvoices > 0 ? ` · ${pendingInvoices} pendente${pendingInvoices === 1 ? "" : "s"}` : ""}
+              </button>
+            )}
           </div>
         </section>
       )}
@@ -853,6 +1051,29 @@ function SubscriptionPage() {
           }
           onClick={() => setTab("detalhes")}
         />
+        {!invoicesUnavailable && (
+          <GuideTile
+            size="sm"
+            icon={<Receipt className="size-4" />}
+            tone={pendingInvoices > 0 ? "amber" : "emerald"}
+            title="Nota fiscal"
+            hint={
+              pendingInvoices > 0
+                ? `${pendingInvoices} pedido${pendingInvoices === 1 ? "" : "s"} na fila`
+                : invoices.length > 0
+                  ? `${invoices.length} pedido${invoices.length === 1 ? "" : "s"}`
+                  : "Peça a nota da sua compra"
+            }
+            badge={
+              pendingInvoices > 0 ? (
+                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                  pendente
+                </span>
+              ) : undefined
+            }
+            onClick={() => setTab("nota")}
+          />
+        )}
       </div>
 
       {/* ---- Aba: benefícios e comparativo ---- */}
@@ -1072,6 +1293,279 @@ function SubscriptionPage() {
           </div>
 
           {!isPremium && rewards.length > 0 && <RewardsProgress rewards={rewards} />}
+        </div>
+      </GuidePanel>
+
+      {/* ---- Aba: nota fiscal (pedido de NFS-e) ---- */}
+      <GuidePanel
+        open={tab === "nota"}
+        onOpenChange={(o) => {
+          if (!o) {
+            setTab(null);
+            setInvoiceForm(null);
+            setInvError(null);
+          }
+        }}
+        title="Nota fiscal"
+        icon={<Receipt className="size-4" />}
+        tone={pendingInvoices > 0 ? "amber" : "emerald"}
+        width="md"
+      >
+        <div className="space-y-4">
+          {invoiceForm ? (
+            <>
+              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.06] px-3.5 py-3">
+                <p className="text-[11px] font-bold text-cyan-200">{invoiceForm.label}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-cyan-100/70">
+                  Informe os dados de quem deve receber a nota. Vamos emitir e enviar para o
+                  e-mail abaixo.
+                </p>
+              </div>
+
+              {/* Tipo de pessoa: PF (CPF) ou PJ (CNPJ). */}
+              <div className="flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
+                {(
+                  [
+                    { key: "cnpj" as const, label: "Empresa (CNPJ)" },
+                    { key: "cpf" as const, label: "Pessoa (CPF)" },
+                  ]
+                ).map((option) => {
+                  const active = invPersonType === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => {
+                        setInvPersonType(option.key);
+                        setInvTaxId("");
+                        setInvError(null);
+                      }}
+                      className={
+                        "tap flex-1 rounded-full px-3 py-2 text-[11px] font-bold transition-all " +
+                        (active
+                          ? "bg-cyan-500 text-black"
+                          : "text-gray-400 hover:bg-white/[0.05] hover:text-gray-200")
+                      }
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="text-[11px] font-semibold text-gray-400">
+                    {invPersonType === "cpf" ? "CPF" : "CNPJ"}
+                  </span>
+                  <input
+                    inputMode="numeric"
+                    value={invTaxId}
+                    onChange={(e) => {
+                      setInvTaxId(formatTaxId(e.target.value, invPersonType));
+                      setInvError(null);
+                    }}
+                    placeholder={invPersonType === "cpf" ? "000.000.000-00" : "00.000.000/0000-00"}
+                    className="tap mt-1 w-full rounded-2xl border border-white/10 bg-black/25 px-3.5 py-3 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-semibold text-gray-400">
+                    {invPersonType === "cpf" ? "Nome completo" : "Razão social"}
+                  </span>
+                  <input
+                    value={invName}
+                    onChange={(e) => {
+                      setInvName(e.target.value);
+                      setInvError(null);
+                    }}
+                    placeholder={invPersonType === "cpf" ? "Seu nome" : "Nome da empresa"}
+                    className="tap mt-1 w-full rounded-2xl border border-white/10 bg-black/25 px-3.5 py-3 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-semibold text-gray-400">
+                    E-mail para receber a nota
+                  </span>
+                  <input
+                    type="email"
+                    inputMode="email"
+                    value={invEmail}
+                    onChange={(e) => {
+                      setInvEmail(e.target.value);
+                      setInvError(null);
+                    }}
+                    placeholder="voce@email.com"
+                    className="tap mt-1 w-full rounded-2xl border border-white/10 bg-black/25 px-3.5 py-3 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-semibold text-gray-400">
+                    Endereço <span className="text-gray-600">(opcional)</span>
+                  </span>
+                  <input
+                    value={invAddress}
+                    onChange={(e) => setInvAddress(e.target.value)}
+                    placeholder="Rua, número, bairro, cidade"
+                    className="tap mt-1 w-full rounded-2xl border border-white/10 bg-black/25 px-3.5 py-3 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-semibold text-gray-400">
+                    Observação <span className="text-gray-600">(opcional)</span>
+                  </span>
+                  <input
+                    value={invNotes}
+                    onChange={(e) => setInvNotes(e.target.value)}
+                    placeholder="Ex.: incluir a inscrição municipal"
+                    className="tap mt-1 w-full rounded-2xl border border-white/10 bg-black/25 px-3.5 py-3 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none"
+                  />
+                </label>
+              </div>
+
+              {invError && (
+                <p className="flex items-start gap-2 rounded-2xl border border-red-500/25 bg-red-500/[0.08] px-3.5 py-3 text-[11px] leading-relaxed text-red-300">
+                  <AlertCircle className="mt-0.5 size-3.5 shrink-0" /> {invError}
+                </p>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={submitInvoice}
+                  disabled={invSaving}
+                  className="tap h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black"
+                >
+                  {invSaving ? (
+                    <Loader2 className="size-5 animate-spin" />
+                  ) : (
+                    <Receipt className="size-5" />
+                  )}
+                  Enviar pedido de nota
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInvoiceForm(null);
+                    setInvError(null);
+                  }}
+                  className="tap w-full rounded-full border border-white/10 py-2.5 text-[11px] font-semibold text-gray-400 hover:bg-white/[0.05] hover:text-white"
+                >
+                  Voltar
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3">
+                <p className="text-[11px] leading-relaxed text-gray-400">
+                  A cobrança é emitida por {COMPANY.legalName} (CNPJ {COMPANY.cnpj}).{" "}
+                  {hasFiscalData
+                    ? "Peça a nota da sua compra abaixo."
+                    : "A emissão automática ainda não está ligada — registre o pedido abaixo e emitiremos manualmente."}
+                </p>
+              </div>
+
+              {/* Compras elegíveis: a última assinatura e as diárias. */}
+              <div className="space-y-2">
+                {isPremium && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openInvoiceForm(
+                        billing === "monthly" ? "monthly" : "annual",
+                        preapprovalId,
+                        1,
+                        billing === "monthly" ? "Assinatura mensal" : "Assinatura anual",
+                      )
+                    }
+                    className="tap flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 text-left hover:bg-white/[0.05]"
+                  >
+                    <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-amber-500/12 text-amber-300">
+                      <Crown className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-bold text-white">
+                        {billing === "monthly" ? "Assinatura mensal" : "Assinatura anual"}
+                      </span>
+                      <span className="block text-[11px] text-gray-500">Pedir nota desta compra</span>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-gray-500" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => openInvoiceForm("day_pass", null, dayQty, `${dayQty} × diária (24h)`)}
+                  className="tap flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 text-left hover:bg-white/[0.05]"
+                >
+                  <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-cyan-500/12 text-cyan-300">
+                    <Timer className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-bold text-white">Diária (24h)</span>
+                    <span className="block text-[11px] text-gray-500">Pedir nota desta compra</span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Histórico de pedidos de nota. */}
+              {invoices.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                    Seus pedidos
+                  </p>
+                  {invoices.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-bold text-white">
+                          {INVOICE_KIND_LABELS[inv.kind] ?? inv.kind}
+                        </span>
+                        <span
+                          className={
+                            "rounded-full px-2 py-0.5 text-[10px] font-bold " +
+                            (inv.status === "emitted"
+                              ? "bg-emerald-500/15 text-emerald-300"
+                              : inv.status === "rejected"
+                                ? "bg-red-500/15 text-red-300"
+                                : "bg-amber-500/15 text-amber-300")
+                          }
+                        >
+                          {inv.status === "emitted"
+                            ? "emitida"
+                            : inv.status === "rejected"
+                              ? "recusada"
+                              : "na fila"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        {inv.legal_name} · {inv.tax_id} ·{" "}
+                        {new Date(inv.created_at).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-[11px] leading-relaxed text-gray-500">
+                Precisa de outro documento (comprovante, recibo)?{" "}
+                <a
+                  href={`mailto:${COMPANY.supportEmail}`}
+                  className="font-semibold text-cyan-300 underline-offset-2 hover:underline"
+                >
+                  Fale com o suporte
+                </a>
+                .
+              </p>
+            </>
+          )}
         </div>
       </GuidePanel>
 

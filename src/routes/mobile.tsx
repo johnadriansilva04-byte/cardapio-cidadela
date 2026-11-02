@@ -5,6 +5,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useOwnerPendingOrders } from "@/modules/mobile/useOwnerOrders";
 import { MobileStoreProvider, useMobileStore } from "@/modules/mobile/store-context";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
+import { ensurePushSubscription } from "@/modules/mobile/push";
 import { notifyNewOrder } from "@/modules/mobile/preferences";
 import { AlertsBanner } from "@/components/mobile/AlertsBanner";
 import { StoreStatusBadge } from "@/modules/ui/PageHeader";
@@ -51,6 +52,9 @@ function MobileLayout() {
 
   useEffect(() => {
     requestOrderNotificationPermission();
+    // Se a permissão já estava concedida mas o endpoint do navegador expirou,
+    // o push silenciava sem aviso. Reidrata a subscription ao abrir a gestão.
+    void ensurePushSubscription();
   }, []);
 
   if (!isAuthenticated) return null;

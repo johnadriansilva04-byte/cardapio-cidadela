@@ -243,6 +243,51 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       .sort((a, b) => a.sort_order - b.sort_order);
   }, [productAddons, products]);
 
+  // Adicionais do produto = específicos do produto + globais (dedup por nome;
+  // o específico vence quando o nome coincide). Antes era um "OU": um único
+  // adicional específico antigo escondia todos os globais do produto.
+  const addonsForProduct = useCallback(
+    (productId: string): ProductAddon[] => {
+      const specific = addonsByProduct.get(productId) ?? [];
+      if (specific.length === 0) return globalAddons;
+      const names = new Set(specific.map((a) => a.name.trim().toLowerCase()));
+      const extras = globalAddons.filter((a) => !names.has(a.name.trim().toLowerCase()));
+      return [...specific, ...extras];
+    },
+    [addonsByProduct, globalAddons],
+  );
+
+  // Índices pré-computados. O render roda a cada rolagem (scroll-spy) e a cada
+  // 60s (relógio), então filtrar `products` por categoria dentro do `.map` —
+  // duas vezes, uma na barra fixa e outra nas seções — virava O(categorias ×
+  // produtos) por quadro e travava a rolagem num cardápio grande.
+  const productsByCategory = useMemo(() => {
+    const m = new Map<string, Product[]>();
+    for (const p of products) {
+      if (!p.available) continue;
+      const arr = m.get(p.category_id);
+      if (arr) arr.push(p);
+      else m.set(p.category_id, [p]);
+    }
+    return m;
+  }, [products]);
+
+  const availableAddonsByProduct = useMemo(() => {
+    const m = new Map<string, ProductAddon[]>();
+    for (const p of products)
+      m.set(
+        p.id,
+        addonsForProduct(p.id).filter((a) => a.available),
+      );
+    return m;
+  }, [products, addonsForProduct]);
+
+  const cartQtyByProduct = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const ci of cart) m.set(ci.product.id, (m.get(ci.product.id) ?? 0) + ci.quantity);
+    return m;
+  }, [cart]);
+
   const lines = useMemo(() => {
     return cart.map((ci) => {
       const addonsPrice = ci.addons?.reduce((s, a) => s + Number(a.price), 0) ?? 0;
@@ -265,17 +310,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     (productId: string, addons?: SelectedAddon[]) => removeFromCart(productId, addons),
     [removeFromCart],
   );
-
-  // Adicionais do produto = específicos do produto + globais (dedup por nome;
-  // o específico vence quando o nome coincide). Antes era um "OU": um único
-  // adicional específico antigo escondia todos os globais do produto.
-  function addonsForProduct(productId: string): ProductAddon[] {
-    const specific = addonsByProduct.get(productId) ?? [];
-    if (specific.length === 0) return globalAddons;
-    const names = new Set(specific.map((a) => a.name.trim().toLowerCase()));
-    const extras = globalAddons.filter((a) => !names.has(a.name.trim().toLowerCase()));
-    return [...specific, ...extras];
-  }
 
   function openAddonModal(product: Product, cartIndex?: number) {
     const available = addonsForProduct(product.id).filter((a) => a.available);
@@ -829,7 +863,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       <div className="sticky top-0 z-20 mt-3 border-y border-white/5 bg-[#07070b]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {categories.map((c) => {
-            const catProducts = products.filter((p) => p.category_id === c.id && p.available);
+            const catProducts = productsByCategory.get(c.id) ?? [];
             const isActive = activeCat === c.id;
             return (
               <button
@@ -878,7 +912,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             </div>
           ) : (
             categories.map((cat) => {
-              const catProducts = products.filter((p) => p.category_id === cat.id && p.available);
+              const catProducts = productsByCategory.get(cat.id) ?? [];
               if (catProducts.length === 0) return null;
 
               return (
@@ -906,11 +940,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
                   <div className="grid gap-2">
                     {catProducts.map((item, idx) => {
-                      const availableAddons = addonsForProduct(item.id).filter((a) => a.available);
+                      const availableAddons = availableAddonsByProduct.get(item.id) ?? [];
                       const hasAddons = availableAddons.length > 0;
-                      const qtyInCart = cart
-                        .filter((ci) => ci.product.id === item.id)
-                        .reduce((s, ci) => s + ci.quantity, 0);
+                      const qtyInCart = cartQtyByProduct.get(item.id) ?? 0;
                       const canOrder = isCurrentlyOpen;
 
                       return (

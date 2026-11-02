@@ -165,6 +165,31 @@ function OrderTrackingPage() {
     };
   }, [order, orderId]);
 
+  // Rede de segurança: o cliente depende deste status ("meu pedido saiu?").
+  // Se o WebSocket cair — celular em segundo plano, rede instável — o realtime
+  // silencia e a tela congelava no último estado. Aqui reconsultamos de tempos
+  // em tempos e ao voltar para a aba; a RPC só devolve colunas públicas.
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      const o = await getOrderTrackingPublic(orderId);
+      if (!alive || !o) return;
+      setOrder((prev) => (prev ? { ...prev, ...o } : o));
+      const h = await getOrderHistory(orderId);
+      if (alive) setHistory(h);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const poll = window.setInterval(refresh, 20000);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      alive = false;
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [orderId]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#07070b]">

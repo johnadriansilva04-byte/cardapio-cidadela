@@ -212,6 +212,21 @@
   Envia `metadata.kind = 'day_pass'` + `metadata.quantity`; a concessão só
   acontece no webhook. O webhook e o sync (`mp-subscription.ts`) leem
   `quantity` do metadata e repassam à RPC.
+- **A compra de diárias aparece nos DOIS estados do plano.** O bloco de compra
+  vive em `DayPassPurchase` (componente local de `admin.assinatura.tsx`) e é
+  renderizado tanto no convite do plano gratuito quanto na tela de "diária em
+  vigor". Antes ele só existia no convite, então depois de comprar a primeira
+  diária a opção de comprar mais/empilhar desaparecia. Comprar durante o período
+  ativo é suportado de propósito (`grant_day_pass` soma as horas).
+- **Pedido de nota fiscal (NFS-e).** O app não emite nota: `invoice_requests`
+  (`supabase/supabase_invoice_migration.sql`) é a fila em que o dono PEDE a nota
+  e o fornecedor emite. O dono só insere/lê os próprios pedidos
+  (`is_restaurant_owner`); o trigger `guard_invoice_requests` (SECURITY INVOKER)
+  força `status='pending'` e anula `amount_cents` para quem não é service role —
+  sem ele um `PATCH status='emitted'` tirava o pedido da fila sem nota. A
+  validação (CPF/CNPJ módulo 11, e-mail) vive em `src/lib/invoice.ts`; o acesso
+  em `src/modules/supabase/invoice.ts` degrada em silêncio sem a migração (como
+  `reviews.ts`). A UI é a aba "nota" do hub de assinatura.
 - Recompensas concedem **diárias** (créditos), não pedidos bônus: ver
   `supabase_day_pass_rewards_migration.sql` (`store_day_credits`,
   `reward_grants.day_credits`, `rewards.day_credits`). `redeemDayPass` troca 1
@@ -624,6 +639,12 @@
   `pg_cron` (`cidadela-rewards`, `mata-fome-cleanup`, `mata-fome-reset-monthly`)
   estão ativos. Não há mais defasagem a corrigir — se um banco novo for criado,
   rode `apply-all.mjs`.
+- **Pendência: `supabase_invoice_migration.sql` ainda não foi aplicada** (a
+  `invoice_requests` é a 32ª tabela). Enquanto não rodar, a aba "Nota fiscal" de
+  `/admin/assinatura` mostra o estado indisponível — o app não quebra (o módulo
+  degrada como `reviews.ts`). Aplicar com
+  `SUPABASE_ACCESS_TOKEN=... SUPABASE_PROJECT_REF=wlznmlsvnlgsljanbjgy node supabase/apply-all.mjs`
+  (a migração já está na ordem do `apply-all.mjs`, depois das de diária).
 - `supabase/apply-all.mjs` aplica **todas** as migrações na ordem correta via
   Management API (sem Docker, sem conexão direta ao Postgres — o host
   `db.<ref>.supabase.co` é IPv6-only e não resolve neste ambiente). Uso:
@@ -665,6 +686,30 @@
   restaurante, "?" do `FinanceSummary`, "Abrir cardápio público" do card, "✕" do
   `GuidePanel`.
 
+## Domínio, acompanhamento e performance do cardápio
+
+- **O link compartilhado usa o domínio canônico, não o host do navegador.**
+  `currentOrigin()` (`src/lib/site.ts`) devolve `SITE_URL`
+  (`cardapio.pracinha.online`) em produção e só mantém a origem local quando ela
+  é `localhost`/`127.0.0.1` (dev). Antes devolvia `window.location.origin`, então
+  quem abrisse o painel pelo `*.vercel.app` compartilhava o endereço da Vercel.
+  `SharePanel` e `StorePulseBar` usam isso; o `/mobile` tem um botão de
+  compartilhar (Web Share API com fallback para copiar/WhatsApp).
+- **O cliente não pode depender só do realtime no acompanhamento.** O
+  `/pedido/$orderId` assina os UPDATEs, mas se o WebSocket cair (celular em
+  segundo plano, rede instável) a tela congelava. Há um poll de 20s + revalidação
+  no `visibilitychange` como rede de segurança — a RPC `get_order_tracking` só
+  devolve colunas públicas.
+- **Alerta que não pode falhar.** `useOwnerPendingOrders` (o sino/contador do
+  mobile) mantém um `Set` de ids conhecidos: o poll de 15s compara com a lista
+  atual e dispara o alerta para o que o realtime não entregou. Também revalida no
+  `visibilitychange` — o navegador congela o WebSocket em segundo plano.
+- **Índices pré-computados no cardápio público.** `Cardapio.tsx` roda o render a
+  cada rolagem (scroll-spy) e a cada 60s (relógio). Por isso `productsByCategory`,
+  `availableAddonsByProduct` e `cartQtyByProduct` são `useMemo` com `Map`:
+  filtrar `products` por categoria dentro do `.map` (duas vezes) e refazer o
+  reduce do carrinho por produto era O(categorias × produtos) por quadro.
+
 ## Painel: organização da fila de pedidos (UX)
 
 - `OrderManager` (`src/components/admin/OrderManager.tsx`) **não é mais um Kanban
@@ -693,6 +738,12 @@
   ficar **acima** dos `if (loading…)`/`if (error…)`. Declarar um hook depois de
   um return antecipado faz o React lançar "Rendered more hooks than during the
   previous render" e a rota cai no error boundary.
+- **A contagem das abas vem de `tabCounts`, sobre `contextOrders`.** `contextOrders`
+  é o filtro de contexto (loja/período/busca) **sem** o status; `displayedOrders`
+  é o recorte final com o status ativo. Contar as abas a partir de
+  `displayedOrders` zerava todas as outras (o número só "aparecia" ao clicar,
+  quando o próprio filtro mudava). Regressão coberta por `OrderManager.test.tsx`
+  ("move o número de uma aba para a outra ao avançar o pedido").
 - O Dashboard (`admin.index.tsx`) abre com os KPIs de **hoje** (pedidos,
   faturamento, ticket) e o seletor de período (7/30/90 dias) vive junto do
   gráfico, que é o que ele filtra. Não devolva o período para a barra do topo.

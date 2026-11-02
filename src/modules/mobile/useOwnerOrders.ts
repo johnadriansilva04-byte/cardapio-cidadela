@@ -223,6 +223,12 @@ export function useOwnerPendingOrders(
     let cancelled = false;
     let debounce: ReturnType<typeof setTimeout> | null = null;
     let polling: ReturnType<typeof setInterval> | null = null;
+    // Ids já conhecidos. Serve de rede de segurança: se o WebSocket cair, o
+    // poll periódico encontra o pedido que o realtime não entregou e ainda
+    // dispara o alerta. Sem isto o contador ficava certo mas o som/normal
+    // notificação não tocava — o pior caso para quem está no balcão.
+    const knownIds = new Set<string>();
+    let seeded = false;
 
     const countActive = async () => {
       try {
@@ -234,14 +240,27 @@ export function useOwnerPendingOrders(
         }
         const { data, error } = await supabase
           .from("orders")
-          .select("id")
+          .select("id, restaurant_id, customer_name, comanda, total, status, created_at")
           .in(
             "restaurant_id",
             rests.map((r) => r.id),
           )
           .in("status", ["received", "preparing", "ready", "out_for_delivery"]);
         if (cancelled || error) return;
-        setPendingCount(data?.length ?? 0);
+        const rows = data ?? [];
+        if (!seeded) {
+          // Primeira carga: os pedidos que já existiam não são "novos".
+          for (const row of rows) knownIds.add(row.id);
+          seeded = true;
+        } else {
+          for (const row of rows) {
+            if (!knownIds.has(row.id)) {
+              knownIds.add(row.id);
+              callbackRef.current?.(row as unknown as Order);
+            }
+          }
+        }
+        setPendingCount(rows.length);
       } catch {
         /* realtime/count é best-effort */
       }
@@ -264,6 +283,8 @@ export function useOwnerPendingOrders(
             restaurant.id,
             (eventType, order) => {
               if (eventType === "INSERT") {
+                // Marca como conhecido para o poll não disparar o alerta de novo.
+                knownIds.add(order.id);
                 if (["received", "preparing", "ready", "out_for_delivery"].includes(order.status)) {
                   setPendingCount((count) => count + 1);
                 }
@@ -283,10 +304,19 @@ export function useOwnerPendingOrders(
 
     polling = setInterval(countActive, 15000);
 
+    // Voltar para a aba revalida na hora: o navegador congela o WebSocket em
+    // segundo plano, então o pedido que chegou nesse intervalo só apareceria
+    // no próximo poll (até 15s de silêncio).
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void countActive();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       cancelled = true;
       if (debounce) clearTimeout(debounce);
       if (polling) clearInterval(polling);
+      document.removeEventListener("visibilitychange", onVisible);
       for (const channel of channels) {
         try {
           supabase.removeChannel(channel);

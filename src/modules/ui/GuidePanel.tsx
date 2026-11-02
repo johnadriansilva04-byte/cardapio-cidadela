@@ -78,7 +78,7 @@ export function GuidePanel({
             type="button"
             onClick={() => onOpenChange(false)}
             aria-label="Fechar"
-            className="grid size-9 shrink-0 place-items-center rounded-full border border-white/10 text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
+            className="hit-area grid size-9 shrink-0 place-items-center rounded-full border border-white/10 text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
           >
             <X className="size-4" />
           </button>

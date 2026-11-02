@@ -560,7 +560,7 @@ export function OrderManager({
               key={key}
               onClick={() => setFilter(key)}
               className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors",
+                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2.5 text-[11px] font-bold transition-colors",
                 active
                   ? TAB_TONE[key]
                   : "border-white/8 bg-white/[0.02] text-gray-400 hover:border-white/15 hover:text-gray-200",

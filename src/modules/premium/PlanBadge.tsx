@@ -56,7 +56,7 @@ export function PlanBadge({ onClick, className }: { onClick?: () => void; classN
             : `Plano gratuito — ${status.remainingOrders} pedidos restantes`
       }
       className={cn(
-        "plan-badge inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-transform active:scale-95",
+        "plan-badge hit-area inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition-transform active:scale-95",
         premium
           ? "plan-badge-premium border-amber-400/35 bg-gradient-to-r from-amber-500/20 to-amber-400/10 text-amber-200 shadow-[0_0_16px_rgba(251,191,36,0.18)]"
           : dayPass

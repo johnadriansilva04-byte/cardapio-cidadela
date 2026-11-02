@@ -296,7 +296,7 @@ function RestaurantDetailPage() {
         <div className="flex items-start gap-3">
           <Link
             to="/admin/restaurantes"
-            className="mt-1 grid size-8 shrink-0 place-items-center rounded-lg border border-white/10 text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
+            className="hit-area mt-1 grid size-8 shrink-0 place-items-center rounded-lg border border-white/10 text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
             aria-label="Voltar para restaurantes"
           >
             <ArrowLeft className="size-4" />

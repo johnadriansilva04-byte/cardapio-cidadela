@@ -1004,15 +1004,15 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                 {item.available && canOrder ? (
                                   qtyInCart > 0 ? (
                                     <div
-                                      className="flex animate-pop-in items-center gap-1 rounded-full p-0.5"
+                                      className="flex animate-pop-in items-center gap-1.5 rounded-full p-0.5"
                                       style={{ backgroundColor: hexToRgba(accent, 0.15) }}
                                     >
                                       <button
                                         onClick={() => handleRemove(item.id)}
-                                        className="grid size-6 place-items-center rounded-full text-white/80 hover:bg-black/40 hover:text-white"
+                                        className="grid size-7 place-items-center rounded-full text-white/80 hover:bg-black/40 hover:text-white"
                                         aria-label={`Remover ${item.name}`}
                                       >
-                                        <Minus className="size-3" />
+                                        <Minus className="size-3.5" />
                                       </button>
                                       <span
                                         key={qtyInCart}
@@ -1022,17 +1022,17 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                                       </span>
                                       <button
                                         onClick={() => handleAddSimple(item)}
-                                        className="grid size-6 place-items-center rounded-full text-white transition-colors hover:brightness-110"
+                                        className="grid size-7 place-items-center rounded-full text-white transition-colors hover:brightness-110"
                                         style={{ backgroundColor: accent }}
                                         aria-label={`Adicionar ${item.name}`}
                                       >
-                                        <Plus className="size-3" />
+                                        <Plus className="size-3.5" />
                                       </button>
                                     </div>
                                   ) : (
                                     <button
                                       onClick={() => handleAddSimple(item)}
-                                      className="grid size-8 place-items-center rounded-full text-white transition-all hover:scale-110 hover:brightness-110 active:scale-95"
+                                      className="hit-area grid size-10 place-items-center rounded-full text-white transition-all hover:scale-110 hover:brightness-110 active:scale-95"
                                       style={{
                                         backgroundColor: accent,
                                         boxShadow: `0 2px 10px ${hexToRgba(accent, 0.4)}`,

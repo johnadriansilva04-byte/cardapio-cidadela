@@ -33,7 +33,7 @@ export function AppHeader({
       {showMenu && (
         <button
           onClick={onMenuClick}
-          className="grid size-9 place-items-center rounded-lg text-gray-400 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
+          className="hit-area grid size-9 place-items-center rounded-lg text-gray-400 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
           aria-label="Abrir menu"
         >
           <Menu className="size-5" />

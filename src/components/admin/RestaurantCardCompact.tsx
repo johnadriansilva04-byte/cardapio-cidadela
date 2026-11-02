@@ -139,7 +139,7 @@ export function RestaurantCardCompact({
             target="_blank"
             rel="noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="grid size-7 place-items-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-black/70"
+            className="hit-area grid size-7 place-items-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-black/70"
             aria-label="Abrir cardápio público"
           >
             <ExternalLink className="size-3.5" />

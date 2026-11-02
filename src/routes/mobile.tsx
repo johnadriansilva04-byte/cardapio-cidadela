@@ -151,7 +151,7 @@ function MobileShell({ loading, userId }: { loading: boolean; userId: string | u
         type="button"
         onClick={() => setSidebarOpen(true)}
         aria-label="Abrir menu"
-        className="grid size-9 shrink-0 place-items-center rounded-lg text-gray-400 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
+        className="hit-area grid size-9 shrink-0 place-items-center rounded-lg text-gray-400 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
       >
         <Menu className="size-5" />
       </button>

@@ -650,6 +650,21 @@
   `relrowsecurity = true`; `evaluate_rewards()` roda sem erro; o job
   `cidadela-rewards` (`10 * * * *`) está ativo em `cron.job`.
 
+## Áreas de toque no celular (WCAG 2.5.5)
+
+- O dono opera o painel no celular, muitas vezes com a mão suja ou na correria.
+  Alvos pequenos erram o toque. O utilitário `hit-area` (`src/styles.css`) estende
+  a área clicável para **44px** via um `::after` invisível centrado, **sem inchar o
+  desenho** — o visual compacto continua igual. Vale só em `@media (pointer: coarse)`,
+  então no mouse o alvo continua o do desenho e não rouba o clique do vizinho.
+- **Não aplicar em botões colados** (steppers −/+, abas com `gap` pequeno): as áreas
+  expandidas se sobrepõem e o toque dispara a ação errada. Nesses casos, aumente o
+  desenho com folga (ex.: stepper da diária em `size-9` com `gap-1.5`).
+- Alvos que já usam `hit-area`: botão "+" do cardápio público, hambúrguer de
+  `AppHeader`/`mobile`, `PlanBadge`, ícones do `StorePulseBar`, "Voltar" do
+  restaurante, "?" do `FinanceSummary`, "Abrir cardápio público" do card, "✕" do
+  `GuidePanel`.
+
 ## Painel: organização da fila de pedidos (UX)
 
 - `OrderManager` (`src/components/admin/OrderManager.tsx`) **não é mais um Kanban

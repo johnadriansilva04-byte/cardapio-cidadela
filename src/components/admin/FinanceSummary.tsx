@@ -32,7 +32,7 @@ function HelpTip({ text }: { text: string }) {
         <TooltipTrigger asChild>
           <button
             type="button"
-            className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-white/5 text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-300"
+            className="hit-area inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-white/5 text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-300"
             aria-label="Mais informações"
           >
             <HelpCircle className="size-3" />

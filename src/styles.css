@@ -484,6 +484,26 @@
   }
 }
 
+/* Alvo de toque de 44px (WCAG 2.5.5 / Apple HIG) sem inchar o desenho: um
+   pseudo-elemento invisível centrado estende a área clicável. Vale só em
+   `pointer: coarse` (dedo) — no mouse o alvo continua o do desenho, para não
+   roubar o clique do vizinho. NÃO aplicar em botões colados (steppers): as
+   áreas expandidas se sobrepõem e o toque dispara a ação errada. */
+@utility hit-area {
+  position: relative;
+  @media (pointer: coarse) {
+    &::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      translate: -50% -50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+    }
+  }
+}
+
 /* ============================================================
    Selo "Conheça a Cidadela" — presença viva e discreta
    (respiração neon + anel duplo + arco girando + varredura contínua)

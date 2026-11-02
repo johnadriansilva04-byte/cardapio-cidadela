@@ -94,7 +94,7 @@ export function StorePulseBar({ restaurant, toggling, onToggle }: StorePulseBarP
           href={publicUrl}
           target="_blank"
           rel="noreferrer"
-          className="grid size-8 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+          className="hit-area grid size-8 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white"
           title="Abrir cardápio"
         >
           <ExternalLink className="size-3.5" />
@@ -119,7 +119,7 @@ export function StorePulseBar({ restaurant, toggling, onToggle }: StorePulseBarP
           to="/admin/restaurante/$id"
           params={{ id: restaurant.id }}
           search={{ tab: undefined }}
-          className="grid size-8 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+          className="hit-area grid size-8 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white"
           title="Abrir gestão"
         >
           <LayoutGrid className="size-3.5" />

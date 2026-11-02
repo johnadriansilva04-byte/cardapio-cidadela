@@ -664,6 +664,17 @@
   anon), mas o REVOKE é a segunda camada — o mesmo raciocínio do `admin_trials`.
   O fluxo de push não depende do grant de anon: a inscrição é feita logado e a
   chave pública chega pela Edge Function `push-vapid-key` (service_role).
+- **As Edge Functions não estão deployadas** (verificado em 2026-10-31): o
+  Management API devolve lista vazia e `notify-new-order`, `notify-reward` e
+  `push-vapid-key` respondem `{"code":"NOT_FOUND","message":"Requested function
+  was not found"}` mesmo com a anon key válida. `push_vapid` também está vazio.
+  Consequência: **o push de pedido novo e de recompensa nunca funcionou em
+  produção** — o dono só descobre o pedido abrindo o painel (o realtime do
+  Supabase segue funcionando). Deploy: `supabase functions deploy <slug>
+  --project-ref wlznmlsvnlgsljanbjgy` (exige `--yes`/confirmação e os secrets
+  `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` no projeto). Sem
+  isso, `push_vapid` fica vazio e nada é enviado — o app não quebra, só não
+  notifica.
 - `supabase/apply-all.mjs` aplica **todas** as migrações na ordem correta via
   Management API (sem Docker, sem conexão direta ao Postgres — o host
   `db.<ref>.supabase.co` é IPv6-only e não resolve neste ambiente). Uso:

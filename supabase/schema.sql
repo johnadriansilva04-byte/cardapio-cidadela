@@ -1659,6 +1659,13 @@ GRANT ALL ON TABLE chat_messages, game_sessions, game_moves, profiles TO authent
 -- cidadela_unlocks, reviews, catálogo).
 REVOKE ALL ON TABLE admin_trials FROM anon;
 
+-- push_vapid (chave privada VAPID) e push_subscriptions (endpoints de push dos
+-- dispositivos) nunca tiveram o REVOKE do anon: o grant default do Supabase
+-- deixa ALL para anon/authenticated. O RLS já barra (não há policy para anon em
+-- nenhuma das duas), mas é o mesmo buraco de defesa em profundidade do
+-- admin_trials — não depender só do RLS para o segredo de assinatura do push.
+REVOKE ALL ON TABLE push_vapid, push_subscriptions FROM anon;
+
 -- As tabelas abaixo só existem depois da migração de recompensas (e a de
 -- diárias). O REVOKE precisa ser condicional: citar uma tabela inexistente
 -- aborta o schema inteiro (`relation "app_settings" does not exist`), o que

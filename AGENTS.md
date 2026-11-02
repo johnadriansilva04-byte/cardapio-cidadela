@@ -630,21 +630,25 @@
   ref antigo (`hkzhksauilonqppipjyc`) e este arquivo já citou
   `xfgmnggdgnozyrluqabv` — ambos desatualizados; confirme pelo bundle em caso de
   dúvida.
-- **Estado do banco de produção (verificado em 2026-10-31):** alinhado com o
-  repositório. As 31 tabelas existem com RLS ligado; todas as RPCs
-  (`create_order_atomic`, `get_order_for_owner`, `owner_locked_stores`,
-  `grant_day_pass`, `evaluate_rewards`, ...) estão presentes; o guard
-  `trg_guard_admin_trials_premium` é a versão endurecida (SECURITY INVOKER) e
-  `store_is_unlocked` exige `premium_expires_at > now()`; os três jobs
-  `pg_cron` (`cidadela-rewards`, `mata-fome-cleanup`, `mata-fome-reset-monthly`)
-  estão ativos. Não há mais defasagem a corrigir — se um banco novo for criado,
-  rode `apply-all.mjs`.
-- **Pendência: `supabase_invoice_migration.sql` ainda não foi aplicada** (a
-  `invoice_requests` é a 32ª tabela). Enquanto não rodar, a aba "Nota fiscal" de
-  `/admin/assinatura` mostra o estado indisponível — o app não quebra (o módulo
-  degrada como `reviews.ts`). Aplicar com
-  `SUPABASE_ACCESS_TOKEN=... SUPABASE_PROJECT_REF=wlznmlsvnlgsljanbjgy node supabase/apply-all.mjs`
-  (a migração já está na ordem do `apply-all.mjs`, depois das de diária).
+- **Estado do banco de produção (verificado em 2026-10-31, após aplicar a
+  migração de notas):** alinhado com o repositório. As **32** tabelas existem com
+  RLS ligado; todas as RPCs (`create_order_atomic`, `get_order_for_owner`,
+  `owner_locked_stores`, `grant_day_pass`, `evaluate_rewards`, ...) estão
+  presentes; o guard `trg_guard_admin_trials_premium` é a versão endurecida
+  (SECURITY INVOKER) e `store_is_unlocked` exige `premium_expires_at > now()`; os
+  três jobs `pg_cron` (`cidadela-rewards`, `mata-fome-cleanup`,
+  `mata-fome-reset-monthly`) estão ativos. Não há mais defasagem a corrigir — se
+  um banco novo for criado, rode `apply-all.mjs`.
+- **`invoice_requests` aplicada em produção** (a 32ª tabela): RLS ligado, policies
+  só de INSERT/SELECT para o dono, trigger `trg_guard_invoice_requests` ativo,
+  `anon` sem grant, `guard_invoice_requests` SECURITY INVOKER. Se um banco novo
+  for criado, a migração já está na ordem do `apply-all.mjs`.
+- **Grants de push endurecidos** (`supabase_push_grants_migration.sql`):
+  `push_vapid` (chave privada VAPID) e `push_subscriptions` vinham com o grant
+  default do Supabase (ALL) para `anon`. O RLS já barrava (não há policy para
+  anon), mas o REVOKE é a segunda camada — o mesmo raciocínio do `admin_trials`.
+  O fluxo de push não depende do grant de anon: a inscrição é feita logado e a
+  chave pública chega pela Edge Function `push-vapid-key` (service_role).
 - `supabase/apply-all.mjs` aplica **todas** as migrações na ordem correta via
   Management API (sem Docker, sem conexão direta ao Postgres — o host
   `db.<ref>.supabase.co` é IPv6-only e não resolve neste ambiente). Uso:

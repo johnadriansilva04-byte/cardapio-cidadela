@@ -33,6 +33,7 @@ import { Route as MobileConfigRouteImport } from './routes/mobile.config'
 import { Route as MobileDashboardRouteImport } from './routes/mobile.dashboard'
 import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
 import { Route as AdminRestauranteIdRouteImport } from './routes/admin.restaurante.$id'
+import { Route as ApiInvoiceRequestRouteImport } from './routes/api.invoice.request'
 import { Route as ApiPaymentCreateLinkRouteImport } from './routes/api.payment.create-link'
 import { Route as ApiPaymentDayPassRouteImport } from './routes/api.payment.day-pass'
 import { Route as ApiPaymentMonthlyRouteImport } from './routes/api.payment.monthly'
@@ -161,6 +162,11 @@ const AdminRestauranteIdRoute = AdminRestauranteIdRouteImport.update({
   path: '/restaurante/$id',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiInvoiceRequestRoute = ApiInvoiceRequestRouteImport.update({
+  id: '/api/invoice/request',
+  path: '/api/invoice/request',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPaymentCreateLinkRoute = ApiPaymentCreateLinkRouteImport.update({
   id: '/api/payment/create-link',
   path: '/api/payment/create-link',
@@ -222,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/invoice/request': typeof ApiInvoiceRequestRoute
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
   '/api/payment/monthly': typeof ApiPaymentMonthlyRoute
@@ -253,6 +260,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/mobile': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/invoice/request': typeof ApiInvoiceRequestRoute
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
   '/api/payment/monthly': typeof ApiPaymentMonthlyRoute
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/invoice/request': typeof ApiInvoiceRequestRoute
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
   '/api/payment/monthly': typeof ApiPaymentMonthlyRoute
@@ -322,6 +331,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/mobile/'
     | '/admin/restaurante/$id'
+    | '/api/invoice/request'
     | '/api/payment/create-link'
     | '/api/payment/day-pass'
     | '/api/payment/monthly'
@@ -353,6 +363,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/mobile'
     | '/admin/restaurante/$id'
+    | '/api/invoice/request'
     | '/api/payment/create-link'
     | '/api/payment/day-pass'
     | '/api/payment/monthly'
@@ -386,6 +397,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/mobile/'
     | '/admin/restaurante/$id'
+    | '/api/invoice/request'
     | '/api/payment/create-link'
     | '/api/payment/day-pass'
     | '/api/payment/monthly'
@@ -407,6 +419,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   CardapioSlugRoute: typeof CardapioSlugRoute
   PedidoOrderIdRoute: typeof PedidoOrderIdRoute
+  ApiInvoiceRequestRoute: typeof ApiInvoiceRequestRoute
   ApiPaymentCreateLinkRoute: typeof ApiPaymentCreateLinkRoute
   ApiPaymentDayPassRoute: typeof ApiPaymentDayPassRoute
   ApiPaymentMonthlyRoute: typeof ApiPaymentMonthlyRoute
@@ -586,6 +599,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRestauranteIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/invoice/request': {
+      id: '/api/invoice/request'
+      path: '/api/invoice/request'
+      fullPath: '/api/invoice/request'
+      preLoaderRoute: typeof ApiInvoiceRequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/payment/create-link': {
       id: '/api/payment/create-link'
       path: '/api/payment/create-link'
@@ -693,6 +713,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   CardapioSlugRoute: CardapioSlugRoute,
   PedidoOrderIdRoute: PedidoOrderIdRoute,
+  ApiInvoiceRequestRoute: ApiInvoiceRequestRoute,
   ApiPaymentCreateLinkRoute: ApiPaymentCreateLinkRoute,
   ApiPaymentDayPassRoute: ApiPaymentDayPassRoute,
   ApiPaymentMonthlyRoute: ApiPaymentMonthlyRoute,

@@ -36,6 +36,8 @@ interface E2EDb {
   /** Metas de engajamento. */
   rewards: Row[];
   reward_grants: Row[];
+  /** Fila de pedidos de nota fiscal (NFS-e). */
+  invoice_requests: Row[];
   /** RPCs/consultas que devem falhar (ex.: ["get_order_tracking"]). */
   failRpc?: string[];
   /** Força o preço/indisponibilidade no servidor sem alterar a lista da tela. */
@@ -146,6 +148,7 @@ function defaultDb(): E2EDb {
     store_usage: [],
     rewards: [],
     reward_grants: [],
+    invoice_requests: [],
     failRpc: [],
   };
 }

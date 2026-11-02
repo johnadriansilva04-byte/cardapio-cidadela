@@ -227,6 +227,21 @@
   validação (CPF/CNPJ módulo 11, e-mail) vive em `src/lib/invoice.ts`; o acesso
   em `src/modules/supabase/invoice.ts` degrada em silêncio sem a migração (como
   `reviews.ts`). A UI é a aba "nota" do hub de assinatura.
+- **A nota é pedida DEPOIS da compra, quando o dono quiser** (não é checkbox no
+  checkout). O pedido é registrado na fila e o fornecedor é avisado por e-mail.
+- **Entrega por e-mail.** `createInvoiceRequest` chama `POST /api/invoice/request`
+  (rota `api.invoice.request.ts`) em vez de inserir direto: é lá que a posse da
+  loja é confirmada com o RLS do usuário, os dados são revalidados e o aviso sai
+  por `src/api/lib/email.ts` (API HTTP do Resend, sem dependência nova). Envs
+  server-only: `RESEND_API_KEY` (sem ela o registro vale e o e-mail é pulado com
+  log), `EMAIL_FROM`, `INVOICE_NOTIFY_EMAIL` (padrão = `COMPANY.supportEmail`).
+  O pedido **já está gravado** quando o e-mail é tentado: falha de e-mail não
+  desfaz o registro — a rota devolve `notified:false` e a UI avisa em vez de
+  prometer a entrega. Sem a rota (deploy antigo), o cliente cai no insert direto.
+- **A ação de pedir nota tem peso de obrigação legal, não de upsell:**
+  `InvoiceButton` (âmbar, 44px) no rodapé do bloco do plano (diária e Premium) e
+  na aba de detalhes; "Minhas notas" usa a variante `secondary`. O botão fica
+  atrás de `!invoicesUnavailable` para não aparecer num banco sem a migração.
 - Recompensas concedem **diárias** (créditos), não pedidos bônus: ver
   `supabase_day_pass_rewards_migration.sql` (`store_day_credits`,
   `reward_grants.day_credits`, `rewards.day_credits`). `redeemDayPass` troca 1

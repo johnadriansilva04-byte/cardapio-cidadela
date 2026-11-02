@@ -66,14 +66,74 @@ export interface CreateInvoiceRequestParams {
   notes?: string;
 }
 
+export interface CreateInvoiceRequestResult {
+  request: InvoiceRequest | null;
+  error?: string;
+  /**
+   * `true` quando o pedido foi gravado mas o aviso por e-mail ao fornecedor
+   * não saiu (provedor ausente ou falha). O registro vale; o aviso é reforço.
+   */
+  notifyFailed?: boolean;
+}
+
 /**
- * Cria o pedido de nota. O `amount_cents` NÃO é enviado: o guard do banco
- * anula qualquer valor vindo do cliente — o preço é do servidor. O status
- * também é forçado para `pending` pelo trigger.
+ * Cria o pedido de nota.
+ *
+ * Passa pela rota `/api/invoice/request` (não insere direto): é lá que a posse
+ * da loja é confirmada, os dados são revalidados e o aviso por e-mail ao
+ * fornecedor é disparado com a chave server-only. Sem a rota (deploy antigo),
+ * cai no insert direto — que já é protegido pelo RLS e pelo guard do banco.
+ *
+ * No E2E (`VITE_E2E=1`) não há Supabase nem provedor de e-mail no servidor: o
+ * stub em memória É o backend, então vamos direto pelo insert (mesmo desenho do
+ * SDK trocado por `src/e2e/supabase-stub.ts`).
+ *
+ * O `amount_cents` nunca é enviado: o guard do banco anula valor vindo do
+ * cliente. O status também é forçado para `pending` pelo trigger.
  */
 export async function createInvoiceRequest(
   params: CreateInvoiceRequestParams,
-): Promise<{ request: InvoiceRequest | null; error?: string }> {
+  accessToken?: string,
+): Promise<CreateInvoiceRequestResult> {
+  const isE2E = import.meta.env.VITE_E2E === "1";
+  if (accessToken && !isE2E) {
+    try {
+      const res = await fetch("/api/invoice/request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          storeId: params.restaurantId,
+          kind: params.kind,
+          referenceId: params.referenceId ?? null,
+          quantity: params.quantity ?? 1,
+          personType: params.personType,
+          taxId: params.taxId.replace(/\D/g, ""),
+          legalName: params.legalName.trim(),
+          email: params.email.trim(),
+          address: params.address?.trim() || "",
+          notes: params.notes?.trim() || "",
+        }),
+      });
+      // 404 = rota ainda não publicada: cai no caminho direto abaixo.
+      if (res.status !== 404) {
+        const data = (await res.json().catch(() => ({}))) as {
+          request?: InvoiceRequest;
+          error?: string;
+          notified?: boolean;
+        };
+        if (res.ok && data.request) {
+          return { request: data.request, notifyFailed: data.notified === false };
+        }
+        return { request: null, error: data.error ?? "Não foi possível registrar o pedido." };
+      }
+    } catch {
+      /* rede/servidor fora: tenta o caminho direto */
+    }
+  }
+
   const { data, error } = await supabase
     .from(TABLE)
     .insert({

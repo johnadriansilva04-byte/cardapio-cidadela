@@ -257,6 +257,41 @@ function DayPassPurchase({
 }
 
 /**
+ * Ação de pedir nota fiscal.
+ *
+ * Nota fiscal é obrigação legal, não upsell: o dono que pagou precisa do
+ * documento sem caçar um link cinza. Por isso o contraste cheio (âmbar) e a
+ * altura de toque de 44px — antes era um botão fantasma de 11px, no mesmo peso
+ * visual de "Minhas notas", que é só navegação. A variante `secondary` existe
+ * para quando a nota já foi pedida e o que resta é abrir o histórico.
+ */
+function InvoiceButton({
+  onClick,
+  secondary = false,
+  label,
+}: {
+  onClick: () => void;
+  secondary?: boolean;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "tap mt-3 flex w-full items-center justify-center gap-2 rounded-full py-3 text-xs font-bold transition-colors " +
+        (secondary
+          ? "border border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/[0.07] hover:text-white"
+          : "bg-amber-400 text-black hover:bg-amber-300")
+      }
+    >
+      <Receipt className="size-4" />
+      {label ?? (secondary ? "Minhas notas" : "Pedir nota fiscal")}
+    </button>
+  );
+}
+
+/**
  * Hub de assinatura em uma tela só.
  *
  * A página não rola: mostra o estado do plano e quatro atalhos. Cada assunto
@@ -469,18 +504,21 @@ function SubscriptionPage() {
     }
     setInvSaving(true);
     setInvError(null);
-    const { request, error } = await createInvoiceRequest({
-      restaurantId: activeId,
-      kind: invoiceForm.kind,
-      referenceId: invoiceForm.referenceId,
-      quantity: invoiceForm.quantity,
-      personType: invPersonType,
-      taxId: invTaxId,
-      legalName: invName,
-      email: invEmail,
-      address: invAddress,
-      notes: invNotes,
-    });
+    const { request, error, notifyFailed } = await createInvoiceRequest(
+      {
+        restaurantId: activeId,
+        kind: invoiceForm.kind,
+        referenceId: invoiceForm.referenceId,
+        quantity: invoiceForm.quantity,
+        personType: invPersonType,
+        taxId: invTaxId,
+        legalName: invName,
+        email: invEmail,
+        address: invAddress,
+        notes: invNotes,
+      },
+      session?.access_token,
+    );
     setInvSaving(false);
     if (!request) {
       setInvError(error ?? "Não foi possível registrar o pedido.");
@@ -492,7 +530,15 @@ function SubscriptionPage() {
     setInvName("");
     setInvAddress("");
     setInvNotes("");
-    toast.success("Pedido de nota registrado! Vamos emitir e enviar por e-mail.");
+    // Se o aviso por e-mail não saiu, o pedido está registrado mesmo assim —
+    // dizemos a verdade em vez de prometer uma entrega que não aconteceu.
+    if (notifyFailed) {
+      toast.warning(
+        "Pedido registrado! O aviso por e-mail não saiu — verifique a caixa de suporte.",
+      );
+    } else {
+      toast.success("Pedido de nota registrado! Vamos emitir e enviar por e-mail.");
+    }
   }
 
   // Depois de mandar o dono ao checkout, quando ele volta para esta aba o
@@ -821,20 +867,13 @@ function SubscriptionPage() {
               onBuy={openDayPass}
             />
 
-            <button
-              type="button"
-              onClick={() =>
-                openInvoiceForm(
-                  "day_pass",
-                  null,
-                  dayQty,
-                  `${dayQty} × diária (24h)`,
-                )
-              }
-              className="tap mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] py-2.5 text-[11px] font-bold text-gray-300 hover:bg-white/[0.07] hover:text-white"
-            >
-              <Receipt className="size-3.5" /> Pedir nota fiscal
-            </button>
+            {!invoicesUnavailable && (
+              <InvoiceButton
+                onClick={() =>
+                  openInvoiceForm("day_pass", null, dayQty, `${dayQty} × diária (24h)`)
+                }
+              />
+            )}
           </div>
         </section>
       ) : isPremium ? (
@@ -881,20 +920,18 @@ function SubscriptionPage() {
               </Button>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                openInvoiceForm(
-                  billing === "monthly" ? "monthly" : "annual",
-                  preapprovalId,
-                  1,
-                  billing === "monthly" ? "Assinatura mensal" : "Assinatura anual",
-                )
-              }
-              className="tap mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] py-2.5 text-[11px] font-bold text-gray-300 hover:bg-white/[0.07] hover:text-white"
-            >
-              <Receipt className="size-3.5" /> Pedir nota fiscal
-            </button>
+            {!invoicesUnavailable && (
+              <InvoiceButton
+                onClick={() =>
+                  openInvoiceForm(
+                    billing === "monthly" ? "monthly" : "annual",
+                    preapprovalId,
+                    1,
+                    billing === "monthly" ? "Assinatura mensal" : "Assinatura anual",
+                  )
+                }
+              />
+            )}
           </div>
         </section>
       ) : (
@@ -985,14 +1022,15 @@ function SubscriptionPage() {
             />
 
             {invoices.length > 0 && (
-              <button
-                type="button"
+              <InvoiceButton
+                secondary
                 onClick={() => setTab("nota")}
-                className="tap mt-3 flex w-full items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] py-2.5 text-[11px] font-bold text-gray-300 hover:bg-white/[0.07] hover:text-white"
-              >
-                <Receipt className="size-3.5" /> Minhas notas
-                {pendingInvoices > 0 ? ` · ${pendingInvoices} pendente${pendingInvoices === 1 ? "" : "s"}` : ""}
-              </button>
+                label={`Minhas notas${
+                  pendingInvoices > 0
+                    ? ` · ${pendingInvoices} pendente${pendingInvoices === 1 ? "" : "s"}`
+                    : ""
+                }`}
+              />
             )}
           </div>
         </section>
@@ -1276,20 +1314,21 @@ function SubscriptionPage() {
           </div>
 
           {/* Nota fiscal: o dono precisa saber que a cobrança não vem com nota
-              e que dá para pedir o documento pelo canal de suporte. */}
+              e que o pedido é feito aqui mesmo, pelo app. */}
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3">
             <p className="text-[11px] font-bold text-gray-300">Nota fiscal</p>
             <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
               A cobrança do Mercado Pago é emitida por {COMPANY.legalName} (CNPJ {COMPANY.cnpj}).
               {hasFiscalData
                 ? " Os dados fiscais do prestador já estão cadastrados."
-                : " A emissão automática de nota ainda não está ligada — peça o documento pelo canal de suporte informando o e-mail da compra."}
+                : " A emissão é manual: registre o pedido aqui no app e emitimos para você."}
             </p>
             {!hasFiscalData && missingFiscalFields.length > 0 && (
               <p className="mt-1.5 text-[10px] leading-relaxed text-gray-600">
                 Pendente no cadastro fiscal: {missingFiscalFields.join(", ")}.
               </p>
             )}
+            {!invoicesUnavailable && <InvoiceButton onClick={() => setTab("nota")} />}
           </div>
 
           {!isPremium && rewards.length > 0 && <RewardsProgress rewards={rewards} />}

@@ -4,40 +4,19 @@
 
 Mantém o projeto Supabase acordado no **plano gratuito**. O Free pausa o
 projeto depois de **1 semana sem nenhuma requisição**, e um projeto pausado
-derruba o app (a API responde 503) até alguém restaurar à mão. Este script faz
-o mínimo: se a janela passou **sem** requisição, ele faz UMA.
+derruba o app (a API responde 503). O script faz **uma** requisição leve — só
+isso.
 
-Roda sozinho todo dia (workflow `.github/workflows/keep-alive.yml`) e também
-pode ser rodado à mão:
+Roda sozinho a cada 5 dias (workflow `.github/workflows/keep-alive.yml`) e
+também pode ser rodado à mão:
 
 ```bash
 npm run keep-alive
 ```
 
-Lógica:
-1. Com `SUPABASE_ACCESS_TOKEN`, lê o status do projeto e **restaura** se
-   estiver pausado.
-2. Lê o uso dos últimos 3 dias. Com qualquer requisição, **não pinga** — não
-   gasta egress à toa.
-3. Sem uso (ou sem token), faz um `GET` leve em `restaurants` com a anon key:
-   é uma requisição REST de verdade e reseta o contador de inatividade.
-
-Envs: `SUPABASE_URL` e `SUPABASE_ANON_KEY` (obrigatórias para o ping),
-`SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF` (opcionais — habilitam a
-checagem de uso e a restauração automática). No GitHub, os dois primeiros já
-existem como `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`; o
-`SUPABASE_PROJECT_REF` também já está configurado.
-
-> **Sem `SUPABASE_ACCESS_TOKEN` o workflow já resolve a pausa** — ele pinga
-> todo dia (modo simples). O token só melhora: pula o ping quando já houve
-> tráfego e restaura sozinho um projeto que tenha pausado. Se quiser o caminho
-> completo, crie um PAT em supabase.com/dashboard/account/tokens (escopo de
-> projetos) e salve como o secret `SUPABASE_ACCESS_TOKEN`. Nunca comite o
-> token nem o use em log.
-
-> A janela é de 3 dias, não 7: o próprio ping conta como requisição, então
-> olhar 7 dias faria o keep-alive "esconder" a ociosidade e só pingar de novo
-> ~8 dias depois — colado no limite de pausa.
+Envs: `SUPABASE_URL` e `SUPABASE_ANON_KEY` (a chave pública, a mesma do
+bundle). No GitHub já existem como `VITE_SUPABASE_URL` /
+`VITE_SUPABASE_ANON_KEY`. Nenhum token é necessário.
 
 ## backup-to-r2.mjs / restore-from-r2.mjs
 

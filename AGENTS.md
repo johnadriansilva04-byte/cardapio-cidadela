@@ -808,9 +808,9 @@ developers.cloudflare.com). Reconfira antes de decidir — os planos mudam.
 
 **O gatilho real é a pausa, não o egress.** Um projeto pausado derruba o app
 (503) até restaurar à mão. Enquanto não houver cliente pagando, o
-`scripts/keep-alive.mjs` (workflow diário) contorna — ele pinga só quando a
-janela passou sem requisição. **Com cliente pagando, isso é gambiarra, não
-solução: migre.** O keep-alive é rede de segurança, não substituto do Pro.
+`scripts/keep-alive.mjs` (workflow a cada 5 dias) contorna — ele faz **uma**
+requisição leve, sem token nenhum. **Com cliente pagando, isso é gambiarra,
+não solução: migre.** O keep-alive é rede de segurança, não substituto do Pro.
 
 👉 **Regra prática: migre para o Pro (~US$ 25 ≈ R$ 137/mês) ao chegar em
 ~10–15 lojas pagas.** O Pro cobre pausa, backup diário e folga de egress.

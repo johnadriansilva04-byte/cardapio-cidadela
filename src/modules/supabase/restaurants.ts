@@ -136,6 +136,28 @@ export async function createRestaurant(
 }
 
 /**
+ * Estado do limite de restaurantes por conta (plano gratuito = 1).
+ *
+ * Lê a RPC `owner_restaurant_limit` (SECURITY DEFINER). Aditiva: sem a migração
+ * a RPC não existe e a função devolve um estado derivado localmente — a UI não
+ * trava, só perde a checagem de servidor (o gate real é o trigger no banco).
+ */
+export async function getRestaurantLimitState(
+  localCount: number,
+  localPremium: boolean,
+): Promise<{ premium: boolean; count: number }> {
+  const { data, error } = await supabase.rpc("owner_restaurant_limit");
+  if (!error && data && typeof data === "object") {
+    const row = data as { premium?: unknown; count?: unknown };
+    return {
+      premium: Boolean(row.premium),
+      count: Math.max(0, Number(row.count ?? localCount) || 0),
+    };
+  }
+  return { premium: localPremium, count: localCount };
+}
+
+/**
  * Seed default categories for a new restaurant
  */
 export async function seedDefaultMenu(restaurantId: string): Promise<void> {

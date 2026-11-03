@@ -102,6 +102,11 @@ const PREMIUM_BENEFITS: { icon: LucideIcon; title: string; text: string }[] = [
     text: "O detalhe de cada pedido abre na hora, sem cadeado nem aviso de bloqueio.",
   },
   {
+    icon: StoreIcon,
+    title: "Vários restaurantes",
+    text: "O plano gratuito tem 1 loja. No Premium você abre quantas quiser na mesma conta.",
+  },
+  {
     icon: Zap,
     title: "Confirmação automática",
     text: "Pix, cartão ou boleto aprovam e o Premium liga sozinho, sem espera.",
@@ -111,6 +116,7 @@ const PREMIUM_BENEFITS: { icon: LucideIcon; title: string; text: string }[] = [
 /** Comparativo gratuito × Premium — a diferença em uma olhada, sem letras miúdas. */
 const PLAN_COMPARISON: { feature: string; free: string; premium: string }[] = [
   { feature: "Pedidos por mês", free: `${MONTHLY_FREE_LIMIT}`, premium: "Ilimitados" },
+  { feature: "Restaurantes", free: "1", premium: "Quantos quiser" },
   { feature: "Detalhes dos pedidos", free: "Bloqueiam na cota", premium: "Sempre liberados" },
   { feature: "Ativação após pagamento", free: "—", premium: "Automática" },
   { feature: "Cancele quando quiser", free: "—", premium: "Sim, sem multa" },
@@ -1300,19 +1306,17 @@ function SubscriptionPage() {
               <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.06] px-3.5 py-3">
                 <p className="text-[11px] font-bold text-cyan-200">{invoiceForm.label}</p>
                 <p className="mt-1 text-[11px] leading-relaxed text-cyan-100/70">
-                  Informe os dados de quem deve receber a nota. Vamos emitir e enviar para o
-                  e-mail abaixo.
+                  Informe os dados de quem deve receber a nota. Vamos emitir e enviar para o e-mail
+                  abaixo.
                 </p>
               </div>
 
               {/* Tipo de pessoa: PF (CPF) ou PJ (CNPJ). */}
               <div className="flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
-                {(
-                  [
-                    { key: "cnpj" as const, label: "Empresa (CNPJ)" },
-                    { key: "cpf" as const, label: "Pessoa (CPF)" },
-                  ]
-                ).map((option) => {
+                {[
+                  { key: "cnpj" as const, label: "Empresa (CNPJ)" },
+                  { key: "cpf" as const, label: "Pessoa (CPF)" },
+                ].map((option) => {
                   const active = invPersonType === option.key;
                   return (
                     <button
@@ -1482,7 +1486,9 @@ function SubscriptionPage() {
                 )}
                 <button
                   type="button"
-                  onClick={() => openInvoiceForm("day_pass", null, dayQty, `${dayQty} × diária (24h)`)}
+                  onClick={() =>
+                    openInvoiceForm("day_pass", null, dayQty, `${dayQty} × diária (24h)`)
+                  }
                   className="tap flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 text-left hover:bg-white/[0.05]"
                 >
                   <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-cyan-500/12 text-cyan-300">

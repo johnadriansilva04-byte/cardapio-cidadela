@@ -518,6 +518,21 @@
 
 ## Painel (admin)
 
+- **O plano gratuito dá 1 restaurante por conta; criar mais é Premium.** O gate
+  vive no BANCO: o trigger `guard_restaurant_limit` (`supabase/supabase_restaurant_limit_migration.sql`,
+  BEFORE INSERT em `restaurants`) conta os restaurantes do dono e recusa o
+  segundo quando não há Premium vigente. A policy `owner_insert` só exige
+  `owner_id = auth.uid()`, então um INSERT direto via PostgREST criaria quantos
+  quisesse — a UI sozinha seria contornável. Premium é a MESMA definição de
+  `get_order_for_owner`/`owner_locked_stores`: `is_premium` E
+  `premium_expires_at > now()` em QUALQUER loja do dono (`owner_has_premium_access`).
+  A **diária de 24h NÃO libera multi-loja** de propósito (ela dá pedidos
+  ilimitados, não várias lojas). A UI (`admin.restaurantes.tsx`) lê a RPC
+  aditiva `owner_restaurant_limit()` e, quando o dono já tem loja e não é
+  Premium, abre o `RestaurantLimitDialog` com o CTA de assinatura em vez do
+  formulário; se o INSERT escapar (Premium expirou entre a leitura e a escrita)
+  o erro do trigger também cai no diálogo. Não mova essa checagem só para o
+  cliente: o que vale é o trigger.
 - **Loja ativa é única e global** (`src/modules/store/active-store-context.tsx`).
   O `ActiveStoreProvider` vive acima das rotas em `admin.tsx`, carrega os
   restaurantes uma vez e expõe `active`/`activeId`/`setActiveId`/`reload`. Antes

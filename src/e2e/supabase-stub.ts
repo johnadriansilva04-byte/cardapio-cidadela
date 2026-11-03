@@ -359,6 +359,22 @@ function ownedRestaurantIds(db: E2EDb, userId: string | undefined): string[] {
   return db.restaurants.filter((r) => r.owner_id === userId).map((r) => String(r.id));
 }
 
+/**
+ * Espelha `owner_has_premium_access`: qualquer loja do dono com Premium vigente.
+ * A diária de 24h NÃO conta — só o Premium libera multi-loja.
+ */
+function ownerHasPremiumAccess(db: E2EDb, ownerId: string | undefined, now: number): boolean {
+  if (!ownerId) return false;
+  return db.restaurants.some(
+    (r) =>
+      r.owner_id === ownerId &&
+      isPremiumActive(
+        db.admin_trials.find((t) => String(t.store_id) === String(r.id)),
+        now,
+      ),
+  );
+}
+
 /** Linha de `admin_trials` do restaurante (pode não existir). */
 function trialFor(db: E2EDb, storeId: string): Row | undefined {
   return db.admin_trials.find((t) => String(t.store_id) === storeId);
@@ -542,6 +558,26 @@ class QueryBuilder implements PromiseLike<{ data: unknown; error: unknown }> {
     const rows = (db as unknown as Record<string, Row[]>)[this.table] ?? [];
     if (this.mode === "insert") {
       const list = Array.isArray(this.payload) ? this.payload : [this.payload!];
+      // Espelha o trigger `guard_restaurant_limit`: o dono no plano gratuito
+      // tem 1 restaurante; criar mais é Premium. Sem isto o E2E não provaria
+      // que a regra vive no "servidor" e não só na tela.
+      if (this.table === "restaurants") {
+        const user = getE2ESessionUser();
+        const ownerId = String(list[0]?.owner_id ?? "");
+        if (user && ownerId === user.id && !ownerHasPremiumAccess(db, user.id, Date.now())) {
+          const existing = rows.filter((r) => r.owner_id === user.id).length;
+          if (existing >= 1) {
+            return {
+              data: null,
+              error: {
+                message:
+                  "Plano gratuito permite 1 restaurante por conta. Assine o Premium para criar mais.",
+                code: "P0001",
+              },
+            };
+          }
+        }
+      }
       for (const r of list) {
         const row = { id: r.id ?? `e2e-${Math.random().toString(36).slice(2)}`, ...r };
         rows.push(row);
@@ -723,6 +759,15 @@ class StubClient {
       return Promise.resolve({ data, error: null });
     }
     if (name === "owner_locked_stores") return Promise.resolve(ownerLockedStores(db, args));
+    if (name === "owner_restaurant_limit") {
+      // Espelha a RPC: estado do limite (quantos restaurantes + Premium).
+      const user = getE2ESessionUser();
+      const count = user ? db.restaurants.filter((r) => r.owner_id === user.id).length : 0;
+      return Promise.resolve({
+        data: { premium: ownerHasPremiumAccess(db, user?.id, Date.now()), count },
+        error: null,
+      });
+    }
     if (name === "get_order_for_owner") return getOrderForOwner(db, args);
     if (name === "create_order_atomic") return createOrderAtomic(db, args);
     return Promise.resolve({ data: null, error: null });

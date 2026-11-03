@@ -409,7 +409,7 @@ function AdminDashboardOverview() {
           <ol className="mx-auto mt-8 max-w-lg space-y-3">
             {[
               { n: "1", t: "Crie o restaurante", d: "Nome, endereço e uma URL só sua." },
-              { n: "2", t: "Monte o cardápio", d: "Categorias, fotos e preços em minutos." },
+              { n: "2", t: "Monte o cardápio", d: "Categorias, itens e preços em minutos." },
               { n: "3", t: "Publique e compartilhe", d: "Mande o link ou o QR no status." },
             ].map((s) => (
               <li

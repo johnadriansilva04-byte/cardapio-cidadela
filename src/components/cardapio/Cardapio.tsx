@@ -146,10 +146,17 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     discardCartIfForeign(restaurantId);
   }, [restaurantId, discardCartIfForeign]);
 
+  // Tempo real do cardápio. Cada visitante com o menu aberto segura uma conexão
+  // Realtime, e o plano tem um teto de conexões simultâneas — então a assinatura
+  // pausa com a aba oculta (só a aba visível conta) e retoma ao voltar. Como
+  // fechar/reabrir a aba refaz a carga normal, pausar não perde nada. Assinar
+  // `categories`/`product_addons` era redundante: mudar categoria/adicionais já
+  // mexe em `products`, ou é raro e o menu se recarrega ao voltar para a aba.
   useEffect(() => {
     if (!restaurantId) return;
     const rid: string = restaurantId;
     let alive = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function refreshMenu() {
       if (!alive) return;
@@ -175,48 +182,53 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       }
     }
 
-    const channel = supabase
-      .channel(`public-menu-${restaurantId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "categories",
-          filter: `restaurant_id=eq.${rid}`,
-        },
-        refreshMenu,
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "products",
-          filter: `restaurant_id=eq.${rid}`,
-        },
-        refreshMenu,
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "product_addons",
-          filter: `restaurant_id=eq.${rid}`,
-        },
-        refreshMenu,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "restaurants", filter: `id=eq.${rid}` },
-        refreshRestaurant,
-      )
-      .subscribe();
+    function connect() {
+      if (!alive || channel) return;
+      const ch = supabase
+        .channel(`public-menu-${slug}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "products", filter: `restaurant_id=eq.${rid}` },
+          refreshMenu,
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "restaurants", filter: `id=eq.${rid}` },
+          refreshRestaurant,
+        );
+      ch.subscribe((status) => {
+        // Não segura uma conexão que falhou: libera para uma nova tentativa.
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          supabase.removeChannel(ch);
+          if (channel === ch) channel = null;
+        }
+      });
+      channel = ch;
+    }
+
+    function disconnect() {
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+    }
+
+    function onVisibility() {
+      if (document.visibilityState === "visible") {
+        void refreshMenu();
+        connect();
+      } else {
+        disconnect();
+      }
+    }
+
+    if (document.visibilityState === "visible") connect();
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       alive = false;
-      supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisibility);
+      disconnect();
     };
   }, [restaurantId, slug]);
 

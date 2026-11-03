@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { captureInstallPrompt, registerServiceWorker } from "@/modules/pwa/install";
-import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
@@ -40,13 +39,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-
-  // Encaminha o erro do boundary para a telemetria (Lovable em preview e
-  // window.onerror/unhandledrejection no navegador) — sem isso, erros de
-  // render somem no console e não há como investigar instabilidade em produção.
-  useEffect(() => {
-    reportLovableError(error, { boundary: "root" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4">

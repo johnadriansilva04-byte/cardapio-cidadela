@@ -1,16 +1,3 @@
-<!-- LOVABLE:BEGIN -->
-
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-
-<!-- LOVABLE:END -->
-
 ## Build & verification
 
 - `npm run build` (Vite + Nitro). `npx tsc --noEmit` for types.
@@ -458,8 +445,8 @@
   isso qualquer um geraria cobranças para a loja de terceiros.
 - `login?returnTo=` passa por `safeInternalPath` (`src/lib/utils.ts`): só caminhos
   internos (`/...`), nunca `//host` ou `https://...`. Coberto por `utils.test.ts`.
-- Erros de render do root têm boundary em pt-BR e são encaminhados para
-  `reportLovableError`; a página SSR (`src/lib/error-page.ts`) também é pt-BR.
+- Erros de render do root têm boundary em pt-BR; a página SSR
+  (`src/lib/error-page.ts`) também é pt-BR.
 - Timers de "pedido novo" (realce de 15–20s) são rastreados e limpos no unmount
   em `useOwnerOrders.ts` e `OrderManager.tsx` — sem isso o `setState` dispara em
   componente desmontado.

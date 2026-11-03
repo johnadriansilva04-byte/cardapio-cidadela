@@ -48,7 +48,7 @@ config/setup) · ❌ fantasia (só visual, sem backend).
 
 ## Dívida conhecida (não bloqueia)
 
-- Lint com ~490 erros pré-existentes repo-wide (baseline do Lovable); não quebra
+- Lint com ~490 erros pré-existentes repo-wide (baseline do projeto); não quebra
   build. Confira apenas os arquivos que você tocou.
 - Sem `LICENSE` no repositório e sem CI (`.github/workflows`) rodando typecheck,
   testes e build a cada push.

@@ -16,7 +16,11 @@ npm run backup                    # exporta e sobe para o R2
 npm run backup -- --dry-run       # só exporta local (DRY_RUN=1)
 npm run restore -- --latest       # mostra o plano de restauração
 npm run restore -- --latest --confirm   # restaura de verdade
+npm run backup:retention -- 3     # mantém os 3 backups mais recentes
 ```
+
+O bucket guarda **3 dias** (hoje + ontem + anteontem); o R2 apaga o resto
+sozinho. Detalhes em [BACKUP.md](./BACKUP.md).
 
 ## create-payment-link.js
 

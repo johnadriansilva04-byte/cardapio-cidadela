@@ -41,3 +41,13 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           BACKUP_R2_BUCKET: cardapio-cidadela-backups
         run: node scripts/backup-to-r2.mjs
+
+      # Mantém só os N dias mais recentes; o R2 apaga o resto sozinho. Fica no
+      # workflow para a regra nunca depender de alguém lembrar de configurá-la.
+      - name: Aplicar retenção (mantém os últimos 3 dias)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          BACKUP_R2_BUCKET: cardapio-cidadela-backups
+          BACKUP_RETENTION_DAYS: "3"
+        run: node scripts/r2-lifecycle.mjs

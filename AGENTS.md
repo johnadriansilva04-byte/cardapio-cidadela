@@ -809,8 +809,11 @@
   mas rode primeiro sem `--confirm` para ver o plano.
 - Fotos **não** entram no dump (ficam no Storage e são re-baixáveis); o que é
   salvo é o **cardápio** e o **estado de assinatura/saldos**, que são o que dói
-  perder. O dump é texto compactado (dezenas de KB a poucos MB), então anos de
-  histórico cabem nos 10 GB.
+  perder. O dump é texto compactado (dezenas de KB).
+- **Retenção: 3 dias.** O bucket guarda hoje + ontem + anteontem; o R2 apaga o
+  resto sozinho pela lifecycle rule `expire-old`, reaplicada pelo workflow a
+  cada execução (`scripts/r2-lifecycle.mjs`, idempotente). Para mudar o número
+  de dias, veja `scripts/BACKUP.md` (seção Retenção).
 
 ## Domínio, acompanhamento e performance do cardápio
 

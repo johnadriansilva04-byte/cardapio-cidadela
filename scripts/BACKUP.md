@@ -118,15 +118,32 @@ console.log(p.tables.restaurants.map(r=>({id:r.id,name:r.name,slug:r.slug})));"
 
 ## Retenção
 
-O R2 tem 10 GB grátis. Um dump deste app fica na casa de **dezenas de KB a
-alguns MB** (o cardápio é texto; fotos ficam no Storage, não no dump), então
-guardar anos cabe folgado. Se quiser limpar os antigos automaticamente:
+O bucket guarda **os 3 backups mais recentes** (hoje + ontem + anteontem) e o R2
+apaga o resto sozinho, via lifecycle rule `expire-old` (objetos com mais de 3
+dias). A regra é aplicada pelo próprio workflow a cada execução
+(`scripts/r2-lifecycle.mjs`), então não depende de ninguém lembrar de
+configurá-la.
+
+Ajustar o número de dias:
 
 ```bash
-# Apaga backups com mais de 365 dias
-npx wrangler r2 bucket lifecycle add cardapio-cidadela-backups expire-1y "" \
-  --expire-days 365 --remote
+BACKUP_RETENTION_DAYS=7 node scripts/r2-lifecycle.mjs   # mantém 7 dias
+npm run backup:retention -- 7                            # idem
 ```
+
+O script é idempotente: se a regra já existe, ele não faz nada. Para trocar o
+número de dias de uma regra existente, remova antes (o `remove` só aceita
+`--name`):
+
+```bash
+npx wrangler r2 bucket lifecycle remove cardapio-cidadela-backups --name expire-old
+npx wrangler r2 bucket lifecycle list cardapio-cidadela-backups
+```
+
+Por que 3 dias basta: o dump é pequeno (dezenas de KB) e serve para recuperar
+um erro recente (um `DELETE` errado, uma migração que apagou demais). Para
+desastres antigos, o R2 tem versionamento opcional — mas o custo de manter
+histórico longo não se justifica para um cardápio, que é re-montável.
 
 ## Testar sem nuvem
 

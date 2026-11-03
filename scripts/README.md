@@ -1,5 +1,37 @@
 # Scripts do Projeto
 
+## keep-alive.mjs
+
+Mantém o projeto Supabase acordado no **plano gratuito**. O Free pausa o
+projeto depois de **1 semana sem nenhuma requisição**, e um projeto pausado
+derruba o app (a API responde 503) até alguém restaurar à mão. Este script faz
+o mínimo: se a janela passou **sem** requisição, ele faz UMA.
+
+Roda sozinho todo dia (workflow `.github/workflows/keep-alive.yml`) e também
+pode ser rodado à mão:
+
+```bash
+npm run keep-alive
+```
+
+Lógica:
+1. Com `SUPABASE_ACCESS_TOKEN`, lê o status do projeto e **restaura** se
+   estiver pausado.
+2. Lê o uso dos últimos 3 dias. Com qualquer requisição, **não pinga** — não
+   gasta egress à toa.
+3. Sem uso (ou sem token), faz um `GET` leve em `restaurants` com a anon key:
+   é uma requisição REST de verdade e reseta o contador de inatividade.
+
+Envs: `SUPABASE_URL` e `SUPABASE_ANON_KEY` (obrigatórias para o ping),
+`SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF` (opcionais — habilitam a
+checagem de uso e a restauração automática). No GitHub, os dois primeiros já
+existem como `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`; para o caminho
+completo, crie os secrets `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
+
+> A janela é de 3 dias, não 7: o próprio ping conta como requisição, então
+> olhar 7 dias faria o keep-alive "esconder" a ociosidade e só pingar de novo
+> ~8 dias depois — colado no limite de pausa.
+
 ## backup-to-r2.mjs / restore-from-r2.mjs
 
 Backup diário dos dados do Supabase para o Cloudflare R2 (10 GB grátis) e

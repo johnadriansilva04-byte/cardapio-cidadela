@@ -1,0 +1,42 @@
+name: Keep-alive (Supabase)
+
+# O plano gratuito do Supabase PAUSA o projeto após 1 semana sem nenhuma
+# atividade — e um projeto pausado derruba o app inteiro (API responde 503)
+# até alguém restaurar à mão. Este workflow garante que a semana nunca feche:
+# se não houve requisição nenhuma na janela, ele faz UMA. Com tráfego real,
+# não gasta nada.
+#
+# Roda todo dia às 12:00 UTC. O script também restaura o projeto sozinho se
+# encontrá-lo pausado (com SUPABASE_ACCESS_TOKEN configurado).
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-keep-alive
+  cancel-in-progress: false
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Manter o projeto ativo
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Opcional: sem ele o script ainda pinga, mas não lê o uso nem
+          # restaura um projeto que já tenha pausado. Configure o secret
+          # SUPABASE_ACCESS_TOKEN (PAT com escopo de projetos) para o caminho
+          # completo. O token vai só no header — nunca é gravado em disco.
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: node scripts/keep-alive.mjs

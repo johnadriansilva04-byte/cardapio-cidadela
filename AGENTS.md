@@ -777,6 +777,56 @@
   restaurante, "?" do `FinanceSummary`, "Abrir cardápio público" do card, "✕" do
   `GuidePanel`.
 
+## Custos, limites e quando migrar para o Pro
+
+Números verificados em **2026-11-03** (supabase.com/pricing,
+developers.cloudflare.com). Reconfira antes de decidir — os planos mudam.
+
+**Limites do plano gratuito (o que morde):**
+- Supabase: **5 GB de egress/mês**, 500 MB de banco, 1 GB de Storage,
+  200 conexões de realtime simultâneas, 2M mensagens/mês, 500k invocações de
+  Edge Function, **pausa após 7 dias sem uso**, 2 projetos ativos, sem backup.
+- Cloudflare Pages: **100.000 invocações de Function/dia** (SSR e rotas de API
+  contam; estático é ilimitado e não conta). Zera 00:00 UTC.
+- Mercado Pago: Pix 0,99%; cartão 3,99% (30 dias) a 4,98% (na hora). Use ~3,5%
+  como taxa média no mix Pix + cartão.
+- Resend: 3.000 e-mails/mês.
+
+**Consumo medido por loja/mês** (do código, não chute): cardápio público
+~15 MB; painel do dono ~14 MB (carga limitada a 300 pedidos + poll leve de
+45s). Total **~30 MB (loja leve) a ~250 MB (loja pesada)**.
+
+**Gatilhos de migração** (o primeiro que bater manda):
+
+| Gatilho | Limite | ~Quando |
+| --- | --- | --- |
+| Egress | 5 GB/mês (use 4 GB como alarme) | 20–40 lojas ativas |
+| Realtime | 200 conexões simultâneas | 40–80 donos online juntos |
+| Banco | 500 MB | ~80 lojas |
+| Cloudflare Functions | 100k/dia | ~400 lojas |
+| **Pausa de 7 dias** | — | **risco desde a 1ª loja paga** |
+
+**O gatilho real é a pausa, não o egress.** Um projeto pausado derruba o app
+(503) até restaurar à mão. Enquanto não houver cliente pagando, o
+`scripts/keep-alive.mjs` (workflow diário) contorna — ele pinga só quando a
+janela passou sem requisição. **Com cliente pagando, isso é gambiarra, não
+solução: migre.** O keep-alive é rede de segurança, não substituto do Pro.
+
+👉 **Regra prática: migre para o Pro (~US$ 25 ≈ R$ 137/mês) ao chegar em
+~10–15 lojas pagas.** O Pro cobre pausa, backup diário e folga de egress.
+**Break-even: ~5 assinantes mensais (5 × R$ 28,99 ≈ R$ 145) já pagam a infra.**
+
+**Contabilidade (20 lojas, taxa MP 3,5%, infra grátis + domínio R$ 3,33/mês):**
+
+| Cenário | Bruto/mês | Líquido (grátis) | Líquido (Pro) |
+| --- | --- | --- | --- |
+| 5 diária + 5 Premium | R$ 192,23 | ~R$ 182 | ~R$ 48 |
+| 5 diária + 10 Premium | R$ 324,85 | ~R$ 310 | ~R$ 173 |
+| 15 mensal + 5 anual | R$ 518,18 | ~R$ 497 | ~R$ 360 |
+
+Com a regra de 1 restaurante grátis, todo dono multi-loja vira Premium — o
+cenário do meio deixa de ser otimista e passa a ser conservador.
+
 ## Deploy (Cloudflare Pages)
 
 - **Alvo é Cloudflare Pages, não Vercel.** O plano Hobby da Vercel restringe uso

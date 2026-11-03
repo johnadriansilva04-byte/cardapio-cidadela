@@ -781,6 +781,16 @@
   Pages: Conta → Editar**, com **Zone Resources → Include → pracinha.online**.
   Sem o "Zone Resources" o token lista 0 zonas e tudo responde "Authentication
   error", mesmo com as permissões certas.
+- **A URL do webhook no painel do Mercado Pago precisa ser a do domínio
+  canônico**: `https://cardapio.pracinha.online/api/webhook/mercadopago`. Ela
+  ficou apontada para `cardapio-cidadela.vercel.app` por muito tempo, que agora
+  devolve 404 (o build é alvo Cloudflare), então o MP notificava no vazio e a
+  loja nunca liberava sozinha. Trocar de host exige reeditar o painel: a config
+  de webhook do MP **não** é acessível pela API (`/v1/webhooks` responde
+  `resource not found`).
+- O `PATCH` de `deployment_configs.production.env_vars` no Pages **substitui o
+  mapa inteiro**, não faz merge — ao adicionar uma secret, reenvie o conjunto
+  completo (as `plain_text` somem se você mandar só a nova).
 
 ## Domínio, acompanhamento e performance do cardápio
 

@@ -244,10 +244,9 @@
   desfaz o registro — a rota devolve `notified:false` e a UI avisa em vez de
   prometer a entrega. Sem a rota (deploy antigo), o cliente cai no insert direto.
 - **A nota fiscal é obrigação legal, mas não é upsell — e por isso fica
-  discreta.** `InvoiceButton` é um cartão neutro (ícone cinza + "Pedir nota
-  fiscal"), não um botão âmbar cheio: o CTA de assinar é o assunto da tela. A
-  entrada principal é o atalho "Nota fiscal" no fim do hub (mesmo peso visual dos
-  outros `GuideTile`) e a aba de detalhes repete o cartão. Fica atrás de
+  discreta.** A ação mora na aba "Nota fiscal" (atalho neutro no fim do hub,
+  mesmo peso visual dos outros `GuideTile`); o cartão de estado do plano e a
+  aba "Pedidos e detalhes" não repetem o bloco de nota. Fica atrás de
   `!invoicesUnavailable` para não aparecer num banco sem a migração.
 - Recompensas concedem **diárias** (créditos), não pedidos bônus: ver
   `supabase_day_pass_rewards_migration.sql` (`store_day_credits`,
@@ -819,13 +818,13 @@
 - `COMPANY.fiscal` reúne os dados que a NFS-e exige (logradouro, CEP, código
   IBGE do município, inscrição municipal, CNAE, item da LC 116, alíquota do ISS,
   e-mail) e estão **vazios** de propósito: `missingFiscalFields` lista o que
-  falta e a aba "Pedidos e detalhes" da assinatura mostra o que está pendente.
+  falta e a aba "Nota fiscal" da assinatura mostra o que está pendente.
   Preencher **não** liga a emissão — só evita perder o dado quando a integração
   for feita. Não apresente esses campos como "emissão de nota" na UI.
-- A aba "Pedidos e detalhes" (`admin.assinatura.tsx`) traz um bloco "Nota
-  fiscal" com razão social + CNPJ e o caminho para pedir o documento pelo canal
-  de suporte enquanto a emissão não existe. É o mínimo para o dono não descobrir
-  na hora de faturar que a cobrança não veio com nota.
+- A aba "Pedidos e detalhes" (`admin.assinatura.tsx`) é só o resumo do plano
+  (restaurante, status, limite, renovação). O bloco fiscal (razão social + CNPJ,
+  dados pendentes e o caminho para pedir a nota) mora na aba "Nota fiscal" — não
+  duplique esse conteúdo aqui.
 - **Alerta fiscal:** o CNAE principal do MEI é 4781400 (vestuário) e não há CNAE
   de desenvolvimento de software/serviços de TI. Emitir nota de SaaS nesse
   enquadramento é risco de glosa; o caminho usual é abrir ME (não MEI) com CNAE

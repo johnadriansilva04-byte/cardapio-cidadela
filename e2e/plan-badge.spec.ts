@@ -111,6 +111,32 @@ test.describe("assinatura sem rolagem", () => {
   });
 });
 
+test.describe("estado Premium sem repetição", () => {
+  test("o cartão Premium não repete 'Assinatura Premium' nem 'Passe Premium'", async ({ page }) => {
+    const inTenDays = new Date(Date.now() + 10 * 86_400_000).toISOString();
+    await loginAsOwner(page, {
+      admin_trials: [
+        {
+          store_id: RESTAURANT_ID,
+          is_premium: true,
+          premium_expires_at: inTenDays,
+          admin_email: null,
+          mercadopago_preapproval_id: "preap-123",
+          mercadopago_payer_email: null,
+        },
+      ],
+    });
+    await page.goto("/admin/assinatura");
+
+    // O título (H1) é a única vez que o nome da tela aparece; o cartão não
+    // repete "Assinatura Premium"/"Passe Premium" (antes empilhava os dois).
+    await expect(page.getByText("Assinatura Premium", { exact: true })).toHaveCount(1);
+    await expect(page.getByText("Passe Premium")).toHaveCount(0);
+    await expect(page.getByText("Pedidos ilimitados", { exact: true })).toHaveCount(1);
+    await expectNoPageScroll(page);
+  });
+});
+
 test.describe("opções de plano", () => {
   test("oferece diária, mensal e anual no mesmo seletor", async ({ page }) => {
     await loginAsOwner(page);

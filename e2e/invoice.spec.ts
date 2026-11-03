@@ -6,7 +6,7 @@ import { test, expect, type Page } from "@playwright/test";
  * O stub em memória implementa `invoice_requests` como qualquer outra tabela,
  * então o teste prova a cadeia do ponto de vista do dono:
  *
- *   1. a tela de detalhes diz que a nota é pedida pelo app (não manda ao suporte);
+ *   1. a aba de nota diz que a nota é pedida pelo app (não manda ao suporte);
  *   2. "Pedir nota fiscal" abre o formulário e o pedido entra na fila;
  *   3. o pedido aparece no histórico com o tipo da compra.
  *
@@ -46,11 +46,11 @@ async function submitCpfRequest(page: Page, taxId = "111.444.777-35"): Promise<v
   await page.getByRole("button", { name: /Enviar pedido de nota/i }).click();
 }
 
-test("a tela de detalhes diz que a nota é pedida pelo app, não pelo suporte", async ({ page }) => {
+test("a nota é pedida pelo app, não pelo suporte", async ({ page }) => {
   await page.goto("/admin/assinatura");
-  await page.getByRole("button", { name: /Pedidos e detalhes/i }).click();
+  await openInvoiceTab(page);
   // O texto antigo mandava o dono ao suporte; agora aponta o fluxo do app.
-  await expect(page.getByText(/registre o pedido aqui no app/i)).toBeVisible();
+  await expect(page.getByText(/registre o pedido abaixo/i)).toBeVisible();
   await expect(page.getByText(/peça o documento pelo canal de suporte/i)).toHaveCount(0);
 });
 

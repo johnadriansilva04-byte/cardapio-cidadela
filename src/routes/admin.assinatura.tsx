@@ -335,32 +335,6 @@ function PlanOptions({
 }
 
 /**
- * Ação de pedir nota fiscal.
- *
- * A nota é obrigação legal, mas não é o assunto da tela — o dono abre aqui para
- * assinar. Por isso a ação é um cartão discreto (não um botão âmbar cheio), que
- * ainda abre o formulário e mantém o alvo de toque de 44px.
- */
-function InvoiceButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="tap mt-3 flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 text-left transition-colors hover:bg-white/[0.05]"
-    >
-      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-white/[0.05] text-gray-400">
-        <Receipt className="size-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-xs font-bold text-white">Pedir nota fiscal</span>
-        <span className="block text-[11px] text-gray-500">Nota da sua compra</span>
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-gray-600" aria-hidden="true" />
-    </button>
-  );
-}
-
-/**
  * Hub de assinatura em uma tela só.
  *
  * A página não rola: mostra o estado do plano e quatro atalhos. Cada assunto
@@ -957,16 +931,13 @@ function SubscriptionPage() {
             className="pointer-events-none absolute -right-20 -top-20 size-52 rounded-full bg-amber-500/25 blur-3xl"
           />
           <div className="relative">
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-amber-300/90">
-              <Sparkles className="size-3.5" /> Passe Premium
-            </span>
-            <p className="mt-2 flex items-center gap-2 text-xl font-black tracking-tight text-white">
+            <p className="flex items-center gap-2 text-xl font-black tracking-tight text-white">
               <Crown className="size-5 shrink-0 text-amber-300" /> Pedidos ilimitados
             </p>
             <p className="mt-1 text-xs text-gray-300">
               {status?.premiumExpiresAt
-                ? `Ativo até ${new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")}.`
-                : "Assinatura ativa."}
+                ? `Premium ativo até ${new Date(status.premiumExpiresAt).toLocaleDateString("pt-BR")}.`
+                : "Premium ativo."}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -1057,7 +1028,7 @@ function SubscriptionPage() {
           title="Pedidos e detalhes"
           hint={
             isPremium
-              ? "Premium ativo"
+              ? "Cota e renovação"
               : `${used} de ${limit} usados${bonus > 0 ? ` · +${bonus} bônus` : ""}`
           }
           badge={
@@ -1310,24 +1281,6 @@ function SubscriptionPage() {
             />
           </div>
 
-          {/* Nota fiscal: o dono precisa saber que a cobrança não vem com nota
-              e que o pedido é feito aqui mesmo, pelo app. */}
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3">
-            <p className="text-[11px] font-bold text-gray-300">Nota fiscal</p>
-            <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
-              A cobrança do Mercado Pago é emitida por {COMPANY.legalName} (CNPJ {COMPANY.cnpj}).
-              {hasFiscalData
-                ? " Os dados fiscais do prestador já estão cadastrados."
-                : " A emissão é manual: registre o pedido aqui no app e emitimos para você."}
-            </p>
-            {!hasFiscalData && missingFiscalFields.length > 0 && (
-              <p className="mt-1.5 text-[10px] leading-relaxed text-gray-600">
-                Pendente no cadastro fiscal: {missingFiscalFields.join(", ")}.
-              </p>
-            )}
-            {!invoicesUnavailable && <InvoiceButton onClick={() => setTab("nota")} />}
-          </div>
-
           {!isPremium && rewards.length > 0 && <RewardsProgress rewards={rewards} />}
         </div>
       </GuidePanel>
@@ -1504,6 +1457,11 @@ function SubscriptionPage() {
                     ? "Peça a nota da sua compra abaixo."
                     : "A emissão automática ainda não está ligada — registre o pedido abaixo e emitiremos manualmente."}
                 </p>
+                {!hasFiscalData && missingFiscalFields.length > 0 && (
+                  <p className="mt-1.5 text-[10px] leading-relaxed text-gray-600">
+                    Pendente no cadastro fiscal: {missingFiscalFields.join(", ")}.
+                  </p>
+                )}
               </div>
 
               {/* Compras elegíveis: a última assinatura e as diárias. */}

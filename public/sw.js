@@ -2,15 +2,20 @@
 //
 // Responsibilities:
 //   1. Cache hashed assets under /assets/ for offline resilience at the balcão.
-//   2. Handle native Web Push events so notifications appear
-//      appear even when the app is closed or the browser is minimized.
+//   2. Cache restaurant images (Supabase Storage) — the heaviest egress source.
+//   3. Handle native Web Push events so notifications appear
+//      even when the app is closed or the browser is minimized.
 //
 // What this file deliberately does NOT do:
 //   - Cache navigation or API responses.  HTML and data must always be fresh;
 //     serving stale orders from cache would be worse than waiting for the network.
 
-const VERSION = "cidadela-v2";
+const VERSION = "cidadela-v3";
 const STATIC_CACHE = `${VERSION}-static`;
+const IMAGE_CACHE = `${VERSION}-images`;
+// Teto de imagens guardadas. O cardápio de uma loja costuma ter < 60 fotos;
+// 200 cobre várias lojas por dispositivo sem crescer sem limite.
+const IMAGE_CACHE_LIMIT = 200;
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -29,11 +34,50 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/** Só fotos do bucket público do Supabase Storage entram no cache de imagens. */
+function isStorageImage(url) {
+  return (
+    url.hostname.endsWith(".supabase.co") && url.pathname.includes("/storage/v1/object/public/")
+  );
+}
+
+/** Mantém o cache de imagens dentro do teto, descartando as mais antigas. */
+async function trimImageCache(cache) {
+  const keys = await cache.keys();
+  if (keys.length <= IMAGE_CACHE_LIMIT) return;
+  for (const key of keys.slice(0, keys.length - IMAGE_CACHE_LIMIT)) {
+    await cache.delete(key);
+  }
+}
+
+async function cacheFirstImage(request) {
+  const cache = await caches.open(IMAGE_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  // URLs de imagem carregam timestamp no nome, então são imutáveis: guardar a
+  // resposta (mesmo opaque, se houver) é seguro e economiza o próximo acesso.
+  if (response.ok || response.type === "opaque") {
+    await cache.put(request, response.clone());
+    void trimImageCache(cache);
+  }
+  return response;
+}
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
+
+  // Imagens do Supabase Storage: cache-first (cross-origin, por isso vem antes
+  // do filtro de mesma origem). Economiza egress do Supabase e acelera o
+  // cardápio no segundo acesso.
+  if (isStorageImage(url)) {
+    event.respondWith(cacheFirstImage(request).catch(() => fetch(request)));
+    return;
+  }
+
   if (url.origin !== self.location.origin) return;
 
   // Navegação e dados: sempre rede.

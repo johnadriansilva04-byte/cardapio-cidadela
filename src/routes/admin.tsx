@@ -92,20 +92,25 @@ function AdminShell({
     let cancelled = false;
     let poll: ReturnType<typeof setInterval> | null = null;
     let debounce: ReturnType<typeof setTimeout> | null = null;
+    // Ids das lojas do dono, buscados uma vez por sessão do efeito.
+    let restaurantIds: string[] | null = null;
 
     const fetchPending = async () => {
       try {
-        const rests = await getRestaurantsByOwner(user.id);
-        if (cancelled) return;
-        if (rests.length === 0) {
+        // Cacheia os ids: buscá-los a cada 15s era uma consulta extra por tick.
+        if (restaurantIds === null) {
+          const rests = await getRestaurantsByOwner(user.id);
+          if (cancelled) return;
+          restaurantIds = rests.map((r) => r.id);
+        }
+        if (restaurantIds.length === 0) {
           setPendingCount(0);
           return;
         }
-        const ids = rests.map((r) => r.id);
         const { data, error } = await supabase
           .from("orders")
           .select("id,status")
-          .in("restaurant_id", ids)
+          .in("restaurant_id", restaurantIds)
           .in("status", ["received", "preparing", "ready", "out_for_delivery"]);
         if (cancelled) return;
         if (error) {
@@ -121,6 +126,12 @@ function AdminShell({
     const scheduleFetch = () => {
       if (debounce) clearTimeout(debounce);
       debounce = setTimeout(fetchPending, 380);
+    };
+
+    const pollTick = () => {
+      // Aba escondida não gasta consulta; o realtime cobre a volta.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void fetchPending();
     };
 
     (async () => {
@@ -179,7 +190,7 @@ function AdminShell({
       }
     })();
 
-    poll = setInterval(fetchPending, 15000);
+    poll = setInterval(pollTick, 15000);
 
     return () => {
       cancelled = true;

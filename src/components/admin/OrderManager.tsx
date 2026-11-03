@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   RefreshCw,
@@ -62,7 +62,9 @@ import { OrderStatusBadge } from "@/components/admin/StatusBadge";
 import { KitchenMode } from "@/components/admin/KitchenMode";
 import { ProgressiveList } from "@/modules/ui/ProgressiveList";
 import {
-  getOrdersByRestaurant,
+  getOrdersByRestaurants,
+  getOrderStatusesByRestaurants,
+  getOrderById,
   getOrderForOwner,
   getOwnerLockedStores,
   updateOrderStatus,
@@ -129,8 +131,10 @@ export function OrderManager({
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // A visão inicial é "Recebidos": é o que o operador precisa ver ao abrir.
-  const [filter, setFilter] = useState<OrderStatus | "all">("received");
+  // A visão inicial é "Todos": a fila inteira visível de uma vez. Antes abria em
+  // "Recebidos" e o pedido sumia ao avançar para "Em preparo" — o operador
+  // achava que tinha perdido o pedido. As abas continuam servindo para recortar.
+  const [filter, setFilter] = useState<OrderStatus | "all">("all");
   // A loja vem do seletor do cabeçalho; trocar aqui muda a loja ativa do painel.
   const [storeFilter, setStoreFilter] = useState<string>(initialStoreId ?? "all");
 
@@ -149,13 +153,58 @@ export function OrderManager({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [kitchenOpen, setKitchenOpen] = useState(false);
 
+  // Espelho de `orders` para o poll comparar sem entrar como dependência do
+  // efeito (senão o realtime recriaria o interval a cada pedido).
+  const ordersRef = useRef<Order[]>([]);
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+
+  // Busca o pedido completo (com itens) e o mescla na lista. O realtime entrega
+  // só a linha de `orders`, SEM `order_items` — por isso o card do pedido novo
+  // nascia sem os itens e o operador precisava clicar para vê-los. Aqui o card
+  // já entra completo.
+  const hydrateOrder = useCallback(async (id: string) => {
+    try {
+      const full = await getOrderById(id);
+      if (!full) return;
+      setOrders((prev) => {
+        const idx = prev.findIndex((o) => o.id === id);
+        if (idx === -1) {
+          return [full, ...prev].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          );
+        }
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...full };
+        return next;
+      });
+    } catch {
+      /* best-effort: o clique no card ainda carrega o detalhe */
+    }
+  }, []);
+
   const fetchAllOrders = useCallback(async (): Promise<Order[]> => {
     if (restaurantIds.length === 0) return [];
-    const batches = await Promise.all(restaurantIds.map((id) => getOrdersByRestaurant(id)));
-    return batches
-      .flat()
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    // Uma consulta `.in()` em vez de N consultas (uma por loja) — vale para o
+    // load inicial, o poll de 15s e a revalidação após mudança de status.
+    return getOrdersByRestaurants(restaurantIds);
   }, [restaurantIds]);
+
+  /** Revalidação silenciosa: não liga o "Carregando" nem apaga o que já está na tela. */
+  const revalidateOrders = useCallback(async () => {
+    try {
+      const data = await fetchAllOrders();
+      setOrders((current) => {
+        const prevMap = new Map(current.map((o) => [o.id, o.status]));
+        const same =
+          current.length === data.length && data.every((d) => prevMap.get(d.id) === d.status);
+        return same ? current : data;
+      });
+    } catch {
+      /* silencioso: o realtime ainda cobre */
+    }
+  }, [fetchAllOrders]);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -206,6 +255,9 @@ export function OrderManager({
         if (prev.some((o) => o.id === row.id)) return prev;
         return [row, ...prev];
       });
+      // O payload do realtime não traz `order_items`: busca o pedido completo
+      // para o card já nascer com os itens à vista, sem clique.
+      void hydrateOrder(row.id);
       // Realça o que acabou de chegar e limpa depois de um tempo — o dono que
       // está olhando a tela precisa ver o pedido novo sem caçar na coluna.
       setFreshIds((prev) => new Set(prev).add(row.id));
@@ -233,13 +285,22 @@ export function OrderManager({
             if (eventType === "INSERT") {
               applyInsert(payload.new as Order);
             } else if (eventType === "UPDATE") {
+              const next = payload.new as Order;
               setOrders((prev) =>
-                prev.map((o) =>
-                  o.id === (payload.new as Order).id
-                    ? ({ ...o, ...(payload.new as Order) } as Order)
-                    : o,
-                ),
+                prev.map((o) => {
+                  if (o.id !== next.id) return o;
+                  // O UPDATE do realtime também vem sem `order_items`. Mescla só
+                  // os campos presentes e mantém os itens que já temos; se o
+                  // card ainda não tinha itens, hidrata.
+                  const merged: Order = {
+                    ...o,
+                    ...next,
+                    order_items: next.order_items ?? o.order_items ?? [],
+                  };
+                  return merged;
+                }),
               );
+              if (!next.order_items) void hydrateOrder(next.id);
             } else if (eventType === "DELETE") {
               const oldId = (payload.old as { id: string }).id;
               setOrders((prev) => prev.filter((o) => o.id !== oldId));
@@ -251,22 +312,43 @@ export function OrderManager({
     }
 
     poll = setInterval(() => {
-      // fallback polling silencioso quando realtime falhar
-      fetchAllOrders()
-        .then((data) => {
-          // só atualiza se tamanho/status mudou para evitar piscar
-          setOrders((prev) => {
-            if (prev.length !== data.length) return data;
-            const prevMap = new Map(prev.map((o) => [o.id, o.status]));
-            const changed = data.some((d) => prevMap.get(d.id) !== d.status);
-            return changed ? data : prev;
+      // Não faz sentido consultar com a aba escondida — o realtime cobre a
+      // volta (visibilitychange dispara um poll imediato).
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+
+      // Poll leve: traz só id+status (centenas de bytes). Só rebaixa os pedidos
+      // completos quando algo realmente mudou. Antes o poll rebaixava tudo, com
+      // itens, a cada 15s — com a tela aberta o dia todo isso sozinho estourava
+      // o egress do plano gratuito.
+      getOrderStatusesByRestaurants(restaurantIds)
+        .then((statuses) => {
+          if (!statuses) return;
+          const prev = ordersRef.current;
+          const changed =
+            prev.length !== statuses.size || prev.some((o) => statuses.get(o.id) !== o.status);
+          if (!changed) return;
+          return fetchAllOrders().then((data) => {
+            setOrders((current) => {
+              const prevMap = new Map(current.map((o) => [o.id, o.status]));
+              const same =
+                current.length === data.length && data.every((d) => prevMap.get(d.id) === d.status);
+              return same ? current : data;
+            });
           });
         })
         .catch(() => {});
     }, 15000);
 
+    // Ao voltar para a aba, confere na hora o que o realtime perdeu em segundo
+    // plano — sem esperar até 15s pelo próximo tick.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void revalidateOrders();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       if (poll) clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
       // Limpa os realces pendentes: sem isso o timeout dispara após o unmount.
       for (const t of freshTimers) clearTimeout(t);
       for (const channel of channels) {
@@ -277,7 +359,7 @@ export function OrderManager({
         }
       }
     };
-  }, [restaurantIds, fetchAllOrders]);
+  }, [restaurantIds, fetchAllOrders, revalidateOrders, hydrateOrder]);
 
   async function changeStatus(orderId: string, status: OrderStatus) {
     const ok = await updateOrderStatus(orderId, status);

@@ -389,12 +389,18 @@ export async function createDayPassLink(
  * ativação continua só no webhook; aqui apenas devolvemos o link de
  * autorização. `null` em qualquer falha (a UI avisa e não abre o checkout).
  */
+export interface SubscriptionLinkResult {
+  initPoint?: string;
+  /** Código de erro do servidor (ex.: `payer_email_required`). */
+  error?: string;
+}
+
 export async function createSubscriptionLink(
   storeId: string,
   accessToken: string | undefined,
   billing: "monthly" | "annual" = "monthly",
-): Promise<string | null> {
-  if (!storeId || !accessToken) return null;
+): Promise<SubscriptionLinkResult> {
+  if (!storeId || !accessToken) return { error: "não autenticado" };
   try {
     const res = await fetch("/api/payment/subscribe", {
       method: "POST",
@@ -404,11 +410,11 @@ export async function createSubscriptionLink(
       },
       body: JSON.stringify({ storeId, billing }),
     });
-    if (!res.ok) return null;
-    const data = (await res.json().catch(() => ({}))) as { initPoint?: string };
-    return data.initPoint ?? null;
+    const data = (await res.json().catch(() => ({}))) as { initPoint?: string; error?: string };
+    if (!res.ok) return { error: data.error ?? `http_${res.status}` };
+    return { initPoint: data.initPoint };
   } catch {
-    return null;
+    return { error: "network" };
   }
 }
 

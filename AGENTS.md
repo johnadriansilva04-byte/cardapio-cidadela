@@ -816,6 +816,49 @@
   filtrar `products` por categoria dentro do `.map` (duas vezes) e refazer o
   reduce do carrinho por produto era O(categorias × produtos) por quadro.
 
+- **Cache SWR do cardápio público.** `src/modules/supabase/menuCache.ts` guarda
+  o último payload (restaurante + categorias + produtos + bairros + adicionais)
+  em `localStorage`, por slug, com TTL de 24h. `Cardapio.tsx` hidrata do cache no
+  primeiro paint e revalida em segundo plano; o realtime regrava o cache, então a
+  próxima abertura (mesmo offline) já nasce atualizada. É o corte de egress mais
+  direto: o segundo acesso do mesmo cliente não consulta o Supabase para montar a
+  tela. Sem cache, o comportamento é o de sempre. Ao mudar o formato do payload,
+  suba `CACHE_VERSION` (senão o snapshot velho é lido com campos faltando).
+- **Imagens do Storage são cache-first no service worker.** `public/sw.js`
+  (`VERSION` v3) guarda as fotos do bucket `restaurant-images` numa cache
+  separada, com teto de 200 arquivos. As URLs têm timestamp no nome (imutáveis),
+  então cache-first é seguro e evita rebaixar a mesma foto a cada visita. Não
+  cacheia navegação nem `/api/` — pedido nunca vem de cache velho.
+- **Pedidos do dono numa consulta só.** `getOrdersByRestaurants(ids)` faz um
+  `.in("restaurant_id", ids)` em vez de uma consulta por loja. Era N+1 no
+  `useOwnerOrders` (mobile) e no `OrderManager` (admin), repetido a cada poll de
+  15s. A migração `supabase/supabase_perf_indexes_migration.sql` adiciona o
+  índice `(restaurant_id, created_at DESC)` que essa consulta ordenada usa, mais
+  os índices de cardápio, e uma limpeza de imagens órfãs no Storage.
+
+## Custos: limites reais e quando migrar
+
+- **Cloudflare Pages (free): o teto é de Function, não de banda.** O site estático
+  tem banda ilimitada, mas **todo HTML é renderizado por Worker** (o app é SSR,
+  `src/start.ts`), e a Function soma na cota do Workers free: **100.000
+  requisições/dia** (e 10 ms de CPU por requisição). Um page view = 1 invocação.
+  Logo, o gatilho de custo nº 1 é **~100 mil page views/dia** — muito acima do
+  que 20 clientes geram. `/api/*` também é Function.
+- **Supabase (free): o teto real é egress (5 GB/mês) e conexões realtime (200).**
+  Banco 500 MB, Storage 1 GB. Como a retenção já apaga pedidos > 30 dias, o banco
+  não enche; o que enche é tráfego de saída (imagens + JSON do cardápio) e picos
+  de conexão. Por isso o cache SWR (egress) e o cache de imagem no SW (egress)
+  valem mais que qualquer tuning de banco.
+- **Free vs Pro do Supabase.** Pro = US$ 25/mês (≈ R$ 135) e o único motivo
+  inegociável para migrar é **uptime**: o projeto free **pausa após 7 dias sem
+  atividade** e não tem backup. Com uma loja ativa todo dia, não pausa; ainda
+  assim, para um produto pago o backup diário é o argumento de venda.
+- **Ordem de gatilhos para migrar:** (1) egress > ~4 GB/mês ou pico realtime
+  > ~150 → rever cache antes de pagar; (2) 2º projeto free em uso → consolidar;
+  (3) cliente pagante de verdade → Pro (backup/uptime); (4) 100k page views/dia →
+  Workers pago (US$ 5/mês, 10M req).
+
+
 ## Painel: organização da fila de pedidos (UX)
 
 - `OrderManager` (`src/components/admin/OrderManager.tsx`) **não é mais um Kanban

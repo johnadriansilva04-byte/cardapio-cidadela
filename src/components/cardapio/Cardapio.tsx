@@ -19,6 +19,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
 import { getRestaurantBySlug, getNeighborhoods } from "@/modules/supabase/restaurants";
 import { getMenuWithProducts, getAddonsByRestaurant } from "@/modules/supabase/menu";
+import { readMenuCache, writeMenuCache, clearMenuCache } from "@/modules/supabase/menuCache";
 import { supabase } from "@/modules/supabase/client";
 import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
@@ -96,13 +97,29 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   useEffect(() => {
     let alive = true;
+
+    // SWR: hidrata do cache local na hora (se houver) e revalida em segundo
+    // plano. Sem cache, o comportamento é o de antes — tudo vem da rede.
+    const cached = readMenuCache(slug);
+    if (cached) {
+      setRestaurant(cached.restaurant);
+      setCategories(cached.categories);
+      setProducts(cached.products);
+      setNeighborhoods(cached.neighborhoods);
+      setProductAddons(cached.addons);
+      setLoading(false);
+      if (cached.categories.length > 0) setActiveCat((prev) => prev || cached.categories[0].id);
+    }
+
     async function load() {
       try {
-        setLoading(true);
         setLoadError(null);
+        if (!cached) setLoading(true);
         const r = await getRestaurantBySlug(slug);
         if (!alive) return;
         if (!r) {
+          // O slug deixou de existir: o cache não pode continuar servindo.
+          clearMenuCache(slug);
           setRestaurant(null);
           setCategories([]);
           setProducts([]);
@@ -121,9 +138,17 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         setNeighborhoods(nbrs);
         setProductAddons(pas);
         if (cats.length > 0) setActiveCat((prev) => prev || cats[0].id);
+        writeMenuCache(slug, {
+          restaurant: r,
+          categories: cats,
+          products: prods,
+          neighborhoods: nbrs,
+          addons: pas,
+        });
       } catch (e) {
         console.error("[public menu] load", e);
-        if (alive) setLoadError("Falha ao carregar cardápio. Verifique sua conexão.");
+        // Com cache servido, uma falha de rede não é erro para o cliente.
+        if (alive && !cached) setLoadError("Falha ao carregar cardápio. Verifique sua conexão.");
       } finally {
         if (alive) setLoading(false);
       }
@@ -167,6 +192,18 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         setCategories(cats);
         setProducts(prods);
         setProductAddons(pas);
+        // Mantém o cache local em dia com o que o realtime entregou, para a
+        // próxima abertura (mesmo offline) já nascer atualizada.
+        const current = readMenuCache(slug);
+        if (current) {
+          writeMenuCache(slug, {
+            restaurant: current.restaurant,
+            categories: cats,
+            products: prods,
+            neighborhoods: current.neighborhoods,
+            addons: pas,
+          });
+        }
       } catch {
         /* ignore */
       }
@@ -177,6 +214,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         const r = await getRestaurantBySlug(slug);
         if (!alive || !r) return;
         setRestaurant(r);
+        const current = readMenuCache(slug);
+        if (current) {
+          const { cachedAt: _cachedAt, ...snapshot } = current;
+          writeMenuCache(slug, { ...snapshot, restaurant: r });
+        }
       } catch {
         /* ignore */
       }

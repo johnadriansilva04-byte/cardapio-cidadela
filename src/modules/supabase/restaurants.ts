@@ -34,7 +34,8 @@ export async function getRestaurantsByOwner(ownerId: string): Promise<Restaurant
     return [];
   }
 
-  // Auto-publish any draft restaurants so the owner can see their cardápio
+  // Auto-publish any draft restaurants so the owner can see their cardápio.
+  // Legacy rows only: once flipped to "published" this never runs again.
   const draftOnes = (data ?? []).filter((r) => r.status === "draft");
   for (const r of draftOnes) {
     await supabase

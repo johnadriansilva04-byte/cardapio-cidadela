@@ -9,7 +9,9 @@ import type { Order, OrderStatus } from "@/lib/types";
 const orders: Order[] = [];
 
 vi.mock("@/modules/supabase/orders", () => ({
-  getOrdersByRestaurant: vi.fn(async () => orders),
+  getOrdersByRestaurants: vi.fn(async () => orders),
+  getOrderStatusesByRestaurants: vi.fn(async () => new Map(orders.map((o) => [o.id, o.status]))),
+  getOrderById: vi.fn(async (id: string) => orders.find((o) => o.id === id) ?? null),
   getOwnerLockedStores: vi.fn(async () => new Set<string>()),
   getOrderForOwner: vi.fn(async () => ({ blocked: false, order: null })),
   updateOrderStatus: vi.fn(async () => true),

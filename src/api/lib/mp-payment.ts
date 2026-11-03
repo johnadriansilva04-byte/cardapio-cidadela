@@ -128,7 +128,12 @@ export async function createPreapproval(
     { method: "POST", body: JSON.stringify(buildPreapprovalBody(config)) },
     env,
   );
-  if (!response.ok || !response.data) return null;
+  if (!response.ok || !response.data) {
+    // Log do motivo real do MP (400 costuma ser `payer_email` ausente/inválido
+    // ou valor fora do mínimo) — sem isto o erro vira um 500 opaco no painel.
+    console.error("[mp] createPreapproval falhou", response.status, response.data);
+    return null;
+  }
 
   const data = response.data as { id?: string; init_point?: string };
   if (!data.id || !data.init_point) return null;

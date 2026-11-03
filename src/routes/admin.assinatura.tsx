@@ -652,12 +652,21 @@ function SubscriptionPage() {
     // ciclo — antes era um pagamento pontual que não renovava e a loja
     // bloqueava quando o dono esquecia.
     try {
-      const initPoint = await createSubscriptionLink(activeId, session?.access_token, billing);
+      const res = await createSubscriptionLink(activeId, session?.access_token, billing);
 
-      if (!initPoint) {
+      if (!res.initPoint) {
+        // O Mercado Pago exige um e-mail real para a assinatura recorrente; o
+        // login por telefone não tem um. Em vez de um erro genérico, leva o
+        // dono direto ao campo que resolve.
+        if (res.error === "payer_email_required") {
+          toast.error("Cadastre seu e-mail para assinar — é ele que identifica a cobrança.");
+          setTab("detalhes");
+          return;
+        }
         toast.error("Não foi possível gerar o link de pagamento.");
         return;
       }
+      const initPoint = res.initPoint;
 
       // Guarda o link dinâmico (com external_reference) para o modal de
       // fallback — o link estático não vincula o pagamento ao restaurante.

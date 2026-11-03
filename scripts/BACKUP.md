@@ -47,6 +47,19 @@ Não é preciso fazer nada: o arquivo do dia vai para o R2 sozinho.
 Sem `SUPABASE_SERVICE_ROLE_KEY` o workflow falha na hora — é ele que lê as
 tabelas com RLS (o dump precisa ver tudo).
 
+### ⚠️ O R2 precisa estar ATIVADO na conta (erro 10042)
+
+Dar permissão de R2 ao token **não** ativa o produto. Se a conta nunca usou R2, o
+upload falha com `code 10042 — Please enable R2 through the Cloudflare Dashboard`.
+A ativação é um clique único (não existe endpoint de API para isso):
+
+1. Cloudflare Dashboard → **R2 Object Storage** → **Enable R2** (aceitar os
+   termos). É grátis; não pede cartão para o plano free.
+2. Confirme que o `CLOUDFLARE_API_TOKEN` tem **Workers R2: Edit**.
+3. Rode o workflow à mão (Actions → *Backup* → Run workflow) para validar.
+
+O script detecta o 10042 e imprime esse passo a passo, guardando o dump local.
+
 ## Rodar à mão (dev)
 
 ```bash

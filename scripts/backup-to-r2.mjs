@@ -188,19 +188,36 @@ async function main() {
 
   const localFlag = R2_LOCAL ? ["--local"] : ["--remote"];
 
-  // Cria o bucket se ainda não existir (o erro de "já existe" é inofensivo).
-  try {
-    wrangler(["r2", "bucket", "create", BUCKET, ...(R2_LOCAL ? [] : ["--remote"])]);
-  } catch {
-    /* bucket já existe */
+  // Cria o bucket se ainda não existir. `r2 bucket create` é sempre remoto e
+  // NÃO aceita --remote/--local (só --location/--storage-class/--jurisdiction);
+  // passar a flag derruba o comando com "Unknown argument".
+  if (!R2_LOCAL) {
+    try {
+      wrangler(["r2", "bucket", "create", BUCKET]);
+    } catch {
+      /* bucket já existe */
+    }
   }
 
   const upload = (objectPath, file) =>
     wrangler(["r2", "object", "put", `${BUCKET}/${objectPath}`, `--file=${file}`, ...localFlag]);
 
-  upload(`${keyPrefix}/backup.json.gz`, localFile);
-  upload(`${date}/manifest.json`, manifestFile);
-  upload(`latest/manifest.json`, manifestFile);
+  try {
+    upload(`${keyPrefix}/backup.json.gz`, localFile);
+    upload(`${date}/manifest.json`, manifestFile);
+    upload(`latest/manifest.json`, manifestFile);
+  } catch (e) {
+    const msg = String(e.message || e);
+    if (msg.includes("10042") || msg.includes("enable R2")) {
+      console.error(
+        "\n[backup] O R2 não está ativado nesta conta Cloudflare.\n" +
+          "  Ative uma vez em: Cloudflare Dashboard → R2 → 'Enable R2' (aceitar os termos).\n" +
+          "  Só dar permissão ao token NÃO ativa o produto. O dump ficou em " +
+          `${localFile} (não foi enviado).\n`,
+      );
+    }
+    throw e;
+  }
 
   rmSync(dir, { recursive: true, force: true });
 

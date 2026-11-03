@@ -49,7 +49,12 @@ import {
 import { supabase } from "@/modules/supabase/client";
 import { fetchRewards, type RewardProgress } from "@/modules/supabase/rewards";
 import { RewardsProgress } from "@/modules/ui/RewardsProgress";
-import { DAY_PASS_PRICE_VALUE, MONTHLY_PRICE_LABEL, PREMIUM_PRICE_LABEL } from "@/lib/pricing";
+import {
+  DAY_PASS_PRICE_VALUE,
+  DAY_PASS_PRICE_LABEL,
+  MONTHLY_PRICE_LABEL,
+  PREMIUM_PRICE_LABEL,
+} from "@/lib/pricing";
 import { COMPANY, hasFiscalData, missingFiscalFields } from "@/lib/company";
 import {
   createInvoiceRequest,
@@ -80,8 +85,6 @@ const PAYMENT_LINK = (import.meta.env?.VITE_MERCADOPAGO_PAYMENT_LINK as string |
 const SUBSCRIPTION_LINK =
   (import.meta.env?.VITE_MERCADOPAGO_SUBSCRIPTION_LINK as string | undefined) ||
   "https://www.mercadopago.com.br/subscriptions";
-
-const ANNUAL_PRICE = PREMIUM_PRICE_LABEL;
 
 const field =
   "w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30";
@@ -162,16 +165,54 @@ function CelebrationBurst() {
 /** Aba do hub: cada assunto abre em tela cheia por cima, sem rolar a página. */
 type HubTab = "planos" | "vantagens" | "email" | "detalhes" | "nota";
 
+/** Períodos oferecidos: diária avulsa (24h), mensal e anual (assinaturas). */
+type BillingOption = "day" | "monthly" | "annual";
+
+const BILLING_OPTIONS: { key: BillingOption; label: string; price: string; suffix: string }[] = [
+  {
+    key: "day",
+    label: "Diária",
+    price: DAY_PASS_PRICE_LABEL.replace(/\/dia$/, ""),
+    suffix: "/24h",
+  },
+  {
+    key: "monthly",
+    label: "Mensal",
+    price: MONTHLY_PRICE_LABEL.replace(/\/mês$/, ""),
+    suffix: "/mês",
+  },
+  {
+    key: "annual",
+    label: "Anual",
+    price: PREMIUM_PRICE_LABEL.replace(/\/ano$/, ""),
+    suffix: "/ano",
+  },
+];
+
+const BILLING_NOTE: Record<BillingOption, string> = {
+  day: "acesso por 24h · sem assinatura",
+  monthly: "pedidos ilimitados · renova todo mês",
+  annual: "pedidos ilimitados · renova a cada ano",
+};
+
+const BILLING_BUTTON: Record<BillingOption, string> = {
+  day: "Liberar hoje",
+  monthly: "Assinar agora",
+  annual: "Assinar agora",
+};
+
 /**
- * Compra de diárias (24h), reutilizada nos dois estados do plano.
+ * Escolha do período e ação de compra, em um único bloco.
  *
- * Fica num componente próprio porque precisa aparecer TAMBÉM com a diária já em
- * vigor: antes esse bloco só existia no convite do plano gratuito, então depois
- * de comprar a primeira diária a opção de comprar mais (e de empilhar)
- * simplesmente desaparecia. Comprar durante um período ativo é suportado de
- * propósito — `grant_day_pass` soma as horas sobre o `unlocked_until` vigente.
+ * Antes a diária vivia num rodapé à parte ("Prefere só hoje?"), longe do
+ * mensal/anual — parecia um extra escondido em vez de uma opção de plano. Aqui
+ * os três períodos ficam no mesmo seletor e o preço/CTA acompanham a escolha.
+ * O seletor precisa aparecer TAMBÉM com a diária já em vigor: comprar durante
+ * um período ativo é suportado de propósito (`grant_day_pass` soma as horas).
  */
-function DayPassPurchase({
+function PlanOptions({
+  billing,
+  setBilling,
   dayQty,
   setDayQty,
   credits,
@@ -180,6 +221,8 @@ function DayPassPurchase({
   onRedeem,
   onBuy,
 }: {
+  billing: BillingOption;
+  setBilling: (billing: BillingOption) => void;
   dayQty: number;
   setDayQty: (updater: (q: number) => number) => void;
   credits: number;
@@ -188,68 +231,103 @@ function DayPassPurchase({
   onRedeem: () => void;
   onBuy: () => void;
 }) {
+  const option = BILLING_OPTIONS.find((o) => o.key === billing) ?? BILLING_OPTIONS[2];
+  const isDay = billing === "day";
   return (
     <div className="mt-4 border-t border-white/[0.07] pt-3.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-xs font-bold text-white">
-            <Timer className="size-3.5 text-cyan-300" /> Prefere só hoje?
-          </p>
-          <p className="mt-0.5 text-[11px] text-gray-500">
-            {brl(DAY_PASS_PRICE_VALUE * dayQty)} · {dayQty} × 24h
-            {dayQty > 1 ? " (empilha)" : ""}
-          </p>
-        </div>
-        {credits > 0 ? (
-          <Button
-            onClick={onRedeem}
-            disabled={redeeming}
-            className="tap shrink-0 rounded-full bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25"
-          >
-            {redeeming ? <Loader2 className="size-4 animate-spin" /> : <Gift className="size-4" />}
-            Usar 1 grátis ({credits})
-          </Button>
-        ) : (
-          <Button
-            onClick={onBuy}
-            className="tap shrink-0 rounded-full bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25"
-          >
-            <Timer className="size-4" /> Liberar hoje
-          </Button>
-        )}
+      <div className="flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
+        {BILLING_OPTIONS.map((o) => {
+          const active = billing === o.key;
+          return (
+            <button
+              key={o.key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setBilling(o.key)}
+              className={
+                "tap flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-bold transition-all " +
+                (active
+                  ? "bg-cyan-500 text-black shadow-[0_4px_16px_rgba(6,182,212,0.25)]"
+                  : "text-gray-400 hover:bg-white/[0.05] hover:text-gray-200")
+              }
+            >
+              {o.label}
+              <span
+                className={
+                  "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums " +
+                  (active ? "bg-black/20 text-black" : "bg-white/10 text-gray-400")
+                }
+              >
+                {o.price}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Pacote: quantas diárias comprar de uma vez. */}
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="text-[11px] font-semibold text-gray-500">Quantas diárias?</span>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            aria-label="Menos uma diária"
-            onClick={() => setDayQty((q) => Math.max(1, q - 1))}
-            disabled={dayQty <= 1}
-            className="tap grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
-          >
-            <Minus className="size-4" />
-          </button>
-          <span className="w-8 text-center text-sm font-black tabular-nums text-white">
-            {dayQty}
-          </span>
-          <button
-            type="button"
-            aria-label="Mais uma diária"
-            onClick={() => setDayQty((q) => Math.min(60, q + 1))}
-            disabled={dayQty >= 60}
-            className="tap grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
-          >
-            <Plus className="size-4" />
-          </button>
+      {isDay && (
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-[11px] font-semibold text-gray-500">Quantas diárias?</span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              aria-label="Menos uma diária"
+              onClick={() => setDayQty((q) => Math.max(1, q - 1))}
+              disabled={dayQty <= 1}
+              className="tap grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
+            >
+              <Minus className="size-4" />
+            </button>
+            <span className="w-8 text-center text-sm font-black tabular-nums text-white">
+              {dayQty}
+            </span>
+            <button
+              type="button"
+              aria-label="Mais uma diária"
+              onClick={() => setDayQty((q) => Math.min(60, q + 1))}
+              disabled={dayQty >= 60}
+              className="tap grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
+            >
+              <Plus className="size-4" />
+            </button>
+          </div>
         </div>
+      )}
+
+      <div className="mt-3 flex items-baseline gap-1.5 text-white">
+        <span className="text-[clamp(1.75rem,9vw,2.25rem)] font-black leading-none tracking-tight">
+          {isDay ? brl(DAY_PASS_PRICE_VALUE * dayQty) : option.price}
+        </span>
+        <span className="text-sm font-semibold text-gray-500">
+          {isDay ? `/ ${dayQty} × 24h` : option.suffix}
+        </span>
       </div>
+      <p className="mt-1 text-[11px] text-gray-500">{BILLING_NOTE[billing]}</p>
+
+      {isDay && credits > 0 ? (
+        <Button
+          onClick={onRedeem}
+          disabled={redeeming}
+          size="lg"
+          className="sheen tap mt-3.5 h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black shadow-[0_10px_34px_rgba(6,182,212,0.35)]"
+        >
+          {redeeming ? <Loader2 className="size-5 animate-spin" /> : <Gift className="size-5" />}
+          Usar 1 diária grátis ({credits})
+        </Button>
+      ) : (
+        <Button
+          onClick={onBuy}
+          size="lg"
+          className="sheen tap mt-3.5 h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black shadow-[0_10px_34px_rgba(6,182,212,0.35)] transition-transform hover:scale-[1.01] hover:from-cyan-300 hover:to-cyan-400"
+        >
+          {isDay ? <Timer className="size-5" /> : <Crown className="size-5" />}
+          {BILLING_BUTTON[billing]}
+        </Button>
+      )}
 
       {awaiting && (
-        <p className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-cyan-300">
-          <Loader2 className="size-3.5 animate-spin" /> Confirmando o pagamento da diária…
+        <p className="mt-2 flex items-center justify-center gap-2 text-[11px] font-semibold text-cyan-300">
+          <Loader2 className="size-3.5 animate-spin" /> Confirmando o pagamento…
         </p>
       )}
     </div>
@@ -259,34 +337,25 @@ function DayPassPurchase({
 /**
  * Ação de pedir nota fiscal.
  *
- * Nota fiscal é obrigação legal, não upsell: o dono que pagou precisa do
- * documento sem caçar um link cinza. Por isso o contraste cheio (âmbar) e a
- * altura de toque de 44px — antes era um botão fantasma de 11px, no mesmo peso
- * visual de "Minhas notas", que é só navegação. A variante `secondary` existe
- * para quando a nota já foi pedida e o que resta é abrir o histórico.
+ * A nota é obrigação legal, mas não é o assunto da tela — o dono abre aqui para
+ * assinar. Por isso a ação é um cartão discreto (não um botão âmbar cheio), que
+ * ainda abre o formulário e mantém o alvo de toque de 44px.
  */
-function InvoiceButton({
-  onClick,
-  secondary = false,
-  label,
-}: {
-  onClick: () => void;
-  secondary?: boolean;
-  label?: string;
-}) {
+function InvoiceButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={
-        "tap mt-3 flex w-full items-center justify-center gap-2 rounded-full py-3 text-xs font-bold transition-colors " +
-        (secondary
-          ? "border border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/[0.07] hover:text-white"
-          : "bg-amber-400 text-black hover:bg-amber-300")
-      }
+      className="tap mt-3 flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 text-left transition-colors hover:bg-white/[0.05]"
     >
-      <Receipt className="size-4" />
-      {label ?? (secondary ? "Minhas notas" : "Pedir nota fiscal")}
+      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-white/[0.05] text-gray-400">
+        <Receipt className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-bold text-white">Pedir nota fiscal</span>
+        <span className="block text-[11px] text-gray-500">Nota da sua compra</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-gray-600" aria-hidden="true" />
     </button>
   );
 }
@@ -324,9 +393,9 @@ function SubscriptionPage() {
   const [awaitingPayment, setAwaitingPayment] = useState(false);
   const [awaitingDayPass, setAwaitingDayPass] = useState(false);
   const [dayQty, setDayQty] = useState(1);
-  // Período do Premium: mensal (30 dias) ou anual (1 ano). Padrão anual —
-  // é o melhor preço por mês e o que já era anunciado.
-  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
+  // Período escolhido: diária (24h), mensal (30 dias) ou anual (1 ano).
+  // Padrão anual — é o melhor preço por mês e o que já era anunciado.
+  const [billing, setBilling] = useState<BillingOption>("annual");
   const [redeeming, setRedeeming] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -595,6 +664,9 @@ function SubscriptionPage() {
 
   async function openPayment() {
     if (!activeId) return;
+    // A diária não é assinatura recorrente: tem o próprio checkout (24h) e a
+    // concessão só acontece no webhook.
+    if (billing === "day") return openDayPass();
     // Só registra o e-mail quando é um endereço real. Gravar o pseudo-e-mail
     // interno (`...@menufacil.local`) como `admin_email` não ajuda o webhook e
     // ainda o expunha na tela; sem e-mail, o `external_reference` do link já
@@ -777,15 +849,21 @@ function SubscriptionPage() {
   const remaining = status?.remainingOrders ?? 0;
   const priceShort = PREMIUM_PRICE_LABEL.replace(/\/ano$/, "");
   const monthlyShort = MONTHLY_PRICE_LABEL.replace(/\/mês$/, "");
-  // Preço exibido no convite: segue o período escolhido.
-  const selectedPrice = billing === "monthly" ? monthlyShort : priceShort;
-  const selectedSuffix = billing === "monthly" ? "/mês" : "/ano";
-  const selectedNote =
-    billing === "monthly"
-      ? "pedidos ilimitados · renova todo mês"
-      : "pedidos ilimitados · renova a cada ano";
+  const dayShort = DAY_PASS_PRICE_LABEL.replace(/\/dia$/, "");
+  // Preço do período escolhido, usado nos CTAs que repetem a ação do convite.
+  const selectedPrice =
+    billing === "monthly" ? monthlyShort : billing === "day" ? dayShort : priceShort;
+  const selectedSuffix = billing === "monthly" ? "/mês" : billing === "day" ? "/24h" : "/ano";
   const usagePct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
   const pendingInvoices = invoices.filter((i) => i.status === "pending").length;
+  // Texto do modal de fallback do checkout: segue o período escolhido.
+  const payTitle = billing === "day" ? "Finalizar compra" : "Finalizar assinatura";
+  const payDescription =
+    billing === "day"
+      ? `${brl(DAY_PASS_PRICE_VALUE * dayQty)} · ${dayQty} × 24h de acesso`
+      : billing === "monthly"
+        ? `${MONTHLY_PRICE_LABEL} · pedidos ilimitados, renova todo mês.`
+        : `${PREMIUM_PRICE_LABEL} · pedidos ilimitados, renova a cada ano.`;
 
   return (
     <div className="mx-auto max-w-md space-y-3">
@@ -857,23 +935,17 @@ function SubscriptionPage() {
                 (`grant_day_pass` soma sobre o `unlocked_until` vigente). Antes
                 este bloco só existia no convite do plano gratuito, então a
                 opção de comprar/empilhar desaparecia depois da 1ª compra. */}
-            <DayPassPurchase
+            <PlanOptions
+              billing={billing}
+              setBilling={setBilling}
               dayQty={dayQty}
               setDayQty={setDayQty}
               credits={dayPassCredits}
               redeeming={redeeming}
-              awaiting={awaitingDayPass}
+              awaiting={billing === "day" ? awaitingDayPass : awaitingPayment}
               onRedeem={redeemCredit}
-              onBuy={openDayPass}
+              onBuy={openPayment}
             />
-
-            {!invoicesUnavailable && (
-              <InvoiceButton
-                onClick={() =>
-                  openInvoiceForm("day_pass", null, dayQty, `${dayQty} × diária (24h)`)
-                }
-              />
-            )}
           </div>
         </section>
       ) : isPremium ? (
@@ -919,23 +991,10 @@ function SubscriptionPage() {
                 Cancelar
               </Button>
             </div>
-
-            {!invoicesUnavailable && (
-              <InvoiceButton
-                onClick={() =>
-                  openInvoiceForm(
-                    billing === "monthly" ? "monthly" : "annual",
-                    preapprovalId,
-                    1,
-                    billing === "monthly" ? "Assinatura mensal" : "Assinatura anual",
-                  )
-                }
-              />
-            )}
           </div>
         </section>
       ) : (
-        /* Convite: preço e o botão. Só isso — sem parágrafo de venda. */
+        /* Convite: período, preço e ação. Só isso — sem parágrafo de venda. */
         <section className="animate-slide-up relative overflow-hidden rounded-3xl border border-white/[0.09] bg-gradient-to-b from-white/[0.055] to-white/[0.01] p-4">
           <div
             aria-hidden
@@ -951,87 +1010,17 @@ function SubscriptionPage() {
               </span>
             </div>
 
-            {/* Período: mensal ou anual. Um toque troca o preço e o link. */}
-            <div className="mt-3 flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
-              {[
-                { key: "monthly" as const, label: "Mensal", price: monthlyShort },
-                { key: "annual" as const, label: "Anual", price: priceShort },
-              ].map((option) => {
-                const active = billing === option.key;
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setBilling(option.key)}
-                    className={
-                      "tap flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition-all " +
-                      (active
-                        ? "bg-cyan-500 text-black shadow-[0_4px_16px_rgba(6,182,212,0.25)]"
-                        : "text-gray-400 hover:bg-white/[0.05] hover:text-gray-200")
-                    }
-                  >
-                    {option.label}
-                    <span
-                      className={
-                        "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums " +
-                        (active ? "bg-black/20 text-black" : "bg-white/10 text-gray-400")
-                      }
-                    >
-                      {option.price}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <p className="mt-3 flex items-baseline gap-1.5 text-white">
-              <span className="text-[clamp(2rem,10vw,2.5rem)] font-black leading-none tracking-tight">
-                {selectedPrice}
-              </span>
-              <span className="text-sm font-semibold text-gray-500">{selectedSuffix}</span>
-            </p>
-            <p className="mt-1 text-[11px] text-gray-500">{selectedNote}</p>
-
-            <Button
-              onClick={openPayment}
-              size="lg"
-              className="sheen tap mt-3.5 h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black shadow-[0_10px_34px_rgba(6,182,212,0.35)] transition-transform hover:scale-[1.01] hover:from-cyan-300 hover:to-cyan-400"
-            >
-              <Crown className="size-5" /> Assinar agora
-            </Button>
-            <p className="mt-2 text-center text-[11px] text-gray-500">
-              Assinatura no cartão · cancele quando quiser
-            </p>
-
-            {awaitingPayment && (
-              <p className="mt-3 flex items-center justify-center gap-2 text-[11px] font-semibold text-cyan-300">
-                <Loader2 className="size-3.5 animate-spin" /> Confirmando pagamento…
-              </p>
-            )}
-
-            {/* Alternativa sem compromisso: libera só o dia de hoje. */}
-            <DayPassPurchase
+            <PlanOptions
+              billing={billing}
+              setBilling={setBilling}
               dayQty={dayQty}
               setDayQty={setDayQty}
               credits={dayPassCredits}
               redeeming={redeeming}
-              awaiting={awaitingDayPass}
+              awaiting={billing === "day" ? awaitingDayPass : awaitingPayment}
               onRedeem={redeemCredit}
-              onBuy={openDayPass}
+              onBuy={openPayment}
             />
-
-            {invoices.length > 0 && (
-              <InvoiceButton
-                secondary
-                onClick={() => setTab("nota")}
-                label={`Minhas notas${
-                  pendingInvoices > 0
-                    ? ` · ${pendingInvoices} pendente${pendingInvoices === 1 ? "" : "s"}`
-                    : ""
-                }`}
-              />
-            )}
           </div>
         </section>
       )}
@@ -1089,28 +1078,35 @@ function SubscriptionPage() {
           }
           onClick={() => setTab("detalhes")}
         />
+        {/* Nota fiscal: fica discreta, longe do CTA de assinar. O dono pede a
+            nota quando quiser; antes um botão âmbar cheio competia com a ação
+            principal da tela. */}
         {!invoicesUnavailable && (
-          <GuideTile
-            size="sm"
-            icon={<Receipt className="size-4" />}
-            tone={pendingInvoices > 0 ? "amber" : "emerald"}
-            title="Nota fiscal"
-            hint={
-              pendingInvoices > 0
-                ? `${pendingInvoices} pedido${pendingInvoices === 1 ? "" : "s"} na fila`
-                : invoices.length > 0
-                  ? `${invoices.length} pedido${invoices.length === 1 ? "" : "s"}`
-                  : "Peça a nota da sua compra"
-            }
-            badge={
-              pendingInvoices > 0 ? (
-                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                  pendente
-                </span>
-              ) : undefined
-            }
+          <button
+            type="button"
             onClick={() => setTab("nota")}
-          />
+            className="tap flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-2.5 text-left transition-colors hover:bg-white/[0.05]"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.05] text-gray-400">
+              <Receipt className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2">
+                <span className="truncate text-sm font-bold text-white">Nota fiscal</span>
+                {pendingInvoices > 0 && (
+                  <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-gray-400">
+                    {pendingInvoices} na fila
+                  </span>
+                )}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] text-gray-400">
+                {invoices.length > 0
+                  ? `${invoices.length} pedido${invoices.length === 1 ? "" : "s"} · ver histórico`
+                  : "Peça a nota da sua compra"}
+              </span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-gray-600" aria-hidden="true" />
+          </button>
         )}
       </div>
 
@@ -1175,7 +1171,8 @@ function SubscriptionPage() {
               size="lg"
               className="sheen tap h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black"
             >
-              <Crown className="size-5" /> Assinar por {selectedPrice}
+              {billing === "day" ? <Timer className="size-5" /> : <Crown className="size-5" />}
+              {billing === "day" ? "Liberar por" : "Assinar por"} {selectedPrice}
               {selectedSuffix}
             </Button>
           )}
@@ -1515,12 +1512,7 @@ function SubscriptionPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      openInvoiceForm(
-                        billing === "monthly" ? "monthly" : "annual",
-                        preapprovalId,
-                        1,
-                        billing === "monthly" ? "Assinatura mensal" : "Assinatura anual",
-                      )
+                      openInvoiceForm("annual", preapprovalId, 1, "Assinatura Premium")
                     }
                     className="tap flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3 text-left hover:bg-white/[0.05]"
                   >
@@ -1528,10 +1520,10 @@ function SubscriptionPage() {
                       <Crown className="size-4" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-xs font-bold text-white">
-                        {billing === "monthly" ? "Assinatura mensal" : "Assinatura anual"}
+                      <span className="block text-xs font-bold text-white">Assinatura Premium</span>
+                      <span className="block text-[11px] text-gray-500">
+                        Pedir nota desta compra
                       </span>
-                      <span className="block text-[11px] text-gray-500">Pedir nota desta compra</span>
                     </span>
                     <ChevronRight className="size-4 shrink-0 text-gray-500" />
                   </button>
@@ -1622,10 +1614,10 @@ function SubscriptionPage() {
                 <Crown className="size-7 text-amber-300" />
               </span>
               <DialogTitle className="mt-3 text-lg font-black tracking-tight text-white">
-                Finalizar assinatura
+                {payTitle}
               </DialogTitle>
               <DialogDescription className="mt-1 text-xs leading-relaxed text-gray-400">
-                {ANNUAL_PRICE} · pedidos ilimitados, renova a cada ano.
+                {payDescription}
               </DialogDescription>
             </div>
 

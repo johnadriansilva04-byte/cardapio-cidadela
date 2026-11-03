@@ -110,3 +110,28 @@ test.describe("assinatura sem rolagem", () => {
     await expect(page.getByText(/menufacil\.local/)).toHaveCount(0);
   });
 });
+
+test.describe("opções de plano", () => {
+  test("oferece diária, mensal e anual no mesmo seletor", async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto("/admin/assinatura");
+
+    // Os três períodos convivem no seletor (antes a diária vivia num rodapé à
+    // parte, escondida como "Prefere só hoje?").
+    const selector = page.locator("[aria-pressed]");
+    await expect(selector).toHaveCount(3);
+    await expect(page.getByRole("button", { name: /^Diária/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Mensal/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Anual/ })).toBeVisible();
+  });
+
+  test("escolher a diária troca o preço e a ação", async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto("/admin/assinatura");
+
+    await page.getByRole("button", { name: /^Diária/ }).click();
+    await expect(page.getByRole("button", { name: /Liberar hoje/ })).toBeVisible();
+    await expect(page.getByText(/acesso por 24h · sem assinatura/)).toBeVisible();
+    await expect(page.getByText("Quantas diárias?")).toBeVisible();
+  });
+});

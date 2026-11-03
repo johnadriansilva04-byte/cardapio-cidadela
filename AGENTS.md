@@ -212,12 +212,17 @@
   Envia `metadata.kind = 'day_pass'` + `metadata.quantity`; a concessão só
   acontece no webhook. O webhook e o sync (`mp-subscription.ts`) leem
   `quantity` do metadata e repassam à RPC.
-- **A compra de diárias aparece nos DOIS estados do plano.** O bloco de compra
-  vive em `DayPassPurchase` (componente local de `admin.assinatura.tsx`) e é
-  renderizado tanto no convite do plano gratuito quanto na tela de "diária em
-  vigor". Antes ele só existia no convite, então depois de comprar a primeira
-  diária a opção de comprar mais/empilhar desaparecia. Comprar durante o período
-  ativo é suportado de propósito (`grant_day_pass` soma as horas).
+- **A diária é uma das três opções de plano, no mesmo seletor.** `PlanOptions`
+  (componente local de `admin.assinatura.tsx`) junta **Diária (24h)**, **Mensal**
+  e **Anual** num único seletor de pílulas; o preço, a nota e o CTA acompanham a
+  escolha (`BILLING_OPTIONS`/`BILLING_NOTE`/`BILLING_BUTTON`, tipo
+  `BillingOption`). Antes a diária vivia num rodapé à parte ("Prefere só hoje?")
+  e parecia um extra escondido; o mensal/anual eram as únicas opções de plano.
+  `openPayment` desvia para o checkout da diária quando `billing === "day"` — a
+  diária não é assinatura recorrente. O seletor aparece nos DOIS estados
+  (convite do plano gratuito e "diária em vigor"); comprar durante o período
+  ativo é suportado de propósito (`grant_day_pass` soma as horas). O passo
+  "Quantas diárias?" só aparece com a diária selecionada.
 - **Pedido de nota fiscal (NFS-e).** O app não emite nota: `invoice_requests`
   (`supabase/supabase_invoice_migration.sql`) é a fila em que o dono PEDE a nota
   e o fornecedor emite. O dono só insere/lê os próprios pedidos
@@ -238,10 +243,12 @@
   O pedido **já está gravado** quando o e-mail é tentado: falha de e-mail não
   desfaz o registro — a rota devolve `notified:false` e a UI avisa em vez de
   prometer a entrega. Sem a rota (deploy antigo), o cliente cai no insert direto.
-- **A ação de pedir nota tem peso de obrigação legal, não de upsell:**
-  `InvoiceButton` (âmbar, 44px) no rodapé do bloco do plano (diária e Premium) e
-  na aba de detalhes; "Minhas notas" usa a variante `secondary`. O botão fica
-  atrás de `!invoicesUnavailable` para não aparecer num banco sem a migração.
+- **A nota fiscal é obrigação legal, mas não é upsell — e por isso fica
+  discreta.** `InvoiceButton` é um cartão neutro (ícone cinza + "Pedir nota
+  fiscal"), não um botão âmbar cheio: o CTA de assinar é o assunto da tela. A
+  entrada principal é o atalho "Nota fiscal" no fim do hub (mesmo peso visual dos
+  outros `GuideTile`) e a aba de detalhes repete o cartão. Fica atrás de
+  `!invoicesUnavailable` para não aparecer num banco sem a migração.
 - Recompensas concedem **diárias** (créditos), não pedidos bônus: ver
   `supabase_day_pass_rewards_migration.sql` (`store_day_credits`,
   `reward_grants.day_credits`, `rewards.day_credits`). `redeemDayPass` troca 1
@@ -323,12 +330,13 @@
   receber o e-mail real (`currentEmail || user.email`) em vez do pseudo. Sem
   ele, a ativação automática pode falhar e o dono depende do "Conferir agora".
   Não volte a gravar o pseudo-e-mail interno como `admin_email`.
-- `/admin/assinatura` é um **hub de uma tela só**: preço + CTA ("Assinar") e
-  três atalhos. Cada assunto (o que muda, e-mail do MP, pedidos/detalhes) abre
-  num painel de tela cheia por cima (`Sheet`, Radix), que rola por dentro — a
-  página de fundo não cresce. Antes tudo ficava empilhado numa coluna longa e
-  era preciso rolar para achar o botão. Mantenha o CTA e os atalhos no
-  primeiro bloco, e não traga conteúdo novo para o fluxo da página.
+- `/admin/assinatura` é um **hub de uma tela só**: seletor de período (diária /
+  mensal / anual) + preço + CTA e os atalhos (o que muda, e-mail do MP,
+  pedidos/detalhes, nota fiscal). Cada assunto abre num painel de tela cheia por
+  cima (`Sheet`, Radix), que rola por dentro — a página de fundo não cresce.
+  Antes tudo ficava empilhado numa coluna longa e era preciso rolar para achar o
+  botão. Mantenha o CTA e os atalhos no primeiro bloco, e não traga conteúdo novo
+  para o fluxo da página.
 - O **selo de plano** (`src/modules/premium/PlanBadge.tsx`) fica no cabeçalho de
   toda tela autenticada, ao lado do botão de menu: "Grátis" com a cota
   (`restantes/limite`) em tom neutro, ou "Premium" dourado com brilho e os dias

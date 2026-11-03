@@ -184,39 +184,65 @@ async function main() {
     return;
   }
 
-  const wrangler = (args) => execFileSync("npx", ["wrangler", ...args], { stdio: "inherit" });
-
   const localFlag = R2_LOCAL ? ["--local"] : ["--remote"];
+
+  // Captura a saída do wrangler: precisamos inspecionar o stderr para
+  // reconhecer o erro 10042 (R2 não ativado) e dar a instrução certa.
+  const runWrangler = (args) => {
+    try {
+      const out = execFileSync("npx", ["wrangler", ...args], {
+        stdio: ["ignore", "pipe", "pipe"],
+        encoding: "utf8",
+      });
+      if (out) process.stdout.write(out);
+      return { ok: true, out: out || "" };
+    } catch (e) {
+      const text = `${e.stdout || ""}${e.stderr || ""}`;
+      process.stderr.write(text);
+      return { ok: false, out: text };
+    }
+  };
+
+  const r2NotEnabled = (text) => text.includes("10042") || /enable R2/i.test(text);
+
+  const enableHint =
+    "\n[backup] O R2 não está ativado nesta conta Cloudflare.\n" +
+    "  Dar permissão ao token NÃO ativa o produto. Ative uma vez em:\n" +
+    "  Cloudflare Dashboard → R2 Object Storage → 'Enable R2' (aceitar os termos).\n" +
+    "  Depois rode de novo. O dump ficou em " +
+    `${localFile} (não foi enviado).\n`;
 
   // Cria o bucket se ainda não existir. `r2 bucket create` é sempre remoto e
   // NÃO aceita --remote/--local (só --location/--storage-class/--jurisdiction);
   // passar a flag derruba o comando com "Unknown argument".
   if (!R2_LOCAL) {
-    try {
-      wrangler(["r2", "bucket", "create", BUCKET]);
-    } catch {
-      /* bucket já existe */
+    const created = runWrangler(["r2", "bucket", "create", BUCKET]);
+    if (!created.ok && r2NotEnabled(created.out)) {
+      console.error(enableHint);
+      process.exit(1);
     }
+    // "já existe" é inofensivo; qualquer outro erro aparece no upload abaixo.
   }
 
-  const upload = (objectPath, file) =>
-    wrangler(["r2", "object", "put", `${BUCKET}/${objectPath}`, `--file=${file}`, ...localFlag]);
-
-  try {
-    upload(`${keyPrefix}/backup.json.gz`, localFile);
-    upload(`${date}/manifest.json`, manifestFile);
-    upload(`latest/manifest.json`, manifestFile);
-  } catch (e) {
-    const msg = String(e.message || e);
-    if (msg.includes("10042") || msg.includes("enable R2")) {
-      console.error(
-        "\n[backup] O R2 não está ativado nesta conta Cloudflare.\n" +
-          "  Ative uma vez em: Cloudflare Dashboard → R2 → 'Enable R2' (aceitar os termos).\n" +
-          "  Só dar permissão ao token NÃO ativa o produto. O dump ficou em " +
-          `${localFile} (não foi enviado).\n`,
-      );
+  for (const [objectPath, file] of [
+    [`${keyPrefix}/backup.json.gz`, localFile],
+    [`${date}/manifest.json`, manifestFile],
+    [`latest/manifest.json`, manifestFile],
+  ]) {
+    const r = runWrangler([
+      "r2",
+      "object",
+      "put",
+      `${BUCKET}/${objectPath}`,
+      `--file=${file}`,
+      ...localFlag,
+    ]);
+    if (!r.ok) {
+      if (r2NotEnabled(r.out)) {
+        console.error(enableHint);
+      }
+      throw new Error(`falha ao enviar ${objectPath} para o R2`);
     }
-    throw e;
   }
 
   rmSync(dir, { recursive: true, force: true });

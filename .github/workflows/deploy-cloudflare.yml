@@ -1,0 +1,44 @@
+name: Deploy (Cloudflare Pages)
+
+# A Vercel ficou de fora: o plano Hobby restringe uso a projetos pessoais
+# não-comerciais, e um SaaS que cobra assinatura é uso comercial. A Cloudflare
+# Pages não tem essa cláusula.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # As VITE_* entram no bundle no build — precisam estar aqui, não só no
+      # runtime do Pages. Sem elas o app aponta para o Supabase de placeholder.
+      - name: Build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SITE_URL: https://cardapio.pracinha.online
+        run: npm run build
+
+      - name: Publish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=cardapio-cidadela --branch=main

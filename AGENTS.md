@@ -832,9 +832,14 @@
 - **Pedidos do dono numa consulta só.** `getOrdersByRestaurants(ids)` faz um
   `.in("restaurant_id", ids)` em vez de uma consulta por loja. Era N+1 no
   `useOwnerOrders` (mobile) e no `OrderManager` (admin), repetido a cada poll de
-  15s. A migração `supabase/supabase_perf_indexes_migration.sql` adiciona o
-  índice `(restaurant_id, created_at DESC)` que essa consulta ordenada usa, mais
-  os índices de cardápio, e uma limpeza de imagens órfãs no Storage.
+  15s. A consulta é limitada a `ORDERS_PAGE_LIMIT` (300) pedidos mais recentes —
+  sem o teto, o egress crescia com o histórico de 30 dias a cada recarga do
+  painel. O poll de segurança usa `getOrderStatusesByRestaurants` (só `id,status`,
+  mesmo teto) e só rebaixa os pedidos completos quando algo mudou; ambos ignoram
+  a aba escondida. A migração `supabase/supabase_perf_indexes_migration.sql`
+  adiciona o índice `(restaurant_id, created_at DESC)` que essas consultas
+  ordenadas usam, mais os índices de cardápio, e uma limpeza de imagens órfãs no
+  Storage.
 
 ## Custos: limites reais e quando migrar
 

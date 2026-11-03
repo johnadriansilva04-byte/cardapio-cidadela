@@ -512,20 +512,36 @@ export async function getOrdersByRestaurant(
 }
 
 /**
+ * Teto de pedidos que a fila do painel carrega de uma vez.
+ *
+ * A retenção guarda 30 dias de pedidos; buscar todos (com itens) a cada
+ * abertura/refresco do painel era o maior consumidor de egress do plano
+ * gratuito — 100 pedidos/dia × 30 dias ≈ 3 MB por recarga. A fila operacional
+ * precisa da fila ativa + histórico próximo, não do mês inteiro (o Financeiro
+ * tem consulta própria por período). 300 cobre ~3 dias de movimento alto.
+ */
+export const ORDERS_PAGE_LIMIT = 300;
+
+/**
  * Pedidos de várias lojas numa única consulta.
  *
  * Antes o painel fazia uma consulta por restaurante (N+1): com três lojas eram
  * três idas ao banco a cada refresh, a cada revalidação de realtime e a cada
  * poll de 15s. Uma consulta `.in()` devolve o mesmo conjunto e mantém a
- * ordenação por data.
+ * ordenação por data. Limitada aos `ORDERS_PAGE_LIMIT` mais recentes para o
+ * egress não crescer com o volume acumulado.
  */
-export async function getOrdersByRestaurants(restaurantIds: string[]): Promise<Order[]> {
+export async function getOrdersByRestaurants(
+  restaurantIds: string[],
+  limit = ORDERS_PAGE_LIMIT,
+): Promise<Order[]> {
   if (restaurantIds.length === 0) return [];
   const { data, error } = await supabase
     .from("orders")
     .select("*, order_items(*)")
     .in("restaurant_id", restaurantIds)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(limit);
   if (error) {
     console.error("Error fetching orders:", error);
     return [];
@@ -539,16 +555,20 @@ export async function getOrdersByRestaurants(restaurantIds: string[]): Promise<O
  * O poll de segurança do painel rebaixava TODOS os pedidos, com itens, a cada
  * 15s — com a tela aberta o dia todo isso sozinho estoura o egress do plano
  * gratuito. Este poll traz algumas centenas de bytes e serve só para detectar
- * "mudou algo"; quando muda, a tela busca o pedido completo de novo.
+ * "mudou algo"; quando muda, a tela busca o pedido completo de novo. Limitado
+ * à mesma janela do load para o mapa bater com a lista em tela.
  */
 export async function getOrderStatusesByRestaurants(
   restaurantIds: string[],
+  limit = ORDERS_PAGE_LIMIT,
 ): Promise<Map<string, string> | null> {
   if (restaurantIds.length === 0) return new Map();
   const { data, error } = await supabase
     .from("orders")
     .select("id, status")
-    .in("restaurant_id", restaurantIds);
+    .in("restaurant_id", restaurantIds)
+    .order("created_at", { ascending: false })
+    .limit(limit);
   if (error) {
     console.error("Error polling order statuses:", error);
     return null;

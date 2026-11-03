@@ -723,6 +723,14 @@
   policy pública: catálogo, `orders`/`order_status_history`/`cidadela_unlocks`/
   `reviews`/`order_tracking`). Não reintroduza grants amplos para `anon` nessas
   tabelas — era por aí que um visitante sem login escrevia em `admin_trials`.
+- **Views precisam de `security_invoker = true`.** Diferente do RLS (que só vale
+  para tabelas), uma view sem esse atributo roda com as permissões do **dono da
+  view** e ignora o RLS por completo. `admin_restaurant_summary` e
+  `admin_today_orders` estavam assim, e com o grant default de `anon` um
+  visitante anônimo (chave `anon`, pública) lia **todos** os restaurantes — nome,
+  `owner_id` e contagens — inclusive os não publicados. Ambas agora têm
+  `security_invoker = true` e o `anon` foi revogado. Ao criar uma view nova que
+  leia tabela com RLS, declare o atributo e não dê grant ao `anon` sem intenção.
 - Verificação rápida após aplicar: todas as tabelas `public` com
   `relrowsecurity = true`; `evaluate_rewards()` roda sem erro; o job
   `cidadela-rewards` (`10 * * * *`) está ativo em `cron.job`.

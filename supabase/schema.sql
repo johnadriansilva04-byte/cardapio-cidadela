@@ -842,7 +842,12 @@ CREATE TRIGGER trg_set_restaurant_slug
 -- ============================================================
 
 -- Admin dashboard: restaurant summary
-CREATE OR REPLACE VIEW admin_restaurant_summary AS
+-- `security_invoker = true` para a view respeitar o RLS de `restaurants` e
+-- `orders`. Sem isso ela roda com o dono da view e um visitante com a chave
+-- `anon` (pública) lia TODOS os restaurantes — nome, owner_id e contagens —
+-- inclusive os não publicados.
+CREATE OR REPLACE VIEW admin_restaurant_summary
+WITH (security_invoker = true) AS
 SELECT
   r.id,
   r.name,
@@ -858,7 +863,8 @@ SELECT
 FROM restaurants r;
 
 -- Admin dashboard: today's orders count per restaurant
-CREATE OR REPLACE VIEW admin_today_orders AS
+CREATE OR REPLACE VIEW admin_today_orders
+WITH (security_invoker = true) AS
 SELECT
   restaurant_id,
   COUNT(*) AS order_count,
@@ -866,6 +872,10 @@ SELECT
 FROM orders
 WHERE created_at >= CURRENT_DATE
 GROUP BY restaurant_id;
+
+-- Views de admin não são públicas: só o dono (via RLS) as lê. `anon` fica de
+-- fora, como nas tabelas sensíveis.
+REVOKE ALL ON admin_restaurant_summary, admin_today_orders FROM anon;
 
 -- ============================================================
 CREATE TABLE IF NOT EXISTS admin_trials (

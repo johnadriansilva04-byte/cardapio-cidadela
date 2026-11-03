@@ -805,17 +805,24 @@ aberturas de cardápio — o egress não é o problema; a pausa é.
 | Realtime | 200 conexões simultâneas | 40–80 donos online juntos |
 | Banco | 500 MB | ~80 lojas |
 | Cloudflare Functions | 100k/dia | ~400 lojas |
-| **Pausa de 7 dias** | — | **risco desde a 1ª loja paga** |
+| **Pausa de 7 dias** | — | contornada pelo keep-alive (grátis) |
 
 **O gatilho real é a pausa, não o egress.** Um projeto pausado derruba o app
-(503) até restaurar à mão. Enquanto não houver cliente pagando, o
-`scripts/keep-alive.mjs` (workflow a cada 5 dias) contorna — ele faz **uma**
-requisição leve, sem token nenhum. **Com cliente pagando, isso é gambiarra,
-não solução: migre.** O keep-alive é rede de segurança, não substituto do Pro.
+(503) até restaurar à mão. O `scripts/keep-alive.mjs` (workflow a cada 5 dias)
+contorna isso **de graça**: uma requisição leve, sem token, e o projeto nunca
+fica 7 dias parado. Enquanto o keep-alive rodar, a pausa não acontece.
 
-👉 **Regra prática: migre para o Pro (~US$ 25 ≈ R$ 137/mês) ao chegar em
-~10–15 lojas pagas.** O Pro cobre pausa, backup diário e folga de egress.
-**Break-even: ~5 assinantes mensais (5 × R$ 28,99 ≈ R$ 145) já pagam a infra.**
+👉 **Não migre por ter cliente pagando. Migre quando a RECEITA pagar o Pro.**
+O Pro custa ~US$ 25 ≈ R$ 137/mês. Com Premium mensal a R$ 28,99, isso é
+**~5 assinantes** (5 × R$ 28,99 ≈ R$ 145). Antes disso, o Pro é prejuízo:
+com 1 assinante (R$ 28,99) e o Pro (R$ 137), você perde R$ 108/mês. Os outros
+limites (egress 5 GB, banco 500 MB, realtime 200) estão a centenas de lojas de
+distância — não são motivo para migrar agora.
+
+**Enquanto a receita não paga o Pro:** keep-alive ligado + `VACUUM FULL` de
+vez em quando (`supabase/maintenance.sql`) cobrem a operação no plano grátis.
+O `VACUUM` importa: sem ele o banco volta a inchar com as migrações e chega
+nos 500 MB muito antes das ~80 lojas previstas.
 
 **Contabilidade (20 lojas, taxa MP 3,5%, infra grátis + domínio R$ 3,33/mês):**
 
@@ -973,13 +980,15 @@ diária a R$ 1,49, são ~60 diárias/mês. Tudo acima disso é margem.
   não enche; o que enche é tráfego de saída (imagens + JSON do cardápio) e picos
   de conexão. Por isso o cache SWR (egress) e o cache de imagem no SW (egress)
   valem mais que qualquer tuning de banco.
-- **Free vs Pro do Supabase.** Pro = US$ 25/mês (≈ R$ 135) e o único motivo
-  inegociável para migrar é **uptime**: o projeto free **pausa após 7 dias sem
-  atividade** e não tem backup. Com uma loja ativa todo dia, não pausa; ainda
-  assim, para um produto pago o backup diário é o argumento de venda.
+- **Free vs Pro do Supabase.** Pro = US$ 25/mês (≈ R$ 137) e o único motivo
+  inegociável para migrar é **uptime + backup**. O projeto free **pausa após
+  7 dias sem atividade** — o keep-alive já contorna isso de graça. Então o Pro
+  não se paga sozinho: **só migre quando a receita cobrir os R$ 137/mês**
+  (~5 assinantes mensais). Antes disso é prejuízo, não investimento.
 - **Ordem de gatilhos para migrar:** (1) egress > ~4 GB/mês ou pico realtime
   > ~150 → rever cache antes de pagar; (2) 2º projeto free em uso → consolidar;
-  (3) cliente pagante de verdade → Pro (backup/uptime); (4) 100k page views/dia →
+  (3) **receita recorrente ≥ R$ 137/mês** (≈ 5 assinantes) → Pro, aí o backup
+  diário vira argumento de venda e não custo; (4) 100k page views/dia →
   Workers pago (US$ 5/mês, 10M req).
 
 

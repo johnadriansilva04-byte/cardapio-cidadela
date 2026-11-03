@@ -12,6 +12,8 @@
     "format": "prettier --write .",
     "generate-icons": "node scripts/generate-icons.js",
     "create-payment-link": "node scripts/create-payment-link.js",
+    "backup": "node scripts/backup-to-r2.mjs",
+    "restore": "node scripts/restore-from-r2.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

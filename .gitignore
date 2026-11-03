@@ -47,3 +47,7 @@ blob-report/
 
 # N8N workflow files with secrets
 fluxo cidadela.json
+
+# Temporários dos scripts de backup (scripts/BACKUP.md)
+.backup-tmp/
+.restore-tmp/

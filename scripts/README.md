@@ -1,5 +1,23 @@
 # Scripts do Projeto
 
+## backup-to-r2.mjs / restore-from-r2.mjs
+
+Backup diário dos dados do Supabase para o Cloudflare R2 (10 GB grátis) e
+restauração. O plano gratuito do Supabase não tem backup automático — estes
+scripts são a rede de segurança do cardápio e das assinaturas.
+
+Documentação completa (o que é salvo, onde fica, secrets, como recuperar):
+**[BACKUP.md](./BACKUP.md)**.
+
+Uso rápido:
+
+```bash
+npm run backup                    # exporta e sobe para o R2
+npm run backup -- --dry-run       # só exporta local (DRY_RUN=1)
+npm run restore -- --latest       # mostra o plano de restauração
+npm run restore -- --latest --confirm   # restaura de verdade
+```
+
 ## create-payment-link.js
 
 Este script cria um link de pagamento pontual (checkout pro) no Mercado Pago com Pix habilitado.

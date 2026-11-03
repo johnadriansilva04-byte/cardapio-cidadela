@@ -792,6 +792,26 @@
   mapa inteiro**, não faz merge — ao adicionar uma secret, reenvie o conjunto
   completo (as `plain_text` somem se você mandar só a nova).
 
+## Backup dos dados (Supabase → Cloudflare R2)
+
+- **O Supabase free não tem backup automático.** A rede de segurança é o
+  workflow `.github/workflows/backup-r2.yml`, que roda todo dia às 03:30 UTC e
+  exporta as tabelas do app para o bucket R2 `cardapio-cidadela-backups` (10 GB
+  grátis, na conta Cloudflare do projeto). Os scripts são
+  `scripts/backup-to-r2.mjs` e `scripts/restore-from-r2.mjs`
+  (`npm run backup` / `npm run restore`); a documentação completa, com os
+  secrets e o passo a passo de recuperação, está em **`scripts/BACKUP.md`**.
+- **O workflow precisa do secret `SUPABASE_SERVICE_ROLE_KEY`** (Settings →
+  Secrets), que o deploy **não** usa — sem ele o backup falha. O
+  `CLOUDFLARE_API_TOKEN` existente precisa da permissão **Workers R2: Edit**.
+- **O dump tem dados de clientes: o bucket é privado.** Não crie domínio
+  público nem `r2.dev` para ele. O restore é upsert por `id` (não apaga nada),
+  mas rode primeiro sem `--confirm` para ver o plano.
+- Fotos **não** entram no dump (ficam no Storage e são re-baixáveis); o que é
+  salvo é o **cardápio** e o **estado de assinatura/saldos**, que são o que dói
+  perder. O dump é texto compactado (dezenas de KB a poucos MB), então anos de
+  histórico cabem nos 10 GB.
+
 ## Domínio, acompanhamento e performance do cardápio
 
 - **O link compartilhado usa o domínio canônico, não o host do navegador.**

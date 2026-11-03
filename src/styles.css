@@ -56,7 +56,7 @@
 
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --font-display: "Inter", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", "Inter", system-ui, sans-serif;
 }
 
 :root {
@@ -358,6 +358,81 @@
 
 @utility animate-float-tilt {
   animation: float-tilt 6s ease-in-out infinite;
+}
+
+/* ============================================================
+   Landing "bistrô neon" — revelações, brilho e aurora
+   ============================================================ */
+
+/* Revelação em cascata: sobe + desfoca. Usada com `animation-delay` inline
+   para escalonar os blocos da landing sem JS. */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@utility animate-reveal {
+  animation: reveal-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Faixa de logos/benefícios em loop contínuo. */
+@keyframes marquee-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@utility animate-marquee {
+  animation: marquee-x 28s linear infinite;
+}
+
+/* Aurora: manchas de cor que respiram devagar, dando profundidade ao fundo. */
+@keyframes aurora-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate3d(4%, -3%, 0) scale(1.12);
+    opacity: 0.85;
+  }
+}
+
+@utility animate-aurora {
+  animation: aurora-drift 14s ease-in-out infinite;
+}
+
+/* Brilho que atravessa o texto do título (gradiente animado). */
+@keyframes text-shine {
+  to {
+    background-position: 220% center;
+  }
+}
+
+@utility text-shine {
+  background-size: 220% auto;
+  animation: text-shine 5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-reveal,
+  .animate-marquee,
+  .animate-aurora,
+  .text-shine {
+    animation: none !important;
+  }
 }
 
 /* Brilho de carregamento em forma de esqueleto (shimmer) */

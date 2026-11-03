@@ -579,6 +579,18 @@
   `cleanup_old_data(30)` + dois jobs `pg_cron`: limpeza diária (03:00 UTC) e
   reset do contador mensal. `order_items`/`order_status_history` caem por
   `ON DELETE CASCADE`; `admin_trials` **nunca** é apagada.
+- **Produto não tem mais foto — só um tile genérico.** O cardápio público, o
+  carrinho e o painel renderizam o mesmo bloco (`UtensilsCrossed` na cor de
+  destaque / 🍔 no carrinho) em vez de `item.image_url`. A coluna
+  `products.image_url` continua no banco (dado existente, e o admin ainda a
+  carrega ao editar um produto para não apagá-la), mas saiu do payload público
+  (`PRODUCT_COLUMNS`). Motivo: a foto por produto era ~2 MB por cardápio de 30
+  itens e o **maior consumidor de egress do Supabase** — com o plano grátis
+  (~10 GB) isso limitava o app a ~3–5 lojas. Tirar a foto empurra o teto para
+  dezenas de lojas sem custo. Não reintroduza o campo de upload de foto no
+  `MenuManager` (`ImageField` foi removido; logo/capa seguem no
+  `RestaurantDialog`). Se a foto por produto voltar um dia, ela tem de vir por
+  um host sem egress cobrado (R2), não do Supabase Storage.
 - Toda imagem de restaurante (logo, banner e **produto**) passa por
   `src/lib/imageCompression.ts` antes do upload, dentro de
   `uploadRestaurantImage` — redimensiona para ≤ 800x800 e converte para WebP a

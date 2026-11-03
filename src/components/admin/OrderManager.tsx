@@ -99,6 +99,16 @@ const COLUMN_HEAD_ICON: Record<OrderStatus, string> = {
   cancelled: "text-red-400 bg-red-500/15",
 };
 
+// Ordem dos blocos na aba "Todos": fluxo operacional primeiro, histórico depois.
+const GROUP_ORDER: OrderStatus[] = [
+  "received",
+  "preparing",
+  "ready",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+];
+
 type PeriodKey = "today" | "7d" | "30d" | "all";
 
 function periodStart(period: PeriodKey): Date | null {
@@ -580,6 +590,17 @@ export function OrderManager({
     );
   }, [displayedOrders, filter]);
 
+  // No "Todos" os pedidos ficam separados por status (em blocos), em vez de
+  // tudo numa grade só — antes recebido, entregue e cancelado se misturavam e a
+  // fila ativa sumia no meio do histórico.
+  const groupedOrders = useMemo(() => {
+    if (filter !== "all") return null;
+    return GROUP_ORDER.map((status) => ({
+      status,
+      orders: tabOrders.filter((o) => o.status === status),
+    })).filter((g) => g.orders.length > 0);
+  }, [tabOrders, filter]);
+
   if (loading && orders.length === 0) {
     return (
       <div className="flex justify-center py-12">
@@ -748,6 +769,51 @@ export function OrderManager({
               </p>
             </div>
           </div>
+        ) : filter === "all" && groupedOrders ? (
+          // "Todos": blocos por status, na ordem do fluxo. Antes era uma grade
+          // única e o pedido recém-recebido se perdia no meio de entregues e
+          // cancelados.
+          <div className="h-full overflow-y-auto pb-1 pr-0.5">
+            <div className="space-y-4">
+              {groupedOrders.map((group) => (
+                <section key={group.status}>
+                  <div className="mb-2 flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-[11px] font-bold",
+                        TAB_TONE[group.status],
+                      )}
+                    >
+                      {TAB_LABEL[group.status]}
+                    </span>
+                    <span className="text-[11px] font-bold text-gray-500">
+                      {group.orders.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                    {group.orders.map((order) => {
+                      const locked = lockedStores.has(order.restaurant_id);
+                      return (
+                        <OrderCard
+                          key={order.id}
+                          order={order}
+                          storeName={multi ? restaurantNames.get(order.restaurant_id) : undefined}
+                          locked={locked}
+                          fresh={freshIds.has(order.id)}
+                          showStatus={false}
+                          onOpen={() => openDetail(order)}
+                          onAdvance={
+                            locked ? undefined : () => changeStatus(order.id, nextStatusFor(order)!)
+                          }
+                          onCancel={locked ? undefined : () => requestCancel(order)}
+                        />
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
         ) : (
           <div className="h-full overflow-y-auto pb-1 pr-0.5">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
@@ -878,6 +944,23 @@ function OrderCard({
         )}
         <p className="truncate text-[11px] text-gray-400">{order.customer_name}</p>
 
+        {/* Endereço: só na entrega. Antes o card não mostrava para onde ia e o
+            operador precisava abrir cada pedido. */}
+        {order.delivery_type === "entrega" ? (
+          <p className="flex items-start gap-1 text-[10px] leading-snug text-gray-400">
+            <MapPin className="mt-0.5 size-3 shrink-0 text-gray-500" />
+            <span className="line-clamp-2">
+              {[order.delivery_address, order.customer_neighborhood, order.customer_city]
+                .filter(Boolean)
+                .join(" • ") || "Endereço não informado"}
+            </span>
+          </p>
+        ) : (
+          <p className="flex items-center gap-1 text-[10px] text-gray-500">
+            <Store className="size-3 shrink-0" /> Retirada no balcão
+          </p>
+        )}
+
         {/* Itens: visíveis normalmente; com a cota estourada, só esta linha é
             ocultada — número, cliente, horário, total e ações seguem à vista. */}
         {locked ? (
@@ -892,18 +975,42 @@ function OrderCard({
         ) : (
           items.length > 0 &&
           !compact && (
-            <p className="line-clamp-2 text-[10px] leading-relaxed text-gray-500">
-              {items
-                .slice(0, 3)
-                .map((i) => `${i.quantity}x ${i.product_name}`)
-                .join(" • ")}
-              {items.length > 3 ? ` • +${items.length - 3}` : ""}
-            </p>
+            // Lista destacada: um item por linha (qtd + nome), com os adicionais
+            // logo abaixo. Antes tudo virava uma frase amassada numa linha só.
+            <ul className="space-y-0.5 border-l-2 border-cyan-500/25 pl-2">
+              {items.slice(0, 4).map((i) => {
+                const notes = (i as unknown as { notes?: string }).notes ?? "";
+                const hasAddons = notes.toLowerCase().includes("adicionais:");
+                return (
+                  <li key={i.id} className="text-[10px] leading-snug">
+                    <span className="font-black text-white">{i.quantity}x</span>{" "}
+                    <span className="text-gray-300">{i.product_name}</span>
+                    {notes && (
+                      <span
+                        className={cn(
+                          "mt-0.5 block rounded px-1 py-0.5",
+                          hasAddons ? "text-violet-300" : "text-gray-500",
+                        )}
+                      >
+                        {notes}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+              {items.length > 4 && (
+                <li className="text-[10px] font-semibold text-gray-500">
+                  +{items.length - 4} item{items.length - 4 === 1 ? "" : "s"}
+                </li>
+              )}
+            </ul>
           )
         )}
 
         <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-          <span className="text-xs font-black text-cyan-400">{brl(order.total)}</span>
+          <span className="rounded-md bg-cyan-500/15 px-1.5 py-0.5 text-sm font-black text-cyan-300">
+            {brl(order.total)}
+          </span>
           <span className="text-[9px] text-gray-600">
             {new Date(order.created_at).toLocaleString("pt-BR", {
               hour: "2-digit",

@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ImageField } from "@/components/admin/ImageField";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import type { Restaurant, Category, Product, ProductAddon } from "@/lib/types";
 import { brl } from "@/lib/utils";
@@ -522,25 +521,16 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                               placeholder="Descrição (opcional)"
                               rows={2}
                             />
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <div className="space-y-1.5">
-                                <Label className="text-xs text-gray-400">Preço (R$) *</Label>
-                                <Input
-                                  className={field}
-                                  value={editProd.price}
-                                  onChange={(e) =>
-                                    setEditProd({ ...editProd, price: e.target.value })
-                                  }
-                                  placeholder="19,90"
-                                  inputMode="decimal"
-                                />
-                              </div>
-                              <ImageField
-                                label="Foto do produto"
-                                value={editProd.image_url}
-                                onChange={(v) => setEditProd({ ...editProd, image_url: v })}
-                                restaurantId={restaurant.id}
-                                kind="product"
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-gray-400">Preço (R$) *</Label>
+                              <Input
+                                className={field}
+                                value={editProd.price}
+                                onChange={(e) =>
+                                  setEditProd({ ...editProd, price: e.target.value })
+                                }
+                                placeholder="19,90"
+                                inputMode="decimal"
                               />
                             </div>
                             <div className="flex gap-2">
@@ -571,22 +561,9 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                           }`}
                         >
                           <div className="flex items-center gap-3 p-2.5">
-                            {p.image_url ? (
-                              <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-white/10">
-                                <img
-                                  src={p.image_url}
-                                  alt={p.name}
-                                  className="size-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.style.opacity = "0.15";
-                                  }}
-                                />
-                              </div>
-                            ) : (
-                              <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-white/[0.03] text-gray-700 ring-1 ring-white/10">
-                                <UtensilsCrossed className="size-4 text-gray-600" />
-                              </div>
-                            )}
+                            <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-white/[0.03] text-gray-700 ring-1 ring-white/10">
+                              <UtensilsCrossed className="size-4 text-gray-600" />
+                            </div>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-semibold text-white">{p.name}</p>
                               {p.description && (
@@ -685,23 +662,14 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
                           onChange={(e) => updateProdForm(cat.id, "desc", e.target.value)}
                           rows={2}
                         />
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="space-y-1.5">
-                            <Label className="text-xs text-gray-400">Preço (R$) *</Label>
-                            <Input
-                              className={field}
-                              placeholder="19,90"
-                              inputMode="decimal"
-                              value={form?.price ?? ""}
-                              onChange={(e) => updateProdForm(cat.id, "price", e.target.value)}
-                            />
-                          </div>
-                          <ImageField
-                            label="Foto do produto"
-                            value={form?.imageUrl ?? ""}
-                            onChange={(v) => updateProdForm(cat.id, "imageUrl", v)}
-                            restaurantId={restaurant.id}
-                            kind="product"
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-gray-400">Preço (R$) *</Label>
+                          <Input
+                            className={field}
+                            placeholder="19,90"
+                            inputMode="decimal"
+                            value={form?.price ?? ""}
+                            onChange={(e) => updateProdForm(cat.id, "price", e.target.value)}
                           />
                         </div>
                         <div className="flex gap-2">

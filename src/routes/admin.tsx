@@ -91,6 +91,7 @@ function AdminShell({
     const channels: RealtimeChannel[] = [];
     let cancelled = false;
     let poll: ReturnType<typeof setInterval> | null = null;
+    let pollKickoff: ReturnType<typeof setTimeout> | null = null;
     let debounce: ReturnType<typeof setTimeout> | null = null;
     // Ids das lojas do dono, buscados uma vez por sessão do efeito.
     let restaurantIds: string[] | null = null;
@@ -190,11 +191,20 @@ function AdminShell({
       }
     })();
 
-    poll = setInterval(pollTick, 15000);
+    // Rede de segurança para o realtime cair. 45s (era 15s) corta o egress em
+    // 3×; o INSERT e o `visibilitychange` continuam instantâneos. O jitter
+    // espalha os dispositivos para não baterem no banco no mesmo segundo.
+    const POLL_MS = 45_000;
+    const POLL_JITTER_MS = 15_000;
+    pollKickoff = setTimeout(() => {
+      void pollTick();
+      poll = setInterval(pollTick, POLL_MS);
+    }, Math.random() * POLL_JITTER_MS);
 
     return () => {
       cancelled = true;
       if (debounce) clearTimeout(debounce);
+      if (pollKickoff) clearTimeout(pollKickoff);
       if (poll) clearInterval(poll);
       for (const ch of channels) {
         try {

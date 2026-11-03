@@ -19,7 +19,12 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
 import { getRestaurantBySlug, getNeighborhoods } from "@/modules/supabase/restaurants";
 import { getMenuWithProducts, getAddonsByRestaurant } from "@/modules/supabase/menu";
-import { readMenuCache, writeMenuCache, clearMenuCache } from "@/modules/supabase/menuCache";
+import {
+  readMenuCache,
+  writeMenuCache,
+  clearMenuCache,
+  MENU_CACHE_FRESH_MS,
+} from "@/modules/supabase/menuCache";
 import { supabase } from "@/modules/supabase/client";
 import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
@@ -99,7 +104,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     let alive = true;
 
     // SWR: hidrata do cache local na hora (se houver) e revalida em segundo
-    // plano. Sem cache, o comportamento é o de antes — tudo vem da rede.
+    // plano. Cache dentro da janela "fresca" é servido sozinho, sem tocar na
+    // rede — o realtime cobre qualquer mudança e evita rebaixar o cardápio
+    // inteiro a cada abertura do link.
     const cached = readMenuCache(slug);
     if (cached) {
       setRestaurant(cached.restaurant);
@@ -109,6 +116,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       setProductAddons(cached.addons);
       setLoading(false);
       if (cached.categories.length > 0) setActiveCat((prev) => prev || cached.categories[0].id);
+      if (Date.now() - cached.cachedAt < MENU_CACHE_FRESH_MS)
+        return () => {
+          alive = false;
+        };
     }
 
     async function load() {
@@ -1017,39 +1028,18 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                             />
                           )}
 
-                          {item.image_url ? (
-                            <div className="aspect-square size-[68px] shrink-0 overflow-hidden rounded-lg">
-                              <SmartImage
-                                src={item.image_url}
-                                alt={item.name}
-                                width={136}
-                                height={136}
-                                resize="cover"
-                                imgClassName="size-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
-                                fallback={
-                                  <div
-                                    className="grid size-full place-items-center border"
-                                    style={{
-                                      borderColor: hexToRgba(accent, 0.22),
-                                      backgroundColor: hexToRgba(accent, 0.07),
-                                    }}
-                                  >
-                                    <UtensilsCrossed className="size-5" style={{ color: accent }} />
-                                  </div>
-                                }
-                              />
-                            </div>
-                          ) : (
-                            <div
-                              className="grid size-[68px] shrink-0 place-items-center rounded-lg border"
-                              style={{
-                                borderColor: hexToRgba(accent, 0.22),
-                                backgroundColor: hexToRgba(accent, 0.07),
-                              }}
-                            >
-                              <UtensilsCrossed className="size-5" style={{ color: accent }} />
-                            </div>
-                          )}
+                          {/* Tile genérico: o app não usa mais foto por produto
+                              (só logo e capa da loja). Um único bloco substitui
+                              o par imagem/fallback e evita egress de Storage. */}
+                          <div
+                            className="grid size-[68px] shrink-0 place-items-center rounded-lg border"
+                            style={{
+                              borderColor: hexToRgba(accent, 0.22),
+                              backgroundColor: hexToRgba(accent, 0.07),
+                            }}
+                          >
+                            <UtensilsCrossed className="size-5" style={{ color: accent }} />
+                          </div>
 
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-bold leading-tight text-white">

@@ -5,6 +5,7 @@ import {
   clearMenuCache,
   menuCacheAge,
   MENU_CACHE_TTL_MS,
+  MENU_CACHE_FRESH_MS,
 } from "./menuCache";
 import type { Restaurant } from "@/lib/types";
 
@@ -88,6 +89,10 @@ describe("menuCache", () => {
   it("ignora payload sem restaurante", () => {
     localStorage.setItem("cidadela:menu:v1:lanchonete", JSON.stringify({ cachedAt: Date.now() }));
     expect(readMenuCache("lanchonete")).toBeNull();
+  });
+
+  it("a janela fresca é menor que o TTL (senão nunca revalidaria)", () => {
+    expect(MENU_CACHE_FRESH_MS).toBeLessThan(MENU_CACHE_TTL_MS);
   });
 
   it("clearMenuCache remove o registro", () => {

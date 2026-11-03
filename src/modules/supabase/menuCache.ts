@@ -34,6 +34,15 @@ const KEY_PREFIX = `cidadela:menu:v${CACHE_VERSION}:`;
 /** Idade máxima em que o cache ainda vale como "instantâneo" no primeiro paint. */
 export const MENU_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Janela em que o snapshot é considerado fresco: serve na hora e NÃO dispara
+ * revalidação de rede. Um cardápio raramente muda e o realtime (aba visível)
+ * cobre a mudança; rebaixar os quatro payloads a cada abertura do link era o
+ * maior consumidor de egress do cliente anônimo. Passada a janela, o snapshot
+ * ainda é servido no primeiro paint (SWR), mas aí sim revalida em segundo plano.
+ */
+export const MENU_CACHE_FRESH_MS = 6 * 60 * 60 * 1000;
+
 function storageKey(slug: string): string {
   return `${KEY_PREFIX}${slug}`;
 }

@@ -4,9 +4,10 @@ import type { Category, Product, ProductAddon, RestaurantAddon } from "@/lib/typ
 // Payload enxuto: só o que o cardápio renderiza no celular do cliente.
 // `restaurant_id` e `created_at` ficam de fora de propósito — são usados só em
 // consultas admin e economizam KB por produto/por celular em cada carregamento.
+// `image_url` também fica de fora: o produto usa um tile genérico (só logo e
+// capa da loja têm foto), então o campo é peso morto no payload público.
 const CATEGORY_COLUMNS = "id, name, sort_order";
-const PRODUCT_COLUMNS =
-  "id, category_id, name, description, price, image_url, available, sort_order";
+const PRODUCT_COLUMNS = "id, category_id, name, description, price, available, sort_order";
 
 /**
  * Get all categories for a restaurant with their products

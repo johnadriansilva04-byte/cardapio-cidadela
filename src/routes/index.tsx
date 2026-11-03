@@ -1,29 +1,34 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   ArrowRight,
+  BadgeCheck,
   BellRing,
   Bike,
   Check,
+  ChevronDown,
   ChefHat,
+  Clock,
+  LayoutDashboard,
+  LogOut,
   Menu,
+  Minus,
+  Palette,
+  Plus,
   QrCode,
+  ReceiptText,
   Send,
   ShieldCheck,
   Smartphone,
+  Sparkles,
+  Star,
+  Store,
+  TrendingUp,
+  Users,
   UtensilsCrossed,
   X,
   Zap,
-  Play,
-  Clock,
-  DollarSign,
-  Palette,
-  Calendar,
-  Lock,
-  Eye,
-  EyeOff,
   BookOpen,
-  Infinity as InfinityIcon,
 } from "lucide-react";
 import {
   MONTHLY_PRICE_LABEL,
@@ -33,8 +38,17 @@ import {
   formatMonthlyEquivalent,
 } from "@/lib/pricing";
 
-import { brl } from "@/lib/utils";
+import { brl, cn } from "@/lib/utils";
 import { COMPANY, hasSupportContact } from "@/lib/company";
+import { useAuth } from "@/components/AuthProvider";
+import { switchAccount } from "@/modules/supabase/auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -58,13 +72,23 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
+/* ============================================================
+   Demo viva — o visitante monta um pedido de verdade na landing
+   ============================================================ */
+
 const DEMO_ITEMS = [
-  { id: "p1", emoji: "🍕", name: "Pizza da casa", price: 32, tag: "Mais pedido" },
-  { id: "p2", emoji: "🍔", name: "Burger artesanal", price: 26 },
-  { id: "p3", emoji: "🥤", name: "Refri lata", price: 6 },
+  {
+    id: "p1",
+    emoji: "🍔",
+    name: "Variant Burger",
+    desc: "Blend 180g, cheddar e bacon",
+    price: 32,
+    tag: "Mais pedido",
+  },
+  { id: "p2", emoji: "🍟", name: "Batata rústica", desc: "Alecrim e parmesão", price: 18 },
+  { id: "p3", emoji: "🥤", name: "Milkshake", desc: "Chocolate belga", price: 16 },
 ];
 
-/** Demo viva: o visitante monta um pedido de verdade na própria landing. */
 function LiveMenuDemo() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [sent, setSent] = useState(false);
@@ -85,6 +109,16 @@ function LiveMenuDemo() {
     setCart((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
   }
 
+  function remove(id: string) {
+    setSent(false);
+    setCart((prev) => {
+      const next = { ...prev };
+      if ((next[id] ?? 0) <= 1) delete next[id];
+      else next[id] -= 1;
+      return next;
+    });
+  }
+
   function send() {
     if (count === 0) return;
     setSent(true);
@@ -92,92 +126,174 @@ function LiveMenuDemo() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[340px]">
-      <div className="relative rounded-[2rem] border border-white/10 bg-[#0b0b12] p-3 shadow-[0_30px_80px_-20px_rgba(6,182,212,0.35)]">
-        <div className="absolute left-1/2 top-2 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/10" />
+    <div className="relative mx-auto w-full max-w-[350px]">
+      {/* Halo atrás do aparelho */}
+      <div
+        aria-hidden
+        className="animate-aurora absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-tr from-cyan-500/25 via-blue-500/10 to-violet-500/20 blur-3xl"
+      />
 
-        <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/15 text-lg">
-            🍽️
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-white">Cantina da Praça</p>
-            <p className="flex items-center gap-1.5 text-[11px] text-emerald-300">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Aberto agora
-            </p>
+      <div className="relative rounded-[2.4rem] border border-white/10 bg-gradient-to-b from-[#14141d] to-[#0a0a10] p-2.5 shadow-[0_40px_90px_-25px_rgba(6,182,212,0.45)]">
+        <div className="relative overflow-hidden rounded-[1.9rem] border border-white/[0.06] bg-[#0b0b12]">
+          {/* Barra de status */}
+          <div className="flex items-center justify-between px-4 pt-3 text-[10px] font-semibold text-gray-500">
+            <span>9:41</span>
+            <span className="h-1.5 w-16 rounded-full bg-white/10" />
+            <span className="flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-emerald-400" /> 5G
+            </span>
           </div>
-        </div>
 
-        <div className="mt-2 space-y-2">
-          {DEMO_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => add(item.id)}
-              className="group flex w-full items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5 text-left transition-colors hover:border-cyan-500/30 hover:bg-cyan-500/[0.05]"
-            >
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.05] text-xl">
-                {item.emoji}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-semibold text-white">{item.name}</span>
-                <span className="text-[11px] font-bold text-cyan-300">{brl(item.price)}</span>
-                {item.tag && (
-                  <span className="ml-1.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
-                    {item.tag}
-                  </span>
-                )}
-              </span>
-              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-cyan-500 text-sm font-black text-black transition-transform group-hover:scale-110">
-                +
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-3 rounded-2xl border border-white/[0.06] bg-black/30 p-3">
-          {sent ? (
-            <div className="animate-pop-in flex items-center gap-2.5 py-1">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-500/20 text-emerald-300">
-                <Check className="size-4" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-white">Pedido enviado!</p>
-                <p className="text-[11px] text-gray-400">
-                  Chegou no painel do restaurante na hora.
-                </p>
+          {/* Cabeçalho da loja */}
+          <div className="relative mt-2 px-3">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500/25 via-blue-500/10 to-violet-500/20 p-3">
+              <div
+                aria-hidden
+                className="absolute -right-6 -top-8 size-24 rounded-full bg-cyan-400/30 blur-2xl"
+              />
+              <div className="relative flex items-center gap-2.5">
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#0b0b12] text-xl ring-1 ring-white/10">
+                  🍔
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1 truncate text-sm font-black text-white">
+                    Variant <BadgeCheck className="size-3.5 shrink-0 text-cyan-300" />
+                  </p>
+                  <p className="flex items-center gap-1.5 text-[10px] text-gray-300">
+                    <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Aberto
+                    agora
+                    <span className="text-gray-600">•</span>
+                    <Star className="size-3 fill-amber-300 text-amber-300" /> 4,9
+                  </p>
+                </div>
               </div>
             </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between text-[11px] text-gray-400">
-                <span>{count === 0 ? "Toque nos itens acima" : `${count} item(ns)`}</span>
-                <span className="text-sm font-black text-white">{brl(total)}</span>
+          </div>
+
+          {/* Itens */}
+          <div className="mt-2.5 space-y-2 px-3">
+            {DEMO_ITEMS.map((item) => {
+              const qty = cart[item.id] ?? 0;
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-2xl border p-2 transition-all",
+                    qty > 0
+                      ? "border-cyan-500/40 bg-cyan-500/[0.07]"
+                      : "border-white/[0.06] bg-white/[0.02]",
+                  )}
+                >
+                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/[0.05] text-xl">
+                    {item.emoji}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1.5 truncate text-xs font-bold text-white">
+                      {item.name}
+                      {item.tag && (
+                        <span className="shrink-0 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-300">
+                          {item.tag}
+                        </span>
+                      )}
+                    </p>
+                    <p className="truncate text-[10px] text-gray-500">{item.desc}</p>
+                    <p className="text-[11px] font-black text-cyan-300">{brl(item.price)}</p>
+                  </div>
+                  {qty > 0 ? (
+                    <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-black/30 p-0.5">
+                      <button
+                        type="button"
+                        aria-label={`Remover ${item.name}`}
+                        onClick={() => remove(item.id)}
+                        className="grid size-6 place-items-center rounded-md text-gray-300 transition-colors hover:bg-white/10"
+                      >
+                        <Minus className="size-3" />
+                      </button>
+                      <span className="w-4 text-center text-xs font-black text-white">{qty}</span>
+                      <button
+                        type="button"
+                        aria-label={`Adicionar ${item.name}`}
+                        onClick={() => add(item.id)}
+                        className="grid size-6 place-items-center rounded-md bg-cyan-500 text-black transition-colors hover:bg-cyan-400"
+                      >
+                        <Plus className="size-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={`Adicionar ${item.name}`}
+                      onClick={() => add(item.id)}
+                      className="grid size-8 shrink-0 place-items-center rounded-xl bg-cyan-500 text-black transition-transform hover:scale-110"
+                    >
+                      <Plus className="size-4" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Carrinho */}
+          <div className="mt-3 border-t border-white/[0.06] bg-black/40 px-3 pb-4 pt-3">
+            {sent ? (
+              <div className="animate-pop-in flex items-center gap-2.5 py-1">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-emerald-500/20 text-emerald-300">
+                  <Check className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-white">Pedido enviado!</p>
+                  <p className="text-[11px] text-gray-400">
+                    Chegou no painel do restaurante na hora.
+                  </p>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={send}
-                disabled={count === 0}
-                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-cyan-500 py-2.5 text-xs font-bold text-black transition-all hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Send className="size-3.5" /> Enviar pedido
-              </button>
-            </>
-          )}
+            ) : (
+              <>
+                <div className="flex items-center justify-between text-[11px] text-gray-400">
+                  <span>{count === 0 ? "Toque nos itens acima" : `${count} item(ns)`}</span>
+                  <span className="text-base font-black text-white">{brl(total)}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={send}
+                  disabled={count === 0}
+                  className="sheen mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-cyan-500 py-2.5 text-xs font-black text-black transition-all hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Send className="size-3.5" /> Enviar pedido
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
-      <p className="mt-3 text-center text-[11px] text-gray-500">
-        É isto que seu cliente vê. Experimente.
+      <p className="mt-4 text-center text-[11px] text-gray-500">
+        É isto que seu cliente vê. Experimente. 👆
       </p>
     </div>
   );
 }
+
+/* ============================================================
+   Conteúdo da página
+   ============================================================ */
 
 const PROOF = [
   { icon: Zap, label: "Pedido em tempo real", hint: "alerta sonoro no painel" },
   { icon: QrCode, label: "Link e QR próprios", hint: "bio, salão e mesa" },
   { icon: Bike, label: "Entrega ou retirada", hint: "taxa e endereço no pedido" },
   { icon: ShieldCheck, label: "Paga só quando usar", hint: "sem comissão, sem contrato" },
+];
+
+const MARQUEE = [
+  "Sem comissão por pedido",
+  "Link próprio e QR Code",
+  "Pedidos em tempo real",
+  "PIX na hora",
+  "Entrega ou retirada",
+  "Comece grátis",
+  "Funciona no celular",
+  "Sem app para instalar",
 ];
 
 const STEPS = [
@@ -198,10 +314,71 @@ const STEPS = [
   },
 ];
 
+const FEATURES = [
+  {
+    icon: TrendingUp,
+    title: "Painel de gestão",
+    desc: "Veja pedidos, faturamento e ticket médio do dia em uma tela só.",
+  },
+  {
+    icon: BellRing,
+    title: "Alerta de novo pedido",
+    desc: "Som e notificação no celular na hora que o pedido cai. Não perde venda.",
+  },
+  {
+    icon: Palette,
+    title: "Sua identidade",
+    desc: "Logo, banner e cores da sua marca. Nada de cara de app de terceiro.",
+  },
+  {
+    icon: Bike,
+    title: "Entrega com taxa",
+    desc: "Taxa por bairro ou fixa. Endereço e troco direto na comanda.",
+  },
+  {
+    icon: Clock,
+    title: "Horário de funcionamento",
+    desc: "Abre e fecha sozinho pelo seu horário. O cliente sabe na hora.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Sem comissão",
+    desc: "O que o cliente paga é seu. Aqui não tem 15–30% por pedido.",
+  },
+];
+
+const COMPARISON = [
+  { label: "Comissão por pedido", us: "0%", them: "15–30%" },
+  { label: "Mensalidade fixa", us: "Começa grátis", them: "Alta e obrigatória" },
+  { label: "Paga só quando vender", us: "Sim, na diária", them: "Não" },
+  { label: "Link e marca próprios", us: "Sim", them: "Fica no app deles" },
+  { label: "Precisa instalar app", us: "Não", them: "Cliente baixa o app" },
+];
+
+const FAQ = [
+  {
+    q: "Preciso pagar para começar?",
+    a: "Não. Você começa grátis, com 5 pedidos por mês. Sem cartão, sem contrato. Só paga quando o movimento pedir.",
+  },
+  {
+    q: "Como funciona a diária?",
+    a: "Você compra 24h de acesso liberado. Abre só no fim de semana? Usa a diária só nesses dias e paga menos. E é empilhável: compra quantas quiser.",
+  },
+  {
+    q: "O cardápio trava se eu não pagar?",
+    a: "Nunca. Mesmo sem pedidos grátis, seu cliente sempre consegue pedir. O pedido chega com nome, preço e endereço — a venda não se perde.",
+  },
+  {
+    q: "Preciso de app ou site próprio?",
+    a: "Não. Seu cardápio ganha um link próprio e um QR Code. Coloca no status, na bio ou no balcão e já está no ar.",
+  },
+];
+
 const TUTORIAL_STEPS = [
   {
     title: "Comece grátis",
-    content: "Crie sua conta sem cartão. 5 pedidos por mês de graça. Se não tiver movimento, não paga nada.",
+    content:
+      "Crie sua conta sem cartão. 5 pedidos por mês de graça. Se não tiver movimento, não paga nada.",
   },
   {
     title: "Monte seu cardápio",
@@ -213,7 +390,10 @@ const TUTORIAL_STEPS = [
   },
   {
     title: "Pague só quando usar",
-    content: "Depois de 5 pedidos grátis, usa diária de R$ 1,49/24h só quando cair pedido. Ou assina Premium se tiver movimento constante.",
+    content:
+      "Depois de 5 pedidos grátis, usa diária de " +
+      DAY_PASS_PRICE_LABEL +
+      " por 24h só quando cair pedido. Ou assina Premium se tiver movimento constante.",
   },
   {
     title: "Personalize tudo",
@@ -221,24 +401,126 @@ const TUTORIAL_STEPS = [
   },
 ];
 
+/** Rótulo com o atraso da revelação em cascata. */
+function delay(ms: number) {
+  return { animationDelay: `${ms}ms` };
+}
+
+/**
+ * Conta na navbar da landing.
+ *
+ * Antes a home mostrava "Entrar / Criar grátis" mesmo com sessão ativa, e quem
+ * já estava logado (inclusive no PWA instalado) não tinha como sair ou trocar
+ * de conta sem fechar o app. Aqui o estado fica explícito.
+ */
+function NavAccount({ className }: { className?: string }) {
+  const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleSignOut() {
+    await signOut();
+    navigate({ to: "/login", replace: true });
+  }
+
+  async function handleSwitch() {
+    await switchAccount("/admin");
+  }
+
+  if (loading) {
+    return <span className={cn("h-9 w-24 animate-pulse rounded-full bg-white/5", className)} />;
+  }
+
+  if (!user) {
+    return (
+      <div className={cn("flex items-center gap-3", className)}>
+        <Link to="/login" className="text-sm text-gray-300 transition-colors hover:text-white">
+          Entrar
+        </Link>
+        <Link
+          to="/login"
+          search={{ mode: "register" }}
+          className="sheen rounded-full bg-cyan-500 px-5 py-2 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.35)]"
+        >
+          Criar grátis
+        </Link>
+      </div>
+    );
+  }
+
+  const label = (user.user_metadata?.name as string) || user.email || user.phone || "Minha conta";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-3 text-sm font-semibold text-gray-200 transition-colors hover:bg-white/[0.08]">
+        <span className="grid size-6 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-[10px] font-black text-black">
+          {label.charAt(0).toUpperCase()}
+        </span>
+        <span className="max-w-[110px] truncate">{label}</span>
+        <ChevronDown className="size-3.5 text-gray-500" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[190px] border-white/10 bg-[#14141d] text-gray-200"
+      >
+        <DropdownMenuItem
+          onSelect={() => navigate({ to: "/admin" })}
+          className="cursor-pointer gap-2.5 py-2 text-sm focus:bg-white/[0.06] focus:text-white"
+        >
+          <LayoutDashboard className="size-4 text-cyan-400" /> Meu painel
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => navigate({ to: "/meus-pedidos", search: { from: "" } })}
+          className="cursor-pointer gap-2.5 py-2 text-sm focus:bg-white/[0.06] focus:text-white"
+        >
+          <ReceiptText className="size-4 text-gray-400" /> Meus pedidos
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-white/[0.08]" />
+        <DropdownMenuItem
+          onSelect={handleSwitch}
+          className="cursor-pointer gap-2.5 py-2 text-sm focus:bg-white/[0.06] focus:text-white"
+        >
+          <Users className="size-4 text-gray-400" /> Trocar de conta
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={handleSignOut}
+          className="cursor-pointer gap-2.5 py-2 text-sm text-red-400 focus:bg-red-500/10 focus:text-red-300"
+        >
+          <LogOut className="size-4" /> Sair da conta
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-[#07070c] text-white selection:bg-cyan-400/30">
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl">
+      <nav className="sticky top-0 z-50 border-b border-white/[0.07] bg-[#07070c]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
-          <Link to="/" className="flex items-center gap-2">
-            <UtensilsCrossed className="size-6 text-cyan-400" />
-            <span className="text-base font-bold tracking-tight">
+          <Link to="/" className="group flex items-center gap-2.5">
+            <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-transform group-hover:scale-105">
+              <UtensilsCrossed className="size-4 text-black" />
+            </span>
+            <span className="font-display text-base font-extrabold tracking-tight">
               Cardápio <span className="text-cyan-400">Cidadela</span>
             </span>
           </Link>
 
-          <div className="hidden items-center gap-5 md:flex">
+          <div className="hidden items-center gap-6 md:flex">
+            <a
+              href="#recursos"
+              className="text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              Recursos
+            </a>
+            <a href="#preco" className="text-sm text-gray-400 transition-colors hover:text-white">
+              Preços
+            </a>
             <a
               href="/cardapio/cidadela"
               className="text-sm text-gray-400 transition-colors hover:text-white"
@@ -251,27 +533,13 @@ function LandingPage() {
             >
               <BookOpen className="size-4" /> Tutorial
             </button>
-            <Link to="/login" className="text-sm text-gray-300 transition-colors hover:text-white">
-              Entrar
-            </Link>
-            <Link
-              to="/login"
-              search={{ mode: "register" }}
-              className="sheen rounded-full bg-cyan-500 px-5 py-2 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.35)]"
-            >
-              Criar grátis
-            </Link>
+            <NavAccount />
           </div>
 
           <div className="flex items-center gap-1 md:hidden">
             {/* Entrar fica visível no celular: dentro do hambúrguer ele não é
                 descoberto, e era por isso que a home só mostrava "Criar". */}
-            <Link
-              to="/login"
-              className="rounded-full px-3.5 py-2 text-sm font-semibold text-gray-300 transition-colors hover:text-white"
-            >
-              Entrar
-            </Link>
+            <NavAccount />
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="text-gray-400"
@@ -284,6 +552,20 @@ function LandingPage() {
 
         {menuOpen && (
           <div className="space-y-1 border-t border-white/10 px-4 py-4 md:hidden">
+            <a
+              href="#recursos"
+              onClick={() => setMenuOpen(false)}
+              className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+            >
+              Recursos
+            </a>
+            <a
+              href="#preco"
+              onClick={() => setMenuOpen(false)}
+              className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+            >
+              Preços
+            </a>
             <a
               href="/cardapio/cidadela"
               onClick={() => setMenuOpen(false)}
@@ -300,50 +582,53 @@ function LandingPage() {
             >
               <BookOpen className="size-4" /> Tutorial
             </button>
-            <Link
-              to="/login"
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-            >
-              Entrar
-            </Link>
-            <Link
-              to="/login"
-              search={{ mode: "register" }}
-              className="mt-2 block rounded-full bg-cyan-500 px-5 py-3 text-center text-sm font-bold text-black"
-            >
-              Criar meu cardápio grátis
-            </Link>
           </div>
         )}
       </nav>
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute left-1/2 top-0 h-[480px] w-[760px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
-          <div className="animate-float absolute right-4 top-1/3 h-[320px] w-[320px] rounded-full bg-violet-500/[0.06] blur-[100px]" />
+        {/* Fundo aurora em camadas */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="animate-aurora absolute left-1/2 top-0 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/15 blur-[130px]" />
+          <div className="animate-aurora absolute -left-24 top-1/3 h-[360px] w-[360px] rounded-full bg-violet-600/10 blur-[110px] [animation-delay:3s]" />
+          <div className="animate-aurora absolute right-0 top-1/4 h-[300px] w-[300px] rounded-full bg-blue-500/10 blur-[100px] [animation-delay:6s]" />
         </div>
 
-        <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-2 lg:py-28">
+        <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
           <div className="text-center lg:text-left">
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.25em] text-cyan-400">
-              Para micro-restaurantes
+            <p
+              className="animate-reveal mb-5 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300"
+              style={delay(0)}
+            >
+              <Sparkles className="size-3.5" /> Para micro-restaurantes
             </p>
 
-            <h1 className="text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-              Pague só quando tiver pedido.
+            <h1
+              className="animate-reveal font-display text-4xl font-extrabold leading-[1.03] tracking-tight sm:text-5xl lg:text-6xl"
+              style={delay(80)}
+            >
+              Seu cardápio no ar
               <br />
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                Cardápio nunca trava.
+              em minutos.
+              <br />
+              <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
+                Pague só quando vender.
               </span>
             </h1>
 
-            <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-gray-300 sm:text-lg lg:mx-0">
-              Comece grátis. Depois, R$ 1,49/24h só quando tiver pedido. Ou Premium ilimitado. Concursos cobram 15-30% em cada pedido — aqui você paga só quando usa.
+            <p
+              className="animate-reveal mx-auto mt-6 max-w-lg text-base leading-relaxed text-gray-300 sm:text-lg lg:mx-0"
+              style={delay(160)}
+            >
+              Link próprio, QR Code e pedidos em tempo real. O cliente pede pelo celular, você só
+              recebe — <strong className="font-bold text-white">sem comissão por pedido</strong>.
             </p>
 
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
+            <div
+              className="animate-reveal mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start"
+              style={delay(240)}
+            >
               <Link
                 to="/login"
                 search={{ mode: "register" }}
@@ -351,12 +636,6 @@ function LandingPage() {
               >
                 Criar meu cardápio grátis
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <Link
-                to="/login"
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-7 py-3.5 text-sm font-semibold text-gray-300 transition-all hover:border-white/30 hover:text-white sm:w-auto"
-              >
-                Já tenho conta · Entrar
               </Link>
               <a
                 href="/cardapio/cidadela"
@@ -366,19 +645,46 @@ function LandingPage() {
               </a>
             </div>
 
-            <p className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-gray-500 lg:justify-start">
-              <Check className="size-3.5 text-emerald-400" /> Comece grátis · 5 pedidos por mês
-              <span className="text-gray-700">•</span>
-              <Check className="size-3.5 text-emerald-400" /> Sem cartão
-            </p>
+            <div
+              className="animate-reveal mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-xs text-gray-500 lg:justify-start"
+              style={delay(320)}
+            >
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-emerald-400" /> Comece grátis · 5 pedidos/mês
+              </span>
+              <span className="hidden text-gray-700 sm:inline">•</span>
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-emerald-400" /> Sem cartão
+              </span>
+              <span className="hidden text-gray-700 sm:inline">•</span>
+              <span className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-emerald-400" /> Sem comissão
+              </span>
+            </div>
           </div>
 
-          <LiveMenuDemo />
+          <div className="animate-reveal" style={delay(200)}>
+            <LiveMenuDemo />
+          </div>
         </div>
       </section>
 
-      {/* Prova rápida — uma linha, sem parágrafos */}
-      <section className="border-y border-white/5 bg-white/[0.015]">
+      {/* Marquee de benefícios */}
+      <section className="relative overflow-hidden border-y border-white/[0.07] bg-white/[0.015] py-4">
+        <div className="animate-marquee flex w-max gap-8">
+          {[...MARQUEE, ...MARQUEE].map((item, i) => (
+            <span
+              key={i}
+              className="flex shrink-0 items-center gap-2.5 text-sm font-semibold text-gray-400"
+            >
+              <span className="size-1.5 rounded-full bg-cyan-400" /> {item}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      {/* Prova rápida */}
+      <section className="border-b border-white/[0.07] bg-white/[0.01]">
         <div className="mx-auto grid max-w-6xl gap-px px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
           {PROOF.map((p) => (
             <div key={p.label} className="flex items-center gap-3 py-5 sm:px-4">
@@ -394,28 +700,74 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Como funciona — 3 passos, direto */}
-      <section className="py-20 sm:py-24">
+      {/* Comparação — sem comissão */}
+      <section className="relative overflow-hidden py-20 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-amber-300">
+              <TrendingUp className="size-3.5" /> A conta que ninguém faz
+            </span>
+            <h2 className="font-display mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Os apps de entrega levam 15–30% de cada pedido.
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-gray-400">
+              Num pedido de R$ 40, até R$ 12 somem em comissão. Aqui, o que o cliente paga é seu.
+            </p>
+          </div>
+
+          <div className="mt-12 overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.02]">
+            <div className="grid grid-cols-[1.4fr_1fr_1fr] border-b border-white/[0.08] bg-white/[0.03] text-xs font-bold uppercase tracking-wider text-gray-500">
+              <div className="px-5 py-4">Comparação</div>
+              <div className="flex items-center gap-1.5 px-5 py-4 text-cyan-300">
+                <UtensilsCrossed className="size-3.5" /> Cidadela
+              </div>
+              <div className="px-5 py-4">Apps de entrega</div>
+            </div>
+            {COMPARISON.map((row) => (
+              <div
+                key={row.label}
+                className="grid grid-cols-[1.4fr_1fr_1fr] border-b border-white/[0.05] text-sm last:border-0"
+              >
+                <div className="px-5 py-4 text-gray-300">{row.label}</div>
+                <div className="flex items-center gap-1.5 px-5 py-4 font-bold text-emerald-300">
+                  <Check className="size-4 shrink-0" /> {row.us}
+                </div>
+                <div className="px-5 py-4 text-gray-500">{row.them}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Como funciona — 3 passos */}
+      <section
+        id="recursos"
+        className="border-y border-white/[0.07] bg-white/[0.015] py-20 sm:py-24"
+      >
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <div className="max-w-xl">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-amber-300">
               <ChefHat className="size-3.5" /> Do zero ao primeiro pedido
             </span>
-            <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
+            <h2 className="font-display mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
               Três passos. Nenhum tutorial.
             </h2>
           </div>
 
-          <div className="mt-12 grid gap-8 sm:grid-cols-3">
+          <div className="relative mt-12 grid gap-10 sm:grid-cols-3">
+            <div
+              aria-hidden
+              className="absolute left-0 right-0 top-6 hidden h-px bg-gradient-to-r from-transparent via-white/10 to-transparent sm:block"
+            />
             {STEPS.map((s, i) => (
-              <div key={s.title}>
-                <span className="text-5xl font-black text-white/[0.07]">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div className="mt-2 flex items-center gap-2 text-cyan-300">
+              <div key={s.title} className="relative">
+                <span className="relative grid size-12 place-items-center rounded-2xl border border-cyan-500/25 bg-[#0b0b12] text-cyan-300 shadow-[0_0_25px_-5px_rgba(34,211,238,0.4)]">
                   <s.icon className="size-5" />
-                  <h3 className="text-base font-bold text-white">{s.title}</h3>
-                </div>
+                </span>
+                <h3 className="font-display mt-4 text-lg font-extrabold text-white">
+                  <span className="mr-1.5 text-cyan-400">{String(i + 1).padStart(2, "0")}</span>
+                  {s.title}
+                </h3>
                 <p className="mt-2 text-sm leading-relaxed text-gray-400">{s.desc}</p>
               </div>
             ))}
@@ -423,126 +775,120 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Como funciona o pagamento - explicação detalhada */}
-      <section className="border-t border-white/5 bg-white/[0.015] py-20 sm:py-24">
+      {/* Recursos */}
+      <section className="py-20 sm:py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-              Pague só quando tiver pedido.
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Tudo que a sua operação precisa.
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-gray-400">
-              Concursos cobram 15-30% em CADA pedido. Aqui você começa grátis e paga só quando usar.
+            <p className="mx-auto mt-4 max-w-xl text-gray-400">
+              Sem painel complicado, sem taxa escondida. O essencial para vender pelo celular.
             </p>
           </div>
 
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300">
-                  <Check className="size-5" />
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="card-lift group rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5"
+              >
+                <span className="grid size-10 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300 transition-colors group-hover:bg-cyan-500/20">
+                  <f.icon className="size-5" />
                 </span>
-                <h3 className="text-lg font-bold text-white">Comece grátis</h3>
+                <h3 className="mt-4 text-base font-bold text-white">{f.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{f.desc}</p>
               </div>
-              <p className="text-sm text-gray-400 leading-relaxed">
-                5 pedidos por mês sem pagar nada. Monte seu cardápio, coloque o QR Code e comece a receber pedidos. Se não tiver movimento, não paga nada.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
-                  <Clock className="size-5" />
-                </span>
-                <h3 className="text-lg font-bold text-white">Diária quando precisar</h3>
-              </div>
-              <p className="text-sm text-gray-400 leading-relaxed">
-                {DAY_PASS_PRICE_LABEL} por 24h. Paga só quando cair pedido. Abre só no final de semana? Usa diária só nesses dias. Empilhável: se usar 2 dias, paga 2x.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300">
-                  <InfinityIcon className="size-5" />
-                </span>
-                <h3 className="text-lg font-bold text-white">Premium ilimitado</h3>
-              </div>
-              <p className="text-sm text-gray-400 leading-relaxed">
-                Quando o movimento for constante, assine Premium por {MONTHLY_PRICE_LABEL} ou {PREMIUM_PRICE_LABEL}. Pedidos ilimitados, detalhes liberados, sem se preocupar.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-12 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6">
-            <div className="flex items-start gap-4">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-amber-500/20 text-amber-300 mt-0.5">
-                <ShieldCheck className="size-4" />
-              </span>
-              <div>
-                <h4 className="text-base font-bold text-white mb-2">Cardápio nunca trava</h4>
-                <p className="text-sm text-gray-400 leading-relaxed">
-                  Mesmo com 0 pedidos grátis, seu cliente SEMPRE consegue pedir. O pedido chega para você com preço, endereço e nome do cliente. Se quiser ver os itens, usa a diária. Não trava venda, não perde cliente.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Personalização */}
-      <section className="py-20 sm:py-24">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+      <section className="border-t border-white/[0.07] py-20 sm:py-24">
+        <div className="mx-auto grid max-w-5xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
+              <Sparkles className="size-3.5" /> Sua marca, sua cara
+            </span>
+            <h2 className="font-display mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
               Seu cardápio, 100% à sua cara.
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-gray-400">
-              Logo, banner, cores da marca. O cliente sabe que está no seu negócio, não num app de terceiro.
+            <p className="mt-4 text-gray-400">
+              Logo, banner e as cores da sua marca. O cliente sabe que está no seu negócio, não num
+              app de terceiro.
             </p>
+            <ul className="mt-6 space-y-3">
+              {[
+                "Cor primária e secundária da marca",
+                "Logo e banner personalizados",
+                "Foto e descrição em cada item",
+                "Link próprio com o nome do seu restaurante",
+              ].map((t) => (
+                <li key={t} className="flex items-start gap-2.5 text-sm text-gray-300">
+                  <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <div className="grid gap-8 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
-                  <Palette className="size-5" />
-                </span>
-                <h3 className="text-lg font-bold text-white">Cores da marca</h3>
-              </div>
-              <p className="text-sm text-gray-400 leading-relaxed">
-                Escolha a cor primária (botões, preços) e secundária (efeitos visuais). Seu cardápio com a identidade visual do seu negócio.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300">
-                  <QrCode className="size-5" />
-                </span>
-                <h3 className="text-lg font-bold text-white">Logo e banner</h3>
-              </div>
-              <p className="text-sm text-gray-400 leading-relaxed">
-                Upload do logo da sua hamburgueria, açai, pizza. Banner personalizado para o topo do cardápio. Profissional do começo ao fim.
-              </p>
+          <div className="relative">
+            <div
+              aria-hidden
+              className="absolute -inset-4 -z-10 rounded-[2.5rem] bg-gradient-to-br from-violet-500/15 to-cyan-500/15 blur-2xl"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                {
+                  emoji: "🍕",
+                  name: "Pizza da casa",
+                  price: "R$ 42,00",
+                  tone: "from-orange-500/20",
+                },
+                {
+                  emoji: "🥗",
+                  name: "Salada caesar",
+                  price: "R$ 24,00",
+                  tone: "from-emerald-500/20",
+                },
+                { emoji: "🍣", name: "Combinado 20", price: "R$ 58,00", tone: "from-rose-500/20" },
+                { emoji: "🍰", name: "Fatia de bolo", price: "R$ 14,00", tone: "from-pink-500/20" },
+              ].map((p) => (
+                <div
+                  key={p.name}
+                  className={cn(
+                    "overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-b to-transparent",
+                    p.tone,
+                  )}
+                >
+                  <div className="grid h-24 place-items-center text-4xl">{p.emoji}</div>
+                  <div className="border-t border-white/[0.06] bg-[#0b0b12]/80 px-3 py-2.5">
+                    <p className="truncate text-xs font-bold text-white">{p.name}</p>
+                    <p className="text-xs font-black text-cyan-300">{p.price}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
       {/* Preço */}
-      <section id="preco" className="border-t border-white/5 py-20 sm:py-24">
+      <section id="preco" className="border-t border-white/[0.07] bg-white/[0.015] py-20 sm:py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div className="text-center">
-            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
               Escolha como pagar.
             </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-gray-400">
-              Comece grátis. Pague só quando tiver pedido. Ou assine Premium quando o movimento for constante.
+            <p className="mx-auto mt-3 max-w-xl text-gray-400">
+              Comece grátis. Pague só quando tiver pedido. Ou assine Premium quando o movimento for
+              constante.
             </p>
           </div>
 
           <div className="mt-12 grid gap-5 sm:grid-cols-3">
-            <div className="rounded-3xl border border-white/[0.07] bg-white/[0.02] p-7">
+            {/* Grátis */}
+            <div className="flex flex-col rounded-3xl border border-white/[0.07] bg-white/[0.02] p-7">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Grátis</p>
               <p className="mt-3 text-4xl font-black text-white">R$ 0</p>
               <p className="mt-1 text-sm text-gray-400">para sempre</p>
@@ -562,21 +908,20 @@ function LandingPage() {
               <Link
                 to="/login"
                 search={{ mode: "register" }}
-                className="mt-7 flex w-full items-center justify-center gap-2 rounded-full border border-white/15 py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.06]"
+                className="mt-auto flex w-full items-center justify-center gap-2 rounded-full border border-white/15 py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.06]"
               >
                 Começar grátis
               </Link>
             </div>
 
-            <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-b from-amber-500/[0.10] to-transparent p-7">
+            {/* Diária */}
+            <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-amber-500/[0.10] to-transparent p-7">
               <div
                 aria-hidden
                 className="pointer-events-none absolute -right-14 -top-14 size-44 rounded-full bg-amber-500/20 blur-3xl"
               />
-              <div className="relative">
-                <p className="text-xs font-bold uppercase tracking-widest text-amber-300">
-                  Diária
-                </p>
+              <div className="relative flex h-full flex-col">
+                <p className="text-xs font-bold uppercase tracking-widest text-amber-300">Diária</p>
                 <p className="mt-3 text-4xl font-black text-white">{DAY_PASS_PRICE_LABEL}</p>
                 <p className="mt-1 text-sm text-gray-400">por 24h · paga só quando usar</p>
                 <ul className="mt-6 space-y-2.5 text-sm text-gray-200">
@@ -593,25 +938,26 @@ function LandingPage() {
                 </ul>
                 <a
                   href="/login?returnTo=/admin/assinatura"
-                  className="mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-amber-500 py-3 text-sm font-bold text-black transition-all hover:bg-amber-400 hover:shadow-[0_0_30px_rgba(245,158,11,0.4)]"
+                  className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-amber-500 py-3 text-sm font-bold text-black transition-all hover:bg-amber-400 hover:shadow-[0_0_30px_rgba(245,158,11,0.4)]"
                 >
                   Usar diária <ArrowRight className="size-4" />
                 </a>
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-cyan-500/30 bg-gradient-to-b from-cyan-500/[0.10] to-transparent p-7">
+            {/* Premium */}
+            <div className="relative overflow-hidden rounded-3xl border border-cyan-500/40 bg-gradient-to-b from-cyan-500/[0.12] to-transparent p-7 shadow-[0_0_60px_-20px_rgba(34,211,238,0.5)]">
               <div
                 aria-hidden
-                className="pointer-events-none absolute -right-14 -top-14 size-44 rounded-full bg-cyan-500/20 blur-3xl"
+                className="pointer-events-none absolute -right-14 -top-14 size-44 rounded-full bg-cyan-500/25 blur-3xl"
               />
-              <div className="relative">
+              <div className="relative flex h-full flex-col">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
                     Premium
                   </p>
                   <span className="rounded-full bg-cyan-500 px-2.5 py-1 text-[10px] font-black text-black">
-                    ANUAL
+                    MELHOR VALOR
                   </span>
                 </div>
                 <p className="mt-3 text-4xl font-black text-white">{PREMIUM_PRICE_LABEL}</p>
@@ -633,44 +979,96 @@ function LandingPage() {
                 </ul>
                 <a
                   href="/login?returnTo=/admin/assinatura"
-                  className="sheen mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-3 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
+                  className="sheen mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-3 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
                 >
                   Assinar Premium <ArrowRight className="size-4" />
                 </a>
               </div>
             </div>
           </div>
+
+          {/* Garantia */}
+          <div className="mt-12 rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-6">
+            <div className="flex items-start gap-4">
+              <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-amber-500/20 text-amber-300">
+                <ShieldCheck className="size-4" />
+              </span>
+              <div>
+                <h4 className="mb-1.5 text-base font-bold text-white">Cardápio nunca trava</h4>
+                <p className="text-sm leading-relaxed text-gray-400">
+                  Mesmo com 0 pedidos grátis, seu cliente SEMPRE consegue pedir. O pedido chega com
+                  preço, endereço e nome. Se quiser ver os itens, usa a diária. Não trava venda, não
+                  perde cliente.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-20 sm:py-24">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <h2 className="font-display text-center text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Perguntas frequentes
+          </h2>
+          <div className="mt-10 space-y-3">
+            {FAQ.map((item) => (
+              <details
+                key={item.q}
+                className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] px-5 py-4 open:bg-white/[0.04]"
+              >
+                <summary className="flex cursor-pointer items-center justify-between gap-4 text-sm font-bold text-white marker:content-none [&::-webkit-details-marker]:hidden">
+                  {item.q}
+                  <Plus className="size-4 shrink-0 text-cyan-400 transition-transform group-open:rotate-45" />
+                </summary>
+                <p className="mt-3 text-sm leading-relaxed text-gray-400">{item.a}</p>
+              </details>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* CTA final */}
-      <section className="border-t border-white/5 py-20 sm:py-24">
-        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+      <section className="relative overflow-hidden border-t border-white/[0.07] py-20 sm:py-24">
+        <div
+          aria-hidden
+          className="animate-aurora pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[720px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[120px]"
+        />
+        <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
+          <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
             Seu próximo pedido pode chegar sozinho.
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-gray-400">
             Crie seu cardápio agora e mande o link no status. Leva menos tempo que tirar uma foto do
             prato.
           </p>
-          <div className="mt-8">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               to="/login"
               search={{ mode: "register" }}
-              className="sheen inline-flex items-center gap-2 rounded-full bg-cyan-500 px-9 py-4 text-base font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.4)]"
+              className="sheen inline-flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 px-9 py-4 text-base font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.4)] sm:w-auto"
             >
               Criar meu cardápio grátis <ArrowRight className="size-5" />
             </Link>
+            <a
+              href="/cardapio/cidadela"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-9 py-4 text-base font-semibold text-gray-300 transition-all hover:border-white/30 hover:text-white sm:w-auto"
+            >
+              <Store className="size-4" /> Ver cardápio real
+            </a>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 py-10">
+      <footer className="border-t border-white/[0.07] py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 px-4 sm:flex-row sm:px-6">
-          <div className="flex items-center gap-2">
-            <UtensilsCrossed className="size-5 text-cyan-400" />
-            <span className="text-sm font-semibold text-gray-400">
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600">
+              <UtensilsCrossed className="size-3.5 text-black" />
+            </span>
+            <span className="font-display text-sm font-extrabold text-gray-300">
               Cardápio <span className="text-cyan-400">Cidadela</span>
             </span>
           </div>
@@ -712,18 +1110,18 @@ function LandingPage() {
           </DialogTitle>
           <div className="mt-4">
             <div className="mb-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-2">
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-cyan-400">
                 Passo {tutorialStep + 1} de {TUTORIAL_STEPS.length}
               </p>
-              <h3 className="text-xl font-bold text-white mb-2">
+              <h3 className="mb-2 text-xl font-bold text-white">
                 {TUTORIAL_STEPS[tutorialStep].title}
               </h3>
-              <p className="text-sm text-gray-400 leading-relaxed">
+              <p className="text-sm leading-relaxed text-gray-400">
                 {TUTORIAL_STEPS[tutorialStep].content}
               </p>
             </div>
 
-            <div className="flex gap-2 mt-6">
+            <div className="mt-6 flex gap-2">
               {tutorialStep > 0 && (
                 <Button
                   variant="outline"
@@ -754,7 +1152,7 @@ function LandingPage() {
               )}
             </div>
 
-            <div className="flex justify-center gap-1 mt-4">
+            <div className="mt-4 flex justify-center gap-1">
               {TUTORIAL_STEPS.map((_, i) => (
                 <button
                   key={i}

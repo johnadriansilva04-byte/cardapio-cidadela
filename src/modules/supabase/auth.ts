@@ -135,6 +135,19 @@ export async function signOut(): Promise<void> {
 }
 
 /**
+ * Troca de conta: encerra a sessão e leva para o login em modo "entrar".
+ *
+ * O `replace` evita que o botão "voltar" reabra a tela autenticada. É o mesmo
+ * `signOut`, só com um destino explícito — antes não havia como sair do app
+ * instalado (PWA) e trocar de conta sem fechar tudo.
+ */
+export async function switchAccount(returnTo?: string): Promise<void> {
+  await supabase.auth.signOut();
+  const dest = returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : "/login";
+  window.location.replace(dest);
+}
+
+/**
  * Update the user's profile (name) in the `profiles` table.
  * Returns true on success.
  */

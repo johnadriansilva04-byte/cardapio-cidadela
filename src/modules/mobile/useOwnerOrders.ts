@@ -240,6 +240,7 @@ export function useOwnerPendingOrders(
     let cancelled = false;
     let debounce: ReturnType<typeof setTimeout> | null = null;
     let polling: ReturnType<typeof setInterval> | null = null;
+    let pollKickoff: ReturnType<typeof setTimeout> | null = null;
     // Ids já conhecidos. Serve de rede de segurança: se o WebSocket cair, o
     // poll periódico encontra o pedido que o realtime não entregou e ainda
     // dispara o alerta. Sem isto o contador ficava certo mas o som/normal
@@ -263,7 +264,7 @@ export function useOwnerPendingOrders(
         }
         const { data, error } = await supabase
           .from("orders")
-          .select("id, restaurant_id, customer_name, comanda, total, status, created_at")
+          .select("id, restaurant_id, status")
           .in("restaurant_id", restaurantIds)
           .in("status", ["received", "preparing", "ready", "out_for_delivery"]);
         if (cancelled || error) return;
@@ -276,7 +277,12 @@ export function useOwnerPendingOrders(
           for (const row of rows) {
             if (!knownIds.has(row.id)) {
               knownIds.add(row.id);
-              callbackRef.current?.(row as unknown as Order);
+              // O poll só traz id/status (payload enxuto). O alerta precisa de
+              // nome/comanda/total, então hidrata o pedido completo — só quando
+              // o realtime de fato perdeu o INSERT, que é o caso raro.
+              void getOrderById(row.id).then((full) => {
+                if (full && !cancelled) callbackRef.current?.(full);
+              });
             }
           }
         }
@@ -328,7 +334,17 @@ export function useOwnerPendingOrders(
       }
     })();
 
-    polling = setInterval(pollTick, 15000);
+    // O realtime já entrega o pedido na hora; este poll é só a rede de
+    // segurança para quando o WebSocket cai sem avisar. 45s (era 15s) corta o
+    // egress em 3× sem atrasar o alerta normal — o INSERT e o
+    // `visibilitychange` continuam instantâneos. O jitter evita que todos os
+    // dispositivos batam no banco no mesmo segundo.
+    const POLL_MS = 45_000;
+    const POLL_JITTER_MS = 15_000;
+    pollKickoff = setTimeout(() => {
+      void pollTick();
+      polling = setInterval(pollTick, POLL_MS);
+    }, Math.random() * POLL_JITTER_MS);
 
     // Voltar para a aba revalida na hora: o navegador congela o WebSocket em
     // segundo plano, então o pedido que chegou nesse intervalo só apareceria
@@ -341,6 +357,7 @@ export function useOwnerPendingOrders(
     return () => {
       cancelled = true;
       if (debounce) clearTimeout(debounce);
+      if (pollKickoff) clearTimeout(pollKickoff);
       if (polling) clearInterval(polling);
       document.removeEventListener("visibilitychange", onVisible);
       for (const channel of channels) {

@@ -25,8 +25,15 @@ Lógica:
 Envs: `SUPABASE_URL` e `SUPABASE_ANON_KEY` (obrigatórias para o ping),
 `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF` (opcionais — habilitam a
 checagem de uso e a restauração automática). No GitHub, os dois primeiros já
-existem como `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`; para o caminho
-completo, crie os secrets `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
+existem como `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`; o
+`SUPABASE_PROJECT_REF` também já está configurado.
+
+> **Sem `SUPABASE_ACCESS_TOKEN` o workflow já resolve a pausa** — ele pinga
+> todo dia (modo simples). O token só melhora: pula o ping quando já houve
+> tráfego e restaura sozinho um projeto que tenha pausado. Se quiser o caminho
+> completo, crie um PAT em supabase.com/dashboard/account/tokens (escopo de
+> projetos) e salve como o secret `SUPABASE_ACCESS_TOKEN`. Nunca comite o
+> token nem o use em log.
 
 > A janela é de 3 dias, não 7: o próprio ping conta como requisição, então
 > olhar 7 dias faria o keep-alive "esconder" a ociosidade e só pingar de novo

@@ -19,7 +19,9 @@
   (`src/e2e/supabase-stub.ts`) — não precisa de projeto Supabase real. O stub
   também implementa a RPC `create_order_atomic`, então o E2E prova de ponta a
   ponta que o preço é recalculado no "servidor" e que um item indisponível
-  bloqueia o pedido. Config em `playwright.config.ts`, specs em `e2e/`.
+  bloqueia o pedido. O QueryBuilder do stub suporta `.gte/.lte/.gt/.lt` (o
+  Financeiro filtra `created_at` por faixa — sem eles a tela travava em
+  "Carregando"). Config em `playwright.config.ts`, specs em `e2e/`.
 - `npm run test` (Vitest, jsdom). Config in `vitest.config.ts`, setup in
   `src/test/setup.ts`; `@` maps to `src/`. Component tests use
   `@testing-library/react` + `@testing-library/user-event`.
@@ -228,7 +230,10 @@
   e o fornecedor emite. O dono só insere/lê os próprios pedidos
   (`is_restaurant_owner`); o trigger `guard_invoice_requests` (SECURITY INVOKER)
   força `status='pending'` e anula `amount_cents` para quem não é service role —
-  sem ele um `PATCH status='emitted'` tirava o pedido da fila sem nota. A
+  sem ele um `PATCH status='emitted'` tirava o pedido da fila sem nota. O
+  `requested_by` usa `COALESCE(auth.uid(), NEW.requested_by)`: a rota grava com
+  service role, onde `auth.uid()` é NULL, e o carimbo que ela já resolveu não
+  pode ser sobrescrito por NULL (a auditoria ficava vazia). A
   validação (CPF/CNPJ módulo 11, e-mail) vive em `src/lib/invoice.ts`; o acesso
   em `src/modules/supabase/invoice.ts` degrada em silêncio sem a migração (como
   `reviews.ts`). A UI é a aba "nota" do hub de assinatura.
@@ -666,16 +671,19 @@
   ref antigo (`hkzhksauilonqppipjyc`) e este arquivo já citou
   `xfgmnggdgnozyrluqabv` — ambos desatualizados; confirme pelo bundle em caso de
   dúvida.
-- **Estado do banco de produção (verificado em 2026-10-31, após aplicar a
-  migração de notas):** alinhado com o repositório. As **32** tabelas existem com
-  RLS ligado; todas as RPCs (`create_order_atomic`, `get_order_for_owner`,
-  `owner_locked_stores`, `grant_day_pass`, `evaluate_rewards`, ...) estão
-  presentes; o guard `trg_guard_admin_trials_premium` é a versão endurecida
-  (SECURITY INVOKER) e `store_is_unlocked` exige `premium_expires_at > now()`; os
-  três jobs `pg_cron` (`cidadela-rewards`, `mata-fome-cleanup`,
-  `mata-fome-reset-monthly`) estão ativos. Não há mais defasagem a corrigir — se
-  um banco novo for criado, rode `apply-all.mjs`.
-- **`invoice_requests` aplicada em produção** (a 32ª tabela): RLS ligado, policies
+- **Estado do banco de produção (verificado em 2026-11-03):** alinhado com o
+  repositório. As **36** tabelas existem com RLS ligado; todas as RPCs
+  (`create_order_atomic`, `get_order_for_owner`, `owner_locked_stores`,
+  `grant_day_pass`, `evaluate_rewards`, `bump_store_usage`, `redeem_day_pass`,
+  `find_store_by_payer_email`, `legacy_trials_for_owner`, ...) estão presentes e
+  todas as chamadas `.rpc()` do código têm função correspondente; os guards
+  `trg_guard_admin_trials_premium` e `trg_guard_invoice_requests` são SECURITY
+  INVOKER (`guard_admin_trials_premium`/`guard_invoice_requests` com
+  `prosecdef=false`) e `store_is_unlocked` exige `premium_expires_at > now()`;
+  os três jobs `pg_cron` (`cidadela-rewards`, `mata-fome-cleanup`,
+  `mata-fome-reset-monthly`) estão ativos. Se um banco novo for criado, rode
+  `apply-all.mjs`.
+- **`invoice_requests` aplicada em produção**: RLS ligado, policies
   só de INSERT/SELECT para o dono, trigger `trg_guard_invoice_requests` ativo,
   `anon` sem grant, `guard_invoice_requests` SECURITY INVOKER. Se um banco novo
   for criado, a migração já está na ordem do `apply-all.mjs`.
@@ -685,17 +693,14 @@
   anon), mas o REVOKE é a segunda camada — o mesmo raciocínio do `admin_trials`.
   O fluxo de push não depende do grant de anon: a inscrição é feita logado e a
   chave pública chega pela Edge Function `push-vapid-key` (service_role).
-- **As Edge Functions não estão deployadas** (verificado em 2026-10-31): o
-  Management API devolve lista vazia e `notify-new-order`, `notify-reward` e
-  `push-vapid-key` respondem `{"code":"NOT_FOUND","message":"Requested function
-  was not found"}` mesmo com a anon key válida. `push_vapid` também está vazio.
-  Consequência: **o push de pedido novo e de recompensa nunca funcionou em
-  produção** — o dono só descobre o pedido abrindo o painel (o realtime do
-  Supabase segue funcionando). Deploy: `supabase functions deploy <slug>
-  --project-ref wlznmlsvnlgsljanbjgy` (exige `--yes`/confirmação e os secrets
-  `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` no projeto). Sem
-  isso, `push_vapid` fica vazio e nada é enviado — o app não quebra, só não
-  notifica.
+- **As Edge Functions estão deployadas** (verificado em 2026-11-03):
+  `push-vapid-key`, `notify-new-order`, `notify-reward` e `webpush-probe` existem
+  no projeto e `push_vapid` já tem a chave. O push de pedido novo/recompensa
+  depende do deploy continuar de pé — se um banco/projeto novo for criado, rode
+  `supabase functions deploy <slug> --project-ref wlznmlsvnlgsljanbjgy` (exige
+  `--yes`/confirmação e os secrets `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`,
+  `VAPID_SUBJECT`). Sem isso, `push_vapid` fica vazio e nada é enviado — o app
+  não quebra, só não notifica.
 - `supabase/apply-all.mjs` aplica **todas** as migrações na ordem correta via
   Management API (sem Docker, sem conexão direta ao Postgres — o host
   `db.<ref>.supabase.co` é IPv6-only e não resolve neste ambiente). Uso:
@@ -798,6 +803,11 @@
 - O Dashboard (`admin.index.tsx`) abre com os KPIs de **hoje** (pedidos,
   faturamento, ticket) e o seletor de período (7/30/90 dias) vive junto do
   gráfico, que é o que ele filtra. Não devolva o período para a barra do topo.
+- Os gráficos de barra do Financeiro (`admin.financeiro.tsx`) usam
+  `maxBarSize={48}`. Com um só dia de dados o recharts estica a única barra para
+  a largura toda e ela vira um quadrado azul gigante; o teto de largura a
+  mantém um retângulo fino de pé. Regressão coberta por
+  `e2e/financeiro.spec.ts`.
 
 ## Login: "Criar conta" com sessão ativa
 

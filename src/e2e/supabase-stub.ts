@@ -174,6 +174,22 @@ function matches(row: Row, filters: [string, unknown][]): boolean {
   });
 }
 
+/** Filtros de faixa (`.gte`/`.lte`/`.gt`/`.lt`) que o Financeiro usa em `created_at`. */
+function matchesRange(row: Row, ranges: [string, "gte" | "lte" | "gt" | "lt", unknown][]): boolean {
+  return ranges.every(([col, op, val]) => {
+    const a = row[col];
+    const b = val;
+    if (a == null) return false;
+    const an = typeof a === "number" ? a : new Date(String(a)).getTime();
+    const bn = typeof b === "number" ? b : new Date(String(b)).getTime();
+    if (Number.isNaN(an) || Number.isNaN(bn)) return false;
+    if (op === "gte") return an >= bn;
+    if (op === "lte") return an <= bn;
+    if (op === "gt") return an > bn;
+    return an < bn;
+  });
+}
+
 function compare(a: unknown, b: unknown): number {
   if (typeof a === "number" && typeof b === "number") return a - b;
   return String(a ?? "").localeCompare(String(b ?? ""));
@@ -451,6 +467,7 @@ function ownerLockedStores(
 
 class QueryBuilder implements PromiseLike<{ data: unknown; error: unknown }> {
   private filters: [string, unknown][] = [];
+  private ranges: [string, "gte" | "lte" | "gt" | "lt", unknown][] = [];
   private orderCol: string | null = null;
   private orderAsc = true;
   private limitN: number | null = null;
@@ -494,6 +511,22 @@ class QueryBuilder implements PromiseLike<{ data: unknown; error: unknown }> {
     this.filters.push([col, val]);
     return this;
   }
+  gte(col: string, val: unknown): this {
+    this.ranges.push([col, "gte", val]);
+    return this;
+  }
+  lte(col: string, val: unknown): this {
+    this.ranges.push([col, "lte", val]);
+    return this;
+  }
+  gt(col: string, val: unknown): this {
+    this.ranges.push([col, "gt", val]);
+    return this;
+  }
+  lt(col: string, val: unknown): this {
+    this.ranges.push([col, "lt", val]);
+    return this;
+  }
   order(col: string, opts?: { ascending?: boolean }): this {
     this.orderCol = col;
     this.orderAsc = opts?.ascending ?? true;
@@ -534,7 +567,7 @@ class QueryBuilder implements PromiseLike<{ data: unknown; error: unknown }> {
       for (const r of hit) rows.splice(rows.indexOf(r), 1);
       return { data: hit, error: null };
     }
-    let result = rows.filter((r) => matches(r, this.filters));
+    let result = rows.filter((r) => matches(r, this.filters) && matchesRange(r, this.ranges));
     // Sobrescreve a disponibilidade só para o que o servidor "vê" — a UI já
     // carregada mantém a lista original. Permite testar a corrida entre a tela
     // e o momento do pedido sem tocar no array que o React renderiza.

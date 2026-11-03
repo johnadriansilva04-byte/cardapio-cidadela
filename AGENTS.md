@@ -419,8 +419,8 @@
 ## Segurança e confiabilidade (não regredir)
 
 - **Defesa em camadas contra abuso/flood.** Nenhuma camada sozinha segura:
-  - *Borda (Vercel):* DDoS volumétrico e bot são absorvidos pela rede/CDN da
-    Vercel (mitigação automática em qualquer plano). Regras de WAF/firewall
+  - *Borda (Cloudflare):* DDoS volumétrico e bot são absorvidos pela rede/CDN da
+    Cloudflare (mitigação automática em qualquer plano). Regras de WAF/firewall
     customizado e "Attack Challenge" são recursos pagos — no plano atual a API
     devolve 402. Se o ataque for dirigido, é aí que se contrata (ou se coloca
     Cloudflare na frente).
@@ -750,13 +750,45 @@
   restaurante, "?" do `FinanceSummary`, "Abrir cardápio público" do card, "✕" do
   `GuidePanel`.
 
+## Deploy (Cloudflare Pages)
+
+- **Alvo é Cloudflare Pages, não Vercel.** O plano Hobby da Vercel restringe uso
+  a projetos pessoais não-comerciais, e um SaaS por assinatura é uso comercial —
+  o deploy podia ser pausado. O build sai em `dist/` (`_worker.js` + `assets/`)
+  via `nitro.config.ts` com `preset: "cloudflare-pages"`. `vercel.json` não
+  existe mais.
+- Projeto Pages: `cardapio-cidadela` (account `5123773a9dbba0599ba001539d5c3cbe`),
+  servindo `cardapio.pracinha.online` (CNAME → `cardapio-cidadela.pages.dev`,
+  proxied). O domínio vive no Cloudflare, na mesma zona `pracinha.online`.
+- **Auto-deploy no push da `main`**: `.github/workflows/deploy-cloudflare.yml`
+  roda `npm ci` → `npm run build` → `wrangler pages deploy dist`. As `VITE_*`
+  vêm dos secrets do repositório (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
+  — entram no bundle no BUILD, então mudá-las exige novo deploy.
+- O workflow instala **npm 11** antes do `npm ci`: o Node 22 traz npm 10, que
+  recusa o lock gerado pelo npm 11 (`Missing: lru-cache@... from lock file`).
+- `nodejs_compat` já vem no `wrangler.json` gerado pelo Nitro — sem ele o
+  `process.env` das rotas de API (`readEnv`) não existe e a cobrança quebra.
+- Secrets de runtime (server-only, não `VITE_*`) vivem no projeto Pages, não no
+  workflow: `SUPABASE_SERVICE_ROLE_KEY`, `MERCADOPAGO_ACCESS_TOKEN`,
+  `MERCADOPAGO_WEBHOOK_SECRET`, `RESEND_API_KEY`. Sem eles o app sobe e degrada
+  em silêncio; o webhook do MP é o que exige o service role.
+- **Armadilha de runtime:** `src/lib/error-capture.ts` é importado no servidor e
+  registrava listeners do navegador (`error`/`unhandledrejection` com
+  `useCapture`). O runtime do Workers rejeita o 3º argumento de
+  `addEventListener` ("useCapture must be false") e derruba o SSR inteiro. O
+  bloco agora exige `typeof window !== "undefined"`.
+- O token de API da Cloudflare precisa de **DNS: Zona → Editar** + **Cloudflare
+  Pages: Conta → Editar**, com **Zone Resources → Include → pracinha.online**.
+  Sem o "Zone Resources" o token lista 0 zonas e tudo responde "Authentication
+  error", mesmo com as permissões certas.
+
 ## Domínio, acompanhamento e performance do cardápio
 
 - **O link compartilhado usa o domínio canônico, não o host do navegador.**
   `currentOrigin()` (`src/lib/site.ts`) devolve `SITE_URL`
   (`cardapio.pracinha.online`) em produção e só mantém a origem local quando ela
   é `localhost`/`127.0.0.1` (dev). Antes devolvia `window.location.origin`, então
-  quem abrisse o painel pelo `*.vercel.app` compartilhava o endereço da Vercel.
+  quem abrisse o painel pelo `*.pages.dev` compartilhava o endereço do provedor.
   `SharePanel` e `StorePulseBar` usam isso; o `/mobile` tem um botão de
   compartilhar (Web Share API com fallback para copiar/WhatsApp).
 - **O cliente não pode depender só do realtime no acompanhamento.** O

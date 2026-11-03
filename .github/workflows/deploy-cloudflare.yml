@@ -25,6 +25,10 @@ jobs:
           node-version: 22
           cache: npm
 
+      # O Node 22 traz npm 10, que recusa o lock gerado pelo npm 11
+      # ("Missing: lru-cache@... from lock file"). Alinha o npm ao do dev.
+      - run: npm install -g npm@11
+
       - run: npm ci
 
       # As VITE_* entram no bundle no build — precisam estar aqui, não só no

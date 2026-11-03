@@ -85,7 +85,7 @@ test.describe("assinatura sem rolagem", () => {
     await loginAsOwner(page);
     await page.goto("/admin/assinatura");
 
-    for (const label of ["O que muda", "E-mail do Mercado Pago", "Pedidos e detalhes"]) {
+    for (const label of ["O que muda", "Pedidos e detalhes"]) {
       await page
         .getByRole("button", { name: new RegExp(label) })
         .first()
@@ -101,8 +101,9 @@ test.describe("assinatura sem rolagem", () => {
   test("o e-mail interno (telefone@menufacil.local) nunca aparece na tela", async ({ page }) => {
     await loginAsOwner(page);
     await page.goto("/admin/assinatura");
+    // O e-mail do Mercado Pago vive dentro de "Pedidos e detalhes".
     await page
-      .getByRole("button", { name: /E-mail do Mercado Pago/ })
+      .getByRole("button", { name: /Pedidos e detalhes/ })
       .first()
       .click();
 
@@ -159,5 +160,32 @@ test.describe("opções de plano", () => {
     await expect(page.getByRole("button", { name: /Liberar hoje/ })).toBeVisible();
     await expect(page.getByText(/acesso por 24h · sem assinatura/)).toBeVisible();
     await expect(page.getByText("Quantas diárias?")).toBeVisible();
+  });
+});
+
+test.describe("e-mail do Mercado Pago", () => {
+  test("salva mesmo sem linha de perfil (não fica 'pendente' no vazio)", async ({ page }) => {
+    // Sem linha em `profiles`, o UPDATE antigo acertava zero linhas e devolvia
+    // sucesso — o e-mail parecia salvo e voltava a "pendente" no próximo
+    // carregamento. Agora a linha é criada antes do UPDATE.
+    await loginAsOwner(page);
+    await page.goto("/admin/assinatura");
+
+    await page
+      .getByRole("button", { name: /Pedidos e detalhes/ })
+      .first()
+      .click();
+    await expect(page.getByText("pendente", { exact: true })).toBeVisible();
+    await page.getByPlaceholder("voce@email.com").fill("dono@real.com");
+    await page.getByRole("button", { name: /^Salvar$/ }).click();
+    await expect(page.getByText("E-mail salvo!")).toBeVisible();
+    await expect(page.getByText("salvo", { exact: true })).toBeVisible();
+
+    const stored = await page.evaluate(
+      () =>
+        (globalThis as { __E2E_DB__?: { profiles?: Array<{ email?: string }> } }).__E2E_DB__
+          ?.profiles,
+    );
+    expect(stored?.[0]?.email).toBe("dono@real.com");
   });
 });

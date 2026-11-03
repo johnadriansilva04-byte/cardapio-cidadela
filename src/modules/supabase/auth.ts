@@ -146,6 +146,7 @@ export async function updateProfileName(name: string): Promise<{ ok: boolean; er
   if (!trimmed) return { ok: false, error: "Informe seu nome." };
 
   // Update profile table
+  await ensureProfileRow(user);
   const { error: profileError } = await supabase
     .from("profiles")
     .update({ name: trimmed, updated_at: new Date().toISOString() })
@@ -168,6 +169,29 @@ export async function updateProfileName(name: string): Promise<{ ok: boolean; er
 }
 
 /**
+ * Garante que exista uma linha em `profiles` para o usuário.
+ *
+ * Contas antigas (importadas de `admin_trials`) e cadastros em que o insert do
+ * perfil falhou por RLS (confirmação de e-mail ligada, sem sessão no signUp)
+ * ficam sem linha. Um `UPDATE` sem linha não gera erro — então o e-mail
+ * "salvava" sem gravar nada e voltava a "pendente". O insert aqui roda logado,
+ * quando a policy `WITH CHECK (auth.uid() = id)` já passa.
+ */
+async function ensureProfileRow(user: User): Promise<void> {
+  const { data } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+  if (data) return;
+
+  const phone = normalizePhone((user.user_metadata?.phone as string) || user.phone || "");
+  const name = (user.user_metadata?.name as string) || "";
+  const { error } = await supabase
+    .from("profiles")
+    .insert({ id: user.id, phone, name, role: "owner" });
+  if (error && !/duplicate/i.test(error.message ?? "")) {
+    console.warn("[auth] não foi possível criar o perfil:", error.message);
+  }
+}
+
+/**
  * Atualiza o e-mail real (opcional) usado para casar o pagamento do Mercado
  * Pago. Não mexe no login — a autenticação continua por telefone. Um valor
  * vazio remove o e-mail.
@@ -180,6 +204,7 @@ export async function updateProfileEmail(email: string): Promise<{ ok: boolean; 
   const clean = email.trim().toLowerCase();
   if (clean && !isValidEmail(clean)) return { ok: false, error: "Informe um e-mail válido." };
 
+  await ensureProfileRow(user);
   const { error } = await supabase
     .from("profiles")
     .update({ email: clean || null, updated_at: new Date().toISOString() })

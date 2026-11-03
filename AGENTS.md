@@ -329,13 +329,27 @@
   receber o e-mail real (`currentEmail || user.email`) em vez do pseudo. Sem
   ele, a ativação automática pode falhar e o dono depende do "Conferir agora".
   Não volte a gravar o pseudo-e-mail interno como `admin_email`.
+- **Salvar o e-mail exige garantir a linha de `profiles`.** `updateProfileEmail`
+  chamava `UPDATE profiles ... WHERE id = user.id` direto; se a linha não existir
+  (contas legadas importadas de `admin_trials`, ou cadastros em que o insert do
+  perfil falhou por RLS com a confirmação de e-mail ligada), o UPDATE acerta
+  **zero linhas e devolve `{ error: null }`** — a UI mostrava "E-mail salvo!" e o
+  campo voltava a "pendente" no próximo carregamento. `ensureProfileRow` faz
+  `select`→`insert` (logado, quando a policy `WITH CHECK (auth.uid() = id)` já
+  passa) antes do UPDATE; `updateProfileName` usa o mesmo guard. Nunca volte a
+  fazer só o `UPDATE` — sem linha, ele falha em silêncio.
 - `/admin/assinatura` é um **hub de uma tela só**: seletor de período (diária /
-  mensal / anual) + preço + CTA e os atalhos (o que muda, e-mail do MP,
-  pedidos/detalhes, nota fiscal). Cada assunto abre num painel de tela cheia por
-  cima (`Sheet`, Radix), que rola por dentro — a página de fundo não cresce.
-  Antes tudo ficava empilhado numa coluna longa e era preciso rolar para achar o
-  botão. Mantenha o CTA e os atalhos no primeiro bloco, e não traga conteúdo novo
-  para o fluxo da página.
+  mensal / anual) + preço + CTA e os atalhos (o que muda, pedidos/detalhes, nota
+  fiscal). Cada assunto abre num painel de tela cheia por cima (`Sheet`, Radix),
+  que rola por dentro — a página de fundo não cresce. Antes tudo ficava
+  empilhado numa coluna longa e era preciso rolar para achar o botão. Mantenha o
+  CTA e os atalhos no primeiro bloco, e não traga conteúdo novo para o fluxo da
+  página.
+- **O e-mail do MP não é um atalho solto** — vive dentro de "Pedidos e
+  detalhes", junto da cota e da renovação. Ele era um tile próprio com selo
+  "pendente" âmbar competindo com o CTA; agora é um bloco dentro do painel (com
+  selo "salvo"/"pendente" discreto) e o `GuideTile` de detalhes anuncia "Cota,
+  renovação e e-mail". Não o promova de volta a atalho.
 - O **selo de plano** (`src/modules/premium/PlanBadge.tsx`) fica no cabeçalho de
   toda tela autenticada, ao lado do botão de menu: "Grátis" com a cota
   (`restantes/limite`) em tom neutro, ou "Premium" dourado com brilho e os dias

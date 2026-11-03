@@ -163,7 +163,7 @@ function CelebrationBurst() {
 }
 
 /** Aba do hub: cada assunto abre em tela cheia por cima, sem rolar a página. */
-type HubTab = "planos" | "vantagens" | "email" | "detalhes" | "nota";
+type HubTab = "planos" | "vantagens" | "detalhes" | "nota";
 
 /** Períodos oferecidos: diária avulsa (24h), mensal e anual (assinaturas). */
 type BillingOption = "day" | "monthly" | "annual";
@@ -1008,27 +1008,12 @@ function SubscriptionPage() {
         />
         <GuideTile
           size="sm"
-          icon={<Mail className="size-4" />}
-          tone={currentEmail ? "violet" : "amber"}
-          title="E-mail do Mercado Pago"
-          hint={currentEmail || "Toque para informar"}
-          badge={
-            currentEmail ? undefined : (
-              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                pendente
-              </span>
-            )
-          }
-          onClick={() => setTab("email")}
-        />
-        <GuideTile
-          size="sm"
           icon={<Gift className="size-4" />}
           tone="emerald"
           title="Pedidos e detalhes"
           hint={
             isPremium
-              ? "Cota e renovação"
+              ? "Cota, renovação e e-mail"
               : `${used} de ${limit} usados${bonus > 0 ? ` · +${bonus} bônus` : ""}`
           }
           badge={
@@ -1150,69 +1135,6 @@ function SubscriptionPage() {
         </div>
       </GuidePanel>
 
-      {/* ---- Aba: e-mail do Mercado Pago ---- */}
-      <GuidePanel
-        open={tab === "email"}
-        onOpenChange={(o) => !o && setTab(null)}
-        title="E-mail do Mercado Pago"
-        icon={<Mail className="size-4" />}
-        tone="violet"
-        width="md"
-      >
-        <div className="space-y-3">
-          <p className="flex items-start gap-2 rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] px-3 py-2.5 text-[11px] leading-relaxed text-amber-200/90">
-            <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-            Informe o mesmo e-mail da sua conta do Mercado Pago. Se for outro, o Premium pode não
-            liberar sozinho.
-          </p>
-
-          <div className="flex gap-2">
-            <input
-              className={field}
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              value={emailDraft}
-              onChange={(e) => setEmailDraft(e.target.value)}
-              placeholder="voce@email.com"
-            />
-            <button
-              onClick={handleSaveEmail}
-              disabled={savingEmail}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
-            >
-              {savingEmail ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Check className="size-4" />
-              )}
-              Salvar
-            </button>
-          </div>
-          {emailMsg && (
-            <p className={`text-xs ${emailMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}>
-              {emailMsg.text}
-            </p>
-          )}
-
-          <p className="text-[11px] leading-relaxed text-gray-500">
-            Opcional. O login continua pelo telefone
-            {accountPhone ? ` (${accountPhone})` : ""}.
-          </p>
-
-          {!isPremium && (
-            <button
-              type="button"
-              onClick={syncNow}
-              disabled={syncing}
-              className="w-full rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-[11px] font-semibold text-cyan-300 transition-colors hover:bg-white/[0.05] disabled:opacity-50"
-            >
-              {syncing ? "Conferindo…" : "Já paguei — conferir agora"}
-            </button>
-          )}
-        </div>
-      </GuidePanel>
-
       {/* ---- Aba: pedidos e detalhes ---- */}
       <GuidePanel
         open={tab === "detalhes"}
@@ -1279,6 +1201,69 @@ function SubscriptionPage() {
                   : "—"
               }
             />
+          </div>
+
+          {/* E-mail do Mercado Pago: fica dentro dos detalhes (não é um atalho
+              solto). É opcional e serve só para o pagamento casar com a conta. */}
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3">
+            <div className="flex items-center gap-2">
+              <Mail className="size-3.5 shrink-0 text-violet-300" />
+              <p className="text-[11px] font-bold text-gray-300">E-mail do Mercado Pago</p>
+              {currentEmail ? (
+                <span className="ml-auto rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold text-violet-300">
+                  salvo
+                </span>
+              ) : (
+                <span className="ml-auto rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                  pendente
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
+              Informe o mesmo e-mail da sua conta do Mercado Pago. Se for outro, o Premium pode não
+              liberar sozinho. Opcional — o login continua pelo telefone
+              {accountPhone ? ` (${accountPhone})` : ""}.
+            </p>
+            <div className="mt-2.5 flex gap-2">
+              <input
+                className={field}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={emailDraft}
+                onChange={(e) => setEmailDraft(e.target.value)}
+                placeholder="voce@email.com"
+              />
+              <button
+                onClick={handleSaveEmail}
+                disabled={savingEmail}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
+              >
+                {savingEmail ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Check className="size-4" />
+                )}
+                Salvar
+              </button>
+            </div>
+            {emailMsg && (
+              <p
+                className={`mt-1.5 text-xs ${emailMsg.type === "ok" ? "text-cyan-300" : "text-red-400"}`}
+              >
+                {emailMsg.text}
+              </p>
+            )}
+            {!isPremium && (
+              <button
+                type="button"
+                onClick={syncNow}
+                disabled={syncing}
+                className="mt-2.5 w-full rounded-2xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 text-[11px] font-semibold text-cyan-300 transition-colors hover:bg-white/[0.05] disabled:opacity-50"
+              >
+                {syncing ? "Conferindo…" : "Já paguei — conferir agora"}
+              </button>
+            )}
           </div>
 
           {!isPremium && rewards.length > 0 && <RewardsProgress rewards={rewards} />}

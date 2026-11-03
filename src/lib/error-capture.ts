@@ -62,7 +62,10 @@ console.error = (...args: unknown[]) => {
   originalConsoleError(...expanded);
 };
 
-if (typeof globalThis.addEventListener === "function") {
+// Estes listeners são do navegador (ErrorEvent, HTMLElement, 404 de recurso).
+// O Workers também expõe `addEventListener` no globalThis, mas rejeita o
+// terceiro argumento (capture) — então só registramos quando há `window`.
+if (typeof window !== "undefined" && typeof globalThis.addEventListener === "function") {
   globalThis.addEventListener("error", (event) => {
     record((event as ErrorEvent).error ?? event);
 

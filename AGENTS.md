@@ -779,9 +779,23 @@ developers.cloudflare.com). Reconfira antes de decidir — os planos mudam.
   como taxa média no mix Pix + cartão.
 - Resend: 3.000 e-mails/mês.
 
+**Manutenção do banco — `VACUUM FULL` quando o banco parecer grande demais.**
+Medido em 2026-11-03: o banco marcava **140 MB com 10 pedidos**. A tabela
+`orders` tinha 24 kB de dados e um índice de **13 MB**; `order_items`, 47 MB.
+Era bloat de `ALTER TABLE` repetido nas migrações (cada `ADD COLUMN`/`CREATE
+INDEX` reescreve a tabela), não dado real. `VACUUM FULL` nas três tabelas
+derrubou 140 MB → **16 MB** (recuperou 124 MB, 89%). Rode
+`supabase/maintenance.sql` no SQL Editor quando o número no painel não bater
+com o volume de pedidos — não há perda de dado, só devolução do espaço morto.
+
 **Consumo medido por loja/mês** (do código, não chute): cardápio público
 ~15 MB; painel do dono ~14 MB (carga limitada a 300 pedidos + poll leve de
 45s). Total **~30 MB (loja leve) a ~250 MB (loja pesada)**.
+
+Medido no projeto real em 2026-11-03: **11.047 requisições REST na semana** com
+11 lojas de teste, e o cardápio de uma loja (produtos + categorias + addons +
+restaurante) pesa **12,3 KB**. Ou seja: a 5 GB de egress/mês cabem ~400.000
+aberturas de cardápio — o egress não é o problema; a pausa é.
 
 **Gatilhos de migração** (o primeiro que bater manda):
 
@@ -813,6 +827,24 @@ não solução: migre.** O keep-alive é rede de segurança, não substituto do 
 
 Com a regra de 1 restaurante grátis, todo dono multi-loja vira Premium — o
 cenário do meio deixa de ser otimista e passa a ser conservador.
+
+**O que a conta do "lucro 100%" esquece:**
+- **Taxa do Mercado Pago:** ~3,5% do bruto (Pix 0,99%; cartão 3,99–4,98%).
+  Sobre R$ 518,18 são ~R$ 18/mês. Não é o que mata, mas não é zero.
+- **DAS do MEI:** R$ 82,05–87,05/mês, sempre, mesmo sem faturar. É o custo fixo
+  real de existir formalizado — some na conta de quem só olha "infra grátis".
+- **Teto do MEI: R$ 81.000/ano (R$ 6.750/mês).** É o limite que manda de
+  verdade: o app precisa de **~1.500 assinantes anuais** (ou ~2.800 mensais)
+  para estourar o teto. Antes disso, o MEI é o regime mais barato. Perto do
+  teto, migrar para ME (Anexo III, ~6% de serviço) — **fale com o contador
+  antes**, não com o código.
+- **Enquadramento:** o CNAE do MEI hoje é de vestuário (4781400), não de
+  software. Faturar SaaS nesse CNAE é risco de glosa. Ver "Identidade legal e
+  fiscal" abaixo — nada disso se resolve em código.
+
+**Ponto de equilíbrio real (mês, com DAS + domínio):** ~R$ 90 de custo fixo.
+Com Premium mensal a R$ 28,99, **4 assinantes** já cobrem o custo fixo; com
+diária a R$ 1,49, são ~60 diárias/mês. Tudo acima disso é margem.
 
 ## Deploy (Cloudflare Pages)
 

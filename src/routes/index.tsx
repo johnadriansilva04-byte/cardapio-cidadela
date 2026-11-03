@@ -14,16 +14,28 @@ import {
   UtensilsCrossed,
   X,
   Zap,
+  Play,
+  Clock,
+  DollarSign,
+  Palette,
+  Calendar,
+  Lock,
+  Eye,
+  EyeOff,
+  BookOpen,
 } from "lucide-react";
 import {
   MONTHLY_PRICE_LABEL,
   PREMIUM_PRICE_LABEL,
   PREMIUM_PRICE_VALUE,
+  DAY_PASS_PRICE_LABEL,
   formatMonthlyEquivalent,
 } from "@/lib/pricing";
 
 import { brl } from "@/lib/utils";
 import { COMPANY, hasSupportContact } from "@/lib/company";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -164,7 +176,7 @@ const PROOF = [
   { icon: Zap, label: "Pedido em tempo real", hint: "alerta sonoro no painel" },
   { icon: QrCode, label: "Link e QR próprios", hint: "bio, salão e mesa" },
   { icon: Bike, label: "Entrega ou retirada", hint: "taxa e endereço no pedido" },
-  { icon: ShieldCheck, label: "Sem comissão", hint: "o pedido é 100% seu" },
+  { icon: ShieldCheck, label: "Paga só quando usar", hint: "sem comissão, sem contrato" },
 ];
 
 const STEPS = [
@@ -185,8 +197,33 @@ const STEPS = [
   },
 ];
 
+const TUTORIAL_STEPS = [
+  {
+    title: "Comece grátis",
+    content: "Crie sua conta sem cartão. 5 pedidos por mês de graça. Se não tiver movimento, não paga nada.",
+  },
+  {
+    title: "Monte seu cardápio",
+    content: "Adicione fotos, preços e categorias. Do celular mesmo, igual postar no Instagram.",
+  },
+  {
+    title: "Publique o link",
+    content: "Um link só seu e um QR Code. Coloca no status, na bio, no balcão.",
+  },
+  {
+    title: "Pague só quando usar",
+    content: "Depois de 5 pedidos grátis, usa diária de R$ 1,49/24h só quando cair pedido. Ou assina Premium se tiver movimento constante.",
+  },
+  {
+    title: "Personalize tudo",
+    content: "Logo, banner, cores da marca. Seu cardápio, 100% à sua cara.",
+  },
+];
+
 function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -207,6 +244,12 @@ function LandingPage() {
             >
               Ver cardápio
             </a>
+            <button
+              onClick={() => setTutorialOpen(true)}
+              className="flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              <BookOpen className="size-4" /> Tutorial
+            </button>
             <Link to="/login" className="text-sm text-gray-300 transition-colors hover:text-white">
               Entrar
             </Link>
@@ -247,6 +290,15 @@ function LandingPage() {
             >
               Ver cardápio real
             </a>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setTutorialOpen(true);
+              }}
+              className="flex w-full items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+            >
+              <BookOpen className="size-4" /> Tutorial
+            </button>
             <Link
               to="/login"
               onClick={() => setMenuOpen(false)}
@@ -279,16 +331,15 @@ function LandingPage() {
             </p>
 
             <h1 className="text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-              Seu cardápio no ar.
+              Pague só quando tiver pedido.
               <br />
               <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                Seu WhatsApp em paz.
+                Cardápio nunca trava.
               </span>
             </h1>
 
             <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-gray-300 sm:text-lg lg:mx-0">
-              Link próprio, QR Code e pedidos em tempo real. O cliente monta e envia sozinho — a
-              comanda chega pronta no seu painel. Sem comissão, sem app, sem gibi.
+              Comece grátis. Depois, R$ 1,49/24h só quando tiver pedido. Ou Premium ilimitado. Concursos cobram 15-30% em cada pedido — aqui você paga só quando usa.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
@@ -371,19 +422,125 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Preço */}
-      <section id="preco" className="border-t border-white/5 py-20 sm:py-24">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <div className="text-center">
+      {/* Como funciona o pagamento - explicação detalhada */}
+      <section className="border-t border-white/5 bg-white/[0.015] py-20 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="text-center mb-12">
             <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-              Um preço. Sem pegadinha.
+              Pague só quando tiver pedido.
             </h2>
-            <p className="mx-auto mt-3 max-w-lg text-gray-400">
-              Comece grátis. Quando o movimento crescer, um único valor libera tudo.
+            <p className="mx-auto mt-4 max-w-2xl text-gray-400">
+              Concursos cobram 15-30% em CADA pedido. Aqui você começa grátis e paga só quando usar.
             </p>
           </div>
 
-          <div className="mt-12 grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300">
+                  <Check className="size-5" />
+                </span>
+                <h3 className="text-lg font-bold text-white">Comece grátis</h3>
+              </div>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                5 pedidos por mês sem pagar nada. Monte seu cardápio, coloque o QR Code e comece a receber pedidos. Se não tiver movimento, não paga nada.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
+                  <Clock className="size-5" />
+                </span>
+                <h3 className="text-lg font-bold text-white">Diária quando precisar</h3>
+              </div>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                {DAY_PASS_PRICE_LABEL} por 24h. Paga só quando cair pedido. Abre só no final de semana? Usa diária só nesses dias. Empilhável: se usar 2 dias, paga 2x.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300">
+                  <InfinityIcon className="size-5" />
+                </span>
+                <h3 className="text-lg font-bold text-white">Premium ilimitado</h3>
+              </div>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Quando o movimento for constante, assine Premium por {MONTHLY_PRICE_LABEL} ou {PREMIUM_PRICE_LABEL}. Pedidos ilimitados, detalhes liberados, sem se preocupar.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-12 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6">
+            <div className="flex items-start gap-4">
+              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-amber-500/20 text-amber-300 mt-0.5">
+                <ShieldCheck className="size-4" />
+              </span>
+              <div>
+                <h4 className="text-base font-bold text-white mb-2">Cardápio nunca trava</h4>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                  Mesmo com 0 pedidos grátis, seu cliente SEMPRE consegue pedir. O pedido chega para você com preço, endereço e nome do cliente. Se quiser ver os itens, usa a diária. Não trava venda, não perde cliente.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Personalização */}
+      <section className="py-20 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+              Seu cardápio, 100% à sua cara.
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-gray-400">
+              Logo, banner, cores da marca. O cliente sabe que está no seu negócio, não num app de terceiro.
+            </p>
+          </div>
+
+          <div className="grid gap-8 sm:grid-cols-2">
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
+                  <Palette className="size-5" />
+                </span>
+                <h3 className="text-lg font-bold text-white">Cores da marca</h3>
+              </div>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Escolha a cor primária (botões, preços) e secundária (efeitos visuais). Seu cardápio com a identidade visual do seu negócio.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300">
+                  <QrCode className="size-5" />
+                </span>
+                <h3 className="text-lg font-bold text-white">Logo e banner</h3>
+              </div>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Upload do logo da sua hamburgueria, açai, pizza. Banner personalizado para o topo do cardápio. Profissional do começo ao fim.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Preço */}
+      <section id="preco" className="border-t border-white/5 py-20 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="text-center">
+            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+              Escolha como pagar.
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-gray-400">
+              Comece grátis. Pague só quando tiver pedido. Ou assine Premium quando o movimento for constante.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-5 sm:grid-cols-3">
             <div className="rounded-3xl border border-white/[0.07] bg-white/[0.02] p-7">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Grátis</p>
               <p className="mt-3 text-4xl font-black text-white">R$ 0</p>
@@ -394,6 +551,7 @@ function LandingPage() {
                   "5 pedidos por mês",
                   "Link e QR Code",
                   "Pedidos em tempo real",
+                  "Paga nada se não tiver pedido",
                 ].map((t) => (
                   <li key={t} className="flex items-center gap-2">
                     <Check className="size-4 shrink-0 text-emerald-400" /> {t}
@@ -407,6 +565,38 @@ function LandingPage() {
               >
                 Começar grátis
               </Link>
+            </div>
+
+            <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-b from-amber-500/[0.10] to-transparent p-7">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-14 -top-14 size-44 rounded-full bg-amber-500/20 blur-3xl"
+              />
+              <div className="relative">
+                <p className="text-xs font-bold uppercase tracking-widest text-amber-300">
+                  Diária
+                </p>
+                <p className="mt-3 text-4xl font-black text-white">{DAY_PASS_PRICE_LABEL}</p>
+                <p className="mt-1 text-sm text-gray-400">por 24h · paga só quando usar</p>
+                <ul className="mt-6 space-y-2.5 text-sm text-gray-200">
+                  {[
+                    "Libera tudo por 24h",
+                    "Empilhável (usa quantas vezes quiser)",
+                    "Paga DEPOIS que cair pedido",
+                    "Perfeito pra quem abre só no fim de semana",
+                  ].map((t) => (
+                    <li key={t} className="flex items-center gap-2">
+                      <Check className="size-4 shrink-0 text-amber-300" /> {t}
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href="/login?returnTo=/admin/assinatura"
+                  className="mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-amber-500 py-3 text-sm font-bold text-black transition-all hover:bg-amber-400 hover:shadow-[0_0_30px_rgba(245,158,11,0.4)]"
+                >
+                  Usar diária <ArrowRight className="size-4" />
+                </a>
+              </div>
             </div>
 
             <div className="relative overflow-hidden rounded-3xl border border-cyan-500/30 bg-gradient-to-b from-cyan-500/[0.10] to-transparent p-7">
@@ -511,6 +701,73 @@ function LandingPage() {
           {COMPANY.legalName} · CNPJ {COMPANY.cnpj} · {COMPANY.city}/{COMPANY.state}
         </p>
       </footer>
+
+      {/* Tutorial Modal */}
+      <Dialog open={tutorialOpen} onOpenChange={setTutorialOpen}>
+        <DialogContent className="max-w-md">
+          <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+            <BookOpen className="size-5 text-cyan-400" />
+            Como funciona
+          </DialogTitle>
+          <div className="mt-4">
+            <div className="mb-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-2">
+                Passo {tutorialStep + 1} de {TUTORIAL_STEPS.length}
+              </p>
+              <h3 className="text-xl font-bold text-white mb-2">
+                {TUTORIAL_STEPS[tutorialStep].title}
+              </h3>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                {TUTORIAL_STEPS[tutorialStep].content}
+              </p>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              {tutorialStep > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTutorialStep(tutorialStep - 1)}
+                  className="flex-1 border-white/20 text-white hover:bg-white/10"
+                >
+                  Anterior
+                </Button>
+              )}
+              {tutorialStep < TUTORIAL_STEPS.length - 1 ? (
+                <Button
+                  onClick={() => setTutorialStep(tutorialStep + 1)}
+                  className="flex-1 bg-cyan-500 text-black hover:bg-cyan-400"
+                >
+                  Próximo
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setTutorialOpen(false);
+                    setTutorialStep(0);
+                  }}
+                  className="flex-1 bg-cyan-500 text-black hover:bg-cyan-400"
+                >
+                  Entendi!
+                </Button>
+              )}
+            </div>
+
+            <div className="flex justify-center gap-1 mt-4">
+              {TUTORIAL_STEPS.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setTutorialStep(i)}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === tutorialStep ? "w-6 bg-cyan-400" : "w-1.5 bg-white/20"
+                  }`}
+                  aria-label={`Ir para passo ${i + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

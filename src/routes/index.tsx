@@ -23,6 +23,7 @@ import {
   Eye,
   EyeOff,
   BookOpen,
+  Infinity as InfinityIcon,
 } from "lucide-react";
 import {
   MONTHLY_PRICE_LABEL,

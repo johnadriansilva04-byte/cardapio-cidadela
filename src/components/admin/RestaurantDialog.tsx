@@ -293,7 +293,7 @@ export function RestaurantDialog({
         // deixava o antigo no bucket para sempre — só ocupava espaço. Apaga o
         // anterior depois do upload novo dar certo; falha aqui não bloqueia.
         if (restaurant?.logo_url && restaurant.logo_url !== res.url) {
-          void deleteRestaurantImageByUrl(restaurant.logo_url);
+          void deleteRestaurantImageByUrl(restaurant.logo_url, id);
         }
       } else if (res.error) setError(res.error);
     }
@@ -302,7 +302,7 @@ export function RestaurantDialog({
       if (res.url) {
         urls.banner_url = res.url;
         if (restaurant?.banner_url && restaurant.banner_url !== res.url) {
-          void deleteRestaurantImageByUrl(restaurant.banner_url);
+          void deleteRestaurantImageByUrl(restaurant.banner_url, id);
         }
       } else if (res.error) setError(res.error);
     }

@@ -28,7 +28,7 @@ export interface PublicMenuSnapshot {
 }
 
 /** Versão do formato: muda quando o payload muda de forma. */
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2;
 const KEY_PREFIX = `cidadela:menu:v${CACHE_VERSION}:`;
 
 /** Idade máxima em que o cache ainda vale como "instantâneo" no primeiro paint. */

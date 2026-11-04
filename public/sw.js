@@ -2,7 +2,7 @@
 //
 // Responsibilities:
 //   1. Cache hashed assets under /assets/ for offline resilience at the balcão.
-//   2. Cache restaurant images (Supabase Storage) — the heaviest egress source.
+//   2. Cache restaurant images (Cloudflare R2 + legacy Supabase Storage) — the heaviest egress source.
 //   3. Handle native Web Push events so notifications appear
 //      even when the app is closed or the browser is minimized.
 //
@@ -10,7 +10,7 @@
 //   - Cache navigation or API responses.  HTML and data must always be fresh;
 //     serving stale orders from cache would be worse than waiting for the network.
 
-const VERSION = "cidadela-v3";
+const VERSION = "cidadela-v4";
 const STATIC_CACHE = `${VERSION}-static`;
 const IMAGE_CACHE = `${VERSION}-images`;
 // Teto de imagens guardadas. O cardápio de uma loja costuma ter < 60 fotos;
@@ -34,8 +34,14 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-/** Só fotos do bucket público do Supabase Storage entram no cache de imagens. */
+/**
+ * Fotos de restaurante entram no cache de imagens: as do R2
+ * (images.pracinha.online, o destino novo) e as legadas do Supabase Storage.
+ * No R2 a borda da Cloudflare já cacheia; o cache do navegador poupa a ida
+ * seguinte, que é o que importa no celular do balcão.
+ */
 function isStorageImage(url) {
+  if (url.hostname === "images.pracinha.online") return true;
   return (
     url.hostname.endsWith(".supabase.co") && url.pathname.includes("/storage/v1/object/public/")
   );

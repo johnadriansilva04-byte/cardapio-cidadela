@@ -33,6 +33,8 @@ import { Route as MobileConfigRouteImport } from './routes/mobile.config'
 import { Route as MobileDashboardRouteImport } from './routes/mobile.dashboard'
 import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
 import { Route as AdminRestauranteIdRouteImport } from './routes/admin.restaurante.$id'
+import { Route as ApiImageDeleteRouteImport } from './routes/api.image.delete'
+import { Route as ApiImageUploadRouteImport } from './routes/api.image.upload'
 import { Route as ApiInvoiceRequestRouteImport } from './routes/api.invoice.request'
 import { Route as ApiMenuScanRouteImport } from './routes/api.menu.scan'
 import { Route as ApiOrderDraftRouteImport } from './routes/api.order.draft'
@@ -168,6 +170,16 @@ const AdminRestauranteIdRoute = AdminRestauranteIdRouteImport.update({
   path: '/restaurante/$id',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiImageDeleteRoute = ApiImageDeleteRouteImport.update({
+  id: '/api/image/delete',
+  path: '/api/image/delete',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiImageUploadRoute = ApiImageUploadRouteImport.update({
+  id: '/api/image/upload',
+  path: '/api/image/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiInvoiceRequestRoute = ApiInvoiceRequestRouteImport.update({
   id: '/api/invoice/request',
   path: '/api/invoice/request',
@@ -264,6 +276,8 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/image/delete': typeof ApiImageDeleteRoute
+  '/api/image/upload': typeof ApiImageUploadRoute
   '/api/invoice/request': typeof ApiInvoiceRequestRoute
   '/api/menu/scan': typeof ApiMenuScanRoute
   '/api/order/draft': typeof ApiOrderDraftRoute
@@ -302,6 +316,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/mobile': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/image/delete': typeof ApiImageDeleteRoute
+  '/api/image/upload': typeof ApiImageUploadRoute
   '/api/invoice/request': typeof ApiInvoiceRequestRoute
   '/api/menu/scan': typeof ApiMenuScanRoute
   '/api/order/draft': typeof ApiOrderDraftRoute
@@ -343,6 +359,8 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
+  '/api/image/delete': typeof ApiImageDeleteRoute
+  '/api/image/upload': typeof ApiImageUploadRoute
   '/api/invoice/request': typeof ApiInvoiceRequestRoute
   '/api/menu/scan': typeof ApiMenuScanRoute
   '/api/order/draft': typeof ApiOrderDraftRoute
@@ -385,6 +403,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/mobile/'
     | '/admin/restaurante/$id'
+    | '/api/image/delete'
+    | '/api/image/upload'
     | '/api/invoice/request'
     | '/api/menu/scan'
     | '/api/order/draft'
@@ -423,6 +443,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/mobile'
     | '/admin/restaurante/$id'
+    | '/api/image/delete'
+    | '/api/image/upload'
     | '/api/invoice/request'
     | '/api/menu/scan'
     | '/api/order/draft'
@@ -463,6 +485,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/mobile/'
     | '/admin/restaurante/$id'
+    | '/api/image/delete'
+    | '/api/image/upload'
     | '/api/invoice/request'
     | '/api/menu/scan'
     | '/api/order/draft'
@@ -491,6 +515,8 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   CardapioSlugRoute: typeof CardapioSlugRoute
   PedidoOrderIdRoute: typeof PedidoOrderIdRoute
+  ApiImageDeleteRoute: typeof ApiImageDeleteRoute
+  ApiImageUploadRoute: typeof ApiImageUploadRoute
   ApiInvoiceRequestRoute: typeof ApiInvoiceRequestRoute
   ApiMenuScanRoute: typeof ApiMenuScanRoute
   ApiOrderDraftRoute: typeof ApiOrderDraftRoute
@@ -677,6 +703,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRestauranteIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/image/delete': {
+      id: '/api/image/delete'
+      path: '/api/image/delete'
+      fullPath: '/api/image/delete'
+      preLoaderRoute: typeof ApiImageDeleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/image/upload': {
+      id: '/api/image/upload'
+      path: '/api/image/upload'
+      fullPath: '/api/image/upload'
+      preLoaderRoute: typeof ApiImageUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/invoice/request': {
       id: '/api/invoice/request'
       path: '/api/invoice/request'
@@ -833,6 +873,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   CardapioSlugRoute: CardapioSlugRoute,
   PedidoOrderIdRoute: PedidoOrderIdRoute,
+  ApiImageDeleteRoute: ApiImageDeleteRoute,
+  ApiImageUploadRoute: ApiImageUploadRoute,
   ApiInvoiceRequestRoute: ApiInvoiceRequestRoute,
   ApiMenuScanRoute: ApiMenuScanRoute,
   ApiOrderDraftRoute: ApiOrderDraftRoute,

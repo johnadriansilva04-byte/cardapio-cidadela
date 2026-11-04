@@ -138,3 +138,102 @@ export const WIZARD_MENU = [
   { emoji: "🍕", name: "Pizza margherita", price: 46 },
   { emoji: "🥗", name: "Salada caesar", price: 26 },
 ];
+
+export interface MenuTemplate {
+  key: string;
+  name: string;
+  tagline: string;
+  emoji: string;
+  /** Cor de destaque (vira `primary_color` no restaurante). */
+  primary: string;
+  /** Cor secundária (vira `secondary_color`). */
+  secondary: string;
+  items: { emoji: string; name: string; price: number }[];
+}
+
+/**
+ * Templates prontos: um ponto de partida visual para quem não quer escolher
+ * cor no olho. As cores são as MESMAS do `COLOR_PRESETS` do
+ * `RestaurantChatWizard` (`src/lib/restaurantChat.ts`), então o que o dono vê
+ * aqui é o que ele aplica de verdade ao criar a loja.
+ */
+export const MENU_TEMPLATES: MenuTemplate[] = [
+  {
+    key: "hamburgueria",
+    name: "Hamburgueria",
+    tagline: "Rústico e quente, pra dar fome na hora",
+    emoji: "🍔",
+    primary: "#f97316",
+    secondary: "#ef4444",
+    items: [
+      { emoji: "🍔", name: "X-Burger", price: 29.99 },
+      { emoji: "🍟", name: "Porção de fritas", price: 18 },
+      { emoji: "🥤", name: "Refri lata", price: 5.9 },
+    ],
+  },
+  {
+    key: "pizzaria",
+    name: "Pizzaria",
+    tagline: "Vermelho de forno a lenha, clássico",
+    emoji: "🍕",
+    primary: "#ef4444",
+    secondary: "#f97316",
+    items: [
+      { emoji: "🍕", name: "Margherita", price: 46 },
+      { emoji: "🧀", name: "Quatro queijos", price: 52 },
+      { emoji: "🥗", name: "Salada da casa", price: 24 },
+    ],
+  },
+  {
+    key: "acai",
+    name: "Açaí & Doces",
+    tagline: "Rosa e roxo, cara de sobremesa",
+    emoji: "🍨",
+    primary: "#ec4899",
+    secondary: "#8b5cf6",
+    items: [
+      { emoji: "🍨", name: "Açaí 300ml", price: 18 },
+      { emoji: "🍫", name: "Brownie", price: 12 },
+      { emoji: "🥤", name: "Milkshake", price: 16 },
+    ],
+  },
+  {
+    key: "natural",
+    name: "Natural & Saudável",
+    tagline: "Verde e leve, pra vender saúde",
+    emoji: "🥗",
+    primary: "#22c55e",
+    secondary: "#10b981",
+    items: [
+      { emoji: "🥗", name: "Salada caesar", price: 26 },
+      { emoji: "🥤", name: "Suco verde", price: 12 },
+      { emoji: "🍗", name: "Frango grelhado", price: 22.9 },
+    ],
+  },
+  {
+    key: "cafeteria",
+    name: "Cafeteria",
+    tagline: "Azul tranquilo, pra café e lanche",
+    emoji: "☕",
+    primary: "#3b82f6",
+    secondary: "#06b6d4",
+    items: [
+      { emoji: "☕", name: "Cappuccino", price: 12 },
+      { emoji: "🥐", name: "Croissant", price: 9.5 },
+      { emoji: "🍰", name: "Fatia de bolo", price: 14 },
+    ],
+  },
+  {
+    key: "japonesa",
+    name: "Japonesa",
+    tagline: "Ciano e violeta, moderno e limpo",
+    emoji: "🍣",
+    primary: "#06b6d4",
+    secondary: "#8b5cf6",
+    items: [
+      { emoji: "🍣", name: "Combinado 20", price: 58 },
+      { emoji: "🍜", name: "Lámen", price: 34 },
+      { emoji: "🥟", name: "Guioza (6)", price: 22 },
+    ],
+  },
+];

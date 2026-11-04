@@ -220,6 +220,21 @@ test("os atalhos abrem cada assunto em painel por cima", async ({ page }) => {
   await expect(page.getByText("Você economiza", { exact: true })).toHaveCount(0);
 });
 
+test("templates prontos: escolher um tema troca o preview na hora", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  // A seção aparece na página, com o primeiro tema ativo.
+  await expect(page.getByText(/Não comece do zero/i)).toBeVisible();
+  await expect(page.getByText("Hamburgueria").first()).toBeVisible();
+  await expect(page.getByText("X-Burger").first()).toBeVisible();
+
+  // Trocar de tema troca os itens do preview.
+  await page.getByRole("button", { name: /Pizzaria/ }).click();
+  await expect(page.getByText("Margherita").first()).toBeVisible();
+  await expect(page.getByText(/Usar o tema Pizzaria/)).toBeVisible();
+});
+
 test("landing mostra a missão da Variant", async ({ page }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");

@@ -305,6 +305,11 @@
      pergunta por vez, o cardápio "nasce" no fim). Espelha o
      `RestaurantChatWizard` real, mas é vitrine: sem IA, sem backend.
   3. `WaiterChat` — o garçom virtual (Pracinha) respondendo sozinho, em ciclo.
+  4. `TemplateGallery` — templates prontos por ramo (hamburgueria, pizzaria,
+     açaí, natural, cafeteria, japonesa): escolher um tema troca o preview na
+     hora. As cores são as MESMAS do `COLOR_PRESETS`
+     (`src/lib/restaurantChat.ts`) que o wizard aplica de verdade, então o
+     preview não engana.
   Os dados/snapshots vivem em `src/components/landing/landing-data.ts`.
 - **Simulador "quanto você está perdendo?"** (`LossSimulator`, `#simulador`): o
   dono informa o que paga hoje e os dias de movimento; o sistema recomenda o

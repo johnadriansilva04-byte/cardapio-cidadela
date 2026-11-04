@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Clock,
   LayoutDashboard,
+  LayoutTemplate,
   LogOut,
   Menu,
   MessageCircle,
@@ -38,6 +39,7 @@ import { DEMO_SNAPSHOT } from "@/components/landing/landing-data";
 import { LiveStoreDemo } from "@/components/landing/LiveStoreDemo";
 import { WaiterChat } from "@/components/landing/WaiterChat";
 import { WizardChat } from "@/components/landing/WizardChat";
+import { TemplateGallery } from "@/components/landing/TemplateGallery";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,7 +53,8 @@ import { PlanCards } from "@/modules/ui/PlanCards";
 import { GuidePanel, GuideTile } from "@/modules/ui/GuidePanel";
 
 /** Painéis do hub da landing. `null` = nenhum aberto. */
-type LandingPanel = "calc" | "recursos" | "marca" | "pracinha" | "preco" | "variant" | "faq" | null;
+type LandingPanel =
+  "calc" | "recursos" | "marca" | "pracinha" | "preco" | "variant" | "faq" | "templates" | null;
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -727,6 +730,7 @@ function LandingPage() {
             {(
               [
                 ["recursos", "Recursos"],
+                ["templates", "Templates"],
                 ["preco", "Preços"],
                 ["calc", "Economia"],
                 ["variant", "Quem faz"],
@@ -889,6 +893,27 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* Templates prontos */}
+        <section className="mt-24">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-emerald-300">
+              <LayoutTemplate className="size-3.5" /> Templates prontos
+            </span>
+            <h2 className="font-display mt-4 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+              Não comece do zero.
+              <br />
+              <span className="text-emerald-300">Escolha um tema e pronto.</span>
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-gray-400 sm:text-base">
+              Hambúrguer, pizzaria, açaí, natural, cafeteria ou japonês: já vem com as cores, os
+              itens e o jeito certo do seu ramo. Você só troca a foto e o preço.
+            </p>
+          </div>
+          <div className="mt-10">
+            <TemplateGallery />
+          </div>
+        </section>
+
         {/* Garçom virtual */}
         <section className="mt-24 grid items-center gap-12 lg:grid-cols-2">
           <div className="animate-reveal order-2 lg:order-1" style={delay(120)}>
@@ -933,6 +958,13 @@ function LandingPage() {
             hint="O que tem dentro"
             tone="cyan"
             onClick={() => openPanel("recursos")}
+          />
+          <GuideTile
+            icon={<LayoutTemplate className="size-4" />}
+            title="Templates"
+            hint="Comece pronto"
+            tone="emerald"
+            onClick={() => openPanel("templates")}
           />
           <GuideTile
             icon={<Palette className="size-4" />}
@@ -1089,6 +1121,18 @@ function LandingPage() {
             ))}
           </div>
         </div>
+      </GuidePanel>
+
+      <GuidePanel
+        open={panel === "templates"}
+        onOpenChange={(o) => !o && closePanel()}
+        title="Templates prontos"
+        icon={<LayoutTemplate className="size-4" />}
+        tone="emerald"
+        width="xl"
+        description="Um ponto de partida por ramo — cor, itens e jeito"
+      >
+        <TemplateGallery />
       </GuidePanel>
 
       <GuidePanel

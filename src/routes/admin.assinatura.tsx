@@ -224,6 +224,8 @@ function PlanOptions({
   credits,
   redeeming,
   awaiting,
+  dayMonthUsed,
+  dayMonthLimit,
   onRedeem,
   onBuy,
 }: {
@@ -234,11 +236,19 @@ function PlanOptions({
   credits: number;
   redeeming: boolean;
   awaiting: boolean;
+  dayMonthUsed: number;
+  dayMonthLimit: number;
   onRedeem: () => void;
   onBuy: () => void;
 }) {
   const option = BILLING_OPTIONS.find((o) => o.key === billing) ?? BILLING_OPTIONS[2];
   const isDay = billing === "day";
+  // Diárias que ainda cabem no mês. O servidor é quem barra de verdade (a rota
+  // conta as compras); aqui só evitamos deixar o dono montar um pacote que
+  // seria recusado no checkout.
+  const dayRemaining = Math.max(0, dayMonthLimit - dayMonthUsed);
+  const dayMax = Math.min(60, dayRemaining);
+  const dayExhausted = isDay && dayRemaining <= 0;
   return (
     <div className="mt-4 border-t border-white/[0.07] pt-3.5">
       <div className="flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
@@ -279,19 +289,19 @@ function PlanOptions({
               type="button"
               aria-label="Menos uma diária"
               onClick={() => setDayQty((q) => Math.max(1, q - 1))}
-              disabled={dayQty <= 1}
+              disabled={dayQty <= 1 || dayExhausted}
               className="tap grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
             >
               <Minus className="size-4" />
             </button>
             <span className="w-8 text-center text-sm font-black tabular-nums text-white">
-              {dayQty}
+              {dayExhausted ? 0 : dayQty}
             </span>
             <button
               type="button"
               aria-label="Mais uma diária"
-              onClick={() => setDayQty((q) => Math.min(60, q + 1))}
-              disabled={dayQty >= 60}
+              onClick={() => setDayQty((q) => Math.min(dayMax, q + 1))}
+              disabled={dayQty >= dayMax || dayExhausted}
               className="tap grid size-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-white disabled:opacity-40"
             >
               <Plus className="size-4" />
@@ -300,17 +310,42 @@ function PlanOptions({
         </div>
       )}
 
+      {isDay && (
+        <p className="mt-2 text-[11px] text-gray-500">
+          {dayExhausted ? (
+            <>
+              Você usou as {dayMonthLimit} diárias deste mês. Assine o Premium — sai mais barato que
+              continuar na diária.
+            </>
+          ) : (
+            <>
+              Você já usou {dayMonthUsed} de {dayMonthLimit} diárias neste mês.
+            </>
+          )}
+        </p>
+      )}
+
       <div className="mt-3 flex items-baseline gap-1.5 text-white">
         <span className="text-[clamp(1.75rem,9vw,2.25rem)] font-black leading-none tracking-tight">
-          {isDay ? brl(DAY_PASS_PRICE_VALUE * dayQty) : option.price}
+          {isDay
+            ? brl(DAY_PASS_PRICE_VALUE * Math.max(1, dayExhausted ? 1 : dayQty))
+            : option.price}
         </span>
         <span className="text-sm font-semibold text-gray-500">
-          {isDay ? `/ ${dayQty} × 24h` : option.suffix}
+          {isDay ? `/ ${dayExhausted ? 0 : dayQty} × 24h` : option.suffix}
         </span>
       </div>
       <p className="mt-1 text-[11px] text-gray-500">{BILLING_NOTE[billing]}</p>
 
-      {isDay && credits > 0 ? (
+      {isDay && dayExhausted ? (
+        <Button
+          onClick={() => setBilling("monthly")}
+          size="lg"
+          className="sheen tap mt-3.5 h-12 w-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-base font-black text-black shadow-[0_10px_34px_rgba(6,182,212,0.35)]"
+        >
+          <Crown className="size-5" /> Ver o Premium
+        </Button>
+      ) : isDay && credits > 0 ? (
         <Button
           onClick={onRedeem}
           disabled={redeeming}
@@ -691,15 +726,22 @@ function SubscriptionPage() {
   /** Abre o checkout da diária (24h × quantidade). Concede só no webhook. */
   async function openDayPass() {
     if (!activeId) return;
-    const link = await createDayPassLink(activeId, session?.access_token, dayQty);
-    if (!link) {
+    const res = await createDayPassLink(activeId, session?.access_token, dayQty);
+    if (!res.initPoint) {
+      // Teto do mês: o Premium passa a ser a saída certa, então levamos o dono
+      // direto para a assinatura em vez de só avisar.
+      if (res.error === "day_pass_limit_reached") {
+        toast.error(res.message ?? "Limite mensal de diárias atingido.");
+        setBilling("monthly");
+        return;
+      }
       toast.error("Não foi possível gerar o link de pagamento.");
       return;
     }
-    const win = window.open(link, "_blank", "noopener,noreferrer");
+    const win = window.open(res.initPoint, "_blank", "noopener,noreferrer");
     setAwaitingDayPass(true);
     if (!win) {
-      setPaymentLink(link);
+      setPaymentLink(res.initPoint);
       setPaymentOpen(true);
     }
   }
@@ -832,6 +874,8 @@ function SubscriptionPage() {
   const isPremium = status?.isPremium ?? false;
   const dayPassActive = !isPremium && (status?.dayPassActive ?? false);
   const dayPassCredits = status?.dayPassCredits ?? 0;
+  const dayMonthUsed = status?.dayPassMonthUsed ?? 0;
+  const dayMonthLimit = status?.dayPassMonthLimit ?? 15;
   const used = status?.monthlyOrderCount ?? 0;
   const bonus = status?.bonusOrders ?? 0;
   const limit = status?.monthlyLimit ?? MONTHLY_FREE_LIMIT;
@@ -930,6 +974,8 @@ function SubscriptionPage() {
               dayQty={dayQty}
               setDayQty={setDayQty}
               credits={dayPassCredits}
+              dayMonthUsed={dayMonthUsed}
+              dayMonthLimit={dayMonthLimit}
               redeeming={redeeming}
               awaiting={billing === "day" ? awaitingDayPass : awaitingPayment}
               onRedeem={redeemCredit}
@@ -1002,6 +1048,8 @@ function SubscriptionPage() {
               dayQty={dayQty}
               setDayQty={setDayQty}
               credits={dayPassCredits}
+              dayMonthUsed={dayMonthUsed}
+              dayMonthLimit={dayMonthLimit}
               redeeming={redeeming}
               awaiting={billing === "day" ? awaitingDayPass : awaitingPayment}
               onRedeem={redeemCredit}

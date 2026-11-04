@@ -37,6 +37,7 @@ const FILES = [
   "supabase_rewards_migration.sql",
   "supabase_day_pass_migration.sql",
   "supabase_day_pass_rewards_migration.sql",
+  "supabase_day_pass_limit_migration.sql",
   "supabase_invoice_migration.sql",
   "supabase_push_grants_migration.sql",
   "supabase_retention.sql",

@@ -4,7 +4,7 @@ import { getServerSupabase, getSupabaseForUser, getMercadoPagoToken } from "@/ap
 import { createPaymentLink } from "@/api/lib/mp-payment";
 import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-limit";
 import { SITE_URL } from "@/lib/site";
-import { DAY_PASS_PRICE_VALUE } from "@/lib/pricing";
+import { DAY_PASS_PRICE_VALUE, DAY_PASS_MONTHLY_LIMIT } from "@/lib/pricing";
 
 const FALLBACK_ORIGIN = SITE_URL;
 
@@ -56,8 +56,7 @@ export const Route = createFileRoute("/api/payment/day-pass")({
 
         // Quantidade de diárias (pacote). O preço é recalculado AQUI, a partir
         // da constante do servidor — o cliente manda só a quantidade, nunca o
-        // valor. Teto de 60 evita pedidos absurdos por engano/abuso.
-        const quantity = Math.max(1, Math.min(Math.floor(Number(body.quantity ?? 1) || 1), 60));
+        // valor. O teto de 60 e o limite mensal são aplicados mais abaixo.
 
         // Confirma a identidade e a posse do restaurante com o RLS do próprio
         // usuário (o service role abaixo é usado só para personalizar o nome).
@@ -77,6 +76,38 @@ export const Route = createFileRoute("/api/payment/day-pass")({
         if (!owned) {
           return json({ error: "restaurante não encontrado para esta conta" }, 403);
         }
+
+        // Teto mensal de diárias. Conta só as COMPRADAS neste mês (as ganhas por
+        // recompensa têm source 'credit' e não entram) e é aplicado AQUI, antes
+        // de gerar o link — nunca na concessão, senão o cliente pagaria e não
+        // receberia. Com o preço atual, bater o teto significa que o Premium já
+        // sai mais barato; a rota recusa e a UI convida a assinar.
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        const { count: usedThisMonth } = await userClient
+          .from("store_day_passes")
+          .select("id", { count: "exact", head: true })
+          .eq("restaurant_id", storeId)
+          .neq("source", "credit")
+          .gte("created_at", monthStart.toISOString());
+        const used = usedThisMonth ?? 0;
+        const remaining = Math.max(0, DAY_PASS_MONTHLY_LIMIT - used);
+        if (remaining <= 0) {
+          return json(
+            {
+              error: "day_pass_limit_reached",
+              message: `Você já usou ${used} de ${DAY_PASS_MONTHLY_LIMIT} diárias este mês. O Premium sai mais barato.`,
+              used,
+              limit: DAY_PASS_MONTHLY_LIMIT,
+            },
+            403,
+          );
+        }
+        // Ajusta a quantidade ao que ainda cabe no mês (o cliente não pode
+        // pagar por diárias que a regra não vai conceder).
+        const requested = Math.max(1, Math.min(Math.floor(Number(body.quantity ?? 1) || 1), 60));
+        const quantity = Math.min(requested, remaining);
 
         const supabase = getServerSupabase();
         if (!supabase) {

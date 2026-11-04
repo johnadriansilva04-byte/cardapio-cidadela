@@ -202,6 +202,10 @@ export interface SubscriptionStatus {
   dayPassUntil: string | null;
   /** Diárias ganhas por recompensa, ainda não resgatadas. */
   dayPassCredits: number;
+  /** Diárias COMPRADAS neste mês (não conta as ganhas por recompensa). */
+  dayPassMonthUsed: number;
+  /** Teto mensal de diárias compradas (a partir dele o Premium sai mais barato). */
+  dayPassMonthLimit: number;
   /** Origem do acesso atual: 'annual' | 'day' | 'free'. */
   accessSource: "annual" | "day" | "free";
 }

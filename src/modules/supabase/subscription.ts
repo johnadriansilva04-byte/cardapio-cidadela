@@ -50,6 +50,8 @@ interface AccessState {
   quota_used: number;
   quota_limit: number;
   day_pass_credits?: number;
+  day_pass_month_used?: number;
+  day_pass_month_limit?: number;
 }
 
 /**
@@ -195,6 +197,8 @@ function toStatus(
     dayPassActive,
     dayPassUntil,
     dayPassCredits: Math.max(0, Number(access?.day_pass_credits ?? 0) || 0),
+    dayPassMonthUsed: Math.max(0, Number(access?.day_pass_month_used ?? 0) || 0),
+    dayPassMonthLimit: Math.max(0, Number(access?.day_pass_month_limit ?? 15) || 15),
     accessSource,
   };
 }
@@ -359,12 +363,29 @@ export async function getPreapprovalId(storeId: string): Promise<string | null> 
  * acontece no webhook, quando o Mercado Pago confirma o pagamento. Devolve
  * `null` em qualquer falha (a UI mostra um aviso e não abre o checkout).
  */
+export interface DayPassLinkResult {
+  /** URL de checkout do Mercado Pago, quando deu certo. */
+  initPoint?: string;
+  /** Código do erro devolvido pela rota (ex.: `day_pass_limit_reached`). */
+  error?: string;
+  /** Mensagem pronta para exibir ao usuário, quando houver. */
+  message?: string;
+}
+
+/**
+ * Cria o link de pagamento da diária (24h × quantidade).
+ *
+ * O teto mensal de diárias é decidido no servidor (a rota conta as compras do
+ * mês). Quando ele barra, devolvemos o motivo em vez de `null` para a UI poder
+ * explicar — antes um `null` genérico virava "não foi possível gerar o link",
+ * escondendo que o caminho certo era assinar o Premium.
+ */
 export async function createDayPassLink(
   storeId: string,
   accessToken: string | undefined,
   quantity = 1,
-): Promise<string | null> {
-  if (!storeId || !accessToken) return null;
+): Promise<DayPassLinkResult> {
+  if (!storeId || !accessToken) return { error: "not_authenticated" };
   try {
     const res = await fetch("/api/payment/day-pass", {
       method: "POST",
@@ -374,11 +395,15 @@ export async function createDayPassLink(
       },
       body: JSON.stringify({ storeId, quantity: Math.max(1, Math.floor(quantity) || 1) }),
     });
-    if (!res.ok) return null;
-    const data = (await res.json().catch(() => ({}))) as { initPoint?: string };
-    return data.initPoint ?? null;
+    const data = (await res.json().catch(() => ({}))) as {
+      initPoint?: string;
+      error?: string;
+      message?: string;
+    };
+    if (!res.ok) return { error: data.error ?? "link_failed", message: data.message };
+    return { initPoint: data.initPoint };
   } catch {
-    return null;
+    return { error: "network" };
   }
 }
 

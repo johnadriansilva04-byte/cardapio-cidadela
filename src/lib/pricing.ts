@@ -22,7 +22,7 @@ const DEFAULT_ANNUAL_PRICE_VALUE = 199.99;
 const DEFAULT_MONTHLY_PRICE_VALUE = 28.99;
 
 /** Valor padrão da diária (24h), em reais. */
-const DEFAULT_DAY_PASS_PRICE_VALUE = 1.49;
+const DEFAULT_DAY_PASS_PRICE_VALUE = 1.99;
 
 function readEnv(key: string): string | undefined {
   try {
@@ -95,3 +95,16 @@ export const DAY_PASS_PRICE_LABEL =
 
 /** Duração da diária, em horas — espelha o `interval '24 hours'` da RPC. */
 export const DAY_PASS_HOURS = 24;
+
+/**
+ * Teto de diárias compradas por loja, por mês.
+ *
+ * Com o preço a R$ 1,99, 15 diárias custam R$ 29,85 — mais que o Premium
+ * mensal (R$ 28,99). É de propósito: a partir daí o cliente percebe sozinho
+ * que o Premium sai mais barato, em vez de continuar pagando diária para
+ * sempre. Abaixo disso a diária segue sendo a opção certa para quem tem
+ * movimento esporádico. O limite é aplicado na CRIAÇÃO do link (a rota conta
+ * as diárias já compradas no mês), nunca na concessão: bloquear depois do
+ * pagamento aprovado deixaria o cliente com o dinheiro cobrado e sem acesso.
+ */
+export const DAY_PASS_MONTHLY_LIMIT = 15;

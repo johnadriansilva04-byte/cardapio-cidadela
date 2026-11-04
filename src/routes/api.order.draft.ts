@@ -3,6 +3,7 @@ import type {} from "@tanstack/react-start";
 import { getServerSupabase } from "@/api/lib/mercadopago";
 import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-limit";
 import { runAi, isAiEnabled } from "@/api/lib/ai";
+import { isStorePremium } from "@/api/lib/premium";
 import {
   buildOrderPrompt,
   parseAiOrder,
@@ -11,6 +12,7 @@ import {
   type MenuAddon,
   type MenuProduct,
 } from "@/api/lib/order-draft";
+import { buildOrderReply } from "@/lib/order-draft";
 
 /**
  * POST /api/order/draft
@@ -56,6 +58,13 @@ export const Route = createFileRoute("/api/order/draft")({
 
         const supabase = getServerSupabase();
         if (!supabase) return json({ error: "supabase não configurado" }, 500);
+
+        // O garçom digital é um recurso Premium. O gate é aqui (servidor), não
+        // só no botão: quem chamar a rota sem Premium recebe 403.
+        const premium = await isStorePremium(supabase, restaurantId);
+        if (!premium) {
+          return json({ error: "premium_required", premium: false }, 403);
+        }
 
         const [{ data: productRows }, { data: addonRows }] = await Promise.all([
           supabase
@@ -106,7 +115,7 @@ export const Route = createFileRoute("/api/order/draft")({
             lines,
             unmatched: draft.unmatched,
             ai: draft.ai,
-            reply: buildReply(lines, draft.unmatched),
+            reply: buildOrderReply(lines, draft.unmatched),
           },
           200,
         );
@@ -114,29 +123,6 @@ export const Route = createFileRoute("/api/order/draft")({
     },
   },
 });
-
-function buildReply(
-  lines: { name: string; quantity: number; addon_names: string[]; notes: string }[],
-  unmatched: string[],
-): string {
-  if (lines.length === 0) {
-    return "Não encontrei esses itens no cardápio. Pode escrever de outro jeito ou tocar nos itens?";
-  }
-  const parts = lines.map((l) => {
-    const extras = [
-      l.addon_names.length ? `com ${l.addon_names.join(", ")}` : "",
-      l.notes ? `(${l.notes})` : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-    return `${l.quantity}× ${l.name}${extras ? ` ${extras}` : ""}`;
-  });
-  let reply = `Anotei: ${parts.join(", ")}.`;
-  if (unmatched.length > 0) {
-    reply += ` Não achei "${unmatched.join(", ")}" no cardápio — quer escolher na mão?`;
-  }
-  return reply;
-}
 
 function json(data: unknown, status: number): Response {
   return new Response(JSON.stringify(data), {

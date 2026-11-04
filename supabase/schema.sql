@@ -1692,3 +1692,24 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
+
+-- ============================================================
+-- GARÇOM DIGITAL (PRACINHA) — predicado público de Premium
+-- O recurso em si é barrado no servidor (POST /api/order/draft -> 403 sem
+-- Premium). Esta função só deixa o cardápio público mostrar/esconder o botão,
+-- já que o cliente anônimo não enxerga `admin_trials`. Devolve SÓ um booleano,
+-- nada do dono/plano/pagamento. Não inclui a diária: o garçom é Premium-only.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.store_is_premium(p_store UUID)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM admin_trials a
+    WHERE a.store_id::text = p_store::text
+      AND COALESCE(a.is_premium, false)
+      AND a.premium_expires_at IS NOT NULL
+      AND a.premium_expires_at > now()
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.store_is_premium(UUID) TO anon, authenticated;

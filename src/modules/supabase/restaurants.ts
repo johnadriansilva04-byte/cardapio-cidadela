@@ -20,6 +20,21 @@ export async function getRestaurantBySlug(slug: string): Promise<Restaurant | nu
 }
 
 /**
+ * A loja é Premium agora? (garçom digital é Premium-only)
+ *
+ * Público: o cliente do cardápio é anônimo e não enxerga `admin_trials`. A RPC
+ * `store_is_premium` devolve só um booleano. Em qualquer falha devolve `false`
+ * — esconder o botão é mais seguro que mostrá-lo e o servidor recusar depois
+ * (o gate real é o 403 em `POST /api/order/draft`).
+ */
+export async function isRestaurantPremium(restaurantId: string): Promise<boolean> {
+  if (!restaurantId) return false;
+  const { data, error } = await supabase.rpc("store_is_premium", { p_store: restaurantId });
+  if (error) return false;
+  return data === true;
+}
+
+/**
  * Get all restaurants for an owner
  */
 export async function getRestaurantsByOwner(ownerId: string): Promise<Restaurant[]> {

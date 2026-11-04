@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Loader2, MessageCircle, Send, Sparkles, User, X } from "lucide-react";
 import { draftOrder, type DraftLine } from "@/modules/supabase/order-draft";
+import type { MenuAddon, MenuProduct } from "@/lib/order-draft";
 import { hexToRgba } from "@/lib/utils";
 
 /**
@@ -26,12 +27,15 @@ interface Turn {
 
 export default function PracinhaOrderChat({
   restaurantId,
+  menu,
   accent = "#06b6d4",
   onAdd,
   onClose,
   onOpenCart,
 }: {
   restaurantId: string;
+  /** Catálogo em memória — vira o fallback offline se a rota não responder. */
+  menu: { products: MenuProduct[]; addons: MenuAddon[] };
   accent?: string;
   onAdd: (lines: DraftLine[]) => void;
   onClose: () => void;
@@ -53,7 +57,7 @@ export default function PracinhaOrderChat({
     setTurns((t) => [...t, { role: "user", content }]);
     setInput("");
     setSending(true);
-    const draft = await draftOrder(restaurantId, content);
+    const draft = await draftOrder(restaurantId, content, menu);
     setSending(false);
     if (!draft) {
       setTurns((t) => [

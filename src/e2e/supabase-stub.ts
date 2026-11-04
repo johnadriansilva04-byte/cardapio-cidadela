@@ -769,6 +769,12 @@ class StubClient {
       });
     }
     if (name === "get_order_for_owner") return getOrderForOwner(db, args);
+    if (name === "store_is_premium") {
+      // Espelha a RPC pública: só o booleano de Premium da loja (garçom digital).
+      const storeId = String(args?.p_store ?? "");
+      const trial = db.admin_trials.find((t) => String(t.store_id) === storeId);
+      return Promise.resolve({ data: isPremiumActive(trial, Date.now()), error: null });
+    }
     if (name === "create_order_atomic") return createOrderAtomic(db, args);
     return Promise.resolve({ data: null, error: null });
   }

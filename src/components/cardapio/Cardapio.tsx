@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
-import { getRestaurantBySlug, getNeighborhoods } from "@/modules/supabase/restaurants";
+import {
+  getRestaurantBySlug,
+  getNeighborhoods,
+  isRestaurantPremium,
+} from "@/modules/supabase/restaurants";
 import { getMenuWithProducts, getAddonsByRestaurant } from "@/modules/supabase/menu";
 import {
   readMenuCache,
@@ -97,6 +101,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const [editingCartItemIndex, setEditingCartItemIndex] = useState<number | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [orderChatOpen, setOrderChatOpen] = useState(false);
+  const [isPremiumStore, setIsPremiumStore] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -184,6 +189,21 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     if (!restaurantId) return;
     discardCartIfForeign(restaurantId);
   }, [restaurantId, discardCartIfForeign]);
+
+  // O garçom digital é Premium-only. O cardápio público não enxerga
+  // `admin_trials` (RLS do dono), então pergunta o booleano pela RPC pública.
+  // O gate de verdade é o 403 em /api/order/draft; aqui é só para não mostrar um
+  // botão que vai falhar.
+  useEffect(() => {
+    if (!restaurantId) return;
+    let alive = true;
+    void isRestaurantPremium(restaurantId).then((v) => {
+      if (alive) setIsPremiumStore(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [restaurantId]);
 
   // Tempo real do cardápio. Cada visitante com o menu aberto segura uma conexão
   // Realtime, e o plano tem um teto de conexões simultâneas — então a assinatura
@@ -945,13 +965,18 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       {/* Categorias — sticky */}
       <div className="sticky top-0 z-20 mt-3 border-y border-white/5 bg-[#07070b]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <button
-            onClick={() => setOrderChatOpen(true)}
-            className="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black text-black shadow-lg transition-transform active:scale-95"
-            style={{ backgroundColor: accent, boxShadow: `0 4px 16px ${hexToRgba(accent, 0.35)}` }}
-          >
-            <Sparkles className="size-3.5" /> Pedir por texto
-          </button>
+          {isPremiumStore && (
+            <button
+              onClick={() => setOrderChatOpen(true)}
+              className="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black text-black shadow-lg transition-transform active:scale-95"
+              style={{
+                backgroundColor: accent,
+                boxShadow: `0 4px 16px ${hexToRgba(accent, 0.35)}`,
+              }}
+            >
+              <Sparkles className="size-3.5" /> Pedir por texto
+            </button>
+          )}
           {categories.map((c) => {
             const catProducts = productsByCategory.get(c.id) ?? [];
             const isActive = activeCat === c.id;
@@ -1206,9 +1231,10 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </div>
       )}
 
-      {orderChatOpen && (
+      {orderChatOpen && isPremiumStore && (
         <PracinhaOrderChat
           restaurantId={restaurant?.id ?? ""}
+          menu={{ products, addons: productAddons }}
           accent={accent}
           onAdd={handlePracinhaAdd}
           onClose={() => setOrderChatOpen(false)}

@@ -941,6 +941,21 @@ contador sobre virar ME.
     `order-draft.test.ts` (inclui o teste de que nenhuma linha traz preço).
   - O componente não escreve no carrinho direto: devolve as linhas por `onAdd`,
     e o `Cardapio` aplica com o `addToCart` de sempre.
+  - **É recurso PREMIUM (não inclui a diária).** O gate REAL é no servidor:
+    `POST /api/order/draft` checa `isStorePremium` (`src/api/lib/premium.ts`,
+    `is_premium` + `premium_expires_at > now()`) e devolve **403** para loja sem
+    Premium. O botão só é mostrado quando a RPC pública `store_is_premium`
+    (`supabase_garcom_premium_migration.sql`, também no fim do `schema.sql`)
+    devolve `true` — o cardápio é anônimo e não enxerga `admin_trials`; a RPC
+    devolve SÓ um booleano. Se a RPC faltar (banco antigo), o botão fica
+    escondido e nada quebra. Coberto pelo E2E `public-menu.spec.ts`
+    ("loja grátis não vê 'Pedir por texto'").
+  - **Fallback offline.** O parser determinístico vive em `src/lib/order-draft.ts`
+    (client-safe) e roda no NAVEGADOR quando a rota não responde (offline/deploy
+    antigo), usando o cardápio já carregado. `api/lib/order-draft.ts` só tem o
+    prompt/leitura da IA e reexporta o resto. Um 403 (sem Premium) NÃO cai no
+    fallback — é recusa intencional do servidor. O E2E prova o fallback
+    abortando a rota.
 
 - **O Pracinha é a identidade do suporte.** Nome em homenagem aos pracinhas da
   FEB (1944-45); ele se apresenta como **colaborador da Variant**, não como

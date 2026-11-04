@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { parseAiOrder } from "@/api/lib/order-draft";
 import {
   matchProduct,
-  parseAiOrder,
   parseOrderDeterministic,
   reconcileOrderDraft,
   type MenuAddon,
   type MenuProduct,
-} from "@/api/lib/order-draft";
+} from "@/lib/order-draft";
 
 const PRODUCTS: MenuProduct[] = [
   { id: "p1", name: "X-Burger" },

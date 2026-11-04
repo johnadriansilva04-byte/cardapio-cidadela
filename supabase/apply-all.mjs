@@ -44,6 +44,7 @@ const FILES = [
   "supabase_maintenance_migration.sql",
   "supabase_perf_indexes_migration.sql",
   "supabase_restaurant_limit_migration.sql",
+  "supabase_garcom_premium_migration.sql",
 ];
 
 async function api(path, init = {}) {

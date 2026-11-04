@@ -152,9 +152,11 @@ test("a home é um bloco único: a página não rola", async ({ page }) => {
   await expect(page.getByText("Painel do dono")).toBeVisible();
 });
 
-test("a cena viva aparece também em tela média (sem virar vazio)", async ({ page }) => {
-  // Regressão: com `hidden lg:block` a cena sumia abaixo de 1024px e sobrava um
-  // buraco. Agora ela aparece em qualquer largura, e a página segue sem rolar.
+test("em tela média o cardápio aparece inteiro, sem corte", async ({ page }) => {
+  // Regressão: com `hidden lg:block` a cena sumia abaixo de 1024px e, quando o
+  // layout forçava tudo numa tela só, o painel do cardápio ficava espremido e
+  // cortava os últimos itens. Agora, abaixo de `lg`, a página rola e o painel
+  // cresce com o conteúdo — nada é escondido.
   await page.setViewportSize({ width: 900, height: 800 });
   await page.goto("/");
   await page.waitForLoadState("networkidle");
@@ -162,11 +164,12 @@ test("a cena viva aparece também em tela média (sem virar vazio)", async ({ pa
   await expect(page.getByTestId("hero-scene")).toBeVisible();
   await expect(page.getByText("Painel do dono")).toBeVisible();
 
-  const overflow = await page.evaluate(() => {
-    const el = document.documentElement;
-    return el.scrollHeight - el.clientHeight;
+  const cortado = await page.evaluate(() => {
+    const cockpit = document.querySelector("main")!.children[0] as HTMLElement;
+    const scroller = cockpit.children[1].children[1].children[1] as HTMLElement;
+    return scroller.scrollHeight > scroller.clientHeight + 2;
   });
-  expect(overflow).toBeLessThanOrEqual(4);
+  expect(cortado).toBe(false);
 });
 
 test("calculadora de economia mostra o número e abre no painel", async ({ page }) => {

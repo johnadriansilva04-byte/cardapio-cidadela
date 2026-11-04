@@ -338,8 +338,15 @@
   pedido nasce no cardápio do cliente e cai no painel do dono como "Novo
   pedido". É a história do produto em cinco segundos, sem vídeo e sem peso.
   Aparece em **qualquer largura** (ficava `hidden lg:block` e sumia abaixo de
-  1024px, deixando um buraco — regressão coberta pelo E2E "a cena viva aparece
-  também em tela média").
+  1024px, deixando um buraco).
+- **O cockpit é lado a lado, não empilhado.** Texto (+ a cena viva) à esquerda,
+  cardápio à direita: `lg:flex-row` com a linha esticando até o rodapé
+  (`lg:min-h-0 lg:flex-1`) para o painel receber todo o espaço que sobra. Antes
+  o herói empilhava em cima e o painel ficava com ~200px — o cardápio cortava os
+  últimos itens. Abaixo de `lg` a página **rola** de propósito (o cockpit de uma
+  tela só não cabe num celular); o que não pode é conteúdo escondido. Regressão
+  coberta pelo E2E "em tela média o cardápio aparece inteiro, sem corte", que
+  compara `scrollHeight` e `clientHeight` do painel.
 - **Simulador "quanto você está perdendo?"** (`LossSimulator`, `#simulador`): o
   dono informa o que paga hoje e os dias de movimento; o sistema recomenda o
   plano (diária ou Premium) e mostra a economia no ano. O ponto de virada é

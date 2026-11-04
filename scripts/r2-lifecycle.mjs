@@ -58,7 +58,7 @@ const addRule = () =>
 let r = addRule();
 
 if (!r.ok && isDuplicate(r.out)) {
-  run(["r2", "bucket", "lifecycle", "remove", BUCKET, RULE]);
+  run(["r2", "bucket", "lifecycle", "remove", BUCKET, "--name", RULE]);
   r = addRule();
 }
 

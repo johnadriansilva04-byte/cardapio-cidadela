@@ -923,10 +923,34 @@ contador sobre virar ME.
 - Rotas: `POST /api/restaurant/extract` (só sugere) e `POST /api/support/chat`
   (responde E encaminha o relato por e-mail via Resend). As duas exigem
   `Authorization: Bearer` — endpoint com custo de IA não pode ficar aberto.
-- O chat de suporte (`src/components/support/SupportChat.tsx`) é aberto pelo
-  botão "Suporte" no rodapé do sidebar do admin. Ele responde na hora e o
-  relato vai por e-mail para `INVOICE_NOTIFY_EMAIL` (best-effort: sem
-  `RESEND_API_KEY` a resposta sai, só o e-mail não).
+- **O Pracinha é a identidade do suporte.** Nome em homenagem aos pracinhas da
+  FEB (1944-45); ele se apresenta como **colaborador da Variant**, não como
+  "robô". O system prompt está em `api.support.chat.ts` — mantenha esse tom.
+- O chat (`src/components/support/SupportChat.tsx`) é aberto pelo botão
+  "Suporte" no rodapé do sidebar do admin. Ele responde na hora e, **quando o
+  caso é escalado**, o relato vai por e-mail para `INVOICE_NOTIFY_EMAIL`
+  (best-effort: sem `RESEND_API_KEY` a resposta sai, só o e-mail não).
+- **Escalação em dois gatilhos:** a IA termina a resposta com `[ESCALAR]` (a
+  marca é removida do texto exibido) **ou** o dono toca "Enviar para o time".
+  O e-mail só sai na escalação — mandar a cada mensagem gastaria a cota do
+  Resend (3.000/mês) com conversa fiada.
+- **O e-mail termina com o PROMPT PARA O DEV.** `src/api/lib/dev-report.ts`
+  monta o relato (loja, conta, página, dispositivo, conversa/stack) e o bloco
+  que você copia e cola no OpenHands para corrigir. É determinístico — não
+  depende de uma segunda chamada de IA para existir.
+- **A IA não lê o repositório — ela não "vê o código".** O que ela faz é capturar
+  o relato + o contexto e transformar num prompt que um agente COM acesso ao
+  código executa. Não prometa "a IA conserta sozinha" na UI.
+- **Erro de código também vira relato.** `src/lib/reportError.ts` (cliente) é
+  chamado pelo error boundary do root e pelos listeners globais
+  (`unhandledrejection`/`error`); `src/api/lib/server-error-report.ts` cobre
+  SSR/rotas de API, ligado no `errorMiddleware` de `src/start.ts`. A rota
+  `POST /api/support/error` monta o mesmo relato com stack e prompt.
+  - Dedupe por mensagem em janela de 10 min (mapa por isolate, melhor-esforço)
+    — sem isso um erro em loop viraria centenas de e-mails.
+  - O reporte de servidor só roda com `NODE_ENV=production`; o dev local não
+    dispara e-mail.
+  - `reportError` nunca lança e nunca bloqueia a tela.
 
 ## Deploy (Cloudflare Pages)
 

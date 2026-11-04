@@ -1,8 +1,9 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
+import { reportServerError } from "./api/lib/server-error-report";
 
-const errorMiddleware = createMiddleware().server(async ({ next }) => {
+const errorMiddleware = createMiddleware().server(async ({ next, request }) => {
   try {
     return await next();
   } catch (error) {
@@ -10,6 +11,12 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
       throw error;
     }
     console.error(error);
+    // Avisa o time por e-mail com o prompt pronto para o dev. Fire-and-forget:
+    // o relato não pode atrasar (nem impedir) a resposta de erro.
+    void reportServerError(error, {
+      url: request?.url,
+      method: request?.method,
+    });
     return new Response(renderErrorPage(), {
       status: 500,
       headers: { "content-type": "text/html; charset=utf-8" },

@@ -42,6 +42,7 @@ import { Route as ApiRestaurantExtractRouteImport } from './routes/api.restauran
 import { Route as ApiSubscriptionCancelRouteImport } from './routes/api.subscription.cancel'
 import { Route as ApiSubscriptionSyncRouteImport } from './routes/api.subscription.sync'
 import { Route as ApiSupportChatRouteImport } from './routes/api.support.chat'
+import { Route as ApiSupportErrorRouteImport } from './routes/api.support.error'
 import { Route as ApiWebhookMercadopagoRouteImport } from './routes/api.webhook.mercadopago'
 
 const IndexRoute = IndexRouteImport.update({
@@ -209,6 +210,11 @@ const ApiSupportChatRoute = ApiSupportChatRouteImport.update({
   path: '/api/support/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSupportErrorRoute = ApiSupportErrorRouteImport.update({
+  id: '/api/support/error',
+  path: '/api/support/error',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWebhookMercadopagoRoute = ApiWebhookMercadopagoRouteImport.update({
   id: '/api/webhook/mercadopago',
   path: '/api/webhook/mercadopago',
@@ -249,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/api/subscription/cancel': typeof ApiSubscriptionCancelRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/support/chat': typeof ApiSupportChatRoute
+  '/api/support/error': typeof ApiSupportErrorRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
 export interface FileRoutesByTo {
@@ -283,6 +290,7 @@ export interface FileRoutesByTo {
   '/api/subscription/cancel': typeof ApiSubscriptionCancelRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/support/chat': typeof ApiSupportChatRoute
+  '/api/support/error': typeof ApiSupportErrorRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
 export interface FileRoutesById {
@@ -320,6 +328,7 @@ export interface FileRoutesById {
   '/api/subscription/cancel': typeof ApiSubscriptionCancelRoute
   '/api/subscription/sync': typeof ApiSubscriptionSyncRoute
   '/api/support/chat': typeof ApiSupportChatRoute
+  '/api/support/error': typeof ApiSupportErrorRoute
   '/api/webhook/mercadopago': typeof ApiWebhookMercadopagoRoute
 }
 export interface FileRouteTypes {
@@ -358,6 +367,7 @@ export interface FileRouteTypes {
     | '/api/subscription/cancel'
     | '/api/subscription/sync'
     | '/api/support/chat'
+    | '/api/support/error'
     | '/api/webhook/mercadopago'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -392,6 +402,7 @@ export interface FileRouteTypes {
     | '/api/subscription/cancel'
     | '/api/subscription/sync'
     | '/api/support/chat'
+    | '/api/support/error'
     | '/api/webhook/mercadopago'
   id:
     | '__root__'
@@ -428,6 +439,7 @@ export interface FileRouteTypes {
     | '/api/subscription/cancel'
     | '/api/subscription/sync'
     | '/api/support/chat'
+    | '/api/support/error'
     | '/api/webhook/mercadopago'
   fileRoutesById: FileRoutesById
 }
@@ -452,6 +464,7 @@ export interface RootRouteChildren {
   ApiSubscriptionCancelRoute: typeof ApiSubscriptionCancelRoute
   ApiSubscriptionSyncRoute: typeof ApiSubscriptionSyncRoute
   ApiSupportChatRoute: typeof ApiSupportChatRoute
+  ApiSupportErrorRoute: typeof ApiSupportErrorRoute
   ApiWebhookMercadopagoRoute: typeof ApiWebhookMercadopagoRoute
 }
 
@@ -688,6 +701,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSupportChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/support/error': {
+      id: '/api/support/error'
+      path: '/api/support/error'
+      fullPath: '/api/support/error'
+      preLoaderRoute: typeof ApiSupportErrorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/webhook/mercadopago': {
       id: '/api/webhook/mercadopago'
       path: '/api/webhook/mercadopago'
@@ -762,6 +782,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSubscriptionCancelRoute: ApiSubscriptionCancelRoute,
   ApiSubscriptionSyncRoute: ApiSubscriptionSyncRoute,
   ApiSupportChatRoute: ApiSupportChatRoute,
+  ApiSupportErrorRoute: ApiSupportErrorRoute,
   ApiWebhookMercadopagoRoute: ApiWebhookMercadopagoRoute,
 }
 export const routeTree = rootRouteImport

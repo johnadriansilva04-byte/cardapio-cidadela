@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Loader2, MessageCircle, Send, Sparkles, User } from "lucide-react";
+import { Bot, CheckCircle2, Loader2, MessageCircle, Send, ShieldCheck, User } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,15 +8,18 @@ import { sendSupportMessage, type SupportTurn } from "@/modules/supabase/ai";
 import { COMPANY } from "@/lib/company";
 
 /**
- * Chat de suporte do dono.
+ * Pracinha — o suporte do Cardápio Cidadela (produto da Variant).
  *
- * Existe porque "quem me ajuda?" não tinha porta: o canal era um e-mail no
- * rodapé. Aqui o dono escreve o problema, recebe uma resposta na hora (IA) e o
- * relato é encaminhado por e-mail para o fornecedor — os dois caminhos ao mesmo
- * tempo, para nada ficar só na tela.
+ * Nome em homenagem aos pracinhas da FEB (1944-45). Ele é apresentado como
+ * colaborador da Variant, não como "robô": a conversa é do time.
  *
- * A IA é opcional: sem token configurado a rota devolve um texto-guia e o
- * e-mail continua saindo. O chat nunca bloqueia a operação do restaurante.
+ * Dois caminhos:
+ *  - a IA responde na hora;
+ *  - o caso pode ser escalado (a IA pede, ou o dono toca "Enviar para o time"),
+ *    e aí o relato vai por e-mail para o time com o prompt pronto para o dev.
+ *
+ * Sem `CLOUDFLARE_AI_TOKEN` ele ainda funciona: responde um texto-guia e
+ * escala. O chat nunca bloqueia a operação do restaurante.
  */
 
 const SUGGESTIONS = [
@@ -29,32 +32,37 @@ export function SupportChat({
   open,
   onOpenChange,
   storeId,
+  storeName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   storeId?: string;
+  storeName?: string;
 }) {
   const { session } = useAuth();
   const [turns, setTurns] = useState<SupportTurn[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [notified, setNotified] = useState<boolean | null>(null);
+  const [escalated, setEscalated] = useState(false);
+  const [notified, setNotified] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Rola para a última mensagem quando a conversa cresce — sem isso a resposta
-  // nova aparece fora da vista e parece que o chat travou.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [turns, sending]);
 
-  async function submit(text: string) {
+  async function submit(text: string, forceEscalate = false) {
     const content = text.trim();
-    if (!content || sending) return;
-    const next: SupportTurn[] = [...turns, { role: "user", content }];
-    setTurns(next);
+    if ((!content && !forceEscalate) || sending) return;
+    const next: SupportTurn[] = content ? [...turns, { role: "user", content }] : [...turns];
+    if (content) setTurns(next);
     setInput("");
     setSending(true);
-    const res = await sendSupportMessage(next, session?.access_token, storeId);
+    const res = await sendSupportMessage(next, session?.access_token, {
+      storeId,
+      storeName,
+      escalate: forceEscalate,
+    });
     setSending(false);
     if (!res) {
       setTurns((t) => [
@@ -66,8 +74,11 @@ export function SupportChat({
       ]);
       return;
     }
-    setNotified(res.notified);
     setTurns((t) => [...t, { role: "assistant", content: res.reply }]);
+    if (res.escalated) {
+      setEscalated(true);
+      setNotified(res.notified);
+    }
   }
 
   return (
@@ -76,20 +87,23 @@ export function SupportChat({
         side="right"
         className="flex w-full flex-col gap-0 border-white/10 bg-[#0b1120] p-0 sm:max-w-md"
       >
-        <SheetTitle className="sr-only">Suporte</SheetTitle>
+        <SheetTitle className="sr-only">Suporte — Pracinha</SheetTitle>
         <header className="relative overflow-hidden border-b border-white/[0.07] px-5 py-4">
           <div
             aria-hidden
             className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-cyan-500/20 blur-3xl"
           />
           <div className="relative flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 text-black shadow-[0_8px_24px_rgba(6,182,212,0.35)]">
+            <span className="relative grid size-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 text-black shadow-[0_8px_24px_rgba(6,182,212,0.35)]">
               <MessageCircle className="size-5" />
+              <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-[#0b1120] bg-emerald-400" />
             </span>
             <div>
-              <p className="text-sm font-bold text-white">Suporte Cidadela</p>
+              <p className="text-sm font-bold text-white">
+                Pracinha <span className="font-normal text-gray-500">· Variant</span>
+              </p>
               <p className="flex items-center gap-1 text-[11px] text-cyan-300/80">
-                <Sparkles className="size-3" /> Resposta na hora · relato vai por e-mail
+                <ShieldCheck className="size-3" /> Suporte oficial · resposta na hora
               </p>
             </div>
           </div>
@@ -99,7 +113,8 @@ export function SupportChat({
           {turns.length === 0 && (
             <div className="space-y-3">
               <p className="text-sm text-gray-400">
-                Conta o que está acontecendo — eu respondo e, se precisar, encaminho para o time.
+                Oi! Sou o Pracinha, do time da Variant. Conta o que está acontecendo que eu resolvo
+                — e se precisar, passo direto para a engenharia.
               </p>
               <div className="flex flex-wrap gap-2">
                 {SUGGESTIONS.map((s) => (
@@ -146,39 +161,56 @@ export function SupportChat({
 
           {sending && (
             <div className="flex items-center gap-2 text-xs text-gray-500">
-              <Loader2 className="size-3.5 animate-spin" /> pensando…
+              <Loader2 className="size-3.5 animate-spin" /> Pracinha está vendo…
             </div>
           )}
 
-          {notified === true && turns.length > 0 && !sending && (
-            <p className="text-center text-[11px] text-cyan-300/70">
-              Seu relato foi encaminhado para o time. ✉️
-            </p>
+          {escalated && !sending && (
+            <div className="flex items-start gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2.5 text-[12px] text-emerald-200">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+              <span>
+                {notified
+                  ? "Relato enviado para a engenharia da Variant com o contexto da sua tela. Se precisarmos, falamos por aqui ou pelo seu e-mail."
+                  : "Relato registrado para a engenharia da Variant. (O aviso por e-mail está desligado neste ambiente.)"}
+              </span>
+            </div>
           )}
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit(input);
-          }}
-          className="flex items-center gap-2 border-t border-white/[0.07] px-4 py-3"
-        >
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Escreva sua mensagem…"
-            className="border-white/10 bg-white/[0.04] text-white placeholder:text-gray-600"
-          />
-          <Button
-            type="submit"
-            disabled={sending || !input.trim()}
-            size="icon"
-            className="shrink-0 rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-black"
+        <div className="border-t border-white/[0.07] px-4 py-3">
+          {turns.length > 0 && !escalated && (
+            <button
+              type="button"
+              onClick={() => submit("", true)}
+              disabled={sending}
+              className="tap mb-2 w-full text-[11px] font-semibold text-gray-500 transition-colors hover:text-cyan-300 disabled:opacity-50"
+            >
+              Não resolveu? Enviar para o time da Variant →
+            </button>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit(input);
+            }}
+            className="flex items-center gap-2"
           >
-            <Send className="size-4" />
-          </Button>
-        </form>
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Escreva sua mensagem…"
+              className="border-white/10 bg-white/[0.04] text-white placeholder:text-gray-600"
+            />
+            <Button
+              type="submit"
+              disabled={sending || !input.trim()}
+              size="icon"
+              className="shrink-0 rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-black"
+            >
+              <Send className="size-4" />
+            </Button>
+          </form>
+        </div>
       </SheetContent>
     </Sheet>
   );

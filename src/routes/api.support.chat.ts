@@ -4,28 +4,38 @@ import { getServerSupabase } from "@/api/lib/mercadopago";
 import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-limit";
 import { runAi, isAiEnabled } from "@/api/lib/ai";
 import { sendEmail, getInvoiceNotifyEmail } from "@/api/lib/email";
+import { buildDevReport, type DevReportMeta } from "@/api/lib/dev-report";
 import { COMPANY } from "@/lib/company";
 
 /**
  * POST /api/support/chat
  *
- * Chat de suporte. Duas saídas, sempre:
- *  1. resposta imediata ao dono (IA quando disponível; senão um texto-guia
- *     apontando o canal de e-mail);
- *  2. o relato encaminhado por e-mail para você (`INVOICE_NOTIFY_EMAIL`), com a
- *     loja, o e-mail do dono e a conversa — para nada ficar só na tela.
+ * O Pracinha — assistente de suporte do Cardápio Cidadela (produto da Variant).
+ * Nome em homenagem aos pracinhas da FEB (1944-45).
  *
- * Body: { messages: [{ role, content }], storeId?: string }
+ * Duas saídas:
+ *  1. resposta imediata ao dono (IA quando disponível; senão um texto-guia);
+ *  2. quando o caso é escalado (o dono toca "Enviar para o time" ou a IA marca
+ *     `[ESCALAR]`), um relato vai por e-mail com contexto + PROMPT PARA O DEV.
+ *
+ * IMPORTANTE: a IA NÃO lê o repositório. Ela não "vê o código". O que ela faz é
+ * capturar o relato + o contexto e transformar isso num prompt que um agente COM
+ * acesso ao código (o OpenHands que você já usa) executa. É a ponte prática
+ * entre "o dono viu um erro" e "alguém com o código corrige".
+ *
+ * Body: { messages, storeId?, storeName?, escalate?, meta? }
  * Requer Authorization: Bearer <access_token>.
- *
- * O e-mail é best-effort: sem `RESEND_API_KEY` o registro não sai, mas a
- * resposta ao dono continua. Nunca lança — o chat não pode quebrar a tela.
+ * O e-mail é best-effort: sem `RESEND_API_KEY` a resposta sai e o e-mail não.
  */
 
-const SUPPORT_PROMPT = `Você é o suporte do "Cardápio Cidadela", um sistema de cardápio digital e pedidos para restaurantes.
-Fale em português do Brasil, direto e curto (no máximo 4 frases). Ajuda com: criar cardápio, pedidos, preços, plano Premium (R$ 28,99/mês ou R$ 199,99/ano), diária (R$ 1,99 por 24h, até 15 no mês), PIX, WhatsApp, instalar no celular.
-Se não souber resolver, diga que vai encaminhar para o time e peça o e-mail de contato.
-Nunca invente telas ou funções que não existem. Nunca peça senha nem dados de cartão.`;
+const SUPPORT_PROMPT = `Você é o Pracinha, assistente de suporte do "Cardápio Cidadela", um produto da Variant.
+O nome é uma homenagem aos pracinhas da Força Expedicionária Brasileira (FEB), que lutaram na Itália em 1944-45.
+Você é um colaborador da Variant: fale como alguém do time, próximo, direto e sem enrolação, em português do Brasil, no máximo 4 frases.
+Você ajuda com: criar cardápio, pedidos, preços, plano Premium (R$ 28,99/mês ou R$ 199,99/ano), diária (R$ 1,99 por 24h, até 15 no mês), PIX, WhatsApp e instalar no celular.
+Nunca invente telas ou funções que não existem. Nunca peça senha nem dados de cartão.
+Se o problema exigir alguém olhando o código (erro, tela travada, valor errado, algo que você não consegue resolver), diga que vai passar para o time de engenharia da Variant e TERMINE a resposta com a palavra ESCALAR entre colchetes: [ESCALAR]`;
+
+const ESCALATE_MARKER = /\[?\s*escalar\s*\]?/gi;
 
 interface ChatTurn {
   role: "user" | "assistant";
@@ -49,84 +59,76 @@ export const Route = createFileRoute("/api/support/chat")({
         if (authError || !authData?.user) return json({ error: "token inválido" }, 401);
         const ownerEmail = authData.user.email ?? "";
 
-        let body: { messages?: ChatTurn[]; storeId?: string } = {};
+        let body: {
+          messages?: ChatTurn[];
+          storeId?: string;
+          storeName?: string;
+          escalate?: boolean;
+          meta?: DevReportMeta;
+        } = {};
         try {
-          body = (await request.json()) as { messages?: ChatTurn[]; storeId?: string };
+          body = (await request.json()) as typeof body;
         } catch {
           return json({ error: "invalid body" }, 400);
         }
         const history = (body.messages ?? [])
           .filter((m) => m && typeof m.content === "string")
-          .slice(-8)
+          .slice(-10)
           .map((m) => ({
             role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
             content: m.content.slice(0, 1000),
           }));
         if (history.length === 0) return json({ error: "sem mensagens" }, 400);
 
-        const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
-
         const aiEnabled = isAiEnabled();
-        const reply =
+        const raw =
           (await runAi(
             [{ role: "system", content: SUPPORT_PROMPT }, ...history],
             undefined,
             400,
           )) ??
           (aiEnabled
-            ? "Não consegui responder agora. Vou encaminhar seu relato para o time — se quiser, responda com seu e-mail de contato."
-            : `Recebi sua mensagem e vou encaminhar para o time. Você também pode escrever direto para ${COMPANY.supportEmail}.`);
+            ? "Não consegui resolver isso agora. Vou passar para o time de engenharia da Variant. [ESCALAR]"
+            : `Recebi sua mensagem e vou passar para o time da Variant. Você também pode escrever para ${COMPANY.supportEmail}. [ESCALAR]`);
 
-        // Encaminha o relato por e-mail (best-effort, não bloqueia a resposta).
+        const aiWantsEscalation = ESCALATE_MARKER.test(raw);
+        ESCALATE_MARKER.lastIndex = 0;
+        const reply = raw
+          .replace(ESCALATE_MARKER, "")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+
+        const shouldEscalate = Boolean(body.escalate) || aiWantsEscalation;
+
+        // O e-mail só sai quando o caso é escalado — mandar a cada mensagem
+        // gastaria a cota do Resend (3.000/mês) com conversa fiada.
         let notified = false;
-        const to = getInvoiceNotifyEmail();
-        if (to) {
-          const result = await sendEmail({
-            to,
-            subject: `[Suporte] ${lastUser.slice(0, 60)}`,
-            html: buildSupportEmail(ownerEmail, body.storeId, history),
-            text: `De: ${ownerEmail}\nLoja: ${body.storeId ?? "-"}\n\n${history
-              .map((m) => `${m.role}: ${m.content}`)
-              .join("\n")}`,
-          });
-          notified = Boolean(result.ok);
+        if (shouldEscalate) {
+          const to = getInvoiceNotifyEmail();
+          if (to) {
+            const report = buildDevReport({
+              kind: "suporte",
+              ownerEmail,
+              storeId: body.storeId,
+              storeName: body.storeName,
+              meta: body.meta,
+              turns: history,
+            });
+            const result = await sendEmail({
+              to,
+              subject: report.subject,
+              html: report.html,
+              text: report.text,
+            });
+            notified = Boolean(result.ok);
+          }
         }
 
-        return json({ reply, notified }, 200);
+        return json({ reply, escalated: shouldEscalate, notified }, 200);
       },
     },
   },
 });
-
-function buildSupportEmail(
-  ownerEmail: string,
-  storeId: string | undefined,
-  turns: ChatTurn[],
-): string {
-  const rows = turns
-    .map(
-      (t) =>
-        `<p style="margin:6px 0"><b>${t.role === "user" ? "Dono" : "Suporte"}:</b> ${escapeHtml(
-          t.content,
-        )}</p>`,
-    )
-    .join("");
-  return `<div style="font-family:sans-serif;font-size:14px;color:#111">
-    <h2 style="margin:0 0 8px">Relato de suporte</h2>
-    <p style="margin:2px 0"><b>Conta:</b> ${escapeHtml(ownerEmail || "desconhecida")}</p>
-    <p style="margin:2px 0"><b>Loja:</b> ${escapeHtml(storeId ?? "não informada")}</p>
-    <hr style="border:none;border-top:1px solid #ddd;margin:12px 0"/>
-    ${rows}
-  </div>`;
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 function json(data: unknown, status: number): Response {
   return new Response(JSON.stringify(data), {

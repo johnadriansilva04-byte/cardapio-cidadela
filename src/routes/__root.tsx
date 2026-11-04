@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { captureInstallPrompt, registerServiceWorker } from "@/modules/pwa/install";
+import { reportError } from "@/lib/reportError";
 
 function NotFoundComponent() {
   return (
@@ -39,6 +40,12 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+
+  // Avisa o time (Pracinha) uma vez por erro: o relato chega por e-mail com o
+  // prompt pronto para o dev. Best-effort — não pode interferir na tela.
+  useEffect(() => {
+    reportError(error, { component: "ErrorBoundary" });
+  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4">
@@ -142,6 +149,21 @@ function RootComponent() {
   useEffect(() => {
     captureInstallPrompt();
     registerServiceWorker();
+  }, []);
+
+  // Erros que não passam pelo error boundary (promise rejeitada, throw fora do
+  // render) também precisam chegar ao time. O reporter deduplica.
+  useEffect(() => {
+    const onRejection = (e: PromiseRejectionEvent) =>
+      reportError(e.reason, { component: "unhandledrejection" });
+    const onError = (e: ErrorEvent) =>
+      reportError(e.error ?? e.message, { component: "window.onerror" });
+    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("error", onError);
+    return () => {
+      window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("error", onError);
+    };
   }, []);
 
   return (

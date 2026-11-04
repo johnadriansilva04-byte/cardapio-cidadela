@@ -310,7 +310,12 @@ function AdminShell({
       <AppLayout loading={loading} sidebar={sidebar} header={header}>
         <Outlet />
       </AppLayout>
-      <SupportChat open={supportOpen} onOpenChange={setSupportOpen} storeId={active?.id} />
+      <SupportChat
+        open={supportOpen}
+        onOpenChange={setSupportOpen}
+        storeId={active?.id}
+        storeName={active?.name}
+      />
     </PlanProvider>
   );
 }

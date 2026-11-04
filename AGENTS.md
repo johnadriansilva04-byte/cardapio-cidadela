@@ -1056,13 +1056,29 @@ contador sobre virar ME.
   `MERCADOPAGO_WEBHOOK_SECRET`, `RESEND_API_KEY`. Sem eles o app sobe e degrada
   em silêncio; o webhook do MP é o que exige o service role.
 - **Estado real das env do Pages (verificado em 2026-11-04):** produção tem
-  `CLOUDFLARE_AI_TOKEN`, `MERCADOPAGO_ACCESS_TOKEN`,
-  `MERCADOPAGO_WEBHOOK_SECRET` e `SUPABASE_SERVICE_ROLE_KEY`; o preview tem só
-  as `VITE_*` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SITE_URL`).
-  **`RESEND_API_KEY` NÃO está configurada** — todo e-mail (suporte, erro, nota
-  fiscal) é um no-op que loga. É a pendência #1: sem ela o aviso de bug/pedido
-  não chega. O `INVOICE_NOTIFY_EMAIL` também não está definido, então o destino
-  cai em `COMPANY.supportEmail` (`variantfeb@gmail.com`).
+  `CLOUDFLARE_AI_TOKEN`, `RESEND_API_KEY`, `INVOICE_NOTIFY_EMAIL`,
+  `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET` e
+  `SUPABASE_SERVICE_ROLE_KEY`; o preview tem só as `VITE_*`
+  (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SITE_URL`). O canal de
+  e-mail está LIGADO: um POST de teste em `/api/support/error` devolveu
+  `{"ok":true}` e o Resend registrou `delivered`.
+- **O Resend sem domínio verificado só entrega para o dono da conta.** A chave
+  do Resend pertence a `johnadriansilva04@gmail.com`, e o `from` é
+  `onboarding@resend.dev`; nesse estado a API recusa qualquer destinatário que
+  não seja esse (`403 validation_error`). Por isso o `INVOICE_NOTIFY_EMAIL` está
+  apontado para `johnadriansilva04@gmail.com` — o destino precisa ser o dono da
+  conta até o domínio `cardapio.pracinha.online` verificar no Resend. Depois de
+  verificado, troque o destino (e o `EMAIL_FROM`) para o endereço de suporte
+  real. `COMPANY.supportEmail` (`variantfeb@gmail.com`) segue sendo o fallback
+  do código, mas hoje **não recebe** — é o dono da conta do Resend que recebe.
+- **Verificar o domínio no Resend exige 3 registros na zona.** O Resend fornece
+  (via `GET /domains/{id}`): TXT `resend._domainkey.cardapio` (DKIM), CNAME
+  `rsend.cardapio` e CNAME `send.cardapio` — todos com o sufixo
+  `.pracinha.online` na zona. Eles precisam ser criados **manualmente** no
+  painel da Cloudflare: nenhum token de deploy do projeto tem `Zone: DNS Edit`
+  (o `GET /zones` devolve lista vazia), então nem a API nem o workflow
+  `cf-dns-setup.yml` conseguem criá-los. O `cf-dns-setup.yml` existe para quando
+  um token com DNS for configurado — ele cria só o que falta.
 - **Dois tokens da Cloudflare, papéis diferentes.** `CLOUDFLARE_API_TOKEN`
   (secret do GitHub) é o de DEPLOY: precisa de **Cloudflare Pages: Edit** (a
   permissão `Pages Read` só vê o projeto e o deploy falha com

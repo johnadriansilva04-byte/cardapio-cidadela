@@ -834,7 +834,6 @@ function LandingPage() {
                 </span>
               </p>
             </div>
-
           </div>
 
           {/* Coluna direita: só o cardápio — abas + painel. */}

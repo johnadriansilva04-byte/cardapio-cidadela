@@ -852,6 +852,16 @@
   policy pública: catálogo, `orders`/`order_status_history`/`cidadela_unlocks`/
   `reviews`/`order_tracking`). Não reintroduza grants amplos para `anon` nessas
   tabelas — era por aí que um visitante sem login escrevia em `admin_trials`.
+- **`order_tracking` também precisa de `security_invoker`.** Era o último furo
+  da mesma classe: a view rodava como `postgres`, e o grant default do Supabase
+  dava **ALL** para `anon`. Confirmado em produção (`set role anon; select
+  count(*) from order_tracking` → 9, todos os pedidos; `orders` → 0). Pior: a
+  view é auto-updatable, então o anon ainda podia `UPDATE`/`DELETE` qualquer
+  pedido. Correção: `security_invoker = true` + `REVOKE ALL ... FROM anon`
+  (`supabase_order_tracking_guard_migration.sql`, no `apply-all.mjs`). O
+  rastreio público continua na RPC `get_order_tracking` (id exato → colunas
+  públicas), que é o caminho que o app usa. **Toda view nova: declare o atributo
+  e não dê grant ao `anon` sem intenção.**
 - **Views precisam de `security_invoker = true`.** Diferente do RLS (que só vale
   para tabelas), uma view sem esse atributo roda com as permissões do **dono da
   view** e ignora o RLS por completo. `admin_restaurant_summary` e

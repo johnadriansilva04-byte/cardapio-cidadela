@@ -254,7 +254,13 @@ CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON order_status_histor
 -- O DROP é necessário porque CREATE OR REPLACE VIEW não aceita reordenar/adicionar
 -- colunas no meio; os GRANTs SELECT mais abaixo reaplicam as permissões.
 DROP VIEW IF EXISTS order_tracking;
-CREATE OR REPLACE VIEW order_tracking AS
+-- `security_invoker = true`: a view roda com o RLS de QUEM consulta, não com o
+-- do dono (postgres). Sem isto, e com o grant default do Supabase para `anon`,
+-- um visitante sem login lia TODOS os pedidos pela view — e, como ela é
+-- auto-updatable, ainda podia UPDATE/DELETE neles (o grant default dá ALL).
+-- A leitura pública de um pedido específico é a RPC `get_order_tracking`.
+CREATE OR REPLACE VIEW order_tracking
+WITH (security_invoker = true) AS
 SELECT
   o.id,
   o.restaurant_id,
@@ -1391,7 +1397,8 @@ DO $$ BEGIN
     ));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
-GRANT SELECT ON order_tracking TO anon,authenticated;
+REVOKE ALL ON order_tracking FROM anon, authenticated;
+GRANT SELECT ON order_tracking TO authenticated;
 
 DO $$
 DECLARE
@@ -1655,7 +1662,8 @@ GRANT INSERT, SELECT ON TABLE order_items TO anon, authenticated;
 GRANT INSERT, SELECT ON TABLE order_status_history TO anon, authenticated;
 GRANT INSERT, SELECT ON TABLE cidadela_unlocks TO anon, authenticated;
 GRANT SELECT ON TABLE profiles TO anon, authenticated;
-GRANT SELECT ON order_tracking TO anon, authenticated;
+REVOKE ALL ON order_tracking FROM anon;
+GRANT SELECT ON order_tracking TO authenticated;
 
 -- Admin/dono: acesso total às tabelas de domínio via policies de owner
 GRANT ALL ON TABLE restaurants, categories, products, product_addons, addon_groups, addons,

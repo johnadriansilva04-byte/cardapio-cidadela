@@ -86,6 +86,20 @@ END;
 $$;
 
 -- ------------------------------------------------------------
+-- 3b. `retention_state` (livro-caixa da limpeza, de versões antigas)
+-- ------------------------------------------------------------
+-- Alguns bancos têm esta tabela de controle de execuções anteriores. Ela nunca
+-- teve grant para anon/authenticated, mas fica sem RLS — o que contraria a
+-- regra "toda tabela public com RLS". Liga o RLS por defesa em profundidade,
+-- sem policy: só a service role (que ignora RLS) a enxerga.
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'retention_state') THEN
+    ALTER TABLE public.retention_state ENABLE ROW LEVEL SECURITY;
+    REVOKE ALL ON public.retention_state FROM anon, authenticated;
+  END IF;
+END $$;
+
+-- ------------------------------------------------------------
 -- 4. Agendamento (pg_cron)
 -- ------------------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS pg_cron;

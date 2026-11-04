@@ -1,7 +1,15 @@
 import { createFileRoute, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { LayoutDashboard, Store, Wallet, Share2, ClipboardList, Crown } from "lucide-react";
+import {
+  LayoutDashboard,
+  Store,
+  Wallet,
+  Share2,
+  ClipboardList,
+  Crown,
+  MessageCircle,
+} from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner } from "@/modules/supabase/restaurants";
 import { subscribeToOrders } from "@/modules/supabase/orders";
@@ -12,6 +20,7 @@ import { PlanBadge } from "@/modules/premium/PlanBadge";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
 import { maybeAutoPrintOrder } from "@/modules/mobile/autoPrint";
 import { ActiveStoreProvider, useActiveStore } from "@/modules/store/active-store-context";
+import { SupportChat } from "@/components/support/SupportChat";
 import {
   AppLayout,
   AppSidebar,
@@ -69,6 +78,7 @@ function AdminShell({
   user: ReturnType<typeof useAuth>["user"];
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const { restaurants, active, setActiveId } = useActiveStore();
   const matchRoute = useMatchRoute();
@@ -261,6 +271,17 @@ function AdminShell({
         ))}
       </nav>
       <div className="border-t border-white/[0.06] px-3 py-3">
+        <button
+          type="button"
+          onClick={() => {
+            setSidebarOpen(false);
+            setSupportOpen(true);
+          }}
+          className="tap mb-2 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/[0.05] hover:text-white"
+        >
+          <MessageCircle className="size-4 text-cyan-300" />
+          Suporte
+        </button>
         <AccountMenu
           displayName={displayName}
           avatarUrl={avatarUrl}
@@ -289,6 +310,7 @@ function AdminShell({
       <AppLayout loading={loading} sidebar={sidebar} header={header}>
         <Outlet />
       </AppLayout>
+      <SupportChat open={supportOpen} onOpenChange={setSupportOpen} storeId={active?.id} />
     </PlanProvider>
   );
 }

@@ -10,6 +10,7 @@ import {
   ImageIcon,
   Loader2,
   Palette,
+  Sparkles,
   Store,
   Trash2,
   Upload,
@@ -17,6 +18,8 @@ import {
 } from "lucide-react";
 import OperatingHoursConfig from "@/components/admin/OperatingHoursConfig";
 import { uploadRestaurantImage } from "@/modules/supabase/storage";
+import { extractRestaurantText } from "@/modules/supabase/ai";
+import { useAuth } from "@/components/AuthProvider";
 import {
   DEFAULT_OPERATING_HOURS,
   normalizeOperatingHours,
@@ -269,12 +272,18 @@ export function RestaurantDialog({
   submitting?: boolean;
 }) {
   const isEdit = Boolean(restaurant);
+  const { session } = useAuth();
   const [form, setForm] = useState<RestaurantFormValues>(() => buildInitial(restaurant));
   const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  // "Conte sobre seu restaurante": texto livre que vira campos preenchidos.
+  // Só na criação — em edição os campos já existem e o formulário basta.
+  const [brief, setBrief] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [extractMsg, setExtractMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -282,11 +291,60 @@ export function RestaurantDialog({
     setSlugTouched(false);
     setLogoFile(null);
     setBannerFile(null);
+    setBrief("");
+    setExtractMsg(null);
     setForm(buildInitial(restaurant));
   }, [open, restaurant]);
 
   function patch(part: Partial<RestaurantFormValues>) {
     setForm((s) => ({ ...s, ...part }));
+  }
+
+  /**
+   * Interpreta o texto livre e preenche só os campos que ainda estão vazios.
+   *
+   * Nunca sobrescreve o que o dono já digitou: se ele escreveu o nome à mão e
+   * depois colou o endereço num bloco, o nome fica. O resultado é sempre uma
+   * sugestão visível no formulário — ele confere e ajusta antes de salvar.
+   */
+  async function applyBrief() {
+    const text = brief.trim();
+    if (!text || extracting) return;
+    setExtracting(true);
+    setExtractMsg(null);
+    const res = await extractRestaurantText(text, session?.access_token);
+    setExtracting(false);
+    if (!res) {
+      setExtractMsg("Não consegui interpretar agora — preencha os campos abaixo.");
+      return;
+    }
+    const f = res.fields;
+    setForm((s) => {
+      const next = { ...s };
+      const fill = <K extends keyof RestaurantFormValues>(key: K, value: unknown) => {
+        const current = s[key];
+        const isEmpty = typeof current === "string" ? current.trim() === "" : false;
+        if (isEmpty && typeof value === "string" && value.trim()) {
+          next[key] = value as RestaurantFormValues[K];
+        }
+      };
+      fill("name", f.name);
+      fill("description", f.description);
+      fill("whatsapp", f.whatsapp);
+      fill("phone", f.phone);
+      fill("address", f.address);
+      fill("pix_key", f.pix_key);
+      fill("delivery_fee", f.delivery_fee);
+      if (!slugTouched && !s.slug && typeof f.name === "string" && f.name.trim()) {
+        next.slug = slugify(f.name);
+      }
+      return next;
+    });
+    setExtractMsg(
+      res.ai
+        ? "Pronto! Confira os campos abaixo e ajuste o que precisar."
+        : "Preenchi o que deu para identificar. Confira abaixo.",
+    );
   }
 
   /** Sobe logo/banner para um restaurante que já existe. */
@@ -393,6 +451,48 @@ export function RestaurantDialog({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          {!isEdit && (
+            <div className="relative mb-5 overflow-hidden rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/[0.10] via-white/[0.02] to-transparent p-4">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-cyan-500/20 blur-3xl"
+              />
+              <div className="relative">
+                <p className="flex items-center gap-2 text-sm font-bold text-white">
+                  <Sparkles className="size-4 text-cyan-300" />
+                  Conta do seu restaurante e eu preencho
+                </p>
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Cole tudo junto — nome, endereço, WhatsApp, taxa de entrega, PIX. Confira depois.
+                </p>
+                <Textarea
+                  value={brief}
+                  onChange={(e) => setBrief(e.target.value)}
+                  rows={3}
+                  placeholder="Ex: Cantina da Pracinha — massas artesanais. Rua das Flores 123, centro. WhatsApp (48) 99999-9999. Entrega R$ 5. PIX cantina@email.com"
+                  className={`mt-3 ${fieldClass}`}
+                />
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-[11px] text-cyan-200/80">{extractMsg ?? ""}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={applyBrief}
+                    disabled={extracting || !brief.trim()}
+                    className="shrink-0 bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-50"
+                  >
+                    {extracting ? (
+                      <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-1.5 size-3.5" />
+                    )}
+                    {extracting ? "Interpretando…" : "Preencher campos"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="space-y-5">
               <Section icon={<Store className="size-3.5" />} title="Dados básicos">

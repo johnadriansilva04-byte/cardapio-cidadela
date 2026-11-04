@@ -880,6 +880,35 @@ contador sobre virar ME.
   software. Faturar SaaS nesse CNAE é risco de glosa. Ver "Identidade legal e
   fiscal" abaixo — nada disso se resolve em código.
 
+## IA (Cloudflare Workers AI)
+
+- **Duas funções, um token só.** `CLOUDFLARE_AI_TOKEN` (server-only) habilita:
+  (1) transformar o texto livre do dono em campos do formulário de restaurante e
+  (2) o chat de suporte. O cliente vive em `src/api/lib/ai.ts`, que chama a API
+  REST do Workers AI (`/accounts/{id}/ai/run/{model}`, modelo
+  `llama-3.1-8b-instruct`) — **não** o binding `env.AI`, que não chega ao
+  handler no Pages via Nitro.
+- **A IA é opcional em tudo.** Sem o token, `runAi` devolve `null` e quem chama
+  cai no fallback: o formulário usa a extração determinística
+  (`parseRestaurantText`) e o chat devolve um texto-guia com o e-mail de suporte.
+  Nada quebra, nada trava — só perde o "entender texto livre".
+- **Custo é irrelevante neste volume.** O Workers AI tem cota diária gratuita e
+  só é chamado quando o dono cria/edita a loja ou pede ajuda — não é por pedido
+  nem por visita. Centenas de conversas/dia cabem no gratuito.
+- **A IA nunca escreve no banco.** `extractRestaurantFields` só SUGERE valores
+  que preenchem o formulário (só campos vazios — nunca sobrescreve o que o dono
+  digitou). Quem salva é o `createRestaurant` de sempre. E a heurística
+  determinística tem prioridade sobre o modelo: é previsível e não alucina.
+- `extractJson` recorta do primeiro `{` ao último `}` antes de parsear: o
+  modelo às vezes cerca o JSON de prosa mesmo instruído a devolver só o objeto.
+- Rotas: `POST /api/restaurant/extract` (só sugere) e `POST /api/support/chat`
+  (responde E encaminha o relato por e-mail via Resend). As duas exigem
+  `Authorization: Bearer` — endpoint com custo de IA não pode ficar aberto.
+- O chat de suporte (`src/components/support/SupportChat.tsx`) é aberto pelo
+  botão "Suporte" no rodapé do sidebar do admin. Ele responde na hora e o
+  relato vai por e-mail para `INVOICE_NOTIFY_EMAIL` (best-effort: sem
+  `RESEND_API_KEY` a resposta sai, só o e-mail não).
+
 ## Deploy (Cloudflare Pages)
 
 - **Alvo é Cloudflare Pages, não Vercel.** O plano Hobby da Vercel restringe uso

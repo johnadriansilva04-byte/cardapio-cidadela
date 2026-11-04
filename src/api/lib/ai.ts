@@ -32,12 +32,34 @@ export interface ChatMessage {
 }
 
 /**
+ * Monta o corpo do Workers AI para o modelo de visão.
+ *
+ * A imagem vai DENTRO de `messages`, como `image_url` no `content` — é o
+ * formato que a API aceita. Mandar `image` como campo de topo (o que era feito
+ * antes) devolve `AiError 3030: Unable to add image when there are no
+ * user-supplied nor system-supplied messages`, e a leitura por foto falhava
+ * mesmo com o token certo. Pura — testável sem rede.
+ */
+export function buildVisionBody(prompt: string, imageDataUrl: string, maxTokens: number) {
+  return {
+    messages: [
+      {
+        role: "user" as const,
+        content: [
+          { type: "text" as const, text: prompt },
+          { type: "image_url" as const, image_url: { url: imageDataUrl } },
+        ],
+      },
+    ],
+    max_tokens: maxTokens,
+  };
+}
+
+/**
  * Roda um modelo COM VISÃO sobre uma imagem (data URL base64).
  *
- * Separado de `runAi` porque o corpo muda: a imagem vai no campo `image`, não
- * dentro de `messages`. `null` em qualquer falha — quem chama decide o fallback.
- * É a função mais cara do app (token de imagem), por isso o gate de plano vive
- * na rota, nunca aqui.
+ * `null` em qualquer falha — quem chama decide o fallback. É a função mais cara
+ * do app (token de imagem), por isso o gate de plano vive na rota, nunca aqui.
  */
 export async function runAiVision(
   prompt: string,
@@ -56,11 +78,7 @@ export async function runAiVision(
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          messages: [{ role: "user", content: prompt }],
-          image: imageDataUrl,
-          max_tokens: maxTokens,
-        }),
+        body: JSON.stringify(buildVisionBody(prompt, imageDataUrl, maxTokens)),
       },
     );
     if (!res.ok) {

@@ -823,39 +823,62 @@ com 1 assinante (R$ 28,99) e o Pro (R$ 137), você perde R$ 108/mês. Os outros
 limites (egress 5 GB, banco 500 MB, realtime 200) estão a centenas de lojas de
 distância — não são motivo para migrar agora.
 
-**Enquanto a receita não paga o Pro:** keep-alive ligado + `VACUUM FULL` de
-vez em quando (`supabase/maintenance.sql`) cobrem a operação no plano grátis.
-O `VACUUM` importa: sem ele o banco volta a inchar com as migrações e chega
-nos 500 MB muito antes das ~80 lojas previstas.
+**Enquanto a receita não paga o Pro:** keep-alive ligado + os jobs
+`cidadela-vacuum-*` cobrem a operação no plano grátis, sem intervenção manual.
 
-**Contabilidade (20 lojas, taxa MP 3,5%, infra grátis + domínio R$ 3,33/mês):**
+## Contabilidade (medida em 2026-11-03)
 
-| Cenário | Bruto/mês | Líquido (grátis) | Líquido (Pro) |
+**Custo fixo mensal (existir, mesmo sem vender):**
+
+| Item | Valor |
+| --- | --- |
+| DAS do MEI (serviços) | R$ 86,05 |
+| Domínio | R$ 3,33 |
+| Supabase free + Cloudflare | R$ 0,00 |
+| **Total** | **R$ 89,38/mês** |
+
+Mais: taxa do Mercado Pago de **3,5%** sobre tudo que entra (Pix 0,99%;
+cartão 3,99–4,98%). Quando migrar, o Pro soma **R$ 137/mês**.
+
+**Líquido por venda (já com a taxa do MP):** Premium mensal R$ 27,98 ·
+Premium anual R$ 16,08/mês · diária R$ 1,44.
+
+**20 lojas:**
+
+| Cenário | Bruto/mês | Líquido (free) | Líquido (Pro) |
 | --- | --- | --- | --- |
-| 5 diária + 5 Premium | R$ 192,23 | ~R$ 182 | ~R$ 48 |
-| 5 diária + 10 Premium | R$ 324,85 | ~R$ 310 | ~R$ 173 |
-| 15 mensal + 5 anual | R$ 518,18 | ~R$ 497 | ~R$ 360 |
+| 10 grátis + 5 diária + 5 Premium | R$ 192,23 | **R$ 96,11** | −R$ 40,89 |
+| 5 grátis + 5 diária + 10 Premium | R$ 324,85 | **R$ 224,10** | R$ 87,10 |
+| 15 mensal + 5 anual (otimista) | R$ 518,18 | **R$ 410,66** | R$ 273,66 |
 
-Com a regra de 1 restaurante grátis, todo dono multi-loja vira Premium — o
-cenário do meio deixa de ser otimista e passa a ser conservador.
+**Ponto de equilíbrio:** no free, **4 assinantes mensais** cobrem os R$ 89,38.
+No Pro, **9 assinantes** cobrem os R$ 226,38. O Pro se paga sozinho com
+**5 assinantes mensais** (5 × R$ 27,98 = R$ 139,88 > R$ 137).
+
+**Projeção de 12 meses** (conversão lenta: 3 meses só diária, 3 com 5 Premium,
+6 com 10 Premium): bruto R$ 2.889,45, **líquido R$ 1.715,72 → média
+R$ 142,98/mês**. Os 3 primeiros meses fecham no **vermelho** (só diária não
+cobre o custo fixo), e o ano vira no mês 4.
+
+**Receita média por loja ativa** (mix 30% Premium + 30% diária ×8 dias + 40%
+grátis): **R$ 12,27/mês**. É esse número que dimensiona a meta — para
+R$ 1.000/mês líquido são **~89 lojas ativas**, para R$ 2.000, ~170.
+
+**A diária é isca, não sustento.** 5 clientes × 8 dias = R$ 57,51 líquido,
+abaixo dos R$ 89,38 de custo fixo. Sozinha, dá prejuízo. O negócio vive do
+Premium — a diária existe para converter quem tem movimento esporádico.
+
+**Teto do MEI: R$ 81.000/ano.** São **233 Premium mensais** para estourar —
+muito longe. O MEI aguenta o ano inteiro; só perto do teto vale falar com o
+contador sobre virar ME.
 
 **O que a conta do "lucro 100%" esquece:**
-- **Taxa do Mercado Pago:** ~3,5% do bruto (Pix 0,99%; cartão 3,99–4,98%).
-  Sobre R$ 518,18 são ~R$ 18/mês. Não é o que mata, mas não é zero.
+- **Taxa do Mercado Pago:** ~3,5% do bruto. Sobre R$ 518,18 são ~R$ 18/mês.
 - **DAS do MEI:** R$ 82,05–87,05/mês, sempre, mesmo sem faturar. É o custo fixo
   real de existir formalizado — some na conta de quem só olha "infra grátis".
-- **Teto do MEI: R$ 81.000/ano (R$ 6.750/mês).** É o limite que manda de
-  verdade: o app precisa de **~1.500 assinantes anuais** (ou ~2.800 mensais)
-  para estourar o teto. Antes disso, o MEI é o regime mais barato. Perto do
-  teto, migrar para ME (Anexo III, ~6% de serviço) — **fale com o contador
-  antes**, não com o código.
 - **Enquadramento:** o CNAE do MEI hoje é de vestuário (4781400), não de
   software. Faturar SaaS nesse CNAE é risco de glosa. Ver "Identidade legal e
   fiscal" abaixo — nada disso se resolve em código.
-
-**Ponto de equilíbrio real (mês, com DAS + domínio):** ~R$ 90 de custo fixo.
-Com Premium mensal a R$ 28,99, **4 assinantes** já cobrem o custo fixo; com
-diária a R$ 1,49, são ~60 diárias/mês. Tudo acima disso é margem.
 
 ## Deploy (Cloudflare Pages)
 

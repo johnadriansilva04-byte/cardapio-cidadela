@@ -154,7 +154,9 @@ BEGIN
            ) AS last_activity,
            (SELECT bool_or(t.is_premium AND t.premium_expires_at > now())
               FROM admin_trials t
-              JOIN restaurants r ON r.id = t.store_id
+              -- `admin_trials.store_id` é varchar (legado); sem o cast a
+              -- comparação com `restaurants.id` (uuid) estoura e o job falha.
+              JOIN restaurants r ON r.id = t.store_id::uuid
              WHERE r.owner_id = p.id::text) AS has_active_premium
       FROM profiles p
   LOOP

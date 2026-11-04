@@ -23,6 +23,9 @@ export type ReportCategory =
   | "Nota fiscal"
   | "Sistema";
 
+/** A voz que escreve o e-mail. Abre o assunto para o CEO saber de quem é. */
+const BRAND = "Pracinha";
+
 // Semáforo: vermelho trava o cliente, amarelo atrapalha o dono, verde é rotina.
 const PRIORITY_EMOJI: Record<ReportPriority, string> = {
   urgente: "🔴",
@@ -63,17 +66,17 @@ export function classifyReport(input: {
   return { priority: "medio", category: "Sistema" };
 }
 
-/** Assunto do relato: `🔴 Urgente · Cardápio — Dona da Pensão`. */
+/** Assunto do relato: `Pracinha · 🔴 Urgente · Cardápio — Dona da Pensão`. */
 export function buildReportSubject(input: {
   priority: ReportPriority;
   category: ReportCategory;
   storeName?: string;
 }): string {
   const store = input.storeName ? ` — ${input.storeName.slice(0, 50)}` : "";
-  return `${PRIORITY_EMOJI[input.priority]} ${PRIORITY_LABEL[input.priority]} · ${input.category}${store}`;
+  return `${BRAND} · ${PRIORITY_EMOJI[input.priority]} ${PRIORITY_LABEL[input.priority]} · ${input.category}${store}`;
 }
 
-/** Assunto do pedido de nota: `🧾 Nota fiscal · Dona da Pensão · Anual`. */
+/** Assunto do pedido de nota: `Pracinha · 🧾 Nota fiscal · Dona da Pensão · Anual`. */
 export function buildInvoiceSubject(input: { restaurantName: string; kindLabel: string }): string {
-  return `🧾 Nota fiscal · ${input.restaurantName} · ${input.kindLabel}`;
+  return `${BRAND} · 🧾 Nota fiscal · ${input.restaurantName} · ${input.kindLabel}`;
 }

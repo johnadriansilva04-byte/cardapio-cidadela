@@ -34,21 +34,23 @@ describe("classifyReport", () => {
 });
 
 describe("buildReportSubject", () => {
-  it("monta semáforo + categoria + loja", () => {
+  it("abre com a Pracinha, depois semáforo + categoria + loja", () => {
     expect(
       buildReportSubject({ priority: "urgente", category: "Cardápio", storeName: "Dona da Pensão" }),
-    ).toBe("🔴 Urgente · Cardápio — Dona da Pensão");
+    ).toBe("Pracinha · 🔴 Urgente · Cardápio — Dona da Pensão");
   });
 
   it("omite a loja quando não há", () => {
-    expect(buildReportSubject({ priority: "leve", category: "Suporte" })).toBe("🟢 Leve · Suporte");
+    expect(buildReportSubject({ priority: "leve", category: "Suporte" })).toBe(
+      "Pracinha · 🟢 Leve · Suporte",
+    );
   });
 });
 
 describe("buildInvoiceSubject", () => {
   it("identifica como nota fiscal, não como suporte", () => {
     expect(buildInvoiceSubject({ restaurantName: "Dona da Pensão", kindLabel: "Anual" })).toBe(
-      "🧾 Nota fiscal · Dona da Pensão · Anual",
+      "Pracinha · 🧾 Nota fiscal · Dona da Pensão · Anual",
     );
   });
 });

@@ -1,9 +1,12 @@
 /**
- * Monta o relato de suporte/erro e o PROMPT PARA O DEV.
+ * Monta o relato de suporte/erro que chega por e-mail no mesmo formato, sempre.
  *
- * Compartilhado entre o chat do Pracinha (`api.support.chat.ts`) e o reporte
- * automático de erros (`api.support.error.ts`), para o e-mail chegar sempre no
- * mesmo formato — e para o bloco "prompt para o dev" ter um só lugar.
+ * O e-mail tem DUAS partes, nesta ordem:
+ *   1. "Para o CEO" — o recado curto, humano, sem jargão. É o que se lê primeiro.
+ *   2. "Para o dev" — o prompt pronto para colar no agente que tem o código.
+ *
+ * O mesmo e-mail serve aos dois papéis: o CEO entende o que houve, e o
+ * funcionário (o agente com acesso ao código) recebe a tarefa já montada.
  *
  * Determinístico de propósito: o prompt é montado a partir do contexto, sem
  * depender de uma segunda chamada de IA. Se a IA cair, o relato continua saindo
@@ -40,79 +43,105 @@ export interface DevReport {
   text: string;
 }
 
+const GREETING_NAME = "CEOa";
+const BRAND = "Cardápio Cidadela";
+const SIGNATURE = "Pracinha · Suporte da Variant";
+const DIVIDER = "────────────────────────────────────────";
+
 export function buildDevReport(input: DevReportInput): DevReport {
   const { kind, ownerEmail, storeId, storeName, meta, turns = [], error } = input;
-  const when = new Date().toISOString();
+  const isError = kind === "erro";
+  const when = formatWhen(new Date());
 
-  const contextLines = [
-    `Tipo: ${kind === "erro" ? "erro no app" : "relato de suporte"}`,
-    `Loja: ${storeName ?? "não informada"}${storeId ? ` (${storeId})` : ""}`,
-    `Conta: ${ownerEmail || "desconhecida"}`,
-    `Página: ${meta?.url ?? error?.route ?? "não informada"}`,
-    `Dispositivo: ${meta?.userAgent ?? "não informado"}`,
-    `Tela: ${meta?.screen ?? "-"} · Idioma: ${meta?.locale ?? "-"}`,
-    `Quando: ${when}`,
-  ];
+  const facts: Array<[string, string]> = [["Loja", storeName || "não informada"]];
+  if (storeId) facts.push(["ID da loja", storeId]);
+  facts.push(["Conta", ownerEmail || "desconhecida"]);
+  facts.push(["Página", meta?.url || error?.route || "não informada"]);
+  if (meta?.screen) facts.push(["Tela", meta.screen]);
+  if (meta?.locale) facts.push(["Idioma", meta.locale]);
+  if (meta?.userAgent) facts.push(["Dispositivo", meta.userAgent]);
+  facts.push(["Quando", when]);
 
-  const body =
-    kind === "erro" && error
-      ? `ERRO CAPTURADO\nMensagem: ${error.message}\nComponente: ${error.component ?? "-"}\n\nSTACK\n${error.stack ?? "(sem stack)"}`
-      : `RELATO (conversa do suporte)\n${turns
-          .map((t) => `${t.role === "user" ? "Dono" : "Pracinha"}: ${t.content}`)
-          .join("\n")}`;
+  const contextLines = facts.map(([label, value]) => `${label}: ${value}`);
 
-  const devPrompt =
-    kind === "erro"
-      ? buildErrorPrompt(contextLines, error, body)
-      : buildSupportPrompt(contextLines, body);
+  const story = isError
+    ? `${error?.message ?? "erro"}\nComponente: ${error?.component ?? "não identificado"}\n\n${error?.stack ?? "(sem stack)"}`
+    : turns.map((t) => `${t.role === "user" ? "Cliente" : "Pracinha"}: ${t.content}`).join("\n\n");
 
-  const text = `${kind === "erro" ? "ERRO REPORTADO" : "RELATO DE SUPORTE"} — Pracinha (Variant)
+  const devPrompt = isError
+    ? buildErrorPrompt(contextLines, error, story)
+    : buildSupportPrompt(contextLines, story);
 
-${contextLines.map((l) => `- ${l}`).join("\n")}
+  // ---- Para o CEO: uma frase clara, sem jargão ----
+  const ceoSummary = isError
+    ? `Um cliente esbarrou num erro no app${storeName ? ` na loja ${storeName}` : ""}. Nada foi perdido: o pedido continua salvo e o cliente pode seguir. O time já tem tudo o que precisa para corrigir.`
+    : `Um cliente pediu ajuda pelo chat${storeName ? ` da loja ${storeName}` : ""} e o caso precisa de uma olhada no código. A conversa completa está abaixo.`;
 
-${body}
+  const subject = isError
+    ? `[Pracinha] Erro no app · ${(error?.message ?? "erro").slice(0, 60)}`
+    : `[Pracinha] Relato de cliente · ${(storeName || turns[turns.length - 1]?.content || "suporte").slice(0, 60)}`;
 
-===== PROMPT PARA O DEV (copie daqui para baixo) =====
-${devPrompt}`;
+  const text = [
+    `${BRAND} · Variant`,
+    isError ? "Erro no app" : "Relato de cliente",
+    "",
+    `Olá, ${GREETING_NAME}!`,
+    "",
+    ceoSummary,
+    "",
+    ...facts.map(([label, value]) => `${label}: ${value}`),
+    "",
+    DIVIDER,
+    "PARA O DEV — copie daqui para baixo e cole no agente com o código",
+    DIVIDER,
+    "",
+    devPrompt,
+    "",
+    `— ${SIGNATURE}`,
+  ].join("\n");
 
-  const rows = turns
+  const factsHtml = facts
     .map(
-      (t) =>
-        `<p style="margin:6px 0"><b>${t.role === "user" ? "Dono" : "Pracinha"}:</b> ${escapeHtml(
-          t.content,
-        )}</p>`,
+      ([label, value]) => `<tr>
+        <td style="padding:3px 16px 3px 0;color:#8a8a8a;font-size:13px;white-space:nowrap;vertical-align:top">${esc(label)}</td>
+        <td style="padding:3px 0;font-size:13px;color:#1a1a1a">${esc(value)}</td>
+      </tr>`,
     )
     .join("");
 
-  const errorBlock =
-    kind === "erro" && error
-      ? `<p style="margin:6px 0"><b>Mensagem:</b> ${escapeHtml(error.message)}</p>
-         <p style="margin:6px 0"><b>Componente:</b> ${escapeHtml(error.component ?? "-")}</p>
-         <pre style="white-space:pre-wrap;background:#fff5f5;border:1px solid #f3c2c2;border-radius:8px;padding:10px;font-size:11px;color:#7a1d1d">${escapeHtml(
-           error.stack ?? "(sem stack)",
-         )}</pre>`
-      : "";
+  const storyHtml = isError
+    ? `<p style="margin:0 0 12px;font-size:14px;line-height:1.55"><strong>${esc(error?.message ?? "erro")}</strong></p>
+       <p style="margin:0 0 12px;color:#666;font-size:13px">Componente: ${esc(error?.component ?? "não identificado")}</p>
+       <pre style="white-space:pre-wrap;background:#faf7f7;border:1px solid #eee;border-radius:10px;padding:12px;font-size:11.5px;line-height:1.5;color:#5a2a2a;margin:0">${esc(error?.stack ?? "(sem stack)")}</pre>`
+    : turns
+        .map(
+          (t) => `<div style="margin:0 0 10px">
+          <span style="font-size:12px;font-weight:600;color:${t.role === "user" ? "#2563eb" : "#8a8a8a"}">${t.role === "user" ? "Cliente" : "Pracinha"}</span>
+          <p style="margin:2px 0 0;font-size:14px;line-height:1.55">${esc(t.content)}</p>
+        </div>`,
+        )
+        .join("");
 
-  const html = `<div style="font-family:sans-serif;font-size:14px;color:#111;max-width:640px">
-    <h2 style="margin:0 0 4px">${kind === "erro" ? "Erro reportado" : "Relato de suporte"} — Pracinha</h2>
-    <p style="margin:0 0 12px;color:#666">Cardápio Cidadela · Variant</p>
-    <ul style="margin:0 0 12px;padding-left:18px">
-      ${contextLines.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}
-    </ul>
-    <hr style="border:none;border-top:1px solid #ddd;margin:12px 0"/>
-    ${errorBlock}
-    ${rows}
-    <hr style="border:none;border-top:1px solid #ddd;margin:12px 0"/>
-    <p style="margin:0 0 6px"><b>Prompt para o dev</b> (copie e cole no agente com acesso ao código):</p>
-    <pre style="white-space:pre-wrap;background:#f6f8fa;border:1px solid #e1e4e8;border-radius:8px;padding:12px;font-size:12px">${escapeHtml(
-      devPrompt,
-    )}</pre>
-  </div>`;
+  const html = `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;color:#1a1a1a;max-width:600px;margin:0 auto;line-height:1.5">
+  <p style="margin:0 0 2px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a9a">${esc(BRAND)} · Variant</p>
+  <h1 style="margin:0 0 20px;font-size:19px;font-weight:600">${isError ? "Erro no app" : "Relato de cliente"}</h1>
 
-  const subject =
-    kind === "erro"
-      ? `[Pracinha][Erro] ${(error?.message ?? "erro").slice(0, 60)}`
-      : `[Pracinha] ${(storeName || turns[turns.length - 1]?.content || "suporte").slice(0, 60)}`;
+  <p style="margin:0 0 6px">Olá, ${esc(GREETING_NAME)}!</p>
+  <p style="margin:0 0 20px;color:#444">${esc(ceoSummary)}</p>
+
+  <table style="border-collapse:collapse;width:100%;margin:0 0 24px">${factsHtml}</table>
+
+  <p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a9a">${isError ? "O que aconteceu" : "Conversa"}</p>
+  <div style="margin:0 0 26px">${storyHtml}</div>
+
+  <table style="border-collapse:collapse;width:100%;margin:0 0 10px"><tr>
+    <td style="border-top:1px solid #e6e8eb;padding-top:16px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a9a">Para o dev</td>
+  </tr></table>
+  <p style="margin:0 0 8px;color:#666;font-size:13px">Copie o bloco abaixo e cole no agente com acesso ao código.</p>
+  <pre style="white-space:pre-wrap;background:#f6f8fa;border:1px solid #e6e8eb;border-radius:10px;padding:14px;font-size:12px;line-height:1.55;color:#24292f;margin:0">${esc(devPrompt)}</pre>
+
+  <p style="margin:24px 0 0;color:#9a9a9a;font-size:13px">— ${esc(SIGNATURE)}</p>
+</div>`;
 
   return { subject, html, text };
 }
@@ -153,10 +182,18 @@ O QUE FAZER
 5. Abra um PR descrevendo a causa, a correção e o teste.`;
 }
 
-function escapeHtml(s: string): string {
+/** Data/hora em BRT, curta e legível (sem depender de ICU do runtime). */
+function formatWhen(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  const brt = new Date(d.getTime() - 3 * 60 * 60 * 1000);
+  return `${p(brt.getUTCDate())}/${p(brt.getUTCMonth() + 1)}/${brt.getUTCFullYear()} às ${p(brt.getUTCHours())}:${p(brt.getUTCMinutes())}`;
+}
+
+function esc(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

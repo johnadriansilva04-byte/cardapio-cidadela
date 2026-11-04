@@ -1168,6 +1168,21 @@ contador sobre virar ME.
   (3) **receita recorrente ≥ R$ 137/mês** (≈ 5 assinantes) → Pro, aí o backup
   diário vira argumento de venda e não custo; (4) 100k page views/dia →
   Workers pago (US$ 5/mês, 10M req).
+- **Workers AI (free): 10.000 neurons/dia; a foto do cardápio é barata.** O
+  modelo de visão (`@cf/meta/llama-3.2-11b-vision-instruct`, 4.410 neurons/M de
+  entrada e 61.493/M de saída) gasta ~100 neurons por leitura → ~100 leituras/dia
+  grátis, ~3.000/mês. Acima disso, ~US$ 0,0011 por foto. Ou seja, o gate anual
+  da foto é **posicionamento de preço, não economia** — o custo só aparece se o
+  recurso virar autoatendimento público em massa. Confirme o número no dashboard
+  (Cloudflare → Workers AI), que é onde a cota é medida.
+- **Índices redundantes são custo de escrita.** Um índice de coluna única cujo
+  prefixo já está num composto não é usado pelo planejador — só custa INSERT/
+  UPDATE. `supabase_index_cleanup_migration.sql` remove os que a auditoria de
+  produção achou (`idx_orders_store_created` era duplicata exata de
+  `idx_orders_restaurant_created`; `idx_orders_restaurant`,
+  `idx_categories_restaurant`, `idx_products_restaurant`, `idx_orders_guest`
+  eram prefixos cobertos). Ao criar um índice novo, confira se um composto
+  existente já atende antes de duplicar.
 
 
 ## Painel: organização da fila de pedidos (UX)

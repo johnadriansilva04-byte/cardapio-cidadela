@@ -40,6 +40,8 @@ import type {
   SelectedAddon,
 } from "@/lib/types";
 import CartSheet from "./CartSheet";
+import PracinhaOrderChat from "./PracinhaOrderChat";
+import type { DraftLine } from "@/modules/supabase/order-draft";
 import CheckoutModal from "./CheckoutModal";
 import type { CheckoutForm } from "./CheckoutModal";
 import PaymentScreen from "./PaymentScreen";
@@ -94,6 +96,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const [addonModalProduct, setAddonModalProduct] = useState<Product | null>(null);
   const [editingCartItemIndex, setEditingCartItemIndex] = useState<number | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [orderChatOpen, setOrderChatOpen] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -386,6 +389,21 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   // O botão principal adiciona o item direto ao carrinho; os adicionais são
   // escolhidos pelo botão secundário "+ adicionais".
+  // Aplica no carrinho as linhas que o Pracinha montou. Os adicionais são
+  // resolvidos pelos ids reais do cardápio — o preço segue o do catálogo.
+  function handlePracinhaAdd(lines: DraftLine[]) {
+    for (const line of lines) {
+      const product = products.find((p) => p.id === line.product_id);
+      if (!product) continue;
+      const catalog = addonsForProduct(product.id);
+      const selected: SelectedAddon[] = line.addon_ids
+        .map((id) => catalog.find((a) => a.id === id))
+        .filter((a): a is NonNullable<typeof a> => Boolean(a))
+        .map((a) => ({ addon_id: a.id, name: a.name, price: a.price }));
+      for (let i = 0; i < line.quantity; i++) addToCart(product, selected, line.notes);
+    }
+  }
+
   function handleAddSimple(product: Product) {
     addToCart(product);
   }
@@ -927,6 +945,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       {/* Categorias — sticky */}
       <div className="sticky top-0 z-20 mt-3 border-y border-white/5 bg-[#07070b]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            onClick={() => setOrderChatOpen(true)}
+            className="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black text-black shadow-lg transition-transform active:scale-95"
+            style={{ backgroundColor: accent, boxShadow: `0 4px 16px ${hexToRgba(accent, 0.35)}` }}
+          >
+            <Sparkles className="size-3.5" /> Pedir por texto
+          </button>
           {categories.map((c) => {
             const catProducts = productsByCategory.get(c.id) ?? [];
             const isActive = activeCat === c.id;
@@ -1179,6 +1204,19 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             </button>
           </div>
         </div>
+      )}
+
+      {orderChatOpen && (
+        <PracinhaOrderChat
+          restaurantId={restaurant?.id ?? ""}
+          accent={accent}
+          onAdd={handlePracinhaAdd}
+          onClose={() => setOrderChatOpen(false)}
+          onOpenCart={() => {
+            setOrderChatOpen(false);
+            setCartOpen(true);
+          }}
+        />
       )}
 
       {cartOpen && (

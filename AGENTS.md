@@ -923,6 +923,25 @@ contador sobre virar ME.
 - Rotas: `POST /api/restaurant/extract` (só sugere) e `POST /api/support/chat`
   (responde E encaminha o relato por e-mail via Resend). As duas exigem
   `Authorization: Bearer` — endpoint com custo de IA não pode ficar aberto.
+- **O Pracinha também monta o pedido do CLIENTE (texto → carrinho).** No
+  cardápio público, o botão "Pedir por texto" (na barra de categorias) abre
+  `src/components/cardapio/PracinhaOrderChat.tsx`: o cliente escreve "2 x-burger
+  sem cebola e um guaraná" e as linhas entram no carrinho de sempre.
+  - `POST /api/order/draft` (`api.order.draft.ts`) recebe `{ restaurantId, text }`,
+    carrega produtos/adicionais disponíveis do restaurante e devolve
+    `{ lines, unmatched, ai, reply }`.
+  - **A IA NUNCA define preço.** Ela só devolve `product_id`/`quantity`/`addon_ids`/
+    `notes`; `reconcileOrderDraft` descarta qualquer id fora do catálogo e limita
+    a quantidade a 50. O preço segue sendo recalculado pela RPC
+    `create_order_atomic` — uma alucinação não muda quanto o cliente paga.
+  - `parseOrderDeterministic` (`src/api/lib/order-draft.ts`) roda SEMPRE e casa
+    por nome (token + prefixo, sem acento), quantidade (número ou por extenso) e
+    observações ("sem cebola"); a IA só entra para sinônimos, e sem
+    `CLOUDFLARE_AI_TOKEN` o recurso continua funcionando. Coberto por
+    `order-draft.test.ts` (inclui o teste de que nenhuma linha traz preço).
+  - O componente não escreve no carrinho direto: devolve as linhas por `onAdd`,
+    e o `Cardapio` aplica com o `addToCart` de sempre.
+
 - **O Pracinha é a identidade do suporte.** Nome em homenagem aos pracinhas da
   FEB (1944-45); ele se apresenta como **colaborador da Variant**, não como
   "robô". O system prompt está em `api.support.chat.ts` — mantenha esse tom.

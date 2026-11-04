@@ -327,6 +327,18 @@
   (nós de ciano) sobre a aurora. É a identidade da Variant (casa de tecnologia),
   de propósito — não um gradiente de template. Tudo desliga com
   `prefers-reduced-motion` (o bloco global zera as animações).
+- **Marca da Variant** (`src/components/brand/VariantMark.tsx`): um "V" que É o
+  corpo de uma cobra fumando — a cobra fumando é o emblema da FEB ("é mais fácil
+  uma cobra fumar do que o Brasil ir à guerra"), e a ideia de fazer o que diziam
+  ser impossível é a própria missão da Variant. `plain` = só o V (navbar,
+  rodapé); `full` = V + cabeça + cachimbo + fumaça animada (`vm-smoke`), usado no
+  painel "Quem faz". O tile é recortado por um `clipPath` com o mesmo raio, então
+  nada vaza. Não volte a um ícone genérico de garfo.
+- **Cena viva do herói** (`src/components/landing/HeroScene.tsx`): em loop, um
+  pedido nasce no cardápio do cliente e cai no painel do dono como "Novo
+  pedido". É a história do produto em cinco segundos, sem vídeo e sem peso.
+  Só aparece no `lg` (no celular o herói fica só texto, para caber sem rolar);
+  o E2E `hero-scene` cobre isso.
 - **Simulador "quanto você está perdendo?"** (`LossSimulator`, `#simulador`): o
   dono informa o que paga hoje e os dias de movimento; o sistema recomenda o
   plano (diária ou Premium) e mostra a economia no ano. O ponto de virada é

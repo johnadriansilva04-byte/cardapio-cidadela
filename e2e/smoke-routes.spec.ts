@@ -145,6 +145,11 @@ test("a home é um bloco único: a página não rola", async ({ page }) => {
     return el.scrollHeight - el.clientHeight;
   });
   expect(overflow).toBeLessThanOrEqual(4);
+
+  // No desktop o herói mostra a cena viva: o pedido saindo do cardápio do
+  // cliente e chegando no painel do dono.
+  await expect(page.getByTestId("hero-scene")).toBeVisible();
+  await expect(page.getByText("Painel do dono")).toBeVisible();
 });
 
 test("calculadora de economia mostra o número e abre no painel", async ({ page }) => {

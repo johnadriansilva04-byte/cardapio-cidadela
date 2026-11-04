@@ -51,6 +51,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { PlanCards } from "@/modules/ui/PlanCards";
 import { GuidePanel } from "@/modules/ui/GuidePanel";
+import { VariantMark } from "@/components/brand/VariantMark";
+import { HeroScene } from "@/components/landing/HeroScene";
 import { useCountUp } from "@/hooks/useCountUp";
 
 /** Painéis do hub da landing. `null` = nenhum aberto. */
@@ -414,6 +416,7 @@ function VariantSection() {
           <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
             <Store className="size-3.5" /> Quem faz
           </span>
+          <VariantMark variant="full" className="mx-auto mt-6 size-20" />
           <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
             {VARIANT.name} existe por um motivo.
           </h2>
@@ -716,9 +719,7 @@ function LandingPage() {
       <nav className="relative z-40 shrink-0 border-b border-white/[0.07] bg-[#07070c]/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Link to="/" className="group flex items-center gap-2.5">
-            <span className="grid size-8 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-transform group-hover:scale-105">
-              <UtensilsCrossed className="size-4 text-black" />
-            </span>
+            <VariantMark className="size-8 shadow-[0_0_20px_rgba(34,211,238,0.35)] transition-transform group-hover:scale-105" />
             <span className="font-display text-sm font-extrabold tracking-tight sm:text-base">
               Cardápio <span className="text-cyan-400">Cidadela</span>
             </span>
@@ -797,53 +798,60 @@ function LandingPage() {
 
       {/* Conteúdo: única área com scroll (interno) — a página em si não rola. */}
       <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {/* Herói compacto */}
-        <div className="shrink-0 text-center">
-          <p className="animate-reveal mb-3 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
-            <Sparkles className="size-3" /> Para micro-restaurantes
-          </p>
+        {/* Herói: texto à esquerda, cena viva à direita (só onde há largura).
+            No celular a cena some para o bloco caber sem rolagem. */}
+        <div className="grid shrink-0 items-center gap-6 text-center lg:grid-cols-[1.15fr_1fr] lg:text-left">
+          <div>
+            <p className="animate-reveal mb-3 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+              <Sparkles className="size-3" /> Para micro-restaurantes
+            </p>
 
-          <h1 className="animate-reveal font-display text-[1.7rem] font-extrabold leading-[1.05] tracking-tight sm:text-4xl">
-            Seu cardápio no ar{" "}
-            <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
-              em minutos.
-            </span>
-          </h1>
-          <p className="animate-reveal mx-auto mt-2.5 max-w-xl text-[13px] leading-relaxed text-gray-300 sm:text-sm">
-            Link próprio, QR Code e pedidos na hora. O cliente pede pelo celular, você só recebe —{" "}
-            <strong className="font-bold text-white">sem comissão por pedido</strong>.
-          </p>
+            <h1 className="animate-reveal font-display text-[1.7rem] font-extrabold leading-[1.05] tracking-tight sm:text-4xl">
+              Seu cardápio no ar{" "}
+              <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
+                em minutos.
+              </span>
+            </h1>
+            <p className="animate-reveal mx-auto mt-2.5 max-w-xl text-[13px] leading-relaxed text-gray-300 sm:text-sm">
+              Link próprio, QR Code e pedidos na hora. O cliente pede pelo celular, você só recebe —{" "}
+              <strong className="font-bold text-white">sem comissão por pedido</strong>.
+            </p>
 
-          <div className="animate-reveal mt-4 flex flex-col items-center justify-center gap-2.5 sm:flex-row">
-            <Link
-              to="/login"
-              search={{ mode: "register" }}
-              className="sheen group flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 px-6 py-3 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] sm:w-auto"
-            >
-              Criar meu cardápio grátis
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-            <button
-              type="button"
-              onClick={() => openPanel("calc")}
-              className="group flex w-full items-center justify-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/[0.08] px-5 py-3 text-sm font-semibold text-rose-200 transition-all hover:border-rose-400/60 hover:text-white sm:w-auto"
-            >
-              <TrendingUp className="size-4" /> Perco {lossYear}/ano?
-            </button>
+            <div className="animate-reveal mt-4 flex flex-col items-center justify-center gap-2.5 sm:flex-row lg:justify-start">
+              <Link
+                to="/login"
+                search={{ mode: "register" }}
+                className="sheen group flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 px-6 py-3 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] sm:w-auto"
+              >
+                Criar meu cardápio grátis
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => openPanel("calc")}
+                className="group flex w-full items-center justify-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/[0.08] px-5 py-3 text-sm font-semibold text-rose-200 transition-all hover:border-rose-400/60 hover:text-white sm:w-auto"
+              >
+                <TrendingUp className="size-4" /> Perco {lossYear}/ano?
+              </button>
+            </div>
+
+            <div className="animate-reveal mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-gray-500 lg:justify-start">
+              <span className="flex items-center gap-1">
+                <Check className="size-3 text-emerald-400" /> Comece grátis
+              </span>
+              <span className="hidden text-gray-700 sm:inline">•</span>
+              <span className="flex items-center gap-1">
+                <Check className="size-3 text-emerald-400" /> Sem cartão
+              </span>
+              <span className="hidden text-gray-700 sm:inline">•</span>
+              <span className="flex items-center gap-1">
+                <Check className="size-3 text-emerald-400" /> Sem comissão
+              </span>
+            </div>
           </div>
 
-          <div className="animate-reveal mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
-            <span className="flex items-center gap-1">
-              <Check className="size-3 text-emerald-400" /> Comece grátis
-            </span>
-            <span className="hidden text-gray-700 sm:inline">•</span>
-            <span className="flex items-center gap-1">
-              <Check className="size-3 text-emerald-400" /> Sem cartão
-            </span>
-            <span className="hidden text-gray-700 sm:inline">•</span>
-            <span className="flex items-center gap-1">
-              <Check className="size-3 text-emerald-400" /> Sem comissão
-            </span>
+          <div className="hidden lg:block">
+            <HeroScene />
           </div>
         </div>
 
@@ -1018,9 +1026,7 @@ function LandingPage() {
       <footer className="relative z-10 shrink-0 border-t border-white/[0.07] py-3">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
           <div className="flex items-center gap-2">
-            <span className="grid size-6 place-items-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600">
-              <UtensilsCrossed className="size-3 text-black" />
-            </span>
+            <VariantMark className="size-6" />
             <span className="font-display text-xs font-extrabold text-gray-300">
               Cardápio <span className="text-cyan-400">Cidadela</span>
             </span>

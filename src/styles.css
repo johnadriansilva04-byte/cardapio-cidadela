@@ -1027,3 +1027,102 @@
   background-size: 92px 92px;
   mask-image: radial-gradient(ellipse 65% 60% at 50% 10%, #000 20%, transparent 100%);
 }
+
+/* Fumaça do cachimbo da cobra (marca da Variant): sobe em volutas. */
+@keyframes vm-smoke-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.9);
+  }
+  35% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-9px) scale(1.08);
+  }
+}
+
+.vm-smoke {
+  transform-origin: center bottom;
+  animation: vm-smoke-rise 3.2s ease-in-out infinite;
+}
+
+/* ============================================================
+   Cena viva do herói — "o pedido chega"
+   Um pedido sai da mão do cliente e cai no painel do dono. Conta a
+   história do produto em 5 segundos, sem vídeo e sem peso.
+   ============================================================ */
+
+@keyframes hero-fly {
+  0%,
+  18% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  62% {
+    opacity: 1;
+    transform: translate(58px, 34px) scale(0.9);
+  }
+  72%,
+  100% {
+    opacity: 0;
+    transform: translate(70px, 42px) scale(0.4);
+  }
+}
+
+@keyframes hero-drop {
+  0%,
+  58% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.92);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1.04);
+  }
+  80%,
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hero-tap {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  40%,
+  52% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes hero-ping {
+  0%,
+  58% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  66% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  78%,
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}

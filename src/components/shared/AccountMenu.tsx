@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { optimizedImageUrl } from "@/lib/imageOptimization";
 
 interface AccountMenuProps {
   displayName: string;
@@ -72,9 +73,17 @@ export function AccountMenu({
           <span className="size-8 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-cyan-500/30 to-violet-500/20 ring-1 ring-white/10">
             {showPhoto ? (
               <img
-                src={avatarUrl}
+                src={optimizedImageUrl(avatarUrl ?? "", {
+                  width: 64,
+                  height: 64,
+                  quality: 70,
+                  resize: "cover",
+                  format: "webp",
+                })}
                 alt={displayName || "Foto do restaurante"}
                 className="size-full object-cover"
+                loading="lazy"
+                decoding="async"
                 onError={() => setPhotoFailed(true)}
               />
             ) : (

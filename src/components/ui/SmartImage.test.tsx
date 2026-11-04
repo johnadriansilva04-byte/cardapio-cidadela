@@ -18,6 +18,20 @@ describe("SmartImage", () => {
     expect(screen.getByAltText("Externa")).toHaveAttribute("src", EXTERNAL_URL);
   });
 
+  it("oferece srcset 1x/2x para imagens do Supabase", () => {
+    render(<SmartImage src={STORAGE_URL} alt="Foto" width={160} />);
+    const srcSet = screen.getByAltText("Foto").getAttribute("srcset") ?? "";
+    expect(srcSet).toContain("width=160&");
+    expect(srcSet).toContain(" 1x,");
+    expect(srcSet).toContain("width=320&");
+    expect(srcSet).toContain(" 2x");
+  });
+
+  it("não inventa srcset para imagem externa", () => {
+    render(<SmartImage src={EXTERNAL_URL} alt="Externa" width={160} />);
+    expect(screen.getByAltText("Externa").getAttribute("srcset")).toBeNull();
+  });
+
   it("cai para a URL original quando a transformação falha", async () => {
     render(<SmartImage src={STORAGE_URL} alt="Foto" width={100} />);
     const img = screen.getByAltText("Foto");

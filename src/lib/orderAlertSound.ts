@@ -24,9 +24,10 @@ const BURST_LENGTH = 1.16;
 const CLOSING_LENGTH = 0.6;
 const CYCLE_LENGTH = BURST_COUNT * BURST_PERIOD + CLOSING_LENGTH;
 
-// Duas rodadas com pausa longa: soa insistenteme mas sem incomodar.
+// Duas rodadas com pausa curta: o alerta repete logo, sem esperar o operador
+// esquecer que o pedido chegou (7s de silêncio parecia que tinha parado).
 const CYCLE_COUNT = 2;
-const CYCLE_GAP = 7;
+const CYCLE_GAP = 2.5;
 const ALERT_SECONDS = CYCLE_COUNT * CYCLE_LENGTH + (CYCLE_COUNT - 1) * CYCLE_GAP;
 
 // Volumes de pico. O master alto + saturação forte empurram o sinal para o

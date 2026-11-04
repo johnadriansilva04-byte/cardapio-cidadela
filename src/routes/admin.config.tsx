@@ -18,6 +18,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { GuidePanel, GuideTile } from "@/modules/ui/GuidePanel";
+import { optimizedImageUrl } from "@/lib/imageOptimization";
 
 export const Route = createFileRoute("/admin/config")({
   head: () => ({ meta: [{ title: "Configurações — Cardápio Cidadela" }] }),
@@ -186,7 +187,19 @@ function AccountSection({
         <div className="mb-4 flex items-center gap-3">
           <span className="size-14 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-cyan-500/30 to-violet-500/20 ring-1 ring-white/10">
             {storePhoto ? (
-              <img src={storePhoto} alt="Foto do restaurante" className="size-full object-cover" />
+              <img
+                src={optimizedImageUrl(storePhoto, {
+                  width: 112,
+                  height: 112,
+                  quality: 70,
+                  resize: "cover",
+                  format: "webp",
+                })}
+                alt="Foto do restaurante"
+                className="size-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
             ) : (
               <span className="grid size-full place-items-center text-base font-bold text-cyan-200">
                 {initials}

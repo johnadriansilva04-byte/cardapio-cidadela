@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import OperatingHoursConfig from "@/components/admin/OperatingHoursConfig";
 import { RestaurantChatWizard } from "@/components/admin/RestaurantChatWizard";
-import { uploadRestaurantImage } from "@/modules/supabase/storage";
+import { uploadRestaurantImage, deleteRestaurantImageByUrl } from "@/modules/supabase/storage";
 import type { DraftNeighborhood } from "@/lib/restaurantChat";
 import type { Restaurant } from "@/lib/types";
 import { generateUniqueSlug, saveNeighborhood } from "@/modules/supabase/restaurants";
@@ -287,13 +287,24 @@ export function RestaurantDialog({
     const urls: Partial<RestaurantFormValues> = {};
     if (logoFile) {
       const res = await uploadRestaurantImage(id, logoFile, "logo");
-      if (res.url) urls.logo_url = res.url;
-      else if (res.error) setError(res.error);
+      if (res.url) {
+        urls.logo_url = res.url;
+        // A URL de imagem é imutável (nome com timestamp), então trocar o logo
+        // deixava o antigo no bucket para sempre — só ocupava espaço. Apaga o
+        // anterior depois do upload novo dar certo; falha aqui não bloqueia.
+        if (restaurant?.logo_url && restaurant.logo_url !== res.url) {
+          void deleteRestaurantImageByUrl(restaurant.logo_url);
+        }
+      } else if (res.error) setError(res.error);
     }
     if (bannerFile) {
       const res = await uploadRestaurantImage(id, bannerFile, "banner");
-      if (res.url) urls.banner_url = res.url;
-      else if (res.error) setError(res.error);
+      if (res.url) {
+        urls.banner_url = res.url;
+        if (restaurant?.banner_url && restaurant.banner_url !== res.url) {
+          void deleteRestaurantImageByUrl(restaurant.banner_url);
+        }
+      } else if (res.error) setError(res.error);
     }
     return urls;
   }

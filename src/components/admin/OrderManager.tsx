@@ -898,10 +898,14 @@ function OrderCard({
   const next = nextStatusFor(order);
   const nextLabel = advanceActionLabel(order);
   const items = order.order_items ?? [];
+  // Itens numa linha só (qtd + nome, separados por ·). A lista vertical de até
+  // 4 itens era o que inflava o card; o detalhe completo vive no painel.
+  const itemsLine = items.map((i) => `${i.quantity}x ${i.product_name}`).join(" · ");
+  const extra = items.length > 3 ? ` +${items.length - 3}` : "";
   return (
     <div
       className={cn(
-        "card-lift group flex flex-col rounded-xl border p-2.5 transition-all",
+        "card-lift group flex flex-col rounded-xl border p-3 transition-all",
         locked
           ? "border-amber-500/25 bg-amber-500/[0.04] hover:border-amber-500/40 hover:bg-amber-500/[0.07]"
           : "border-white/8 bg-white/[0.03] hover:border-cyan-500/30 hover:bg-white/[0.05]",
@@ -909,26 +913,35 @@ function OrderCard({
           "animate-[slide-up_0.28s_ease-out_both] border-cyan-400/60 bg-cyan-500/[0.06] shadow-[0_0_0_1px_rgba(34,211,238,0.25)]",
       )}
     >
-      <button onClick={onOpen} className="flex flex-1 flex-col gap-1.5 text-left">
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-1.5">
-            {fresh && (
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-cyan-500 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-black">
-                Novo
+      <button onClick={onOpen} className="flex flex-1 flex-col gap-2 text-left">
+        {/* Cabeçalho: comanda e cliente em destaque — é o que o operador lê de
+            longe, então saiu do cinza minúsculo. */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              {fresh && (
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-cyan-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-black">
+                  Novo
+                </span>
+              )}
+              <span className="truncate font-mono text-base font-black leading-none text-white">
+                {order.comanda}
               </span>
-            )}
-            <span className="truncate font-mono text-xs font-bold text-white">{order.comanda}</span>
-          </span>
+            </div>
+            <p className="mt-1 truncate text-sm font-semibold text-gray-200">
+              {order.customer_name}
+            </p>
+          </div>
           <span className="flex shrink-0 items-center gap-1">
             {locked && (
-              <span className="grid size-4 place-items-center rounded-full bg-amber-500/15 text-amber-300">
-                <Lock className="size-2.5" />
+              <span className="grid size-5 place-items-center rounded-full bg-amber-500/15 text-amber-300">
+                <Lock className="size-3" />
               </span>
             )}
             {showStatus && (
               <span
                 className={cn(
-                  "rounded-full border px-2 py-0.5 text-[9px] font-bold",
+                  "rounded-full border px-2 py-0.5 text-[10px] font-bold",
                   ORDER_STATUS_COLORS[order.status],
                 )}
               >
@@ -937,34 +950,45 @@ function OrderCard({
             )}
           </span>
         </div>
+
+        {/* Valor em destaque + tipo de entrega. O total é a segunda coisa que o
+            operador confere; antes competia com o resto em fonte pequena. */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+            {order.delivery_type === "entrega" ? (
+              <Bike className="size-3.5 shrink-0" />
+            ) : (
+              <Store className="size-3.5 shrink-0" />
+            )}
+            {order.delivery_type === "entrega" ? "Entrega" : "Retirada"}
+          </span>
+          <span className="shrink-0 text-lg font-black leading-none text-cyan-300 tabular-nums">
+            {brl(order.total)}
+          </span>
+        </div>
+
         {storeName && (
-          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-semibold text-gray-400">
+          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-gray-400">
             <Store className="size-2.5" /> {storeName}
           </span>
         )}
-        <p className="truncate text-[11px] text-gray-400">{order.customer_name}</p>
 
-        {/* Endereço: só na entrega. Antes o card não mostrava para onde ia e o
-            operador precisava abrir cada pedido. */}
-        {order.delivery_type === "entrega" ? (
-          <p className="flex items-start gap-1 text-[10px] leading-snug text-gray-400">
+        {order.delivery_type === "entrega" && (
+          <p className="flex items-start gap-1 text-[11px] leading-snug text-gray-400">
             <MapPin className="mt-0.5 size-3 shrink-0 text-gray-500" />
-            <span className="line-clamp-2">
+            <span className="line-clamp-1">
               {[order.delivery_address, order.customer_neighborhood, order.customer_city]
                 .filter(Boolean)
                 .join(" • ") || "Endereço não informado"}
             </span>
           </p>
-        ) : (
-          <p className="flex items-center gap-1 text-[10px] text-gray-500">
-            <Store className="size-3 shrink-0" /> Retirada no balcão
-          </p>
         )}
 
-        {/* Itens: visíveis normalmente; com a cota estourada, só esta linha é
-            ocultada — número, cliente, horário, total e ações seguem à vista. */}
+        {/* Itens numa linha: o resumo que a cozinha lê rápido, sem a lista
+            vertical que esticava o card. Com a cota estourada, só esta linha é
+            ocultada — número, cliente, total e ações seguem à vista. */}
         {locked ? (
-          <span className="flex items-center justify-between gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-200">
+          <span className="flex items-center justify-between gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1.5 text-[11px] font-bold text-amber-200">
             <span className="flex items-center gap-1.5">
               <Lock className="size-3" /> Itens bloqueados
             </span>
@@ -975,43 +999,15 @@ function OrderCard({
         ) : (
           items.length > 0 &&
           !compact && (
-            // Lista destacada: um item por linha (qtd + nome), com os adicionais
-            // logo abaixo. Antes tudo virava uma frase amassada numa linha só.
-            <ul className="space-y-0.5 border-l-2 border-cyan-500/25 pl-2">
-              {items.slice(0, 4).map((i) => {
-                const notes = (i as unknown as { notes?: string }).notes ?? "";
-                const hasAddons = notes.toLowerCase().includes("adicionais:");
-                return (
-                  <li key={i.id} className="text-[10px] leading-snug">
-                    <span className="font-black text-white">{i.quantity}x</span>{" "}
-                    <span className="text-gray-300">{i.product_name}</span>
-                    {notes && (
-                      <span
-                        className={cn(
-                          "mt-0.5 block rounded px-1 py-0.5",
-                          hasAddons ? "text-violet-300" : "text-gray-500",
-                        )}
-                      >
-                        {notes}
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-              {items.length > 4 && (
-                <li className="text-[10px] font-semibold text-gray-500">
-                  +{items.length - 4} item{items.length - 4 === 1 ? "" : "s"}
-                </li>
-              )}
-            </ul>
+            <p className="truncate text-xs leading-snug text-gray-300" title={itemsLine}>
+              {itemsLine}
+              {extra && <span className="text-gray-500"> {extra}</span>}
+            </p>
           )
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-          <span className="rounded-md bg-cyan-500/15 px-1.5 py-0.5 text-sm font-black text-cyan-300">
-            {brl(order.total)}
-          </span>
-          <span className="text-[9px] text-gray-600">
+        <div className="mt-auto flex items-center justify-between gap-2 pt-0.5">
+          <span className="text-[10px] font-medium text-gray-500">
             {new Date(order.created_at).toLocaleString("pt-BR", {
               hour: "2-digit",
               minute: "2-digit",
@@ -1022,17 +1018,17 @@ function OrderCard({
         </div>
       </button>
       {onCancel && order.status !== "cancelled" && order.status !== "delivered" && !compact && (
-        <div className="mt-2 flex items-center gap-1.5">
+        <div className="mt-2.5 flex items-center gap-1.5">
           <button
             onClick={onCancel}
-            className="flex-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-[10px] font-bold text-red-300 transition-colors hover:bg-red-500/20"
+            className="flex-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-2 text-[11px] font-bold text-red-300 transition-colors hover:bg-red-500/20"
           >
             Cancelar
           </button>
           {onAdvance && next && (
             <button
               onClick={onAdvance}
-              className="flex-1 rounded-lg bg-cyan-500/15 px-2 py-1.5 text-[10px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-black"
+              className="flex-1 rounded-lg bg-cyan-500/15 px-2 py-2 text-[11px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-black"
             >
               → {nextLabel}
             </button>
@@ -1042,7 +1038,7 @@ function OrderCard({
       {!onCancel && onAdvance && next && !compact && (
         <button
           onClick={onAdvance}
-          className="mt-2 w-full rounded-lg bg-cyan-500/15 px-2 py-1.5 text-[10px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-black"
+          className="mt-2.5 w-full rounded-lg bg-cyan-500/15 px-2 py-2 text-[11px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-black"
         >
           → {nextLabel} avança
         </button>

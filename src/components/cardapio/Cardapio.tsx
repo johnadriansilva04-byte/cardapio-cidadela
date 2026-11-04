@@ -209,10 +209,16 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   //
   // Cada visitante com o menu aberto segurava uma conexão Realtime só para saber
   // se o dono editou o cardápio — algo raro. O plano gratuito tem teto de
-  // conexões simultâneas (200), então isso viraria o gargalo bem antes do egress
-  // (o cardápio já usa tile genérico, sem foto de produto). Aqui o menu se
-  // revalida ao voltar para a aba e a cada 5 min com a aba visível, o suficiente
-  // para um preço que mudou aparecer sem o cliente precisar recarregar.
+  // conexões simultâneas (200), então isso viraria o gargalo bem antes do egress.
+  //
+  // A revalidação respeita a janela fresca do cache (`MENU_CACHE_FRESH_MS`):
+  // enquanto o snapshot é fresco, NÃO bate no banco. Antes o intervalo de 5 min
+  // rebaixava os quatro payloads a cada 5 min mesmo com o cache fresco de 6h —
+  // o pior dos dois mundos (cache servido no paint e rede chamada por cima).
+  // Agora o menu se revalida só quando o snapshot venceu, ao voltar para a aba
+  // ou no intervalo (o que vier primeiro). Um preço alterado aparece na próxima
+  // abertura após a janela fresca — o contrato do SWR, e o dono raramente muda
+  // preço no meio do expediente.
   useEffect(() => {
     if (!restaurantId) return;
     const rid: string = restaurantId;
@@ -220,6 +226,9 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
     async function refreshMenu() {
       if (!alive) return;
+      // Cache ainda fresco: servir o snapshot é o suficiente, sem tocar a rede.
+      const cached = readMenuCache(slug);
+      if (cached && Date.now() - cached.cachedAt < MENU_CACHE_FRESH_MS) return;
       try {
         const { categories: cats, products: prods } = await getMenuWithProducts(rid);
         const pas = await getAddonsByRestaurant(rid);

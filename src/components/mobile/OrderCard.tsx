@@ -137,11 +137,10 @@ export function OrderCard({
           .map((item) => `${item.quantity}x ${item.product_name}`)
           .join(" · ");
     const bits = [preview || `${itemsCount} ${itemsCount === 1 ? "item" : "itens"}`];
-    if (!locked) bits.push(brl(Number(order.total)));
     bits.push(order.delivery_type === "entrega" ? "Entrega" : "Retirada");
     if (showRestaurant && restaurant) bits.push(restaurant.name);
     return bits.join(" • ");
-  }, [locked, items, itemsCount, order.total, order.delivery_type, restaurant, showRestaurant]);
+  }, [locked, items, itemsCount, order.delivery_type, restaurant, showRestaurant]);
 
   function handleWhatsApp() {
     const message = buildWhatsAppMessage(order, restaurant?.name ?? "Restaurante");
@@ -180,16 +179,19 @@ export function OrderCard({
       title={
         <span className="flex min-w-0 items-center gap-1.5">
           {fresh && (
-            <span className="shrink-0 rounded-full bg-cyan-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-black">
+            <span className="shrink-0 rounded-full bg-cyan-500 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-black">
               Novo
             </span>
           )}
-          <span className="truncate">{order.comanda}</span>
+          <span className="truncate text-base font-black">{order.comanda}</span>
         </span>
       }
       badge={
-        <span className="flex shrink-0 items-center gap-1">
+        <span className="flex shrink-0 items-center gap-1.5">
           {locked && <Lock className="size-3.5 text-amber-300" />}
+          <span className="text-base font-black tabular-nums text-cyan-300">
+            {brl(Number(order.total))}
+          </span>
           <OrderStatusBadge status={order.status} size="xs" />
         </span>
       }

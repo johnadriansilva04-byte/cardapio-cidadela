@@ -10,28 +10,48 @@ const CATEGORY_COLUMNS = "id, name, sort_order";
 const PRODUCT_COLUMNS = "id, category_id, name, description, price, available, sort_order";
 
 /**
+ * Dedupe de consultas em voo por restaurante.
+ *
+ * O cardápio dispara a mesma carga por dois caminhos (efeito de carga + efeito
+ * de revalidação, e o React pode montar duas vezes em dev). Sem isto, cada
+ * abertura podia virar 8 consultas em vez de 4. A promessa fica aqui até
+ * resolver; quem chegar depois pega a mesma — mesma resposta, sem ida extra.
+ */
+const inflightMenu = new Map<string, Promise<{ categories: Category[]; products: Product[] }>>();
+
+/**
  * Get all categories for a restaurant with their products
  */
 export async function getMenuWithProducts(
   restaurantId: string,
 ): Promise<{ categories: Category[]; products: Product[] }> {
-  const [catResult, prodResult] = await Promise.all([
-    supabase
-      .from("categories")
-      .select(CATEGORY_COLUMNS)
-      .eq("restaurant_id", restaurantId)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("products")
-      .select(PRODUCT_COLUMNS)
-      .eq("restaurant_id", restaurantId)
-      .order("sort_order", { ascending: true }),
-  ]);
+  const existing = inflightMenu.get(restaurantId);
+  if (existing) return existing;
 
-  return {
-    categories: (catResult.data ?? []) as Category[],
-    products: (prodResult.data ?? []) as Product[],
-  };
+  const request = (async () => {
+    const [catResult, prodResult] = await Promise.all([
+      supabase
+        .from("categories")
+        .select(CATEGORY_COLUMNS)
+        .eq("restaurant_id", restaurantId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("products")
+        .select(PRODUCT_COLUMNS)
+        .eq("restaurant_id", restaurantId)
+        .order("sort_order", { ascending: true }),
+    ]);
+
+    return {
+      categories: (catResult.data ?? []) as Category[],
+      products: (prodResult.data ?? []) as Product[],
+    };
+  })().finally(() => {
+    inflightMenu.delete(restaurantId);
+  });
+
+  inflightMenu.set(restaurantId, request);
+  return request;
 }
 
 /**

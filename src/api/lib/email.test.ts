@@ -19,7 +19,7 @@ const base = {
 describe("buildInvoiceEmail", () => {
   it("leva o essencial para o fornecedor emitir a nota", () => {
     const { subject, html, text } = buildInvoiceEmail(base);
-    expect(subject).toContain("Pedido de nota fiscal");
+    expect(subject).toContain("Nota fiscal");
     expect(subject).toContain("Cantina da Praia");
     expect(html).toContain("maria@exemplo.com");
     expect(html).toContain("11144477735");

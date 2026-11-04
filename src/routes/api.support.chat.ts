@@ -5,7 +5,7 @@ import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-lim
 import { runAi, isAiEnabled } from "@/api/lib/ai";
 import { sendEmail, getInvoiceNotifyEmail } from "@/api/lib/email";
 import { buildDevReport, type DevReportMeta } from "@/api/lib/dev-report";
-import { saveSupportReport, markReportNotified } from "@/api/lib/support-reports";
+import { saveSupportReport, markReportNotified, realEmail } from "@/api/lib/support-reports";
 import { COMPANY } from "@/lib/company";
 
 /**
@@ -125,7 +125,7 @@ export const Route = createFileRoute("/api/support/chat")({
             const report = buildDevReport({
               kind: "suporte",
               protocol: saved.protocol,
-              ownerEmail,
+              ownerEmail: realEmail(ownerEmail),
               storeId: body.storeId,
               storeName: body.storeName,
               meta: body.meta,

@@ -14,11 +14,14 @@ describe("buildDevReport — erro", () => {
         component: "ErrorBoundary",
       },
     });
-    expect(r.subject).toContain("[Pracinha]");
-    expect(r.subject).toContain("Erro no app");
+    // Assunto elegante: prioridade + categoria + loja, sem jargão.
+    // `/admin/pedidos` é a tela do dono → Médio · Painel.
+    expect(r.subject).toContain("Médio");
+    expect(r.subject).toContain("Painel");
     expect(r.subject).toContain("Cantina");
-    // O assunto é a cara do e-mail: não pode vazar a mensagem técnica.
+    // O assunto é a cara do e-mail: não pode vazar a mensagem técnica nem o protocolo.
     expect(r.subject).not.toContain("Cannot read properties");
+    expect(r.subject).not.toContain("CID-");
     expect(r.text).toContain("Olá, CEO!");
     expect(r.text).toContain("Cannot read properties of undefined");
     expect(r.text).toContain("OrderCard.tsx:42");
@@ -46,8 +49,8 @@ describe("buildDevReport — suporte", () => {
         { role: "assistant", content: "Vou passar para a engenharia." },
       ],
     });
-    expect(r.subject).toContain("[Pracinha]");
-    expect(r.subject).toContain("Relato de cliente");
+    expect(r.subject).toContain("Médio");
+    expect(r.subject).toContain("Suporte");
     expect(r.text).toContain("Olá, CEO!");
     expect(r.text).toContain("o preço está errado no pedido");
     expect(r.text).toContain("PARA O DEV");

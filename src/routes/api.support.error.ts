@@ -3,7 +3,7 @@ import type {} from "@tanstack/react-start";
 import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-limit";
 import { sendEmail, getInvoiceNotifyEmail } from "@/api/lib/email";
 import { buildDevReport, type DevReportMeta } from "@/api/lib/dev-report";
-import { saveSupportReport, markReportNotified } from "@/api/lib/support-reports";
+import { saveSupportReport, markReportNotified, realEmail } from "@/api/lib/support-reports";
 import { getServerSupabase } from "@/api/lib/mercadopago";
 
 /**
@@ -108,6 +108,7 @@ export const Route = createFileRoute("/api/support/error")({
         const report = buildDevReport({
           kind: "erro",
           protocol: saved.protocol,
+          ownerEmail: realEmail(reporterEmail),
           storeId: body.storeId,
           storeName: body.storeName,
           meta: body.meta,

@@ -29,6 +29,16 @@ export interface SupportReportSaved {
   id?: string;
 }
 
+/**
+ * O login por telefone cria um pseudo-e-mail interno (`<ddd>@menufacil.local`).
+ * Ele nunca deve aparecer no relato nem no e-mail: não é um endereço real e
+ * expõe o telefone. Devolve `undefined` quando não há e-mail de verdade.
+ */
+export function realEmail(email: string | null | undefined): string | undefined {
+  if (!email) return undefined;
+  return email.endsWith("@menufacil.local") ? undefined : email;
+}
+
 export async function saveSupportReport(input: SupportReportInput): Promise<SupportReportSaved> {
   const protocol = generateProtocol();
   const supabase = getServerSupabase();
@@ -43,7 +53,9 @@ export async function saveSupportReport(input: SupportReportInput): Promise<Supp
       protocol,
       kind: input.kind,
       reporter_id: input.reporterId ?? null,
-      reporter_email: input.reporterEmail ?? null,
+      // Nunca grava o pseudo-e-mail interno (@menufacil.local): não é um
+      // endereço real e expõe o telefone do dono.
+      reporter_email: realEmail(input.reporterEmail) ?? null,
       restaurant_id: input.restaurantId ?? null,
       restaurant_name: input.restaurantName ?? null,
       route: input.route ?? null,

@@ -13,6 +13,8 @@
  * com tudo o que o dev precisa para começar.
  */
 
+import { classifyReport, buildReportSubject, PRIORITY_TEXT } from "./report-subject";
+
 export interface DevReportMeta {
   url?: string;
   userAgent?: string;
@@ -55,13 +57,24 @@ export function buildDevReport(input: DevReportInput): DevReport {
   const isError = kind === "erro";
   const when = formatWhen(new Date());
 
+  // O assunto responde, numa linha, "quão urgente" e "sobre o que". Sem mensagem
+  // de erro em inglês e sem protocolo (que é técnico e fica no corpo).
+  const { priority, category } = classifyReport({
+    kind,
+    route: meta?.url || error?.route,
+  });
+  const subject = buildReportSubject({ priority, category, storeName });
+  const priorityLabel = PRIORITY_TEXT[priority];
+
   // Fatos "de gente": só o que o CEO precisa para se situar.
   const ceoFacts: Array<[string, string]> = [["Loja", storeName || "não informada"]];
+  ceoFacts.push(["Prioridade", priorityLabel]);
   if (protocol) ceoFacts.push(["Protocolo", protocol]);
   ceoFacts.push(["Quando", when]);
 
   // Fatos "de dev": contexto técnico completo, só na parte de baixo.
   const devFacts: Array<[string, string]> = [["Loja", storeName || "não informada"]];
+  devFacts.push(["Prioridade", `${priorityLabel} (${category})`]);
   if (protocol) devFacts.push(["Protocolo", protocol]);
   if (storeId) devFacts.push(["ID da loja", storeId]);
   devFacts.push(["Conta", ownerEmail || "desconhecida"]);
@@ -85,14 +98,6 @@ export function buildDevReport(input: DevReportInput): DevReport {
   const ceoSummary = isError
     ? `Um cliente esbarrou num erro no app${storeName ? ` na loja ${storeName}` : ""}. Nada foi perdido: o pedido continua salvo e o cliente pode seguir. O time já tem tudo o que precisa para corrigir.`
     : `Um cliente pediu ajuda pelo chat${storeName ? ` da loja ${storeName}` : ""} e o caso precisa de uma olhada no código. A conversa completa está abaixo.`;
-
-  // O assunto é a primeira coisa que o CEO vê na caixa de entrada: nada de
-  // mensagem de erro em inglês. A loja identifica o caso; o técnico fica no corpo.
-  // O protocolo entra no assunto para o relato ser achável na caixa de e-mail.
-  const tag = protocol ? `[${protocol}] ` : "";
-  const subject = isError
-    ? `${tag}[Pracinha] Erro no app · ${storeName ? storeName.slice(0, 50) : "sem loja"}`
-    : `${tag}[Pracinha] Relato de cliente · ${(storeName || turns[turns.length - 1]?.content || "suporte").slice(0, 50)}`;
 
   // No relato de suporte a conversa é o miolo — o CEO lê. No erro, o stack é
   // jargão e fica só na parte do dev.

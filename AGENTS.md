@@ -937,6 +937,36 @@ contador sobre virar ME.
   software. Faturar SaaS nesse CNAE é risco de glosa. Ver "Identidade legal e
   fiscal" abaixo — nada disso se resolve em código.
 
+## Efeito do R2 no teto do plano gratuito
+
+Com a imagem no R2 (egress zero), o egress do Supabase passa a ser só o JSON das
+consultas. Números reais medidos em 2026-11-04:
+
+| Cenário | Payload/visita | Egress Supabase | Visitas frias/mês no free |
+| --- | --- | --- | --- |
+| Antes (imagem no Supabase, banner 24 kB) | ~31 kB | 5 GB | **~161 mil** |
+| Depois (imagem no R2, só JSON) | ~6,6 kB | 5 GB | **~758 mil** |
+
+O R2 multiplica o teto por **~4,7×** — e a imagem ainda ganha o cache de borda
+da Cloudflare (a maioria das visitas nem chega ao R2). Em número de lojas: uma
+loja com ~100 visitas/dia consome ~0,2 GB/mês de egress; o free aguenta
+**~25 lojas ativas** só pelo egress do Supabase (antes eram ~5). Com o cache de
+borda e o SWR de 6h do cardápio (a maioria das visitas é quente, não bate no
+banco), o teto prático é maior.
+
+**R2 grátis:** 10 GB de storage, 1M escritas (Class A) e 10M leituras (Class B)
+por mês, egress zero. Cada upload é 1 Class A; cada leitura que escapa do cache
+é 1 Class B. Com 20 lojas e ~100 fotos por loja, são ~2.000 uploads e, mesmo sem
+cache, ~10M leituras — no teto, mas o cache de borda (MISS → HIT) faz a maioria
+das leituras não chegar ao R2. **Custo: R$ 0,00.**
+
+**Quando o free aperta:** o primeiro teto a estourar deixa de ser a imagem
+(resolvido) e passa a ser o **egress do JSON do Supabase** (~758 mil visitas
+frias/mês) ou, em volume muito alto, as **leituras Class B do R2** (10M/mês).
+Nenhum dos dois chega perto com dezenas de lojas. Só vale migrar para o Pro
+(R$ 137/mês) quando o egress do Supabase passar de 5 GB/mês de forma recorrente —
+o que, com o payload enxuto, é ~750 mil visitas frias/mês.
+
 ## IA (Cloudflare Workers AI)
 
 - **Duas funções, um token só.** `CLOUDFLARE_AI_TOKEN` (server-only) habilita:
@@ -1372,6 +1402,47 @@ contador sobre virar ME.
   gratuito cobrem ~160 mil visitas frias/mês (mais, porque o cache do navegador
   evita a maioria). O que derruba a conta é imagem crua de centenas de kB — aí
   são ~7 mil aberturas e o mês acaba.
+
+## Imagens no Cloudflare R2 (egress zero)
+
+- **Imagem saiu do Supabase Storage e foi para o R2.** O Supabase dá 5 GB/mês de
+  egress e imagem é o que mais sai; no R2 o egress é **zero** e o domínio
+  público (`images.pracinha.online`, bucket `cardapio-cidadela-images`) é
+  *proxied* pela Cloudflare, que cacheia na borda (MISS → HIT, `max-age=14400`).
+  A foto é servida do cache sem tocar o R2 nem a cota do Supabase. É o que
+  estica o grátis de ~20 para centenas de lojas.
+- **O binding `IMAGES` vem do `wrangler.json` da raiz.** O Nitro lê esse arquivo
+  e faz merge no config gerado (`defu`); sem declará-lo ali, o
+  `wrangler pages deploy` **limpa** o `r2_buckets` do projeto a cada deploy e
+  `/api/image/upload` responde 503. Não remova o `r2_buckets` do `wrangler.json`
+  nem confie só no painel: o deploy sobrescreve.
+- **Como a rota lê o binding:** `request.runtime.cloudflare.env.IMAGES`
+  (`getImagesBinding` em `src/api/lib/r2-images.ts`). Testado no runtime do
+  Pages (put/get/delete). Sem o binding (dev local, deploy antigo) as rotas
+  devolvem 503 e o cliente cai no Supabase Storage — nada quebra.
+- **Rotas server-side com posse confirmada.** `POST /api/image/upload` e
+  `POST /api/image/delete` exigem `Authorization: Bearer <token>` e confirmam
+  que a loja pertence ao usuário pelo RLS do próprio token (como o
+  create-link). O delete só age sob o prefixo `<restaurantId>/` — não dá para
+  apagar imagem de outra conta. Teto: 30 uploads/min e 60 deletes/min por IP.
+- **`storage.ts` tenta o R2 e cai no Storage.** `uploadRestaurantImage` posta em
+  `/api/image/upload`; em 503/rota ausente usa o bucket `restaurant-images` de
+  sempre. A compressão no navegador (WebP ≤ 800x800, q70) continua antes de
+  qualquer envio.
+- **Cache imutável.** O nome carrega timestamp, então o `put` no R2 manda
+  `Cache-Control: public, max-age=31536000, immutable`; o service worker
+  (`cidadela-v4`) também cacheia `images.pracinha.online`.
+- **Cache SWR do cardápio é `v2`** (`CACHE_VERSION` em `menuCache.ts`). O bump
+  foi necessário porque os clientes guardavam as URLs antigas do Supabase por até
+  6h (janela fresca) e não pegariam a migração sozinhos.
+- **Migração:** `scripts/migrate-images-to-r2.mjs` (idempotente) copia os objetos
+  do Storage para o R2 e reescreve as URLs em `restaurants`/`products`. Rodado em
+  produção em 2026-11-04: 7 objetos (~1 MB, loja "Dona da Pensão") movidos e as
+  URLs do banco reescritas.
+- **Limpeza de órfãos do Storage continua** (`cleanup_orphan_images`), mas agora
+  as URLs apontam para o R2, então objetos que ainda existirem no Supabase
+  viram órfãos e são removidos na janela de 7 dias. O bucket do Supabase fica
+  vazio com o tempo.
 
 ## Landing: hub de uma tela (sem rolagem)
 

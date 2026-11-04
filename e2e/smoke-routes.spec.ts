@@ -133,3 +133,36 @@ for (const route of ["/", "/terms", "/privacy"]) {
     await expect(page.locator("body")).toContainText("65.025.130/0001-24");
   });
 }
+
+test("simulador de economia recomenda plano e mostra a economia", async ({ page }) => {
+  await page.goto("/#simulador");
+  // Espera a hidratação: sem isso o primeiro clique pode cair antes do handler.
+  await page.waitForLoadState("networkidle");
+
+  // A pergunta provocadora abre o simulador; antes de clicar não há resultado.
+  await expect(
+    page.getByRole("heading", { name: /Quer ver quanto de dinheiro você está perdendo/ }),
+  ).toBeVisible();
+  await expect(page.getByText(/Você economiza/)).toHaveCount(0);
+
+  // Dono informa o que paga hoje e clica.
+  await page.getByLabel(/Quanto você paga por mês/).fill("200");
+  await page.getByRole("button", { name: /Ver quanto estou perdendo/ }).click();
+
+  await expect(page.getByText("Você paga hoje", { exact: true })).toBeVisible();
+  await expect(page.getByText("Melhor plano pra você", { exact: true })).toBeVisible();
+  await expect(page.getByText("Você economiza", { exact: true })).toBeVisible();
+  // A economia no ano é sempre positiva para um gasto acima do plano.
+  await expect(page.getByText(/\/ano/).first()).toBeVisible();
+  // CTA de conversão.
+  await expect(page.getByRole("link", { name: /Comece grátis/ })).toHaveAttribute(
+    "href",
+    "/login?mode=register",
+  );
+});
+
+test("landing mostra a missão da Variant", async ({ page }) => {
+  await page.goto("/#variant");
+  await expect(page.getByRole("heading", { name: /Variant existe por um motivo/ })).toBeVisible();
+  await expect(page.getByText(/Reduzir a mortalidade das pequenas empresas/)).toBeVisible();
+});

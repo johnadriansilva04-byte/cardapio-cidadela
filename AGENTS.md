@@ -272,7 +272,19 @@
   reexporta para compatibilidade — ao mudar o preço, mude só lá.
 - Landing (`src/routes/index.tsx`) tem uma demo viva (`LiveMenuDemo`): o
   visitante monta um pedido de verdade na própria página, sem backend. É
-  marketing interativo, não um fluxo de pedido real — não conecta em nada.
+  marketing interativo, não um fluxo de pedido real — não conecta em nada. O
+  cardápio-modelo é o da própria Variant (`DEMO_CATEGORIES`/`DEMO_ITEMS`, com
+  abas de categoria), não um exemplo genérico.
+- **Simulador "quanto você está perdendo?"** (`LossSimulator`, `#simulador`): o
+  dono informa o que paga hoje e os dias de movimento; o sistema recomenda o
+  plano (diária ou Premium) e mostra a economia no ano. O ponto de virada é
+  `DAY_PASS_BREAK_EVEN = ceil(PREMIUM_PRICE_VALUE / 12 / DAY_PASS_PRICE_VALUE)`:
+  acima dele o Premium sai mais barato que a diária todo dia. Os preços vêm de
+  `@/lib/pricing` — nunca hardcode. CTA leva a `/login?mode=register` ("conta
+  grátis, sem cartão"). Coberto por `smoke-routes.spec.ts`.
+- **Identidade da Variant** (`VARIANT` em `src/lib/company.ts`): fonte única da
+  missão (reduzir a mortalidade das pequenas empresas cortando gasto
+  operacional). A seção `#variant` e o rodapé leem daí — não duplique o texto.
 - Plano gratuito: 5 pedidos/mês; Premium é ilimitado. O estado vive em
   `admin_trials` (uma linha por restaurante, `store_id` = `restaurants.id`),
   com `is_premium`, `premium_expires_at`, `monthly_order_count`,

@@ -29,7 +29,6 @@ import {
   clearMenuCache,
   MENU_CACHE_FRESH_MS,
 } from "@/modules/supabase/menuCache";
-import { supabase } from "@/modules/supabase/client";
 import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
 import { brl, hexToRgba, newComanda } from "@/lib/utils";
@@ -205,17 +204,18 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     };
   }, [restaurantId]);
 
-  // Tempo real do cardápio. Cada visitante com o menu aberto segura uma conexão
-  // Realtime, e o plano tem um teto de conexões simultâneas — então a assinatura
-  // pausa com a aba oculta (só a aba visível conta) e retoma ao voltar. Como
-  // fechar/reabrir a aba refaz a carga normal, pausar não perde nada. Assinar
-  // `categories`/`product_addons` era redundante: mudar categoria/adicionais já
-  // mexe em `products`, ou é raro e o menu se recarrega ao voltar para a aba.
+  // Revalidação do cardápio público — SEM Realtime.
+  //
+  // Cada visitante com o menu aberto segurava uma conexão Realtime só para saber
+  // se o dono editou o cardápio — algo raro. O plano gratuito tem teto de
+  // conexões simultâneas (200), então isso viraria o gargalo bem antes do egress
+  // (o cardápio já usa tile genérico, sem foto de produto). Aqui o menu se
+  // revalida ao voltar para a aba e a cada 5 min com a aba visível, o suficiente
+  // para um preço que mudou aparecer sem o cliente precisar recarregar.
   useEffect(() => {
     if (!restaurantId) return;
     const rid: string = restaurantId;
     let alive = true;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function refreshMenu() {
       if (!alive) return;
@@ -226,8 +226,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         setCategories(cats);
         setProducts(prods);
         setProductAddons(pas);
-        // Mantém o cache local em dia com o que o realtime entregou, para a
-        // próxima abertura (mesmo offline) já nascer atualizada.
+        // Mantém o cache local em dia, para a próxima abertura (mesmo offline)
+        // já nascer atualizada.
         const current = readMenuCache(slug);
         if (current) {
           writeMenuCache(slug, {
@@ -242,69 +242,20 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         /* ignore */
       }
     }
-    async function refreshRestaurant() {
-      if (!alive) return;
-      try {
-        const r = await getRestaurantBySlug(slug);
-        if (!alive || !r) return;
-        setRestaurant(r);
-        const current = readMenuCache(slug);
-        if (current) {
-          const { cachedAt: _cachedAt, ...snapshot } = current;
-          writeMenuCache(slug, { ...snapshot, restaurant: r });
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-
-    function connect() {
-      if (!alive || channel) return;
-      const ch = supabase
-        .channel(`public-menu-${slug}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "products", filter: `restaurant_id=eq.${rid}` },
-          refreshMenu,
-        )
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "restaurants", filter: `id=eq.${rid}` },
-          refreshRestaurant,
-        );
-      ch.subscribe((status) => {
-        // Não segura uma conexão que falhou: libera para uma nova tentativa.
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          supabase.removeChannel(ch);
-          if (channel === ch) channel = null;
-        }
-      });
-      channel = ch;
-    }
-
-    function disconnect() {
-      if (channel) {
-        supabase.removeChannel(channel);
-        channel = null;
-      }
-    }
 
     function onVisibility() {
-      if (document.visibilityState === "visible") {
-        void refreshMenu();
-        connect();
-      } else {
-        disconnect();
-      }
+      if (document.visibilityState === "visible") void refreshMenu();
     }
 
-    if (document.visibilityState === "visible") connect();
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") void refreshMenu();
+    }, 5 * 60_000);
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       alive = false;
+      clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
-      disconnect();
     };
   }, [restaurantId, slug]);
 

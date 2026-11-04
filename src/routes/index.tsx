@@ -39,11 +39,12 @@ import {
   PREMIUM_PRICE_LABEL,
   PREMIUM_PRICE_VALUE,
   DAY_PASS_PRICE_LABEL,
+  DAY_PASS_PRICE_VALUE,
   formatMonthlyEquivalent,
 } from "@/lib/pricing";
 
 import { brl, cn } from "@/lib/utils";
-import { COMPANY, hasSupportContact } from "@/lib/company";
+import { COMPANY, VARIANT, hasSupportContact } from "@/lib/company";
 import { useAuth } from "@/components/AuthProvider";
 import { switchAccount } from "@/modules/supabase/auth";
 import {
@@ -80,22 +81,78 @@ export const Route = createFileRoute("/")({
    Demo viva — o visitante monta um pedido de verdade na landing
    ============================================================ */
 
+/**
+ * O cardápio-modelo da landing é o da própria Variant — a hamburgueria do time.
+ * Serve de vitrine real: mesmas categorias, itens e preços que um cliente veria.
+ */
+const DEMO_CATEGORIES = ["Destaques", "Burgers", "Porções", "Bebidas"] as const;
+
 const DEMO_ITEMS = [
   {
     id: "p1",
+    cat: "Destaques",
     emoji: "🍔",
     name: "Variant Burger",
-    desc: "Blend 180g, cheddar e bacon",
+    desc: "Blend 180g, cheddar duplo e bacon",
     price: 32,
     tag: "Mais pedido",
   },
-  { id: "p2", emoji: "🍟", name: "Batata rústica", desc: "Alecrim e parmesão", price: 18 },
-  { id: "p3", emoji: "🥤", name: "Milkshake", desc: "Chocolate belga", price: 16 },
+  {
+    id: "p2",
+    cat: "Destaques",
+    emoji: "🌶️",
+    name: "Cidadela Picante",
+    desc: "Blend 180g, jalapeño e maionese defumada",
+    price: 35,
+  },
+  {
+    id: "p3",
+    cat: "Burgers",
+    emoji: "🧀",
+    name: "Cheese Bacon",
+    desc: "Blend 160g, cheddar e bacon crocante",
+    price: 29,
+  },
+  {
+    id: "p4",
+    cat: "Burgers",
+    emoji: "🥬",
+    name: "Veggie da Casa",
+    desc: "Burger de grão-de-bico e rúcula",
+    price: 27,
+  },
+  {
+    id: "p5",
+    cat: "Porções",
+    emoji: "🍟",
+    name: "Batata rústica",
+    desc: "Alecrim e parmesão",
+    price: 18,
+  },
+  {
+    id: "p6",
+    cat: "Bebidas",
+    emoji: "🥤",
+    name: "Milkshake",
+    desc: "Chocolate belga 400ml",
+    price: 16,
+  },
+  {
+    id: "p7",
+    cat: "Bebidas",
+    emoji: "🍺",
+    name: "Cerveja artesanal",
+    desc: "IPA 500ml gelada",
+    price: 22,
+  },
 ];
 
 function LiveMenuDemo() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [sent, setSent] = useState(false);
+  const [activeCat, setActiveCat] = useState<(typeof DEMO_CATEGORIES)[number]>("Destaques");
+
+  const visibleItems = useMemo(() => DEMO_ITEMS.filter((i) => i.cat === activeCat), [activeCat]);
 
   const { count, total } = useMemo(() => {
     let count = 0;
@@ -174,9 +231,28 @@ function LiveMenuDemo() {
             </div>
           </div>
 
+          {/* Categorias */}
+          <div className="mt-2.5 flex gap-1.5 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {DEMO_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCat(cat)}
+                className={cn(
+                  "shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition-colors",
+                  activeCat === cat
+                    ? "bg-cyan-500 text-black"
+                    : "bg-white/[0.06] text-gray-400 hover:text-white",
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
           {/* Itens */}
           <div className="mt-2.5 space-y-2 px-3">
-            {DEMO_ITEMS.map((item) => {
+            {visibleItems.map((item) => {
               const qty = cart[item.id] ?? 0;
               return (
                 <div
@@ -279,6 +355,252 @@ function LiveMenuDemo() {
 }
 
 /* ============================================================
+   Simulador "quanto você está perdendo?"
+   Uma pergunta provocadora, o dono informa o que paga hoje e o
+   sistema recomenda o melhor plano + a economia no ano.
+   ============================================================ */
+
+/** Acima disso, o Premium anual fica mais barato que pagar diária todo dia. */
+const DAY_PASS_BREAK_EVEN = Math.ceil(PREMIUM_PRICE_VALUE / 12 / DAY_PASS_PRICE_VALUE);
+
+function LossSimulator() {
+  const [spend, setSpend] = useState(149);
+  const [days, setDays] = useState(8);
+  const [revealed, setRevealed] = useState(false);
+
+  const plan = useMemo(() => {
+    const monthlyPremium = PREMIUM_PRICE_VALUE / 12;
+    const monthlyDayPass = days * DAY_PASS_PRICE_VALUE;
+    if (days <= DAY_PASS_BREAK_EVEN) {
+      return {
+        name: "Diária",
+        cost: monthlyDayPass,
+        why: `Você abre ~${days} dia(s) por mês. Na diária você paga só os dias que usar — ${DAY_PASS_PRICE_LABEL} por 24h.`,
+        cta: "Comece grátis e ative a diária quando cair pedido",
+      };
+    }
+    return {
+      name: "Premium anual",
+      cost: monthlyPremium,
+      why: `Com ${days} dias de movimento, o Premium ilimitado sai mais barato que pagar diária todo dia. Equivale a ${brl(monthlyPremium)}/mês.`,
+      cta: "Comece grátis e assine o Premium quando quiser",
+    };
+  }, [days]);
+
+  const monthlySaved = Math.max(0, spend - plan.cost);
+  const yearlySaved = monthlySaved * 12;
+  const payingNothing = spend <= 0;
+
+  return (
+    <section
+      id="simulador"
+      className="relative overflow-hidden border-t border-white/[0.07] py-20 sm:py-24"
+    >
+      <div
+        aria-hidden
+        className="animate-aurora pointer-events-none absolute left-1/2 top-0 h-[420px] w-[760px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500/10 blur-[130px]"
+      />
+      <div className="relative mx-auto max-w-3xl px-4 sm:px-6">
+        <div className="text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/25 bg-rose-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-rose-300">
+            <TrendingUp className="size-3.5" /> Faça a conta
+          </span>
+          <h2 className="font-display mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Quer ver quanto de dinheiro você está perdendo?
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-gray-400">
+            Diz quanto você paga por mês no cardápio de hoje. Em 5 segundos eu mostro o melhor plano
+            pra você — e quanto sobra no seu bolso.
+          </p>
+        </div>
+
+        <div className="mt-10 rounded-3xl border border-white/[0.08] bg-[#0b0b12]/80 p-7 sm:p-9">
+          {/* Pergunta 1 — a provocação */}
+          <label className="block">
+            <span className="text-sm font-bold text-white">
+              Quanto você paga por mês no seu cardápio atual?
+            </span>
+            <div className="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 focus-within:border-cyan-400/60">
+              <span className="font-display text-xl font-black text-gray-500">R$</span>
+              <input
+                type="number"
+                min={0}
+                max={5000}
+                step={10}
+                value={spend}
+                onChange={(e) => {
+                  setSpend(Math.max(0, Number(e.target.value) || 0));
+                  setRevealed(false);
+                }}
+                className="w-full bg-transparent font-display text-2xl font-black text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                aria-label="Quanto você paga por mês no seu cardápio atual"
+              />
+            </div>
+            <span className="mt-2 block text-xs text-gray-500">
+              Pode ser app de entrega, sistema de PDV, planilha — o que você usa hoje.
+            </span>
+          </label>
+
+          {/* Pergunta 2 — dias de movimento */}
+          <label className="mt-7 block">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-bold text-white">
+                Quantos dias por mês você abre a loja?
+              </span>
+              <span className="font-display text-xl font-black text-cyan-300">
+                {days} {days === 1 ? "dia" : "dias"}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={30}
+              step={1}
+              value={days}
+              onChange={(e) => {
+                setDays(Number(e.target.value));
+                setRevealed(false);
+              }}
+              className="mt-3 w-full accent-cyan-400"
+              aria-label="Quantos dias por mês você abre a loja"
+            />
+          </label>
+
+          {!revealed ? (
+            <button
+              type="button"
+              onClick={() => setRevealed(true)}
+              className="sheen mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-rose-500 py-4 text-base font-black text-white transition-all hover:-translate-y-0.5 hover:bg-rose-400 hover:shadow-[0_0_40px_rgba(244,63,94,0.45)]"
+            >
+              Ver quanto estou perdendo <ArrowRight className="size-5" />
+            </button>
+          ) : (
+            <div className="animate-pop-in mt-8">
+              {payingNothing ? (
+                <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
+                  <p className="font-display text-xl font-black text-emerald-300">
+                    Você já não paga nada hoje. 🎉
+                  </p>
+                  <p className="mt-2 text-sm text-gray-400">
+                    Então comece pelo plano grátis: 5 pedidos por mês, sem cartão. Quando o
+                    movimento crescer, a diária ou o Premium entram sozinhos.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+                      <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                        Você paga hoje
+                      </p>
+                      <p className="mt-2 font-display text-3xl font-black text-rose-300">
+                        {brl(spend)}
+                        <span className="text-sm font-bold text-gray-500"> /mês</span>
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.08] p-5">
+                      <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
+                        Melhor plano pra você
+                      </p>
+                      <p className="mt-2 font-display text-3xl font-black text-white">
+                        {plan.name}
+                      </p>
+                      <p className="text-sm font-bold text-gray-400">{brl(plan.cost)}/mês</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
+                    <p className="text-xs font-bold uppercase tracking-widest text-emerald-300">
+                      Você economiza
+                    </p>
+                    <p className="mt-1 font-display text-4xl font-black text-emerald-300">
+                      {brl(yearlySaved)}
+                      <span className="text-base font-bold text-gray-500"> /ano</span>
+                    </p>
+                    <p className="mt-1 text-sm text-gray-400">
+                      {brl(monthlySaved)} por mês no seu bolso.
+                    </p>
+                  </div>
+
+                  <p className="mt-4 text-center text-sm text-gray-400">{plan.why}</p>
+                </>
+              )}
+
+              <Link
+                to="/login"
+                search={{ mode: "register" }}
+                className="sheen mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-4 text-base font-black text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.45)]"
+              >
+                {plan.cta} <ArrowRight className="size-5" />
+              </Link>
+              <p className="mt-3 text-center text-xs text-gray-500">
+                Comece já — abra sua conta grátis, sem cartão. Leva menos de 2 minutos.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   Variant — quem está por trás e por quê
+   ============================================================ */
+
+function VariantSection() {
+  return (
+    <section
+      id="variant"
+      className="relative overflow-hidden border-t border-white/[0.07] bg-white/[0.015] py-20 sm:py-24"
+    >
+      <div
+        aria-hidden
+        className="animate-aurora pointer-events-none absolute -left-24 top-1/4 h-[360px] w-[520px] rounded-full bg-violet-600/10 blur-[120px]"
+      />
+      <div className="relative mx-auto max-w-5xl px-4 sm:px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
+            <Store className="size-3.5" /> Quem faz
+          </span>
+          <h2 className="font-display mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            {VARIANT.name} existe por um motivo.
+          </h2>
+          <p className="mt-3 font-display text-lg font-bold text-violet-300">{VARIANT.tagline}</p>
+          <p className="mt-5 text-base leading-relaxed text-gray-400">{VARIANT.mission}</p>
+        </div>
+
+        <div className="mt-12 grid gap-4 sm:grid-cols-3">
+          {VARIANT.pillars.map((p) => (
+            <div
+              key={p.title}
+              className="card-lift rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6"
+            >
+              <span className="grid size-10 place-items-center rounded-xl bg-violet-500/10 text-violet-300">
+                <Check className="size-5" />
+              </span>
+              <h3 className="mt-4 text-base font-bold text-white">{p.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{p.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-10 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 text-center">
+          <p className="text-sm leading-relaxed text-gray-400">
+            Cada loja que continua aberta é um fornecedor, um funcionário e uma família que não
+            perdem a renda.{" "}
+            <strong className="font-bold text-white">
+              Reduzir a mortalidade das pequenas empresas não é slogan — é a razão de existir da{" "}
+              {VARIANT.name}.
+            </strong>
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
    Conteúdo da página
    ============================================================ */
 
@@ -304,7 +626,7 @@ const STEPS = [
   {
     icon: Smartphone,
     title: "Monte o cardápio",
-    desc: "Fotos, preços e categorias em minutos, direto do celular.",
+    desc: "Itens, preços e categorias em minutos, direto do celular.",
   },
   {
     icon: QrCode,
@@ -651,6 +973,15 @@ function LandingPage() {
               Preços
             </a>
             <a
+              href="#simulador"
+              className="text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              Economia
+            </a>
+            <a href="#variant" className="text-sm text-gray-400 transition-colors hover:text-white">
+              Quem faz
+            </a>
+            <a
               href="/cardapio/cidadela"
               className="text-sm text-gray-400 transition-colors hover:text-white"
             >
@@ -694,6 +1025,20 @@ function LandingPage() {
               className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
             >
               Preços
+            </a>
+            <a
+              href="#simulador"
+              onClick={() => setMenuOpen(false)}
+              className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+            >
+              Economia
+            </a>
+            <a
+              href="#variant"
+              onClick={() => setMenuOpen(false)}
+              className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+            >
+              Quem faz
             </a>
             <a
               href="/cardapio/cidadela"
@@ -868,6 +1213,10 @@ function LandingPage() {
         </div>
       </section>
 
+      <LossSimulator />
+
+      <VariantSection />
+
       {/* Como funciona — 3 passos */}
       <section
         id="recursos"
@@ -951,7 +1300,7 @@ function LandingPage() {
               {[
                 "Cor primária e secundária da marca",
                 "Logo e banner personalizados",
-                "Foto e descrição em cada item",
+                "Descrição e preço em cada item",
                 "Link próprio com o nome do seu restaurante",
               ].map((t) => (
                 <li key={t} className="flex items-start gap-2.5 text-sm text-gray-300">
@@ -1263,7 +1612,11 @@ function LandingPage() {
           </div>
         </div>
         <p className="mt-6 text-center text-[11px] text-gray-600">
-          © {new Date().getFullYear()} {COMPANY.brandName} · Feito para quem vive da cozinha.
+          © {new Date().getFullYear()} {COMPANY.brandName} · Um produto {VARIANT.name} · Feito para
+          quem vive da cozinha.
+        </p>
+        <p className="mx-auto mt-1 max-w-md text-center text-[11px] text-gray-600">
+          {VARIANT.tagline}
         </p>
         <p className="mt-1 text-center text-[11px] text-gray-600">
           {COMPANY.legalName} · CNPJ {COMPANY.cnpj} · {COMPANY.city}/{COMPANY.state}

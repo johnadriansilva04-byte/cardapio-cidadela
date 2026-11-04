@@ -296,11 +296,16 @@
   Fica fora de `modules/supabase` de propósito: a landing precisa exibir o preço
   sem arrastar o cliente Supabase para o bundle público. `subscription.ts`
   reexporta para compatibilidade — ao mudar o preço, mude só lá.
-- Landing (`src/routes/index.tsx`) tem uma demo viva (`LiveMenuDemo`): o
-  visitante monta um pedido de verdade na própria página, sem backend. É
-  marketing interativo, não um fluxo de pedido real — não conecta em nada. O
-  cardápio-modelo é o da própria Variant (`DEMO_CATEGORIES`/`DEMO_ITEMS`, com
-  abas de categoria), não um exemplo genérico.
+- Landing (`src/routes/index.tsx`) é viva e interativa, montada com componentes
+  em `src/components/landing/`. Três blocos, e nenhum cardápio solto na página:
+  1. `MenuReveal` — o cardápio REAL mora DENTRO de um botão-convite ("Ver
+     cardápio real"); ao tocar, o botão se abre e vira o cardápio interativo
+     (`LiveStoreDemo`). Fechado, o cardápio não existe no DOM.
+  2. `WizardChat` — a criação do restaurante por conversa, animada em loop (uma
+     pergunta por vez, o cardápio "nasce" no fim). Espelha o
+     `RestaurantChatWizard` real, mas é vitrine: sem IA, sem backend.
+  3. `WaiterChat` — o garçom virtual (Pracinha) respondendo sozinho, em ciclo.
+  Os dados/snapshots vivem em `src/components/landing/landing-data.ts`.
 - **Simulador "quanto você está perdendo?"** (`LossSimulator`, `#simulador`): o
   dono informa o que paga hoje e os dias de movimento; o sistema recomenda o
   plano (diária ou Premium) e mostra a economia no ano. O ponto de virada é
@@ -1210,16 +1215,18 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
 ## Domínio, acompanhamento e performance do cardápio
 
 - **A vitrine da landing é o cardápio REAL da Variant, não um mock.** O
-  `LiveMenuDemo` (`src/routes/index.tsx`) começa com um snapshot estático
-  (`DEMO_SNAPSHOT`) e logo troca pelos dados de `getLandingDemoStore()`
-  (`src/modules/supabase/landing-demo.ts`), que lê a loja `dona-da-pensao` por
-  slug. Trocar a foto, o preço ou um item no painel muda a home sozinha — sem
-  deploy. Os botões "Ver cardápio real" apontam para `/cardapio/dona-da-pensao`
-  (a mesma loja), então a vitrine e o cardápio público mostram a mesma coisa. O
-  snapshot existe só para não piscar em branco antes da resposta; se o banco
-  falhar, ele segura a página. A área de itens tem altura fixa com rolagem
-  interna: sem isso, uma categoria com 5 itens estourava o hub da landing (o
-  E2E `smoke-routes.spec.ts` mede `scrollHeight - clientHeight <= 4`).
+  `LiveStoreDemo` (`src/components/landing/LiveStoreDemo.tsx`) começa com um
+  snapshot estático (`DEMO_SNAPSHOT`, em `landing-data.ts`) e logo troca pelos
+  dados de `getLandingDemoStore()` (`src/modules/supabase/landing-demo.ts`), que
+  lê a loja `dona-da-pensao` por slug. Trocar a foto, o preço ou um item no
+  painel muda a home sozinha — sem deploy. O botão "Ver cardápio real" aponta
+  para `/cardapio/dona-da-pensao` (a mesma loja), então a vitrine e o cardápio
+  público mostram a mesma coisa. O snapshot existe só para não piscar em branco
+  antes da resposta; se o banco falhar, ele segura a página. A área de itens
+  rola por dentro (`max-h-[46vh]`) para uma categoria cheia não esticar o
+  telefone. **A landing agora ROLA de propósito** (seções vivas empilhadas); o
+  E2E `smoke-routes.spec.ts` deixou de exigir "sem rolagem" e passou a provar
+  que o cardápio só aparece DENTRO do botão.
 - **O link compartilhado usa o domínio canônico, não o host do navegador.**
   `currentOrigin()` (`src/lib/site.ts`) devolve `SITE_URL`
   (`cardapio.pracinha.online`) em produção e só mantém a origem local quando ela

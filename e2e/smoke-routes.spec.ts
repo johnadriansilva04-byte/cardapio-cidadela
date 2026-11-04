@@ -169,18 +169,43 @@ test("calculadora de economia mostra o número e abre no painel", async ({ page 
   await expect(page.getByText("Você economiza", { exact: true })).toHaveCount(0);
 });
 
-test("landing não rola: o hub cabe na tela e abre os assuntos em painel", async ({ page }) => {
+test("landing é viva: cardápio dentro do botão, chat do garçom e criação por conversa", async ({
+  page,
+}) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  // A página não cresce além da viewport — nada de rolagem longa.
-  const overflow = await page.evaluate(() => {
-    const el = document.documentElement;
-    return el.scrollHeight - el.clientHeight;
-  });
-  expect(overflow).toBeLessThanOrEqual(4);
+  // As seções vivas estão na página (rolam com o visitante).
+  await expect(page.getByText(/numa conversa/i).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: /sai do salão/i })).toBeVisible();
 
-  // Os atalhos abrem cada assunto por cima, com X para fechar.
+  // O cardápio NÃO fica solto na página: ele mora dentro do botão-convite.
+  const reveal = page.getByRole("button", { name: /Ver cardápio real/i });
+  await expect(reveal).toBeVisible();
+  await expect(page.getByText("Enviar pedido")).toHaveCount(0);
+
+  // Ao tocar, o botão se abre e vira o cardápio interativo.
+  await reveal.click();
+  await expect(page.getByText(/Cardápio ao vivo/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Enviar pedido" })).toBeVisible();
+
+  // E fecha de novo.
+  await page
+    .getByRole("button", { name: /Fechar/i })
+    .first()
+    .click();
+  await expect(page.getByRole("button", { name: "Enviar pedido" })).toHaveCount(0);
+
+  // O garçom virtual responde sozinho: a pergunta aparece e a resposta chega.
+  await expect(page.getByText(/Suporte oficial/i)).toBeVisible();
+  await page.getByRole("button", { name: /Meus pedidos não estão chegando/ }).click();
+  await expect(page.getByText(/Vou verificar o alerta/i)).toBeVisible();
+});
+
+test("os atalhos abrem cada assunto em painel por cima", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
   await page.getByRole("button", { name: /Pracinha/ }).click();
   await expect(page.getByRole("heading", { name: /Conheça o Pracinha/ })).toBeVisible();
   await page.getByRole("button", { name: "Fechar" }).click();

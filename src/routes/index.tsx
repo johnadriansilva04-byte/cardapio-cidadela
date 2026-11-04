@@ -1,37 +1,31 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowRight,
-  BadgeCheck,
   BellRing,
   Bike,
+  BookOpen,
   Bot,
   Check,
-  CheckCircle2,
-  ChevronDown,
   ChefHat,
+  ChevronDown,
   Clock,
   LayoutDashboard,
   LogOut,
   Menu,
   MessageCircle,
-  Minus,
   Palette,
   Plus,
   QrCode,
   ReceiptText,
-  Send,
   ShieldCheck,
   Smartphone,
   Sparkles,
-  Star,
   Store,
   TrendingUp,
-  User,
   Users,
   UtensilsCrossed,
   X,
-  BookOpen,
 } from "lucide-react";
 import { PREMIUM_PRICE_VALUE, DAY_PASS_PRICE_LABEL, DAY_PASS_PRICE_VALUE } from "@/lib/pricing";
 
@@ -39,12 +33,11 @@ import { brl, cn } from "@/lib/utils";
 import { COMPANY, VARIANT, hasSupportContact } from "@/lib/company";
 import { useAuth } from "@/components/AuthProvider";
 import { switchAccount } from "@/modules/supabase/auth";
-import {
-  getLandingDemoStore,
-  type DemoMenuItem,
-  type DemoStoreMenu,
-} from "@/modules/supabase/landing-demo";
 import { SmartImage } from "@/components/ui/SmartImage";
+import { DEMO_SNAPSHOT } from "@/components/landing/landing-data";
+import { LiveStoreDemo } from "@/components/landing/LiveStoreDemo";
+import { WaiterChat } from "@/components/landing/WaiterChat";
+import { WizardChat } from "@/components/landing/WizardChat";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,391 +74,122 @@ export const Route = createFileRoute("/")({
 });
 
 /* ============================================================
-   Demo viva — o visitante monta um pedido de verdade na landing
+   Cardápio real — dentro do botão
+   O visitante não vê o cardápio solto na página: ele mora num
+   botão-convite. Ao tocar, o botão se abre e vira o cardápio de
+   verdade, interativo, montável.
    ============================================================ */
 
-/**
- * Vitrine da landing = o cardápio REAL da loja da Variant.
- *
- * Os dados abaixo são só o SNAPSHOT da primeira pintura (evita tela vazia e
- * flash enquanto o banco responde). Em seguida o componente carrega a loja de
- * verdade e substitui tudo — trocar a foto, o preço ou um item no painel muda a
- * home sozinho. Se o banco falhar, o snapshot segura a página.
- */
+function MenuReveal() {
+  const [open, setOpen] = useState(false);
 
-const DEMO_SNAPSHOT: DemoStoreMenu = {
-  name: "Variant",
-  logoUrl:
-    "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/logo_1789410322493_v0yxrp.jpg",
-  categories: [
-    { id: "lanches", name: "Lanches" },
-    { id: "combos", name: "Combos" },
-    { id: "bebidas", name: "Bebidas" },
-  ],
-  items: [
-    {
-      id: "s-xburger",
-      categoryId: "lanches",
-      name: "X-Burger",
-      description: "Pão, hambúrguer, queijo, alface e tomate",
-      price: 29.99,
-      imageUrl:
-        "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/product_1789411917034_401lra.jpg",
-      tag: "Mais pedido",
-    },
-    {
-      id: "s-xbacon",
-      categoryId: "lanches",
-      name: "X-Bacon",
-      description: "Pão, hambúrguer, queijo, bacon crocante",
-      price: 21.9,
-      imageUrl:
-        "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/product_1790975930471_3o9b3b.webp",
-    },
-    {
-      id: "s-xtudo",
-      categoryId: "lanches",
-      name: "X-Tudo",
-      description: "Hambúrguer duplo, queijo, bacon, ovo, presunto",
-      price: 28.9,
-      imageUrl:
-        "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/product_1790976043341_1g2r69.webp",
-    },
-    {
-      id: "s-frango",
-      categoryId: "lanches",
-      name: "Frango Grelhado",
-      description: "Peito de frango grelhado com salada",
-      price: 22.9,
-      imageUrl:
-        "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/product_1790976105381_3uc1ei.webp",
-    },
-    {
-      id: "s-hotdog",
-      categoryId: "lanches",
-      name: "Hot Dog Especial",
-      description: "Salsicha, purê, milho, batata palha",
-      price: 16.9,
-      imageUrl:
-        "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/product_1790976129745_cf78jp.webp",
-    },
-    {
-      id: "s-comboburger",
-      categoryId: "combos",
-      name: "Combo Burger + Refri",
-      description: "X-Burger + Coca-Cola Lata",
-      price: 22.9,
-      emoji: "🍔",
-    },
-    {
-      id: "s-combofome",
-      categoryId: "combos",
-      name: "Combo Fome Zero",
-      description: "X-Bacon + Batata + Refri",
-      price: 32.9,
-      emoji: "🍔",
-    },
-    {
-      id: "s-combofamilia",
-      categoryId: "combos",
-      name: "Combo Família",
-      description: "2 X-Tudo + 2 Refris + Batata",
-      price: 69.9,
-      emoji: "🍔",
-    },
-    {
-      id: "s-coca",
-      categoryId: "bebidas",
-      name: "Coca-Cola Lata",
-      description: "350ml gelada",
-      price: 5.9,
-      emoji: "🥤",
-    },
-    {
-      id: "s-guarana",
-      categoryId: "bebidas",
-      name: "Guaraná Lata",
-      description: "350ml gelada",
-      price: 5.9,
-      emoji: "🥤",
-    },
-    {
-      id: "s-suco",
-      categoryId: "bebidas",
-      name: "Suco Natural",
-      description: "Laranja ou limão 400ml",
-      price: 7.9,
-      emoji: "🥤",
-    },
-    {
-      id: "s-cerveja",
-      categoryId: "bebidas",
-      name: "Cerveja Lata",
-      description: "Brahma ou Skol 350ml",
-      price: 7.9,
-      emoji: "🍺",
-    },
-    {
-      id: "s-agua",
-      categoryId: "bebidas",
-      name: "Água Mineral",
-      description: "500ml sem gás",
-      price: 3.9,
-      emoji: "💧",
-    },
-  ],
-};
-
-function LiveMenuDemo() {
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [sent, setSent] = useState(false);
-  // Começa no snapshot (pinta na hora) e é trocado pelo cardápio real assim que
-  // o banco responde. A primeira aba é sempre a primeira categoria da loja.
-  const [store, setStore] = useState<DemoStoreMenu>(DEMO_SNAPSHOT);
-  const [activeCat, setActiveCat] = useState<string>(DEMO_SNAPSHOT.categories[0].id);
-
-  useEffect(() => {
-    let alive = true;
-    getLandingDemoStore().then((real) => {
-      if (!alive || !real) return;
-      setStore(real);
-      setActiveCat((prev) =>
-        real.categories.some((c) => c.id === prev) ? prev : real.categories[0].id,
-      );
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const items: DemoMenuItem[] = store.items;
-  const visibleItems = useMemo(
-    () => items.filter((i) => i.categoryId === activeCat),
-    [items, activeCat],
-  );
-
-  const { count, total } = useMemo(() => {
-    let count = 0;
-    let total = 0;
-    for (const item of items) {
-      const qty = cart[item.id] ?? 0;
-      count += qty;
-      total += qty * item.price;
-    }
-    return { count, total };
-  }, [cart, items]);
-
-  function add(id: string) {
-    setSent(false);
-    setCart((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
-  }
-
-  function remove(id: string) {
-    setSent(false);
-    setCart((prev) => {
-      const next = { ...prev };
-      if ((next[id] ?? 0) <= 1) delete next[id];
-      else next[id] -= 1;
-      return next;
-    });
-  }
-
-  function send() {
-    if (count === 0) return;
-    setSent(true);
-    setCart({});
+  if (open) {
+    return (
+      <div className="animate-pop-in relative mx-auto w-full max-w-[400px]">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-xs font-bold text-cyan-300">
+            <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Cardápio ao vivo
+          </span>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+          >
+            <X className="size-3" /> Fechar
+          </button>
+        </div>
+        <LiveStoreDemo />
+      </div>
+    );
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-[350px]">
-      {/* Halo atrás do aparelho */}
+    <div className="relative mx-auto w-full max-w-[400px]">
       <div
         aria-hidden
         className="animate-aurora absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-tr from-cyan-500/25 via-blue-500/10 to-violet-500/20 blur-3xl"
       />
-
-      <div className="relative rounded-[2.4rem] border border-white/10 bg-gradient-to-b from-[#14141d] to-[#0a0a10] p-2.5 shadow-[0_40px_90px_-25px_rgba(6,182,212,0.45)]">
-        <div className="relative overflow-hidden rounded-[1.9rem] border border-white/[0.06] bg-[#0b0b12]">
-          {/* Barra de status */}
-          <div className="flex items-center justify-between px-4 pt-3 text-[10px] font-semibold text-gray-500">
-            <span>9:41</span>
-            <span className="h-1.5 w-16 rounded-full bg-white/10" />
-            <span className="flex items-center gap-1">
-              <span className="size-1.5 rounded-full bg-emerald-400" /> 5G
-            </span>
-          </div>
-
-          {/* Cabeçalho da loja */}
-          <div className="relative mt-2 px-3">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500/25 via-blue-500/10 to-violet-500/20 p-3">
-              <div
-                aria-hidden
-                className="absolute -right-6 -top-8 size-24 rounded-full bg-cyan-400/30 blur-2xl"
-              />
-              <div className="relative flex items-center gap-2.5">
-                <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-[#0b0b12] text-xl ring-1 ring-white/10">
-                  {store.logoUrl ? (
-                    <SmartImage
-                      src={store.logoUrl}
-                      alt={store.name}
-                      width={88}
-                      height={88}
-                      className="size-full"
-                      imgClassName="size-full object-cover"
-                      eager
-                      fallback={<span>🍔</span>}
-                    />
-                  ) : (
-                    <span>🍔</span>
-                  )}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1 truncate text-sm font-black text-white">
-                    {store.name} <BadgeCheck className="size-3.5 shrink-0 text-cyan-300" />
-                  </p>
-                  <p className="flex items-center gap-1.5 text-[10px] text-gray-300">
-                    <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Aberto
-                    agora
-                    <span className="text-gray-600">•</span>
-                    <Star className="size-3 fill-amber-300 text-amber-300" /> 4,9
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Categorias */}
-          <div className="mt-2.5 flex gap-1.5 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {store.categories.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setActiveCat(cat.id)}
-                className={cn(
-                  "shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition-colors",
-                  activeCat === cat.id
-                    ? "bg-cyan-500 text-black"
-                    : "bg-white/[0.06] text-gray-400 hover:text-white",
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group relative block w-full overflow-hidden rounded-[2.2rem] border border-white/10 bg-gradient-to-b from-[#14141d] to-[#0a0a10] p-2.5 text-left shadow-[0_40px_90px_-25px_rgba(6,182,212,0.45)] transition-transform hover:-translate-y-1"
+      >
+        <span
+          aria-hidden
+          className="animate-pulse-ring pointer-events-none absolute inset-0 rounded-[2.2rem] ring-2 ring-cyan-400/40"
+        />
+        <span className="relative block overflow-hidden rounded-[1.8rem] border border-white/[0.06] bg-[#0b0b12]">
+          <span className="relative block overflow-hidden">
+            <span
+              aria-hidden
+              className="absolute inset-0 bg-gradient-to-br from-cyan-500/30 via-blue-500/10 to-violet-500/25"
+            />
+            <span
+              aria-hidden
+              className="absolute -right-8 -top-10 size-32 rounded-full bg-cyan-400/30 blur-3xl"
+            />
+            <span className="relative flex items-center gap-3 p-4">
+              <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#0b0b12] text-2xl ring-1 ring-white/10">
+                {DEMO_SNAPSHOT.logoUrl ? (
+                  <SmartImage
+                    src={DEMO_SNAPSHOT.logoUrl}
+                    alt={DEMO_SNAPSHOT.name}
+                    width={112}
+                    height={112}
+                    className="size-full"
+                    imgClassName="size-full object-cover"
+                    eager
+                    fallback={<span>🍔</span>}
+                  />
+                ) : (
+                  <span>🍔</span>
                 )}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Itens — área com altura fixa: o telefone não cresce com a
-              categoria (o hub da landing precisa caber na tela). */}
-          <div className="mt-2.5 max-h-[142px] space-y-2 overflow-y-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {visibleItems.map((item) => {
-              const qty = cart[item.id] ?? 0;
-              return (
-                <div
-                  key={item.id}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-2xl border p-2 transition-all",
-                    qty > 0
-                      ? "border-cyan-500/40 bg-cyan-500/[0.07]"
-                      : "border-white/[0.06] bg-white/[0.02]",
-                  )}
-                >
-                  <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-white/[0.05] text-xl">
-                    {item.imageUrl ? (
-                      <SmartImage
-                        src={item.imageUrl}
-                        alt={item.name}
-                        width={88}
-                        height={88}
-                        resize="cover"
-                        className="size-full"
-                        imgClassName="size-full object-cover"
-                        fallback={<span>{item.emoji ?? "🍽️"}</span>}
-                      />
-                    ) : (
-                      <span>{item.emoji ?? "🍽️"}</span>
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-1.5 truncate text-xs font-bold text-white">
-                      {item.name}
-                      {item.tag && (
-                        <span className="shrink-0 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-300">
-                          {item.tag}
-                        </span>
-                      )}
-                    </p>
-                    <p className="truncate text-[10px] text-gray-500">{item.description}</p>
-                    <p className="text-[11px] font-black text-cyan-300">{brl(item.price)}</p>
-                  </div>
-                  {qty > 0 ? (
-                    <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-black/30 p-0.5">
-                      <button
-                        type="button"
-                        aria-label={`Remover ${item.name}`}
-                        onClick={() => remove(item.id)}
-                        className="grid size-6 place-items-center rounded-md text-gray-300 transition-colors hover:bg-white/10"
-                      >
-                        <Minus className="size-3" />
-                      </button>
-                      <span className="w-4 text-center text-xs font-black text-white">{qty}</span>
-                      <button
-                        type="button"
-                        aria-label={`Adicionar ${item.name}`}
-                        onClick={() => add(item.id)}
-                        className="grid size-6 place-items-center rounded-md bg-cyan-500 text-black transition-colors hover:bg-cyan-400"
-                      >
-                        <Plus className="size-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      aria-label={`Adicionar ${item.name}`}
-                      onClick={() => add(item.id)}
-                      className="grid size-8 shrink-0 place-items-center rounded-xl bg-cyan-500 text-black transition-transform hover:scale-110"
-                    >
-                      <Plus className="size-4" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Carrinho */}
-          <div className="mt-3 border-t border-white/[0.06] bg-black/40 px-3 pb-4 pt-3">
-            {sent ? (
-              <div className="animate-pop-in flex items-center gap-2.5 py-1">
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-emerald-500/20 text-emerald-300">
-                  <Check className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1 truncate text-sm font-black text-white">
+                  {DEMO_SNAPSHOT.name}
                 </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-white">Pedido enviado!</p>
-                  <p className="text-[11px] text-gray-400">
-                    Chegou no painel do restaurante na hora.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between text-[11px] text-gray-400">
-                  <span>{count === 0 ? "Toque nos itens acima" : `${count} item(ns)`}</span>
-                  <span className="text-base font-black text-white">{brl(total)}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={send}
-                  disabled={count === 0}
-                  className="sheen mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-cyan-500 py-2.5 text-xs font-black text-black transition-all hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <Send className="size-3.5" /> Enviar pedido
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+                <span className="flex items-center gap-1.5 text-[11px] text-gray-300">
+                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Aberto
+                  agora
+                  <span className="text-gray-600">•</span> entrega e retirada
+                </span>
+              </span>
+              <QrCode className="size-7 shrink-0 text-white/70" />
+            </span>
+          </span>
+
+          <span className="relative flex flex-col gap-2.5 p-4">
+            <span className="flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5">
+              <span className="grid size-10 place-items-center rounded-xl bg-white/[0.05] text-lg">
+                🍔
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-bold text-white">X-Burger</span>
+                <span className="block text-[10px] text-gray-500">Pão, blend, queijo e bacon</span>
+              </span>
+              <span className="text-xs font-black text-cyan-300">R$ 29,99</span>
+            </span>
+            <span className="flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5">
+              <span className="grid size-10 place-items-center rounded-xl bg-white/[0.05] text-lg">
+                🥤
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-bold text-white">Coca-Cola Lata</span>
+                <span className="block text-[10px] text-gray-500">350ml gelada</span>
+              </span>
+              <span className="text-xs font-black text-cyan-300">R$ 5,90</span>
+            </span>
+
+            <span className="sheen mt-1 flex items-center justify-center gap-2 rounded-full bg-cyan-500 py-3.5 text-sm font-black text-black transition-colors group-hover:bg-cyan-400">
+              Ver cardápio real
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </span>
+        </span>
+      </button>
       <p className="mt-4 text-center text-[11px] text-gray-500">
-        É isto que seu cliente vê. Experimente. 👆
+        É o cardápio de verdade, do lado de cá. Toque e monte um pedido. 👆
       </p>
     </div>
   );
@@ -761,6 +485,11 @@ const FEATURES = [
     title: "Suporte Pracinha",
     desc: "Assistente do time da Variant que responde na hora e leva o problema pro dev.",
   },
+  {
+    icon: ChefHat,
+    title: "Modo Cozinha",
+    desc: "A fila de pedidos em tela cheia, um por vez, na letra grande da bancada.",
+  },
 ];
 
 const COMPARISON = [
@@ -802,7 +531,8 @@ const TUTORIAL_STEPS = [
   },
   {
     title: "Monte seu cardápio",
-    content: "Adicione fotos, preços e categorias. Do celular mesmo, igual postar no Instagram.",
+    content:
+      "Converse com a Pracinha: ela pergunta o nome, o WhatsApp, o endereço e monta o cardápio com você. Ou tire uma foto do cardápio antigo.",
   },
   {
     title: "Publique o link",
@@ -820,123 +550,6 @@ const TUTORIAL_STEPS = [
     content: "Logo, banner, cores da marca. Seu cardápio, 100% à sua cara.",
   },
 ];
-
-/* ============================================================
-   Demo do Pracinha — o suporte que responde e resolve
-   Respostas pré-escritas: é vitrine, não chama a IA nem o backend.
-   ============================================================ */
-
-const PRACINHA_SCRIPT: { q: string; a: string }[] = [
-  {
-    q: "Como coloco meu cardápio no ar?",
-    a: "Você cria a conta grátis, adiciona os itens com foto e preço e publica. Sai um link só seu e um QR Code pra pôr no status e no balcão. Leva uns 5 minutos.",
-  },
-  {
-    q: "Meus pedidos não estão chegando",
-    a: "Já entendi. Vou verificar o alerta e a conexão da sua loja e, se não resolver, passo direto pro time de engenharia da Variant com o contexto da sua tela.",
-  },
-  {
-    q: "Quanto custa?",
-    a: "Você começa grátis com 5 pedidos por mês. Depois é a diária de R$ 1,99 por 24h, só quando cair pedido, ou o Premium ilimitado por R$ 28,99/mês (R$ 199,99/ano).",
-  },
-  {
-    q: "Deu erro na tela de pedidos",
-    a: "Obrigado por avisar. Capturei o erro com a página e o horário e enviei pro time com tudo que o dev precisa pra corrigir. Fico te avisando por aqui.",
-  },
-];
-
-function PracinhaDemo() {
-  const [asked, setAsked] = useState<number[]>([]);
-  const active = asked[asked.length - 1];
-
-  return (
-    <div className="relative mx-auto w-full max-w-[350px]">
-      <div
-        aria-hidden
-        className="animate-aurora absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-tr from-cyan-500/25 via-blue-500/10 to-violet-500/20 blur-3xl"
-      />
-      <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#14141d] to-[#0a0a10] p-2.5 shadow-[0_40px_90px_-25px_rgba(6,182,212,0.45)]">
-        <div className="overflow-hidden rounded-[1.6rem] border border-white/[0.06] bg-[#0b0b12]">
-          {/* Cabeçalho */}
-          <div className="relative border-b border-white/[0.07] px-4 py-3.5">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-cyan-500/20 blur-3xl"
-            />
-            <div className="relative flex items-center gap-2.5">
-              <span className="relative grid size-9 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 text-black shadow-[0_8px_24px_rgba(6,182,212,0.35)]">
-                <MessageCircle className="size-4" />
-                <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-[#0b0b12] bg-emerald-400" />
-              </span>
-              <div>
-                <p className="text-xs font-bold text-white">
-                  Pracinha <span className="font-normal text-gray-500">· Variant</span>
-                </p>
-                <p className="flex items-center gap-1 text-[10px] text-cyan-300/80">
-                  <ShieldCheck className="size-2.5" /> Suporte oficial · resposta na hora
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Conversa */}
-          <div className="space-y-2.5 px-3 py-3.5">
-            {active === undefined ? (
-              <p className="text-xs leading-relaxed text-gray-400">
-                Oi! Sou o Pracinha, do time da Variant. Toca numa pergunta que eu mostro como
-                respondo.
-              </p>
-            ) : (
-              <>
-                <div className="flex flex-row-reverse items-start gap-2">
-                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-gray-300">
-                    <User className="size-3" />
-                  </span>
-                  <p className="max-w-[85%] rounded-2xl rounded-tr-sm bg-cyan-500 px-3 py-2 text-[11px] leading-relaxed text-black">
-                    {PRACINHA_SCRIPT[active].q}
-                  </p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500/20 text-cyan-300">
-                    <Bot className="size-3" />
-                  </span>
-                  <p className="max-w-[85%] rounded-2xl rounded-tl-sm border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-[11px] leading-relaxed text-gray-200">
-                    {PRACINHA_SCRIPT[active].a}
-                  </p>
-                </div>
-                {active === 1 || active === 3 ? (
-                  <div className="flex items-start gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-2 text-[10px] text-emerald-200">
-                    <CheckCircle2 className="mt-0.5 size-3 shrink-0" />
-                    <span>Relato enviado para a engenharia da Variant com o contexto da tela.</span>
-                  </div>
-                ) : null}
-              </>
-            )}
-          </div>
-
-          {/* Perguntas */}
-          <div className="flex flex-wrap gap-1.5 border-t border-white/[0.07] px-3 py-3">
-            {PRACINHA_SCRIPT.map((s, i) => (
-              <button
-                key={s.q}
-                type="button"
-                onClick={() => setAsked((prev) => [...prev.filter((x) => x !== i), i])}
-                className={cn(
-                  "rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-colors",
-                  active === i
-                    ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
-                    : "border-white/10 bg-white/[0.04] text-gray-400 hover:border-cyan-400/40 hover:text-white",
-                )}
-              >
-                {s.q}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function delay(ms: number) {
   return { animationDelay: `${ms}ms` };
@@ -1032,8 +645,8 @@ function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
-  // Hub de uma tela: cada assunto abre num painel por cima (X para fechar), em
-  // vez de empilhar seções numa rolagem longa. A página em si não cresce.
+  // Cada assunto abre num painel por cima (X para fechar), em vez de empilhar
+  // seções numa rolagem longa.
   const [panel, setPanel] = useState<LandingPanel>(null);
 
   function openPanel(p: NonNullable<LandingPanel>) {
@@ -1088,12 +701,6 @@ function LandingPage() {
             >
               Quem faz
             </button>
-            <a
-              href="/cardapio/dona-da-pensao"
-              className="text-sm text-gray-400 transition-colors hover:text-white"
-            >
-              Ver cardápio
-            </a>
             <button
               onClick={() => setTutorialOpen(true)}
               className="flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-white"
@@ -1134,13 +741,6 @@ function LandingPage() {
                 {label}
               </button>
             ))}
-            <a
-              href="/cardapio/dona-da-pensao"
-              onClick={() => setMenuOpen(false)}
-              className="rounded-lg px-3 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-            >
-              Ver cardápio real
-            </a>
             <button
               onClick={() => {
                 setMenuOpen(false);
@@ -1154,9 +754,9 @@ function LandingPage() {
         )}
       </nav>
 
-      {/* Hero + hub — tudo cabe numa tela; o resto abre em painel */}
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center gap-5 px-4 py-5 sm:px-6">
-        <div className="grid items-center gap-8 md:grid-cols-2">
+      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
+        {/* Hero */}
+        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="text-center lg:text-left">
             <p
               className="animate-reveal mb-4 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300"
@@ -1166,7 +766,7 @@ function LandingPage() {
             </p>
 
             <h1
-              className="animate-reveal font-display text-[2.1rem] font-extrabold leading-[1.05] tracking-tight sm:text-[2.5rem] lg:text-[2.5rem]"
+              className="animate-reveal font-display text-[2.1rem] font-extrabold leading-[1.05] tracking-tight sm:text-[2.6rem] lg:text-[3rem]"
               style={delay(80)}
             >
               Seu cardápio no ar
@@ -1249,15 +849,83 @@ function LandingPage() {
             </button>
           </div>
 
-          <div className="animate-reveal mx-auto w-full max-w-md lg:max-w-none" style={delay(200)}>
-            <LiveMenuDemo />
+          {/* O cardápio real mora aqui, dentro do botão. */}
+          <div className="animate-reveal" style={delay(200)}>
+            <MenuReveal />
           </div>
         </div>
 
+        {/* Criação por conversa */}
+        <section className="mt-24 grid items-center gap-12 lg:grid-cols-2">
+          <div className="text-center lg:text-left">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
+              <Sparkles className="size-3.5" /> Montagem por conversa
+            </span>
+            <h2 className="font-display mt-4 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+              Seu cardápio nasce
+              <br />
+              <span className="text-violet-300">numa conversa.</span>
+            </h2>
+            <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-gray-400 sm:text-base lg:mx-0">
+              Sem formulário de 20 campos. A Pracinha pergunta o nome, o WhatsApp, o endereço — e o
+              cardápio se monta sozinho na tela. Quer mais rápido? Tire uma foto do cardápio antigo
+              e a gente lê pra você.
+            </p>
+            <ul className="mx-auto mt-5 max-w-md space-y-2.5 text-left lg:mx-0">
+              {[
+                "Uma pergunta por vez, do jeito que o dono fala",
+                "Monta itens, preços e categorias enquanto você responde",
+                "Importa o cardápio antigo por foto",
+                "Funciona no celular, na correria do balcão",
+              ].map((t) => (
+                <li key={t} className="flex items-start gap-2.5 text-sm text-gray-300">
+                  <Check className="mt-0.5 size-4 shrink-0 text-violet-400" /> {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="animate-reveal" style={delay(120)}>
+            <WizardChat />
+          </div>
+        </section>
+
+        {/* Garçom virtual */}
+        <section className="mt-24 grid items-center gap-12 lg:grid-cols-2">
+          <div className="animate-reveal order-2 lg:order-1" style={delay(120)}>
+            <WaiterChat />
+          </div>
+          <div className="order-1 text-center lg:order-2 lg:text-left">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-cyan-300">
+              <Bot className="size-3.5" /> Garçom virtual
+            </span>
+            <h2 className="font-display mt-4 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+              Um garçom que nunca
+              <br />
+              <span className="text-cyan-300">sai do salão.</span>
+            </h2>
+            <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-gray-400 sm:text-base lg:mx-0">
+              O Pracinha atende na hora, dentro do seu painel. Se for coisa técnica, ele leva o caso
+              pro time com o contexto da sua tela — você não precisa explicar o erro.
+            </p>
+            <ul className="mx-auto mt-5 max-w-md space-y-2.5 text-left lg:mx-0">
+              {[
+                "Responde na hora, dentro do próprio painel",
+                "Vai com o contexto da sua tela — sem print, sem explicação",
+                "Se for técnico, cai direto na engenharia da Variant",
+                "Avisa por e-mail para o time não perder nenhum caso",
+              ].map((t) => (
+                <li key={t} className="flex items-start gap-2.5 text-sm text-gray-300">
+                  <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
         {/* Atalhos do hub: cada um abre um painel por cima. */}
         <div
-          className="animate-reveal grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
-          style={delay(320)}
+          className="animate-reveal mt-24 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+          style={delay(120)}
         >
           <GuideTile
             icon={<Sparkles className="size-4" />}
@@ -1504,7 +1172,7 @@ function LandingPage() {
               ))}
             </ul>
           </div>
-          <PracinhaDemo />
+          <WaiterChat />
         </div>
       </GuidePanel>
 

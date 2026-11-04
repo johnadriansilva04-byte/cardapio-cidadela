@@ -146,10 +146,8 @@ test("a home é um bloco único: a página não rola", async ({ page }) => {
   });
   expect(overflow).toBeLessThanOrEqual(4);
 
-  // O herói mostra a cena viva: o pedido saindo do cardápio do cliente e
-  // chegando no painel do dono.
-  await expect(page.getByTestId("hero-scene")).toBeVisible();
-  await expect(page.getByText("Painel do dono")).toBeVisible();
+  // O simulador fica na cara, sem clique — é o argumento da página.
+  await expect(page.getByText("Simulador de economia")).toBeVisible();
 });
 
 test("em tela média o cardápio aparece inteiro, sem corte", async ({ page }) => {
@@ -161,8 +159,7 @@ test("em tela média o cardápio aparece inteiro, sem corte", async ({ page }) =
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  await expect(page.getByTestId("hero-scene")).toBeVisible();
-  await expect(page.getByText("Painel do dono")).toBeVisible();
+  await expect(page.getByText("Simulador de economia")).toBeVisible();
 
   const cortado = await page.evaluate(() => {
     const cockpit = document.querySelector("main")!.children[0] as HTMLElement;
@@ -176,8 +173,9 @@ test("calculadora de economia mostra o número e abre no painel", async ({ page 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  // O número aparece no herói, sem clique: é o argumento da página.
-  const cta = page.getByRole("button", { name: /Perco .*\/ano/ });
+  // O simulador aparece no herói, sem clique: o número é o argumento da página.
+  await expect(page.getByText("Simulador de economia")).toBeVisible();
+  const cta = page.getByRole("button", { name: /é o seu plano/ });
   await expect(cta).toBeVisible();
   await cta.click();
 
@@ -188,7 +186,7 @@ test("calculadora de economia mostra o número e abre no painel", async ({ page 
   await expect(page.getByText("Você economiza", { exact: true })).toBeVisible();
 
   // O dono ajusta o que paga hoje e o número acompanha na hora.
-  await page.getByLabel(/Quanto você paga por mês/).fill("200");
+  await page.getByLabel("Quanto você paga por mês no seu cardápio atual").fill("200");
   await expect(page.getByText("Você paga hoje", { exact: true })).toBeVisible();
   await expect(page.getByText("Melhor plano pra você", { exact: true })).toBeVisible();
   await expect(page.getByText(/\/ano/).first()).toBeVisible();
@@ -205,19 +203,14 @@ test("as abas trocam o painel na hora, sem rolar a página", async ({ page }) =>
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  // Cardápio (aba inicial): o cardápio mora DENTRO do botão-convite.
-  const reveal = page.getByRole("button", { name: /Ver cardápio real/i });
+  // Cardápio (aba inicial): nada de mockup na página. O botão aponta direto
+  // para o cardápio REAL (mesma URL que o cliente da loja abre), em outra aba.
+  const reveal = page.getByRole("link", { name: /Abrir o cardápio real/i });
   await expect(reveal).toBeVisible();
+  await expect(reveal).toHaveAttribute("href", /\/cardapio\/dona-da-pensao$/);
+  await expect(reveal).toHaveAttribute("target", "_blank");
+  // O cardápio não é renderizado dentro da landing — só o link.
   await expect(page.getByText("Enviar pedido")).toHaveCount(0);
-
-  await reveal.click();
-  await expect(page.getByText(/Cardápio ao vivo/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Enviar pedido" })).toBeVisible();
-  await page
-    .getByRole("button", { name: /Fechar/i })
-    .first()
-    .click();
-  await expect(page.getByRole("button", { name: "Enviar pedido" })).toHaveCount(0);
 
   // Montagem: a criação por conversa.
   await page.getByRole("button", { name: "Montagem" }).click();

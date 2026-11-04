@@ -339,6 +339,20 @@
   pedido". É a história do produto em cinco segundos, sem vídeo e sem peso.
   Aparece em **qualquer largura** (ficava `hidden lg:block` e sumia abaixo de
   1024px, deixando um buraco).
+- **A landing não tem mockup de cardápio.** A aba "Cardápio" traz só um link
+  (`Abrir o cardápio real` → `/cardapio/<slug>`, `target="_blank"`) para o
+  cardápio de verdade, servido pela URL real. Não renderize o cardápio dentro da
+  landing nem recrie um mockup: o visitante vê o produto de verdade, não uma
+  imitação (e a URL real ainda é a prova de que existe).
+- **O simulador de economia fica na cara, no herói.** `InlineSimulator` mostra
+  o campo "paga hoje", o slider de dias e a economia/ano **sem clique** — o
+  número é o argumento da página, então não pode morar atrás de um botão. O
+  painel completo (`LossCalculator`) continua existindo como aprofundamento,
+  aberto pelo botão "«plano» é o seu plano →". O rótulo do inline é "Economia
+  estimada" para não colidir com o "Você economiza" do painel.
+- **Os três diferenciais ficam em chips no herói**: "Monte a loja conversando"
+  (WizardChat), "Garçom digital no seu painel" (WaiterChat) e "0% de comissão".
+  São os recursos que vendem o produto — não os esconda dentro das abas.
 - **O cockpit é lado a lado, não empilhado.** Texto (+ a cena viva) à esquerda,
   cardápio à direita: `lg:flex-row` com a linha esticando até o rodapé
   (`lg:min-h-0 lg:flex-1`) para o painel receber todo o espaço que sobra. Antes

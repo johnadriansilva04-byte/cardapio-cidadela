@@ -32,6 +32,8 @@ import { PREMIUM_PRICE_VALUE, DAY_PASS_PRICE_LABEL, DAY_PASS_PRICE_VALUE } from 
 
 import { brl, cn } from "@/lib/utils";
 import { COMPANY, VARIANT, hasSupportContact } from "@/lib/company";
+import { SITE_URL } from "@/lib/site";
+import { DEMO_STORE_SLUG } from "@/modules/supabase/landing-demo";
 import { useAuth } from "@/components/AuthProvider";
 import { switchAccount } from "@/modules/supabase/auth";
 import { SmartImage } from "@/components/ui/SmartImage";
@@ -52,8 +54,6 @@ import { Button } from "@/components/ui/button";
 import { PlanCards } from "@/modules/ui/PlanCards";
 import { GuidePanel } from "@/modules/ui/GuidePanel";
 import { VariantMark } from "@/components/brand/VariantMark";
-import { HeroScene } from "@/components/landing/HeroScene";
-import { useCountUp } from "@/hooks/useCountUp";
 
 /** Painéis do hub da landing. `null` = nenhum aberto. */
 type LandingPanel =
@@ -80,122 +80,26 @@ export const Route = createFileRoute("/")({
 });
 
 /* ============================================================
-   Cardápio real — dentro do botão
-   O visitante não vê o cardápio solto na página: ele mora num
-   botão-convite. Ao tocar, o botão se abre e vira o cardápio de
-   verdade, interativo, montável.
+   Cardápio real — link direto
+   Nada de mockup na página. O botão manda o visitante para o
+   cardápio de verdade (a mesma URL que o cliente da loja abre).
    ============================================================ */
 
 function MenuReveal() {
-  const [open, setOpen] = useState(false);
-
-  if (open) {
-    return (
-      <div className="animate-pop-in relative mx-auto w-full max-w-[400px]">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-xs font-bold text-cyan-300">
-            <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Cardápio ao vivo
-          </span>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white"
-          >
-            <X className="size-3" /> Fechar
-          </button>
-        </div>
-        <LiveStoreDemo />
-      </div>
-    );
-  }
-
+  const realMenuUrl = `${SITE_URL}/cardapio/${DEMO_STORE_SLUG}`;
   return (
-    <div className="relative mx-auto w-full max-w-[400px]">
-      <div
-        aria-hidden
-        className="animate-aurora absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-tr from-cyan-500/25 via-blue-500/10 to-violet-500/20 blur-3xl"
-      />
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="group relative block w-full overflow-hidden rounded-[2.2rem] border border-white/10 bg-gradient-to-b from-[#14141d] to-[#0a0a10] p-2.5 text-left shadow-[0_40px_90px_-25px_rgba(6,182,212,0.45)] transition-transform hover:-translate-y-1"
+    <div className="mx-auto w-full max-w-md text-center">
+      <a
+        href={realMenuUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="sheen group inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-6 py-4 text-base font-black text-black shadow-[0_20px_50px_-20px_rgba(34,211,238,0.7)] transition-all hover:-translate-y-0.5 hover:bg-cyan-400"
       >
-        <span
-          aria-hidden
-          className="animate-pulse-ring pointer-events-none absolute inset-0 rounded-[2.2rem] ring-2 ring-cyan-400/40"
-        />
-        <span className="relative block overflow-hidden rounded-[1.8rem] border border-white/[0.06] bg-[#0b0b12]">
-          <span className="relative block overflow-hidden">
-            <span
-              aria-hidden
-              className="absolute inset-0 bg-gradient-to-br from-cyan-500/30 via-blue-500/10 to-violet-500/25"
-            />
-            <span
-              aria-hidden
-              className="absolute -right-8 -top-10 size-32 rounded-full bg-cyan-400/30 blur-3xl"
-            />
-            <span className="relative flex items-center gap-3 p-4">
-              <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#0b0b12] text-2xl ring-1 ring-white/10">
-                {DEMO_SNAPSHOT.logoUrl ? (
-                  <SmartImage
-                    src={DEMO_SNAPSHOT.logoUrl}
-                    alt={DEMO_SNAPSHOT.name}
-                    width={112}
-                    height={112}
-                    className="size-full"
-                    imgClassName="size-full object-cover"
-                    eager
-                    fallback={<span>🍔</span>}
-                  />
-                ) : (
-                  <span>🍔</span>
-                )}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1 truncate text-sm font-black text-white">
-                  {DEMO_SNAPSHOT.name}
-                </span>
-                <span className="flex items-center gap-1.5 text-[11px] text-gray-300">
-                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Aberto
-                  agora
-                  <span className="text-gray-600">•</span> entrega e retirada
-                </span>
-              </span>
-              <QrCode className="size-7 shrink-0 text-white/70" />
-            </span>
-          </span>
-
-          <span className="relative flex flex-col gap-2.5 p-4">
-            <span className="flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5">
-              <span className="grid size-10 place-items-center rounded-xl bg-white/[0.05] text-lg">
-                🍔
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-bold text-white">X-Burger</span>
-                <span className="block text-[10px] text-gray-500">Pão, blend, queijo e bacon</span>
-              </span>
-              <span className="text-xs font-black text-cyan-300">R$ 29,99</span>
-            </span>
-            <span className="flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5">
-              <span className="grid size-10 place-items-center rounded-xl bg-white/[0.05] text-lg">
-                🥤
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-bold text-white">Coca-Cola Lata</span>
-                <span className="block text-[10px] text-gray-500">350ml gelada</span>
-              </span>
-              <span className="text-xs font-black text-cyan-300">R$ 5,90</span>
-            </span>
-
-            <span className="mt-1 flex items-center justify-center gap-2 rounded-full bg-cyan-500 py-3.5 text-sm font-black text-black transition-colors group-hover:bg-cyan-400">
-              Ver cardápio real
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </span>
-        </span>
-      </button>
-      <p className="mt-4 text-center text-[11px] text-gray-500">
-        É o cardápio de verdade, do lado de cá. Toque e monte um pedido. 👆
+        Abrir o cardápio real
+        <ArrowRight className="size-5 transition-transform group-hover:translate-x-0.5" />
+      </a>
+      <p className="mt-3 text-[11px] text-gray-500">
+        Abre em outra aba — é o cardápio de verdade, do lado de cá.
       </p>
     </div>
   );
@@ -239,8 +143,84 @@ function computeLossPlan(spend: number, days: number) {
   return { plan, monthlySaved, yearlySaved: monthlySaved * 12, payingNothing: spend <= 0 };
 }
 
-/** A conta do exemplo padrão, mostrada no herói antes de qualquer clique. */
-const HERO_LOSS = computeLossPlan(LOSS_DEFAULT_SPEND, LOSS_DEFAULT_DAYS);
+/**
+ * Simulador compacto do herói.
+ *
+ * Fica na cara, sem clique: o visitante mexe em dois campos e vê a economia
+ * mudar na hora. É o argumento da página em forma de brinquedo — o número é a
+ * mensagem, então ele não pode morar atrás de um botão.
+ */
+function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
+  const [spend, setSpend] = useState(LOSS_DEFAULT_SPEND);
+  const [days, setDays] = useState(LOSS_DEFAULT_DAYS);
+  const { plan, yearlySaved, payingNothing } = useMemo(
+    () => computeLossPlan(spend, days),
+    [spend, days],
+  );
+  return (
+    <div className="animate-reveal mt-3.5 rounded-2xl border border-rose-500/25 bg-rose-500/[0.06] p-3 text-left">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-rose-300">
+          <TrendingUp className="size-3" /> Simulador de economia
+        </span>
+        <span className="text-[10px] text-gray-500">arraste e veja</span>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        <label className="flex-1">
+          <span className="block text-[10px] text-gray-400">Paga hoje (R$/mês)</span>
+          <div className="mt-1 flex items-center gap-1 rounded-lg border border-white/10 bg-black/30 px-2 py-1 focus-within:border-rose-400/60">
+            <span className="text-xs font-bold text-gray-500">R$</span>
+            <input
+              type="number"
+              min={0}
+              max={5000}
+              step={10}
+              value={spend}
+              onChange={(e) => setSpend(Math.max(0, Number(e.target.value) || 0))}
+              aria-label="Quanto você paga por mês hoje"
+              className="w-full bg-transparent font-display text-sm font-black text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+        </label>
+        <label className="flex-1">
+          <span className="flex items-center justify-between text-[10px] text-gray-400">
+            Abre por mês <b className="text-cyan-300">{days} dias</b>
+          </span>
+          <input
+            type="range"
+            min={1}
+            max={30}
+            step={1}
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            aria-label="Quantos dias por mês você abre"
+            className="mt-2 w-full accent-cyan-400"
+          />
+        </label>
+      </div>
+
+      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-white/[0.07] pt-2.5">
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500">
+            {payingNothing ? "Sua economia" : "Economia estimada"}
+          </p>
+          <p className="font-display text-lg font-black leading-none text-emerald-300">
+            {brl(yearlySaved)}
+            <span className="text-[11px] font-bold text-gray-500">/ano</span>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenFull}
+          className="rounded-full border border-rose-400/40 px-3 py-1.5 text-[11px] font-bold text-rose-200 transition-colors hover:bg-rose-500/15 hover:text-white"
+        >
+          {plan.name} é o seu plano →
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function LossCalculator() {
   const [spend, setSpend] = useState(LOSS_DEFAULT_SPEND);
@@ -695,7 +675,6 @@ function LandingPage() {
   const [tutorialStep, setTutorialStep] = useState(0);
   const [panel, setPanel] = useState<LandingPanel>(null);
   const [view, setView] = useState<LandingView>("cardapio");
-  const lossYear = useCountUp(brl(HERO_LOSS.yearlySaved));
 
   function openPanel(p: NonNullable<LandingPanel>) {
     setMenuOpen(false);
@@ -818,6 +797,17 @@ function LandingPage() {
                 Link próprio, QR Code e pedidos na hora —{" "}
                 <strong className="font-bold text-white">sem comissão por pedido</strong>.
               </p>
+              <div className="animate-reveal mt-2.5 flex flex-wrap items-center justify-center gap-1.5 lg:justify-start">
+                <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/25 bg-violet-500/[0.08] px-2.5 py-1 text-[10px] font-bold text-violet-200">
+                  <MessageCircle className="size-3" /> Monte a loja conversando
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-2.5 py-1 text-[10px] font-bold text-cyan-200">
+                  <Bot className="size-3" /> Garçom digital no seu painel
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-2.5 py-1 text-[10px] font-bold text-emerald-200">
+                  <TrendingUp className="size-3" /> 0% de comissão
+                </span>
+              </div>
 
               <div className="animate-reveal mt-3.5 flex flex-col items-center justify-center gap-2.5 sm:flex-row lg:justify-start">
                 <Link
@@ -828,14 +818,9 @@ function LandingPage() {
                   Criar meu cardápio grátis
                   <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => openPanel("calc")}
-                  className="group flex w-full items-center justify-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/[0.08] px-4 py-2.5 text-sm font-semibold text-rose-200 transition-all hover:border-rose-400/60 hover:text-white sm:w-auto"
-                >
-                  <TrendingUp className="size-4" /> Perco {lossYear}/ano?
-                </button>
               </div>
+
+              <InlineSimulator onOpenFull={() => openPanel("calc")} />
 
               <p className="animate-reveal mt-2.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-gray-500 lg:justify-start">
                 <span className="flex items-center gap-1">
@@ -850,9 +835,6 @@ function LandingPage() {
               </p>
             </div>
 
-            <div className="mx-auto mt-4 w-full max-w-[330px] lg:mx-0 lg:mt-5">
-              <HeroScene />
-            </div>
           </div>
 
           {/* Coluna direita: só o cardápio — abas + painel. */}
@@ -904,8 +886,9 @@ function LandingPage() {
                 <div key={view} className="animate-panel">
                   {view === "cardapio" && (
                     <div className="mx-auto max-w-2xl">
-                      <p className="mb-4 text-center text-xs text-gray-400">
-                        O cardápio real, vivo. Toque para abrir e monte um pedido de verdade.
+                      <p className="mb-5 text-center text-sm text-gray-400">
+                        O cardápio que o seu cliente vê. Um link, QR Code na mesa — e o pedido cai
+                        no seu painel. Sem comissão.
                       </p>
                       <MenuReveal />
                     </div>

@@ -949,6 +949,15 @@ contador sobre virar ME.
   cai no fallback: o formulário usa a extração determinística
   (`parseRestaurantText`) e o chat devolve um texto-guia com o e-mail de suporte.
   Nada quebra, nada trava — só perde o "entender texto livre".
+- **A visão vai DENTRO de `messages`.** O modelo de visão
+  (`llama-3.2-11b-vision-instruct`) recusa `image` como campo de topo:
+  `AiError 3030: Unable to add image when there are no user-supplied nor
+  system-supplied messages`. O formato aceito é a imagem no `content` da
+  mensagem, como `image_url` (`buildVisionBody` em `ai.ts`, com teste próprio).
+  Com o campo errado a foto falhava mesmo com o token certo — devolvia
+  `scan_failed`. O modelo de visão também exige aceitar a licença da Meta UMA
+  vez por conta (`POST {model}` com `{"prompt":"agree"}`); sem isso devolve
+  `AiError 5016 Model Agreement`. Já aceito na conta de produção.
 - **Custo é irrelevante neste volume.** O Workers AI tem cota diária gratuita e
   só é chamado quando o dono cria/edita a loja ou pede ajuda — não é por pedido
   nem por visita. Centenas de conversas/dia cabem no gratuito.
@@ -1046,6 +1055,27 @@ contador sobre virar ME.
   workflow: `SUPABASE_SERVICE_ROLE_KEY`, `MERCADOPAGO_ACCESS_TOKEN`,
   `MERCADOPAGO_WEBHOOK_SECRET`, `RESEND_API_KEY`. Sem eles o app sobe e degrada
   em silêncio; o webhook do MP é o que exige o service role.
+- **Estado real das env do Pages (verificado em 2026-11-04):** produção tem
+  `CLOUDFLARE_AI_TOKEN`, `MERCADOPAGO_ACCESS_TOKEN`,
+  `MERCADOPAGO_WEBHOOK_SECRET` e `SUPABASE_SERVICE_ROLE_KEY`; o preview tem só
+  as `VITE_*` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SITE_URL`).
+  **`RESEND_API_KEY` NÃO está configurada** — todo e-mail (suporte, erro, nota
+  fiscal) é um no-op que loga. É a pendência #1: sem ela o aviso de bug/pedido
+  não chega. O `INVOICE_NOTIFY_EMAIL` também não está definido, então o destino
+  cai em `COMPANY.supportEmail` (`variantfeb@gmail.com`).
+- **Dois tokens da Cloudflare, papéis diferentes.** `CLOUDFLARE_API_TOKEN`
+  (secret do GitHub) é o de DEPLOY: precisa de **Cloudflare Pages: Edit** (a
+  permissão `Pages Read` só vê o projeto e o deploy falha com
+  `Authentication error [code: 10000]`). `CLOUDFLARE_AI_TOKEN` é o de RUNTIME:
+  só **Workers AI: Read**, e vive nas env do Pages. Confundir os dois foi o que
+  deixou o deploy quebrado sem ninguém perceber (o site continuou no ar servindo
+  o último build bom).
+- **Gravar uma env do Pages sem apagar as outras.** O `PATCH` de
+  `deployment_configs.production.env_vars` **substitui o mapa inteiro**, e a
+  leitura não devolve o valor das secrets. Use
+  `wrangler pages secret put <NOME> --project-name=cardapio-cidadela` — mexe só
+  na chave pedida. O workflow `.github/workflows/set-pages-secret.yml` faz isso
+  para o `CLOUDFLARE_AI_TOKEN`.
 - **Armadilha de runtime:** `src/lib/error-capture.ts` é importado no servidor e
   registrava listeners do navegador (`error`/`unhandledrejection` com
   `useCapture`). O runtime do Workers rejeita o 3º argumento de

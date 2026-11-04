@@ -802,8 +802,8 @@ aberturas de cardápio — o egress não é o problema; a pausa é.
 | Gatilho | Limite | ~Quando |
 | --- | --- | --- |
 | Egress | 5 GB/mês (use 4 GB como alarme) | 20–40 lojas ativas |
-| Realtime | 200 conexões simultâneas | 40–80 donos online juntos |
-| Banco | 500 MB | ~80 lojas |
+| Realtime | 200 conexões simultâneas | ~40 lojas (só donos; cliente virou poll) |
+| Banco | 500 MB | ~40 lojas (rode `VACUUM FULL` para não inchar) |
 | Cloudflare Functions | 100k/dia | ~400 lojas |
 | **Pausa de 7 dias** | — | contornada pelo keep-alive (grátis) |
 
@@ -927,11 +927,18 @@ diária a R$ 1,49, são ~60 diárias/mês. Tudo acima disso é margem.
   quem abrisse o painel pelo `*.pages.dev` compartilhava o endereço do provedor.
   `SharePanel` e `StorePulseBar` usam isso; o `/mobile` tem um botão de
   compartilhar (Web Share API com fallback para copiar/WhatsApp).
-- **O cliente não pode depender só do realtime no acompanhamento.** O
-  `/pedido/$orderId` assina os UPDATEs, mas se o WebSocket cair (celular em
-  segundo plano, rede instável) a tela congelava. Há um poll de 20s + revalidação
-  no `visibilitychange` como rede de segurança — a RPC `get_order_tracking` só
-  devolve colunas públicas.
+- **O cliente acompanha por polling, sem realtime.** O `/pedido/$orderId` e o
+  `/meus-pedidos` **não abrem WebSocket**. O realtime no lado do cliente custava
+  **uma conexão por telefone aberto**, e o plano free limita a 200 conexões
+  simultâneas: com 20 lojas e ~10 clientes esperando por loja ao mesmo tempo,
+  batia no teto (20 donos + 200 clientes = 220) e as conexões novas eram
+  recusadas. Agora o poll de 20s é o único caminho — 0 conexões persistentes,
+  e a mudança de status aparece em até 20s (o pedido leva ~20 min, então a
+  diferença é imperceptível). A RPC `get_order_tracking` só devolve colunas
+  públicas, então o poll não expõe nada a mais. O ciclo **para quando o pedido
+  fecha** (entregue/cancelado não muda mais). Não reintroduza `subscribeToOrders`
+  nessas duas telas — o dono continua com realtime (poucas conexões), mas o
+  cliente multiplica por telefone.
 - **Alerta que não pode falhar.** `useOwnerPendingOrders` (o sino/contador do
   mobile) mantém um `Set` de ids conhecidos: o poll de 15s compara com a lista
   atual e dispara o alerta para o que o realtime não entregou. Também revalida no

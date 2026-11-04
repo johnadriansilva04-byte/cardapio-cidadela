@@ -40,6 +40,7 @@ const FILES = [
   "supabase_invoice_migration.sql",
   "supabase_push_grants_migration.sql",
   "supabase_retention.sql",
+  "supabase_maintenance_migration.sql",
   "supabase_perf_indexes_migration.sql",
   "supabase_restaurant_limit_migration.sql",
 ];

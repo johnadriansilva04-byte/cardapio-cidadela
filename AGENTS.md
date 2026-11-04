@@ -779,14 +779,18 @@ developers.cloudflare.com). Reconfira antes de decidir — os planos mudam.
   como taxa média no mix Pix + cartão.
 - Resend: 3.000 e-mails/mês.
 
-**Manutenção do banco — `VACUUM FULL` quando o banco parecer grande demais.**
-Medido em 2026-11-03: o banco marcava **140 MB com 10 pedidos**. A tabela
-`orders` tinha 24 kB de dados e um índice de **13 MB**; `order_items`, 47 MB.
-Era bloat de `ALTER TABLE` repetido nas migrações (cada `ADD COLUMN`/`CREATE
-INDEX` reescreve a tabela), não dado real. `VACUUM FULL` nas três tabelas
-derrubou 140 MB → **16 MB** (recuperou 124 MB, 89%). Rode
-`supabase/maintenance.sql` no SQL Editor quando o número no painel não bater
-com o volume de pedidos — não há perda de dado, só devolução do espaço morto.
+**Manutenção do banco — automatizada pelo cron `cidadela-vacuum-*`.**
+A retenção (`cleanup_old_data`) apaga pedidos todo dia às 03:00; no Postgres o
+`DELETE` **não devolve espaço** ao sistema, então o banco crescia sozinho e o
+bloat se acumulava. Medido em 2026-11-03: **140 MB com 10 pedidos** — a tabela
+`orders` tinha 24 kB de dados e um índice de 13 MB. Um `VACUUM FULL` derrubou
+para 16 MB. Agora três jobs semanais (`cidadela-vacuum-orders|items|history`,
+domingo 04:00 UTC, `supabase_maintenance_migration.sql`) rodam `VACUUM
+(ANALYZE)` e mantêm o tamanho estável sem intervenção. **Um job por tabela**:
+o pg_cron envolve o comando numa transação e recusa `VACUUM` multi-statement.
+`supabase/maintenance.sql` (VACUUM FULL) fica para quando o banco já estiver
+inchado e você quiser devolver o espaço ao disco de uma vez — é manual porque
+trava a tabela.
 
 **Consumo medido por loja/mês** (do código, não chute): cardápio público
 ~15 MB; painel do dono ~14 MB (carga limitada a 300 pedidos + poll leve de

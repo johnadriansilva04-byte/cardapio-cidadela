@@ -1337,3 +1337,40 @@ contador sobre virar ME.
      depois de publicar (o CNPJ não existe no bundle antigo — conferir em
      `/terms`).
 
+## Egress: o teto real do plano gratuito
+
+- **O gargalo é o EGRESS de Storage (5 GB/mês), não o banco nem a Cloudflare.**
+  Medido em 2026-11-03: banco 16 MB / 500 MB (3,2%), Storage 1,19 MB / 1 GB
+  (0,12%), REST ~1.600 req/dia, auth ~30/dia. Nada disso chega perto do teto —
+  o que estoura primeiro é servir imagem grande demais para muita gente.
+- **Toda imagem do app deve passar pela URL transformada do Storage**
+  (`optimizedImageUrl` / `SmartImage`), nunca o arquivo cru. A transformação
+  (`/render/image/`) converte para WebP no tamanho pedido: um banner de 729 kB
+  virava 24 kB (**30× menos**). O card do admin (`RestaurantCardCompact`),
+  os avatares (`AccountMenu`, `admin.config`, `admin.restaurante.$id`) e o
+  cardápio público usam isso; sobrou só `<img>` cru no preview do
+  `RestaurantDialog` (arquivo local antes do upload) e nos QR Codes (externos).
+- **Fallback obrigatório.** A transformação é recurso pago do Supabase; onde ela
+  estiver desligada o `<img>` precisa voltar à URL original (`onError` com
+  `data-original`), senão a imagem some. `SmartImage` já faz a cadeia
+  transformada → original → jpeg → fallback.
+- **`srcset` 1x/2x** (`imageSrcSet`) evita que uma tela retina peça o dobro de
+  pixels à toa (logo de 160 pedia 320). Só entra em host do Storage; imagem
+  externa passa intacta.
+- **Trocar logo/banner apaga o arquivo antigo** (`deleteRestaurantImageByUrl`,
+  agora usado no `RestaurantDialog`). A URL é imutável (timestamp no nome),
+  então sem isso o bucket só acumulava órfãos. O cron `mata-fome-images`
+  (`supabase_perf_indexes_migration.sql` → `cleanup_orphan_images`) limpa o que
+  escapar, com janela de 7 dias.
+- **Cache do cardápio público é SWR de 6h** (`MENU_CACHE_FRESH_MS`). A
+  revalidação (`Cardapio.tsx`) só bate no banco quando o snapshot venceu — antes
+  rebatia os quatro payloads a cada 5 min mesmo com o cache fresco, o pior dos
+  dois mundos. `getMenuWithProducts` também deduplica consultas em voo por
+  restaurante (`inflightMenu`).
+- **Preço da cota em número de aberturas.** Payload do menu ~6,6 kB por visita
+  fria; com banner WebP de 24 kB, cada visita gasta ~31 kB. Os 5 GB do plano
+  gratuito cobrem ~160 mil visitas frias/mês (mais, porque o cache do navegador
+  evita a maioria). O que derruba a conta é imagem crua de centenas de kB — aí
+  são ~7 mil aberturas e o mês acaba.
+
+

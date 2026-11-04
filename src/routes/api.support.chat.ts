@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-lim
 import { runAi, isAiEnabled } from "@/api/lib/ai";
 import { sendEmail, getInvoiceNotifyEmail } from "@/api/lib/email";
 import { buildDevReport, type DevReportMeta } from "@/api/lib/dev-report";
+import { saveSupportReport, markReportNotified } from "@/api/lib/support-reports";
 import { COMPANY } from "@/lib/company";
 
 /**
@@ -103,11 +104,27 @@ export const Route = createFileRoute("/api/support/chat")({
         // O e-mail só sai quando o caso é escalado — mandar a cada mensagem
         // gastaria a cota do Resend (3.000/mês) com conversa fiada.
         let notified = false;
+        let protocol: string | undefined;
         if (shouldEscalate) {
           const to = getInvoiceNotifyEmail();
+          const lastUser = [...history].reverse().find((m) => m.role === "user");
+          // Grava primeiro (fonte da verdade), avisa depois (best-effort).
+          const saved = await saveSupportReport({
+            kind: "suporte",
+            reporterId: authData.user.id,
+            reporterEmail: ownerEmail,
+            restaurantId: body.storeId,
+            restaurantName: body.storeName,
+            route: body.meta?.url,
+            message: lastUser?.content?.slice(0, 300),
+            detail: { turns: history, meta: body.meta ?? null },
+          });
+          protocol = saved.protocol;
+
           if (to) {
             const report = buildDevReport({
               kind: "suporte",
+              protocol: saved.protocol,
               ownerEmail,
               storeId: body.storeId,
               storeName: body.storeName,
@@ -121,10 +138,11 @@ export const Route = createFileRoute("/api/support/chat")({
               text: report.text,
             });
             notified = Boolean(result.ok);
+            if (notified) await markReportNotified(saved.id);
           }
         }
 
-        return json({ reply, escalated: shouldEscalate, notified }, 200);
+        return json({ reply, escalated: shouldEscalate, notified, protocol }, 200);
       },
     },
   },

@@ -3,6 +3,8 @@ import type {} from "@tanstack/react-start";
 import { checkRateLimit, getClientIp, tooManyRequests } from "@/api/lib/rate-limit";
 import { sendEmail, getInvoiceNotifyEmail } from "@/api/lib/email";
 import { buildDevReport, type DevReportMeta } from "@/api/lib/dev-report";
+import { saveSupportReport, markReportNotified } from "@/api/lib/support-reports";
+import { getServerSupabase } from "@/api/lib/mercadopago";
 
 /**
  * POST /api/support/error
@@ -70,10 +72,42 @@ export const Route = createFileRoute("/api/support/error")({
         if (isDuplicate(dedupeKey)) return json({ ok: true, deduped: true }, 200);
 
         const to = getInvoiceNotifyEmail();
-        if (!to) return json({ ok: false, skipped: true }, 200);
+
+        // Quem reportou: se houver sessão, resolve o dono; senão fica anônimo
+        // (o erro pode acontecer antes do login).
+        let reporterId: string | undefined;
+        let reporterEmail: string | undefined;
+        const auth = request.headers.get("authorization") ?? "";
+        const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+        if (token) {
+          const supabase = getServerSupabase();
+          const { data } = supabase ? await supabase.auth.getUser(token) : { data: null };
+          if (data?.user) {
+            reporterId = data.user.id;
+            reporterEmail = data.user.email ?? undefined;
+          }
+        }
+
+        // Grava PRIMEIRO: o registro com protocolo é a fonte da verdade. O
+        // e-mail é o aviso; se ele falhar, o caso continua achável.
+        const saved = await saveSupportReport({
+          kind: "erro",
+          reporterId,
+          reporterEmail,
+          restaurantId: body.storeId,
+          restaurantName: body.storeName,
+          route: body.route,
+          message,
+          detail: {
+            stack: body.stack ?? null,
+            component: body.component ?? null,
+            meta: body.meta ?? null,
+          },
+        });
 
         const report = buildDevReport({
           kind: "erro",
+          protocol: saved.protocol,
           storeId: body.storeId,
           storeName: body.storeName,
           meta: body.meta,
@@ -85,13 +119,16 @@ export const Route = createFileRoute("/api/support/error")({
           },
         });
 
+        if (!to) return json({ ok: true, protocol: saved.protocol, notified: false }, 200);
+
         const result = await sendEmail({
           to,
           subject: report.subject,
           html: report.html,
           text: report.text,
         });
-        return json({ ok: Boolean(result.ok) }, 200);
+        if (result.ok) await markReportNotified(saved.id);
+        return json({ ok: true, protocol: saved.protocol, notified: Boolean(result.ok) }, 200);
       },
     },
   },

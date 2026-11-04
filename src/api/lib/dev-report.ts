@@ -22,6 +22,8 @@ export interface DevReportMeta {
 
 export interface DevReportInput {
   kind: "suporte" | "erro";
+  /** Protocolo de atendimento (CID-...). Identifica o caso e permite reencontrá-lo. */
+  protocol?: string;
   ownerEmail?: string;
   storeId?: string;
   storeName?: string;
@@ -49,16 +51,18 @@ const SIGNATURE = "Pracinha · Suporte da Variant";
 const DIVIDER = "────────────────────────────────────────";
 
 export function buildDevReport(input: DevReportInput): DevReport {
-  const { kind, ownerEmail, storeId, storeName, meta, turns = [], error } = input;
+  const { kind, protocol, ownerEmail, storeId, storeName, meta, turns = [], error } = input;
   const isError = kind === "erro";
   const when = formatWhen(new Date());
 
   // Fatos "de gente": só o que o CEO precisa para se situar.
   const ceoFacts: Array<[string, string]> = [["Loja", storeName || "não informada"]];
+  if (protocol) ceoFacts.push(["Protocolo", protocol]);
   ceoFacts.push(["Quando", when]);
 
   // Fatos "de dev": contexto técnico completo, só na parte de baixo.
   const devFacts: Array<[string, string]> = [["Loja", storeName || "não informada"]];
+  if (protocol) devFacts.push(["Protocolo", protocol]);
   if (storeId) devFacts.push(["ID da loja", storeId]);
   devFacts.push(["Conta", ownerEmail || "desconhecida"]);
   devFacts.push(["Página", meta?.url || error?.route || "não informada"]);
@@ -84,11 +88,11 @@ export function buildDevReport(input: DevReportInput): DevReport {
 
   // O assunto é a primeira coisa que o CEO vê na caixa de entrada: nada de
   // mensagem de erro em inglês. A loja identifica o caso; o técnico fica no corpo.
+  // O protocolo entra no assunto para o relato ser achável na caixa de e-mail.
+  const tag = protocol ? `[${protocol}] ` : "";
   const subject = isError
-    ? storeName
-      ? `[Pracinha] Erro no app · ${storeName.slice(0, 50)}`
-      : "[Pracinha] Erro no app"
-    : `[Pracinha] Relato de cliente · ${(storeName || turns[turns.length - 1]?.content || "suporte").slice(0, 50)}`;
+    ? `${tag}[Pracinha] Erro no app · ${storeName ? storeName.slice(0, 50) : "sem loja"}`
+    : `${tag}[Pracinha] Relato de cliente · ${(storeName || turns[turns.length - 1]?.content || "suporte").slice(0, 50)}`;
 
   // No relato de suporte a conversa é o miolo — o CEO lê. No erro, o stack é
   // jargão e fica só na parte do dev.

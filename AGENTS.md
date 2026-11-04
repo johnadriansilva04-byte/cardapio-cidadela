@@ -1373,4 +1373,25 @@ contador sobre virar ME.
   evita a maioria). O que derruba a conta é imagem crua de centenas de kB — aí
   são ~7 mil aberturas e o mês acaba.
 
+## Landing: hub de uma tela (sem rolagem)
+
+- **A home (`src/routes/index.tsx`) não rola.** Herói + atalhos + rodapé cabem na
+  viewport; cada assunto (Recursos, Sua marca, Pracinha, Preços, Quem faz,
+  Dúvidas) abre num **painel por cima** (`GuidePanel`, o mesmo do
+  `/admin/assinatura`) com X para fechar. O E2E
+  (`smoke-routes.spec.ts` → "landing não rola") mede
+  `scrollHeight - clientHeight <= 4`; ao mexer no layout, revalide por ele.
+- Os atalhos são `GuideTile` (`src/modules/ui/GuidePanel.tsx`). O conteúdo de
+  cada painel vive em componentes (`LossCalculator`, `VariantSection`,
+  `PracinhaDemo`, `PlanCards` + FAQ inline) — não recrie as seções empilhadas.
+- O herói carrega o atalho mais visível para a calculadora ("Quanto você está
+  perdendo hoje?"). A promessa da landing é **mostrar em número**, não convencer
+  com adjetivo: quem quiser vender mais forte, melhore o número do
+  `LossCalculator`, não o texto.
+- **O fundo aurora é `absolute inset-0 overflow-hidden`** dentro do root
+  (`min-h-screen flex-col`). Um `overflow-hidden` no root corta conteúdo em
+  viewport baixa; os blobs com `-left/-right` negativos precisam do clip para
+  não criar scroll horizontal. Mantenha esse par.
+
+
 

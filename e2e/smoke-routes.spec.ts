@@ -134,16 +134,22 @@ for (const route of ["/", "/terms", "/privacy"]) {
   });
 }
 
-test("simulador de economia recomenda plano e mostra a economia", async ({ page }) => {
-  await page.goto("/#simulador");
+test("calculadora de economia abre no painel e mostra a economia", async ({ page }) => {
+  await page.goto("/");
   // Espera a hidratação: sem isso o primeiro clique pode cair antes do handler.
   await page.waitForLoadState("networkidle");
 
-  // A pergunta provocadora abre o simulador; antes de clicar não há resultado.
+  // O atalho da calculadora fica no herói; o resultado não aparece antes.
+  await expect(page.getByText(/Quanto você está perdendo hoje\?/)).toBeVisible();
+  await expect(page.getByText("Você economiza", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: /Fazer a conta/ }).click();
+
+  // O painel abre por cima com a pergunta e o X de fechar.
   await expect(
     page.getByRole("heading", { name: /Quer ver quanto de dinheiro você está perdendo/ }),
   ).toBeVisible();
-  await expect(page.getByText(/Você economiza/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Fechar" })).toBeVisible();
 
   // Dono informa o que paga hoje e clica.
   await page.getByLabel(/Quanto você paga por mês/).fill("200");
@@ -159,10 +165,42 @@ test("simulador de economia recomenda plano e mostra a economia", async ({ page 
     "href",
     "/login?mode=register",
   );
+
+  // O X fecha o painel e volta ao hub.
+  await page.getByRole("button", { name: "Fechar" }).click();
+  await expect(page.getByText("Você economiza", { exact: true })).toHaveCount(0);
+});
+
+test("landing não rola: o hub cabe na tela e abre os assuntos em painel", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  // A página não cresce além da viewport — nada de rolagem longa.
+  const overflow = await page.evaluate(() => {
+    const el = document.documentElement;
+    return el.scrollHeight - el.clientHeight;
+  });
+  expect(overflow).toBeLessThanOrEqual(4);
+
+  // Os atalhos abrem cada assunto por cima, com X para fechar.
+  await page.getByRole("button", { name: /Pracinha/ }).click();
+  await expect(page.getByRole("heading", { name: /Conheça o Pracinha/ })).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  await page
+    .getByRole("button", { name: /Preços/ })
+    .first()
+    .click();
+  await expect(page.getByRole("heading", { name: /Escolha como pagar/ })).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  await expect(page.getByText("Você economiza", { exact: true })).toHaveCount(0);
 });
 
 test("landing mostra a missão da Variant", async ({ page }) => {
-  await page.goto("/#variant");
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Quem faz", exact: true }).click();
   await expect(page.getByRole("heading", { name: /Variant existe por um motivo/ })).toBeVisible();
   await expect(page.getByText(/Reduzir a mortalidade das pequenas empresas/)).toBeVisible();
 });

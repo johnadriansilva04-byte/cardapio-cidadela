@@ -631,6 +631,11 @@
   perde a conta por inatividade. A tela de Configurações mostra o aviso lendo
   `account_purge_status()` (some sem a migração). É fail-safe: sem o job, nada
   é apagado. `delete_own_account()` continua sendo a exclusão a pedido.
+  **Pegadinha:** `admin_trials.store_id` é `varchar` (legado) e `restaurants.id`
+  é `uuid` — a checagem de Premium precisa de `t.store_id::uuid`, senão o job
+  estoura com "operator does not exist: uuid = character varying" e falha toda
+  noite. `supabase/run-sql.mjs` executa um `.sql` avulso via Management API
+  (faxinas pontuais, no padrão do `apply-all.mjs`).
 - **Produto não tem mais foto — só um tile genérico.** O cardápio público, o
   carrinho e o painel renderizam o mesmo bloco (`UtensilsCrossed` na cor de
   destaque / 🍔 no carrinho) em vez de `item.image_url`. A coluna

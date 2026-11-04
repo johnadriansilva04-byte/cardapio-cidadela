@@ -182,6 +182,32 @@
 
 ## Assinatura Premium (Mercado Pago)
 
+- **Pacotes são uma fonte única: `src/lib/plans.ts`.** Define Gratuito, Mensal
+  (R$ 28,99) e Anual (R$ 199,99) com a lista de recursos por chave
+  (`PLAN_FEATURES`). A landing (`index.tsx`) e a assinatura
+  (`admin.assinatura.tsx`) renderizam `PlanCards` (`src/modules/ui/PlanCards.tsx`)
+  a partir dela — não duplique a lista de recursos em JSX. A diária continua
+  sendo compra avulsa (não é pacote) e vive em `pricing.ts`.
+- **O recurso de foto é o diferencial do Anual.** Ler o cardápio por FOTO
+  (`/api/menu/scan` → Workers AI `@cf/meta/llama-3.2-11b-vision-instruct`) custa
+  token de imagem por uso, então é exclusivo do ciclo ANUAL; o Mensal monta por
+  conversa (Pracinha). O gate é no SERVIDOR: a rota lê `store_access_state` com o
+  RLS do usuário e exige `premium_cycle = 'annual'`. A UI só esconde/mostra —
+  nunca é a barreira.
+- **O ciclo do Premium vive em `admin_trials.premium_cycle`** (`'monthly'` |
+  `'annual'`), escrito só pelo webhook/sync (service role) e protegido pelo
+  `guard_admin_trials_premium` (o dono não pode gravar — senão um `PATCH
+  premium_cycle='annual'` liberaria a foto de graça). `store_access_state` expõe
+  `premium_cycle`; sem a migração
+  (`supabase_premium_cycle_migration.sql`) o campo vem nulo e o recurso fica
+  bloqueado (fail-closed). `PreapprovalInfo.cycle` deriva de `auto_recurring.frequency`
+  (12 = anual).
+- **A foto vira itens sem gravar sozinha.** `/api/menu/scan` só devolve a
+  sugestão (`parseMenuScan` valida/limpa, ≤ 40 itens); quem grava é
+  `importScannedMenu` (`src/modules/supabase/menu-scan.ts`) depois do dono
+  conferir. A foto é comprimida (`compressImageForUpload`, WebP ≤ 800px) antes de
+  sair do aparelho — reduz o token de imagem (custo) e o envio.
+
 - **Modelo atual: anual (R$ 199,99) OU diária de 24h (R$ 1,99), comprável em
   pacote.** A diária vive em `store_day_passes` (livro-razão, `mp_payment_id`
   UNIQUE → webhook idempotente) e é concedida só pela RPC SECURITY DEFINER

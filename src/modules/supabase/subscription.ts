@@ -46,6 +46,7 @@ interface AccessState {
   unlocked: boolean;
   source: "annual" | "day" | "free";
   annual_expires_at: string | null;
+  premium_cycle?: "monthly" | "annual" | null;
   unlocked_until: string | null;
   quota_used: number;
   quota_limit: number;
@@ -71,6 +72,7 @@ async function fetchAccessState(storeId: string): Promise<AccessState | null> {
     unlocked: Boolean(raw.unlocked),
     source: (raw.source as AccessState["source"]) ?? "free",
     annual_expires_at: raw.annual_expires_at ?? null,
+    premium_cycle: (raw.premium_cycle as AccessState["premium_cycle"]) ?? null,
     unlocked_until: raw.unlocked_until ?? null,
     quota_used: Math.max(0, Number(raw.quota_used ?? 0) || 0),
     quota_limit: Math.max(0, Number(raw.quota_limit ?? MONTHLY_FREE_LIMIT) || 0),
@@ -200,6 +202,9 @@ function toStatus(
     dayPassMonthUsed: Math.max(0, Number(access?.day_pass_month_used ?? 0) || 0),
     dayPassMonthLimit: Math.max(0, Number(access?.day_pass_month_limit ?? 15) || 15),
     accessSource,
+    // Sem a migração do ciclo, a RPC não devolve o campo: tratamos como mensal
+    // (o recurso de foto fica bloqueado até o ciclo ser gravado).
+    premiumCycle: isPremium ? (access?.premium_cycle ?? "monthly") : null,
   };
 }
 
@@ -461,4 +466,18 @@ export async function fetchDayPassCredits(storeId: string): Promise<number> {
   const { data, error } = await supabase.rpc("owner_day_pass_credits", { p_store: storeId });
   if (error) return 0;
   return Math.max(0, Number(data ?? 0) || 0);
+}
+
+/**
+ * Ciclo do Premium vigente da loja ('monthly' | 'annual' | null).
+ *
+ * Leve de propósito: só lê a RPC `store_access_state`, sem montar o
+ * `SubscriptionStatus` inteiro. Usado onde só interessa liberar a leitura por
+ * foto (exclusiva do anual). Sem a RPC/migração devolve `null` (bloqueia o
+ * recurso, que é o comportamento seguro).
+ */
+export async function fetchPremiumCycle(storeId: string): Promise<"monthly" | "annual" | null> {
+  const access = await fetchAccessState(storeId);
+  if (!access || !access.unlocked) return null;
+  return access.premium_cycle ?? "monthly";
 }

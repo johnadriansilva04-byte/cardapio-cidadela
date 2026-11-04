@@ -55,6 +55,8 @@ import {
   MONTHLY_PRICE_LABEL,
   PREMIUM_PRICE_LABEL,
 } from "@/lib/pricing";
+import { PLANS } from "@/lib/plans";
+import { PlanCards, PlanCheck, PlanNo, type PlanComparisonRow } from "@/modules/ui/PlanCards";
 import { COMPANY, hasFiscalData, missingFiscalFields } from "@/lib/company";
 import {
   createInvoiceRequest,
@@ -113,13 +115,42 @@ const PREMIUM_BENEFITS: { icon: LucideIcon; title: string; text: string }[] = [
   },
 ];
 
-/** Comparativo gratuito × Premium — a diferença em uma olhada, sem letras miúdas. */
-const PLAN_COMPARISON: { feature: string; free: string; premium: string }[] = [
-  { feature: "Pedidos por mês", free: `${MONTHLY_FREE_LIMIT}`, premium: "Ilimitados" },
-  { feature: "Restaurantes", free: "1", premium: "Quantos quiser" },
-  { feature: "Detalhes dos pedidos", free: "Bloqueiam na cota", premium: "Sempre liberados" },
-  { feature: "Ativação após pagamento", free: "—", premium: "Automática" },
-  { feature: "Cancele quando quiser", free: "—", premium: "Sim, sem multa" },
+/**
+ * Comparativo dos três pacotes — a diferença numa olhada, sem letras miúdas.
+ * A coluna "Anual" é onde o recurso de foto aparece: é o gatilho de venda.
+ */
+const PLAN_COMPARISON: PlanComparisonRow[] = [
+  {
+    feature: "Pedidos por mês",
+    free: `${MONTHLY_FREE_LIMIT}`,
+    monthly: "Ilimitados",
+    annual: "Ilimitados",
+  },
+  {
+    feature: "Detalhes dos pedidos",
+    free: "Bloqueiam na cota",
+    monthly: <PlanCheck />,
+    annual: <PlanCheck />,
+  },
+  {
+    feature: "Pracinha monta por conversa",
+    free: <PlanNo />,
+    monthly: <PlanCheck />,
+    annual: <PlanCheck />,
+  },
+  {
+    feature: "Cardápio por FOTO (IA)",
+    free: <PlanNo />,
+    monthly: <PlanNo />,
+    annual: <PlanCheck />,
+  },
+  {
+    feature: "Restaurantes na conta",
+    free: "1",
+    monthly: "Quantos quiser",
+    annual: "Quantos quiser",
+  },
+  { feature: "Cancele quando quiser", free: <PlanNo />, monthly: "Sim", annual: "Sim" },
 ];
 
 /** Contador animado do uso do plano gratuito. */
@@ -677,11 +708,15 @@ function SubscriptionPage() {
     }
   }
 
-  async function openPayment() {
+  async function openPayment(override?: BillingOption) {
     if (!activeId) return;
+    // O botão pode pedir um ciclo específico (ex.: cartão do Anual). Só aceita
+    // um valor conhecido — o onClick passa o evento, que não é um ciclo.
+    const chosen =
+      override === "day" || override === "monthly" || override === "annual" ? override : billing;
     // A diária não é assinatura recorrente: tem o próprio checkout (24h) e a
     // concessão só acontece no webhook.
-    if (billing === "day") return openDayPass();
+    if (chosen === "day") return openDayPass();
     // Só registra o e-mail quando é um endereço real. Gravar o pseudo-e-mail
     // interno (`...@menufacil.local`) como `admin_email` não ajuda o webhook e
     // ainda o expunha na tela; sem e-mail, o `external_reference` do link já
@@ -693,7 +728,7 @@ function SubscriptionPage() {
     // ciclo — antes era um pagamento pontual que não renovava e a loja
     // bloqueava quando o dono esquecia.
     try {
-      const res = await createSubscriptionLink(activeId, session?.access_token, billing);
+      const res = await createSubscriptionLink(activeId, session?.access_token, chosen);
 
       if (!res.initPoint) {
         // O Mercado Pago exige um e-mail real para a assinatura recorrente; o
@@ -1155,31 +1190,60 @@ function SubscriptionPage() {
             ))}
           </ul>
 
-          <div className="overflow-hidden rounded-2xl border border-white/[0.06]">
-            <div className="grid grid-cols-[1.4fr_1fr_1fr] bg-white/[0.03] px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
+          <div className="overflow-x-auto rounded-2xl border border-white/[0.06]">
+            <div className="grid min-w-[380px] grid-cols-[1.3fr_0.8fr_0.9fr_0.9fr] bg-white/[0.03] px-3 py-2 text-[10px] font-bold uppercase tracking-wider">
               <span className="text-gray-500">Recurso</span>
-              <span className="text-center text-gray-500">Gratuito</span>
-              <span className="text-center text-cyan-300">Premium</span>
+              <span className="text-center text-gray-500">Grátis</span>
+              <span className="text-center text-cyan-300">Mensal</span>
+              <span className="text-center text-amber-300">Anual</span>
             </div>
             {PLAN_COMPARISON.map((row, i) => (
               <div
                 key={row.feature}
                 className={
-                  "grid grid-cols-[1.4fr_1fr_1fr] items-center px-3 py-2.5 text-[11px] " +
+                  "grid min-w-[380px] grid-cols-[1.3fr_0.8fr_0.9fr_0.9fr] items-center px-3 py-2.5 text-[11px] " +
                   (i % 2 ? "bg-white/[0.015]" : "")
                 }
               >
                 <span className="pr-2 font-medium text-gray-300">{row.feature}</span>
                 <span className="flex items-center justify-center gap-1 text-center text-gray-500">
-                  {row.free === "—" ? <Minus className="size-3.5" /> : row.free}
+                  {row.free}
                 </span>
                 <span className="flex items-center justify-center gap-1 text-center font-semibold text-white">
-                  <Check className="size-3.5 shrink-0 text-emerald-400" />
-                  {row.premium}
+                  {row.monthly}
+                </span>
+                <span className="flex items-center justify-center gap-1 text-center font-semibold text-white">
+                  {row.annual}
                 </span>
               </div>
             ))}
           </div>
+
+          {/* Pacotes com preço — o anual em destaque, com o CTA que leva a assinar. */}
+          <PlanCards
+            className="grid gap-3 sm:grid-cols-3"
+            renderCta={(plan) =>
+              plan.key === "free" ? (
+                <span className="block rounded-full border border-white/10 py-2.5 text-center text-xs font-bold text-gray-400">
+                  {plan.ctaLabel}
+                </span>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setBilling(plan.key === "annual" ? "annual" : "monthly");
+                    setTab(null);
+                    void openPayment(plan.key === "annual" ? "annual" : "monthly");
+                  }}
+                  className={
+                    "tap w-full rounded-full py-2.5 text-xs font-black text-black " +
+                    (plan.key === "annual" ? "sheen bg-cyan-500 hover:bg-cyan-400" : "bg-white/90")
+                  }
+                >
+                  {plan.ctaLabel} · {plan.priceLabel}
+                </Button>
+              )
+            }
+          />
 
           {!isPremium && (
             <Button

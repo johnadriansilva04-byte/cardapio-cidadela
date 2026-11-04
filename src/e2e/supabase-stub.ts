@@ -769,6 +769,29 @@ class StubClient {
       });
     }
     if (name === "get_order_for_owner") return getOrderForOwner(db, args);
+    if (name === "store_access_state") {
+      // Espelha a RPC do banco: devolve o estado do acesso e o CICLO vigente.
+      // O ciclo decide o recurso de foto (exclusivo do anual) — sem ele aqui o
+      // E2E do cardápio por foto não teria como liberar o recurso.
+      const storeId = String(args?.p_store ?? "");
+      const trial = db.admin_trials.find((t) => String(t.store_id) === storeId);
+      const premium = isPremiumActive(trial, Date.now());
+      return Promise.resolve({
+        data: {
+          unlocked: premium,
+          source: premium ? "annual" : "free",
+          annual_expires_at: trial?.premium_expires_at ?? null,
+          premium_cycle: premium ? ((trial?.premium_cycle as string) ?? "annual") : null,
+          unlocked_until: null,
+          quota_used: monthlyOrderCount(db, storeId, Date.now()),
+          quota_limit: 5 + bonusOrders(db, storeId, Date.now()),
+          day_pass_credits: 0,
+          day_pass_month_used: 0,
+          day_pass_month_limit: 15,
+        },
+        error: null,
+      });
+    }
     if (name === "store_is_premium") {
       // Espelha a RPC pública: só o booleano de Premium da loja (garçom digital).
       const storeId = String(args?.p_store ?? "");
@@ -816,8 +839,10 @@ export function createClient(): StubClient {
     // o Premium na linha de `admin_trials`. O E2E usa isso para provar que a
     // assinatura destrava os pedidos que estavam bloqueados pela cota.
     (
-      window as unknown as { __E2E_ACTIVATE_PREMIUM__?: (storeId: string) => void }
-    ).__E2E_ACTIVATE_PREMIUM__ = (storeId: string) => {
+      window as unknown as {
+        __E2E_ACTIVATE_PREMIUM__?: (storeId: string, cycle?: "monthly" | "annual") => void;
+      }
+    ).__E2E_ACTIVATE_PREMIUM__ = (storeId: string, cycle: "monthly" | "annual" = "annual") => {
       const db = getDb();
       const expires = new Date();
       expires.setFullYear(expires.getFullYear() + 1);
@@ -825,12 +850,14 @@ export function createClient(): StubClient {
       if (existing) {
         existing.is_premium = true;
         existing.premium_expires_at = expires.toISOString();
+        existing.premium_cycle = cycle;
       } else {
         db.admin_trials.push({
           id: `trial-${storeId}`,
           store_id: storeId,
           is_premium: true,
           premium_expires_at: expires.toISOString(),
+          premium_cycle: cycle,
         });
       }
     };

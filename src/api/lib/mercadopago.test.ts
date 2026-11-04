@@ -205,7 +205,26 @@ describe("normalizePreapproval", () => {
       payerEmail: "dono@loja.com",
       externalReference: "minha-loja",
       nextPaymentDate: "2026-05-01T00:00:00.000Z",
+      cycle: "monthly",
     });
+  });
+
+  it("marca cycle='annual' quando a recorrência é de 12 meses", () => {
+    const info = normalizePreapproval({
+      id: "x",
+      status: "authorized",
+      auto_recurring: { frequency: 12, frequency_type: "months" },
+    });
+    expect(info?.cycle).toBe("annual");
+  });
+
+  it("marca cycle='monthly' na recorrência de 1 mês", () => {
+    const info = normalizePreapproval({
+      id: "x",
+      status: "authorized",
+      auto_recurring: { frequency: 1, frequency_type: "months" },
+    });
+    expect(info?.cycle).toBe("monthly");
   });
 
   it("retorna null sem id", () => {

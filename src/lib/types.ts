@@ -208,6 +208,11 @@ export interface SubscriptionStatus {
   dayPassMonthLimit: number;
   /** Origem do acesso atual: 'annual' | 'day' | 'free'. */
   accessSource: "annual" | "day" | "free";
+  /**
+   * Ciclo do Premium vigente: 'monthly' | 'annual' | null.
+   * A leitura de cardápio por foto é exclusiva do ciclo anual.
+   */
+  premiumCycle: "monthly" | "annual" | null;
 }
 
 // --- Cidadela ---

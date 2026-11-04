@@ -57,6 +57,7 @@ import { useActiveOrderCount } from "@/modules/customer/useActiveOrderCount";
 import { ReviewsSection } from "@/components/reviews/ReviewsSection";
 import { CidadelaBadge } from "./CidadelaBadge";
 import { SmartImage } from "@/components/ui/SmartImage";
+import { optimizedImageUrl, IMAGE_SIZES } from "@/lib/imageOptimization";
 import {
   normalizeOperatingHours,
   isOpenNow,
@@ -517,6 +518,23 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       : "Cardápio Digital — Cardápio Cidadela";
   }, [restaurant]);
 
+  // O banner cru pode passar de 700 KB (PNG). A transformação do Storage serve
+  // a mesma arte em WebP com ~30 KB — e é usada nos dois layers (blur + nítida).
+  // `optimizedImageUrl` devolve a URL original quando a transformação não está
+  // habilitada, então não quebra em projeto sem o recurso.
+  const bannerSrc = useMemo(
+    () =>
+      restaurant?.banner_url
+        ? optimizedImageUrl(restaurant.banner_url, {
+            width: IMAGE_SIZES.banner,
+            quality: 72,
+            resize: "cover",
+            format: "webp",
+          })
+        : "",
+    [restaurant?.banner_url],
+  );
+
   const accent = restaurant?.primary_color || "#06b6d4";
   const accent2 = restaurant?.secondary_color || "#8b5cf6";
   const accentSoft = hexToRgba(accent, 0.14);
@@ -707,7 +725,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                 aria-hidden
                 className="pointer-events-none absolute inset-0 scale-110 opacity-50 blur-2xl"
                 style={{
-                  backgroundImage: `url(${restaurant.banner_url})`,
+                  backgroundImage: `url(${bannerSrc})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}
@@ -718,7 +736,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                 aria-hidden
                 className="pointer-events-none absolute inset-0"
                 style={{
-                  backgroundImage: `url(${restaurant.banner_url})`,
+                  backgroundImage: `url(${bannerSrc})`,
                   backgroundSize: "contain",
                   backgroundPosition: "center center",
                   backgroundRepeat: "no-repeat",
@@ -753,8 +771,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               <SmartImage
                 src={restaurant.logo_url}
                 alt={restaurant.name}
-                width={112}
-                height={112}
+                width={IMAGE_SIZES.logo}
+                height={IMAGE_SIZES.logo}
                 eager
                 imgClassName="size-full object-cover"
                 fallback={

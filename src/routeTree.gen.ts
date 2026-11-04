@@ -34,6 +34,7 @@ import { Route as MobileDashboardRouteImport } from './routes/mobile.dashboard'
 import { Route as PedidoOrderIdRouteImport } from './routes/pedido.$orderId'
 import { Route as AdminRestauranteIdRouteImport } from './routes/admin.restaurante.$id'
 import { Route as ApiInvoiceRequestRouteImport } from './routes/api.invoice.request'
+import { Route as ApiMenuScanRouteImport } from './routes/api.menu.scan'
 import { Route as ApiOrderDraftRouteImport } from './routes/api.order.draft'
 import { Route as ApiPaymentCreateLinkRouteImport } from './routes/api.payment.create-link'
 import { Route as ApiPaymentDayPassRouteImport } from './routes/api.payment.day-pass'
@@ -171,6 +172,11 @@ const ApiInvoiceRequestRoute = ApiInvoiceRequestRouteImport.update({
   path: '/api/invoice/request',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMenuScanRoute = ApiMenuScanRouteImport.update({
+  id: '/api/menu/scan',
+  path: '/api/menu/scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiOrderDraftRoute = ApiOrderDraftRouteImport.update({
   id: '/api/order/draft',
   path: '/api/order/draft',
@@ -253,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
   '/api/invoice/request': typeof ApiInvoiceRequestRoute
+  '/api/menu/scan': typeof ApiMenuScanRoute
   '/api/order/draft': typeof ApiOrderDraftRoute
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
@@ -289,6 +296,7 @@ export interface FileRoutesByTo {
   '/mobile': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
   '/api/invoice/request': typeof ApiInvoiceRequestRoute
+  '/api/menu/scan': typeof ApiMenuScanRoute
   '/api/order/draft': typeof ApiOrderDraftRoute
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
@@ -328,6 +336,7 @@ export interface FileRoutesById {
   '/mobile/': typeof MobileIndexRoute
   '/admin/restaurante/$id': typeof AdminRestauranteIdRoute
   '/api/invoice/request': typeof ApiInvoiceRequestRoute
+  '/api/menu/scan': typeof ApiMenuScanRoute
   '/api/order/draft': typeof ApiOrderDraftRoute
   '/api/payment/create-link': typeof ApiPaymentCreateLinkRoute
   '/api/payment/day-pass': typeof ApiPaymentDayPassRoute
@@ -368,6 +377,7 @@ export interface FileRouteTypes {
     | '/mobile/'
     | '/admin/restaurante/$id'
     | '/api/invoice/request'
+    | '/api/menu/scan'
     | '/api/order/draft'
     | '/api/payment/create-link'
     | '/api/payment/day-pass'
@@ -404,6 +414,7 @@ export interface FileRouteTypes {
     | '/mobile'
     | '/admin/restaurante/$id'
     | '/api/invoice/request'
+    | '/api/menu/scan'
     | '/api/order/draft'
     | '/api/payment/create-link'
     | '/api/payment/day-pass'
@@ -442,6 +453,7 @@ export interface FileRouteTypes {
     | '/mobile/'
     | '/admin/restaurante/$id'
     | '/api/invoice/request'
+    | '/api/menu/scan'
     | '/api/order/draft'
     | '/api/payment/create-link'
     | '/api/payment/day-pass'
@@ -468,6 +480,7 @@ export interface RootRouteChildren {
   CardapioSlugRoute: typeof CardapioSlugRoute
   PedidoOrderIdRoute: typeof PedidoOrderIdRoute
   ApiInvoiceRequestRoute: typeof ApiInvoiceRequestRoute
+  ApiMenuScanRoute: typeof ApiMenuScanRoute
   ApiOrderDraftRoute: typeof ApiOrderDraftRoute
   ApiPaymentCreateLinkRoute: typeof ApiPaymentCreateLinkRoute
   ApiPaymentDayPassRoute: typeof ApiPaymentDayPassRoute
@@ -658,6 +671,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInvoiceRequestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/menu/scan': {
+      id: '/api/menu/scan'
+      path: '/api/menu/scan'
+      fullPath: '/api/menu/scan'
+      preLoaderRoute: typeof ApiMenuScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/order/draft': {
       id: '/api/order/draft'
       path: '/api/order/draft'
@@ -794,6 +814,7 @@ const rootRouteChildren: RootRouteChildren = {
   CardapioSlugRoute: CardapioSlugRoute,
   PedidoOrderIdRoute: PedidoOrderIdRoute,
   ApiInvoiceRequestRoute: ApiInvoiceRequestRoute,
+  ApiMenuScanRoute: ApiMenuScanRoute,
   ApiOrderDraftRoute: ApiOrderDraftRoute,
   ApiPaymentCreateLinkRoute: ApiPaymentCreateLinkRoute,
   ApiPaymentDayPassRoute: ApiPaymentDayPassRoute,

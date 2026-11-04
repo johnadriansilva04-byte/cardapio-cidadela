@@ -70,7 +70,7 @@ test.describe("limite de restaurantes por conta", () => {
     await expect(page).toHaveURL(/\/admin\/assinatura/);
   });
 
-  test("com Premium vigente o formulário abre normalmente", async ({ page }) => {
+  test("com Premium vigente abre o chat da Pracinha (não o formulário)", async ({ page }) => {
     await loginAsOwner(page, {
       restaurants: [restaurant(STORE_A, "Cidadela Teste", "loja-a")],
       admin_trials: [
@@ -89,6 +89,13 @@ test.describe("limite de restaurantes por conta", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog).not.toContainText("Um restaurante no plano gratuito");
+    // A criação abre em conversa: a Pracinha pergunta, o formulário não aparece.
+    await expect(dialog).toContainText("monta seu cardápio");
+    await expect(dialog).toContainText("Qual é o nome do seu restaurante");
+    await expect(page.locator("#rest-name")).toHaveCount(0);
+
+    // O formulário continua a um clique para quem preferir.
+    await page.getByRole("button", { name: /Prefiro preencher tudo/i }).click();
     await expect(page.locator("#rest-name")).toBeVisible();
   });
 });

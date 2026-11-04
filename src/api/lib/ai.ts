@@ -14,6 +14,8 @@ import { readEnv, type ServerEnv } from "@/api/lib/mercadopago";
  */
 
 const DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+// Modelo com visão (lê imagem). Custa mais por chamada — só o plano anual usa.
+const VISION_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";
 const ACCOUNT_ID = "5123773a9dbba0599ba001539d5c3cbe";
 
 export function getAiToken(env?: ServerEnv): string {
@@ -27,6 +29,52 @@ export function isAiEnabled(env?: ServerEnv): boolean {
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
+}
+
+/**
+ * Roda um modelo COM VISÃO sobre uma imagem (data URL base64).
+ *
+ * Separado de `runAi` porque o corpo muda: a imagem vai no campo `image`, não
+ * dentro de `messages`. `null` em qualquer falha — quem chama decide o fallback.
+ * É a função mais cara do app (token de imagem), por isso o gate de plano vive
+ * na rota, nunca aqui.
+ */
+export async function runAiVision(
+  prompt: string,
+  imageDataUrl: string,
+  env?: ServerEnv,
+  maxTokens = 1200,
+): Promise<string | null> {
+  const token = getAiToken(env);
+  if (!token || !imageDataUrl) return null;
+  try {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/${VISION_MODEL}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: prompt }],
+          image: imageDataUrl,
+          max_tokens: maxTokens,
+        }),
+      },
+    );
+    if (!res.ok) {
+      const detail = (await res.text()).slice(0, 200);
+      console.error("[ai] Workers AI (visão) falhou:", res.status, detail);
+      return null;
+    }
+    const data = (await res.json()) as { result?: { response?: string } };
+    const text = data?.result?.response;
+    return typeof text === "string" && text.trim() ? text.trim() : null;
+  } catch (err) {
+    console.error("[ai] erro inesperado (visão):", err);
+    return null;
+  }
 }
 
 /**

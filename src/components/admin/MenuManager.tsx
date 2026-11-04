@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Trash2,
   Plus,
@@ -38,12 +39,17 @@ import {
   deleteProductAddon,
 } from "@/modules/supabase/menu";
 import { updateRestaurant } from "@/modules/supabase/restaurants";
+import { fetchPremiumCycle } from "@/modules/supabase/subscription";
+import { PhotoMenuImport } from "@/components/admin/PhotoMenuImport";
 import { toast } from "sonner";
 
 const field =
   "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20";
 
 export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
+  const navigate = useNavigate();
+  // A leitura por foto é exclusiva do plano anual; checada aqui só para a UI.
+  const [canScan, setCanScan] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [addons, setAddons] = useState<ProductAddon[]>([]);
@@ -77,6 +83,16 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
   useEffect(() => {
     loadMenu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurant.id]);
+
+  useEffect(() => {
+    let active = true;
+    void fetchPremiumCycle(restaurant.id).then((cycle) => {
+      if (active) setCanScan(cycle === "annual");
+    });
+    return () => {
+      active = false;
+    };
   }, [restaurant.id]);
 
   async function loadMenu() {
@@ -338,6 +354,17 @@ export function MenuManager({ restaurant }: { restaurant: Restaurant }) {
 
   return (
     <div className="space-y-4">
+      {/* Foto do cardápio (plano anual) — gatilho de venda para quem não tem */}
+      <PhotoMenuImport
+        restaurantId={restaurant.id}
+        canScan={canScan}
+        onUpgrade={() => navigate({ to: "/admin/assinatura" })}
+        onImported={(count) => {
+          toast.success(`${count} ite${count === 1 ? "m" : "ns"} importado(s) da foto!`);
+          loadMenu();
+        }}
+      />
+
       {/* Nova categoria — sempre visível, forma direta */}
       <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
         <p className="mb-2 text-xs font-semibold text-gray-300">Nova categoria</p>

@@ -34,14 +34,7 @@ import {
   Zap,
   BookOpen,
 } from "lucide-react";
-import {
-  MONTHLY_PRICE_LABEL,
-  PREMIUM_PRICE_LABEL,
-  PREMIUM_PRICE_VALUE,
-  DAY_PASS_PRICE_LABEL,
-  DAY_PASS_PRICE_VALUE,
-  formatMonthlyEquivalent,
-} from "@/lib/pricing";
+import { PREMIUM_PRICE_VALUE, DAY_PASS_PRICE_LABEL, DAY_PASS_PRICE_VALUE } from "@/lib/pricing";
 
 import { brl, cn } from "@/lib/utils";
 import { COMPANY, VARIANT, hasSupportContact } from "@/lib/company";
@@ -56,6 +49,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { PlanCards } from "@/modules/ui/PlanCards";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -1404,105 +1398,45 @@ function LandingPage() {
             </p>
           </div>
 
-          <div className="mt-12 grid gap-5 sm:grid-cols-3">
-            {/* Grátis */}
-            <div className="flex flex-col rounded-3xl border border-white/[0.07] bg-white/[0.02] p-7">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Grátis</p>
-              <p className="mt-3 text-4xl font-black text-white">R$ 0</p>
-              <p className="mt-1 text-sm text-gray-400">para sempre</p>
-              <ul className="mt-6 space-y-2.5 text-sm text-gray-300">
-                {[
-                  "Cardápio completo",
-                  "5 pedidos por mês",
-                  "Link e QR Code",
-                  "Pedidos em tempo real",
-                  "Paga nada se não tiver pedido",
-                ].map((t) => (
-                  <li key={t} className="flex items-center gap-2">
-                    <Check className="size-4 shrink-0 text-emerald-400" /> {t}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/login"
-                search={{ mode: "register" }}
-                className="mt-auto flex w-full items-center justify-center gap-2 rounded-full border border-white/15 py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.06]"
-              >
-                Começar grátis
-              </Link>
-            </div>
-
-            {/* Diária */}
-            <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-b from-amber-500/[0.10] to-transparent p-7">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -right-14 -top-14 size-44 rounded-full bg-amber-500/20 blur-3xl"
-              />
-              <div className="relative flex h-full flex-col">
-                <p className="text-xs font-bold uppercase tracking-widest text-amber-300">Diária</p>
-                <p className="mt-3 text-4xl font-black text-white">{DAY_PASS_PRICE_LABEL}</p>
-                <p className="mt-1 text-sm text-gray-400">por 24h · paga só quando usar</p>
-                <ul className="mt-6 space-y-2.5 text-sm text-gray-200">
-                  {[
-                    "Libera tudo por 24h",
-                    "Empilhável (usa quantas vezes quiser)",
-                    "Paga DEPOIS que cair pedido",
-                    "Perfeito pra quem abre só no fim de semana",
-                  ].map((t) => (
-                    <li key={t} className="flex items-center gap-2">
-                      <Check className="size-4 shrink-0 text-amber-300" /> {t}
-                    </li>
-                  ))}
-                </ul>
+          <PlanCards
+            className="mt-12 grid gap-5 sm:grid-cols-3"
+            renderCta={(plan) =>
+              plan.key === "free" ? (
+                <Link
+                  to="/login"
+                  search={{ mode: "register" }}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.06]"
+                >
+                  {plan.ctaLabel}
+                </Link>
+              ) : (
                 <a
                   href="/login?returnTo=/admin/assinatura"
-                  className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-amber-500 py-3 text-sm font-bold text-black transition-all hover:bg-amber-400 hover:shadow-[0_0_30px_rgba(245,158,11,0.4)]"
+                  className={
+                    "flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold text-black transition-all " +
+                    (plan.key === "annual"
+                      ? "sheen bg-cyan-500 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
+                      : "bg-white/90 hover:bg-white")
+                  }
                 >
-                  Usar diária <ArrowRight className="size-4" />
+                  {plan.ctaLabel} <ArrowRight className="size-4" />
                 </a>
-              </div>
-            </div>
+              )
+            }
+          />
 
-            {/* Premium */}
-            <div className="relative overflow-hidden rounded-3xl border border-cyan-500/40 bg-gradient-to-b from-cyan-500/[0.12] to-transparent p-7 shadow-[0_0_60px_-20px_rgba(34,211,238,0.5)]">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -right-14 -top-14 size-44 rounded-full bg-cyan-500/25 blur-3xl"
-              />
-              <div className="relative flex h-full flex-col">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
-                    Premium
-                  </p>
-                  <span className="rounded-full bg-cyan-500 px-2.5 py-1 text-[10px] font-black text-black">
-                    MELHOR VALOR
-                  </span>
-                </div>
-                <p className="mt-3 text-4xl font-black text-white">{PREMIUM_PRICE_LABEL}</p>
-                <p className="mt-1 text-sm text-gray-400">
-                  ou {MONTHLY_PRICE_LABEL} · equivale a{" "}
-                  {formatMonthlyEquivalent(PREMIUM_PRICE_VALUE)} por mês no anual
-                </p>
-                <ul className="mt-6 space-y-2.5 text-sm text-gray-200">
-                  {[
-                    "Pedidos ilimitados",
-                    "Detalhes e itens liberados",
-                    "Todos os restaurantes da conta",
-                    "Cancele quando quiser",
-                  ].map((t) => (
-                    <li key={t} className="flex items-center gap-2">
-                      <Check className="size-4 shrink-0 text-cyan-300" /> {t}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href="/login?returnTo=/admin/assinatura"
-                  className="sheen mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-3 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
-                >
-                  Assinar Premium <ArrowRight className="size-4" />
-                </a>
-              </div>
-            </div>
+          {/* Diária: compra avulsa, não é pacote. Fica como linha discreta. */}
+          <div className="mt-5 flex flex-col items-center justify-between gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 sm:flex-row">
+            <p className="text-sm text-amber-100/90">
+              <span className="font-bold text-amber-300">Diária {DAY_PASS_PRICE_LABEL}</span> · abre
+              só quando tem movimento? Libera tudo por 24h, paga só os dias que usar e empilha.
+            </p>
+            <a
+              href="/login?returnTo=/admin/assinatura"
+              className="shrink-0 rounded-full bg-amber-500 px-4 py-2 text-sm font-bold text-black transition-all hover:bg-amber-400"
+            >
+              Usar diária
+            </a>
           </div>
 
           {/* Garantia */}

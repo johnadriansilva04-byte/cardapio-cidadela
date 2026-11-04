@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,36 +18,22 @@ import {
   Wallet,
 } from "lucide-react";
 import OperatingHoursConfig from "@/components/admin/OperatingHoursConfig";
+import { RestaurantChatWizard } from "@/components/admin/RestaurantChatWizard";
 import { uploadRestaurantImage } from "@/modules/supabase/storage";
-import { extractRestaurantText } from "@/modules/supabase/ai";
-import { useAuth } from "@/components/AuthProvider";
+import type { DraftNeighborhood } from "@/lib/restaurantChat";
+import type { Restaurant } from "@/lib/types";
+import { generateUniqueSlug, saveNeighborhood } from "@/modules/supabase/restaurants";
+import { fetchPremiumCycle } from "@/modules/supabase/subscription";
 import {
-  DEFAULT_OPERATING_HOURS,
-  normalizeOperatingHours,
-  type OperatingHours,
-} from "@/lib/operatingHours";
-import type { Restaurant, RestaurantStatus } from "@/lib/types";
-import { generateUniqueSlug } from "@/modules/supabase/restaurants";
+  buildInitialFormValues,
+  type RestaurantFormValues,
+  type RestaurantSubmitResult,
+} from "@/components/admin/restaurantForm";
 
-export type RestaurantFormValues = {
-  name: string;
-  slug: string;
-  description: string;
-  phone: string;
-  whatsapp: string;
-  address: string;
-  logo_url: string;
-  banner_url: string;
-  primary_color: string;
-  secondary_color: string;
-  status: RestaurantStatus;
-  pix_key: string;
-  delivery_fee: string;
-  operating_hours: OperatingHours;
-};
-
-/** Retorno do envio: o id é necessário para enviar as imagens recém-escolhidas. */
-export type RestaurantSubmitResult = { id: string } | Restaurant | null | void;
+export type {
+  RestaurantFormValues,
+  RestaurantSubmitResult,
+} from "@/components/admin/restaurantForm";
 
 const fieldClass =
   "border-white/10 bg-white/[0.04] text-white placeholder:text-gray-600 focus-visible:ring-cyan-500/40";
@@ -228,27 +215,6 @@ function ImageUploader({
   );
 }
 
-function buildInitial(restaurant: Restaurant | null): RestaurantFormValues {
-  return {
-    name: restaurant?.name ?? "",
-    slug: restaurant?.slug ?? "",
-    description: restaurant?.description ?? "",
-    phone: restaurant?.phone ?? "",
-    whatsapp: restaurant?.whatsapp ?? "",
-    address: restaurant?.address ?? "",
-    logo_url: restaurant?.logo_url ?? "",
-    banner_url: restaurant?.banner_url ?? "",
-    primary_color: restaurant?.primary_color ?? "#06b6d4",
-    secondary_color: restaurant?.secondary_color ?? "#8b5cf6",
-    status: (restaurant?.status as RestaurantStatus) ?? "published",
-    pix_key: restaurant?.pix_key ?? "",
-    delivery_fee: restaurant?.delivery_fee ? String(restaurant.delivery_fee) : "",
-    operating_hours: restaurant?.operating_hours
-      ? normalizeOperatingHours(restaurant.operating_hours)
-      : { ...DEFAULT_OPERATING_HOURS },
-  };
-}
-
 export function RestaurantDialog({
   open,
   onOpenChange,
@@ -272,18 +238,34 @@ export function RestaurantDialog({
   submitting?: boolean;
 }) {
   const isEdit = Boolean(restaurant);
-  const { session } = useAuth();
-  const [form, setForm] = useState<RestaurantFormValues>(() => buildInitial(restaurant));
+  const navigate = useNavigate();
+  // Ciclo anual libera a leitura por foto; só a UI usa — o servidor reconfere.
+  const [canScan, setCanScan] = useState(false);
+  const [form, setForm] = useState<RestaurantFormValues>(() => buildInitialFormValues(restaurant));
   const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  // "Conte sobre seu restaurante": texto livre que vira campos preenchidos.
-  // Só na criação — em edição os campos já existem e o formulário basta.
-  const [brief, setBrief] = useState("");
-  const [extracting, setExtracting] = useState(false);
-  const [extractMsg, setExtractMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !restaurant?.id) {
+      setCanScan(false);
+      return;
+    }
+    let active = true;
+    void fetchPremiumCycle(restaurant.id).then((cycle) => {
+      if (active) setCanScan(cycle === "annual");
+    });
+    return () => {
+      active = false;
+    };
+  }, [open, restaurant?.id]);
+  // Criação abre no modo conversa (uma pergunta por vez). O formulário completo
+  // fica a um clique; em edição ele é o único modo, porque os campos já existem.
+  const [chatMode, setChatMode] = useState(!restaurant);
+  // Bairros coletados no chat — gravados depois que o restaurante existe.
+  const [draftNeighborhoods, setDraftNeighborhoods] = useState<DraftNeighborhood[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -291,60 +273,13 @@ export function RestaurantDialog({
     setSlugTouched(false);
     setLogoFile(null);
     setBannerFile(null);
-    setBrief("");
-    setExtractMsg(null);
-    setForm(buildInitial(restaurant));
+    setChatMode(!restaurant);
+    setDraftNeighborhoods([]);
+    setForm(buildInitialFormValues(restaurant));
   }, [open, restaurant]);
 
   function patch(part: Partial<RestaurantFormValues>) {
     setForm((s) => ({ ...s, ...part }));
-  }
-
-  /**
-   * Interpreta o texto livre e preenche só os campos que ainda estão vazios.
-   *
-   * Nunca sobrescreve o que o dono já digitou: se ele escreveu o nome à mão e
-   * depois colou o endereço num bloco, o nome fica. O resultado é sempre uma
-   * sugestão visível no formulário — ele confere e ajusta antes de salvar.
-   */
-  async function applyBrief() {
-    const text = brief.trim();
-    if (!text || extracting) return;
-    setExtracting(true);
-    setExtractMsg(null);
-    const res = await extractRestaurantText(text, session?.access_token);
-    setExtracting(false);
-    if (!res) {
-      setExtractMsg("Não consegui interpretar agora — preencha os campos abaixo.");
-      return;
-    }
-    const f = res.fields;
-    setForm((s) => {
-      const next = { ...s };
-      const fill = <K extends keyof RestaurantFormValues>(key: K, value: unknown) => {
-        const current = s[key];
-        const isEmpty = typeof current === "string" ? current.trim() === "" : false;
-        if (isEmpty && typeof value === "string" && value.trim()) {
-          next[key] = value as RestaurantFormValues[K];
-        }
-      };
-      fill("name", f.name);
-      fill("description", f.description);
-      fill("whatsapp", f.whatsapp);
-      fill("phone", f.phone);
-      fill("address", f.address);
-      fill("pix_key", f.pix_key);
-      fill("delivery_fee", f.delivery_fee);
-      if (!slugTouched && !s.slug && typeof f.name === "string" && f.name.trim()) {
-        next.slug = slugify(f.name);
-      }
-      return next;
-    });
-    setExtractMsg(
-      res.ai
-        ? "Pronto! Confira os campos abaixo e ajuste o que precisar."
-        : "Preenchi o que deu para identificar. Confira abaixo.",
-    );
   }
 
   /** Sobe logo/banner para um restaurante que já existe. */
@@ -411,6 +346,13 @@ export function RestaurantDialog({
         // Falhou: o diálogo continua aberto para o usuário corrigir.
         return;
       }
+      if (draftNeighborhoods.length > 0) {
+        setUploading(true);
+        for (const n of draftNeighborhoods) {
+          await saveNeighborhood(id, { name: n.name, fee: Number(n.fee) || 0 });
+        }
+        setUploading(false);
+      }
       if (hasFiles) {
         setUploading(true);
         const urls = await uploadPending(id);
@@ -426,351 +368,376 @@ export function RestaurantDialog({
   }
 
   const busy = submitting || uploading;
+  // Criação em conversa ocupa a tela inteira: é uma experiência guiada, não um
+  // formulário. O modo de edição/formulário continua no diálogo compacto.
+  const fullScreenChat = chatMode;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="flex max-h-[92vh] flex-col gap-0 overflow-hidden border-white/10 bg-[#0f0f14] p-0 text-white sm:max-w-5xl"
+        className={
+          fullScreenChat
+            ? "flex h-[100dvh] max-h-[100dvh] w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-[#0b0b12] p-0 text-white sm:max-w-none"
+            : "flex max-h-[92vh] flex-col gap-0 overflow-hidden border-white/10 bg-[#0f0f14] p-0 text-white sm:max-w-5xl"
+        }
       >
         {/* Cabeçalho fixo: contexto e ação sempre à vista */}
-        <header className="flex shrink-0 items-start gap-3 border-b border-white/[0.06] px-6 py-4">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
-            <Store className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <DialogTitle className="text-base font-bold text-white">
-              {isEdit ? `Editar ${restaurant?.name}` : "Novo restaurante"}
-            </DialogTitle>
-            <p className="text-xs text-gray-500">
-              {isEdit
-                ? "Altere as informações e salve. O link público atualiza na hora."
-                : "Configure todas as informações em uma única tela. O cardápio já nasce publicado com itens de exemplo."}
-            </p>
-          </div>
+        <header className="flex shrink-0 items-start gap-3 border-b border-white/[0.06] px-5 py-4 sm:px-6">
+          {fullScreenChat ? (
+            <>
+              <span
+                className="grid size-10 shrink-0 place-items-center rounded-xl text-white"
+                style={{ backgroundColor: form.primary_color || "#06b6d4" }}
+              >
+                <Sparkles className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-base font-bold text-white">
+                  Pracinha <span className="font-normal text-gray-500">· monta seu cardápio</span>
+                </DialogTitle>
+                <p className="text-xs text-gray-500">
+                  Só responde as perguntas — eu configuro tudo pra você.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
+                <Store className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-base font-bold text-white">
+                  {isEdit ? `Editar ${restaurant?.name}` : "Novo restaurante"}
+                </DialogTitle>
+                <p className="text-xs text-gray-500">
+                  {isEdit
+                    ? "Altere as informações e salve. O link público atualiza na hora."
+                    : "Configure todas as informações em uma única tela. O cardápio já nasce publicado com itens de exemplo."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setChatMode(true)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-2.5 py-1.5 text-[11px] font-medium text-cyan-200 transition-colors hover:bg-cyan-500/20"
+              >
+                <Sparkles className="size-3.5" /> Modo conversa
+              </button>
+            </>
+          )}
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          {!isEdit && (
-            <div className="relative mb-5 overflow-hidden rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/[0.10] via-white/[0.02] to-transparent p-4">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-cyan-500/20 blur-3xl"
-              />
-              <div className="relative">
-                <p className="flex items-center gap-2 text-sm font-bold text-white">
-                  <Sparkles className="size-4 text-cyan-300" />
-                  Conta do seu restaurante e eu preencho
-                </p>
-                <p className="mt-1 text-[11px] text-gray-400">
-                  Cole tudo junto — nome, endereço, WhatsApp, taxa de entrega, PIX. Confira depois.
-                </p>
-                <Textarea
-                  value={brief}
-                  onChange={(e) => setBrief(e.target.value)}
-                  rows={3}
-                  placeholder="Ex: Cantina da Pracinha — massas artesanais. Rua das Flores 123, centro. WhatsApp (48) 99999-9999. Entrega R$ 5. PIX cantina@email.com"
-                  className={`mt-3 ${fieldClass}`}
-                />
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="text-[11px] text-cyan-200/80">{extractMsg ?? ""}</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={applyBrief}
-                    disabled={extracting || !brief.trim()}
-                    className="shrink-0 bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-50"
+        {error && (
+          <p className="mx-5 mt-3 flex shrink-0 items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300 sm:mx-6">
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
+            {error}
+          </p>
+        )}
+
+        {fullScreenChat ? (
+          <RestaurantChatWizard
+            form={form}
+            onPatch={patch}
+            onFinish={handleSubmit}
+            onSwitchToForm={() => setChatMode(false)}
+            neighborhoods={draftNeighborhoods}
+            onNeighborhoodsChange={setDraftNeighborhoods}
+            editMode={isEdit}
+            finishLabel={isEdit ? "Salvar restaurante" : "Criar cardápio"}
+            restaurantId={restaurant?.id}
+            canScan={canScan}
+            onUpgrade={() => {
+              onOpenChange(false);
+              void navigate({ to: "/admin/assinatura" });
+            }}
+            submitting={busy}
+          />
+        ) : (
+          <>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="space-y-5">
+                  <Section icon={<Store className="size-3.5" />} title="Dados básicos">
+                    <div>
+                      <Label htmlFor="rest-name" className="text-gray-300">
+                        Nome *
+                      </Label>
+                      <Input
+                        id="rest-name"
+                        value={form.name}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setForm((s) => ({
+                            ...s,
+                            name: v,
+                            slug: slugTouched ? s.slug : slugify(v),
+                          }));
+                        }}
+                        placeholder="Ex: Cantina da Pracinha"
+                        className={`mt-1.5 ${fieldClass}`}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="rest-slug" className="text-gray-300">
+                        Link público
+                      </Label>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <span className="shrink-0 text-xs text-gray-500">/cardapio/</span>
+                        <Input
+                          id="rest-slug"
+                          value={form.slug}
+                          onChange={(e) => {
+                            setSlugTouched(true);
+                            patch({
+                              slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                            });
+                          }}
+                          placeholder="cantina-da-pracinha"
+                          className={`flex-1 font-mono text-sm ${fieldClass}`}
+                        />
+                      </div>
+                      <p className="mt-1 text-[11px] text-gray-600">
+                        Se já existir, ajustamos automaticamente.
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="rest-desc" className="text-gray-300">
+                        Descrição / slogan
+                      </Label>
+                      <Textarea
+                        id="rest-desc"
+                        value={form.description}
+                        onChange={(e) => patch({ description: e.target.value })}
+                        placeholder="Ex: Massas artesanais desde 2018"
+                        rows={2}
+                        className={`mt-1.5 ${fieldClass}`}
+                      />
+                    </div>
+                  </Section>
+
+                  <Section icon={<Store className="size-3.5" />} title="Contato">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <Label htmlFor="rest-phone" className="text-gray-300">
+                          Telefone
+                        </Label>
+                        <Input
+                          id="rest-phone"
+                          value={form.phone}
+                          onChange={(e) => patch({ phone: e.target.value })}
+                          placeholder="(11) 99999-9999"
+                          className={`mt-1.5 ${fieldClass}`}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="rest-wa" className="text-gray-300">
+                          WhatsApp
+                        </Label>
+                        <Input
+                          id="rest-wa"
+                          value={form.whatsapp}
+                          onChange={(e) => patch({ whatsapp: e.target.value })}
+                          placeholder="5511999999999"
+                          className={`mt-1.5 ${fieldClass}`}
+                        />
+                        <p className="mt-1 text-[11px] text-gray-600">
+                          Recebe os pedidos e o link.
+                        </p>
+                      </div>
+                    </div>
+                  </Section>
+
+                  <Section icon={<Store className="size-3.5" />} title="Localização">
+                    <div>
+                      <Label htmlFor="rest-address" className="text-gray-300">
+                        Endereço
+                      </Label>
+                      <Input
+                        id="rest-address"
+                        value={form.address}
+                        onChange={(e) => patch({ address: e.target.value })}
+                        placeholder="Rua, número, bairro"
+                        className={`mt-1.5 ${fieldClass}`}
+                      />
+                    </div>
+                  </Section>
+
+                  <Section
+                    icon={<Wallet className="size-3.5" />}
+                    title="Delivery"
+                    hint="Valor inicial da entrega, usado quando o bairro não tem taxa própria."
                   >
-                    {extracting ? (
-                      <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="mr-1.5 size-3.5" />
-                    )}
-                    {extracting ? "Interpretando…" : "Preencher campos"}
-                  </Button>
+                    <div>
+                      <Label htmlFor="rest-delivery-fee" className="text-gray-300">
+                        Taxa padrão de entrega (R$)
+                      </Label>
+                      <Input
+                        id="rest-delivery-fee"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={form.delivery_fee}
+                        onChange={(e) => patch({ delivery_fee: e.target.value })}
+                        placeholder="Ex: 5.00"
+                        className={`mt-1.5 ${fieldClass}`}
+                      />
+                      <p className="mt-1 text-[11px] text-gray-600">
+                        Pode ser sobrescrita por bairros específicos.
+                      </p>
+                    </div>
+                  </Section>
+
+                  <Section icon={<Wallet className="size-3.5" />} title="Pagamentos">
+                    <div>
+                      <Label htmlFor="rest-pix" className="text-gray-300">
+                        Chave PIX
+                      </Label>
+                      <Input
+                        id="rest-pix"
+                        value={form.pix_key}
+                        onChange={(e) => patch({ pix_key: e.target.value })}
+                        placeholder="CPF, telefone, e-mail ou aleatória"
+                        className={`mt-1.5 ${fieldClass}`}
+                      />
+                      <p className="mt-1 text-[11px] text-gray-600">
+                        Exibida no QR Code ao finalizar o pagamento.
+                      </p>
+                    </div>
+                  </Section>
+                </div>
+
+                <div className="space-y-5">
+                  <Section icon={<ImageIcon className="size-3.5" />} title="Identidade visual">
+                    <ImageUploader
+                      label="Logo"
+                      kind="logo"
+                      value={form.logo_url}
+                      pendingFile={logoFile}
+                      onPick={setLogoFile}
+                      onClearValue={() => patch({ logo_url: "" })}
+                      onClearPending={() => setLogoFile(null)}
+                      disabled={uploading}
+                    />
+                    <ImageUploader
+                      label="Banner / capa"
+                      kind="banner"
+                      value={form.banner_url}
+                      pendingFile={bannerFile}
+                      onPick={setBannerFile}
+                      onClearValue={() => patch({ banner_url: "" })}
+                      onClearPending={() => setBannerFile(null)}
+                      disabled={uploading}
+                    />
+                  </Section>
+
+                  <Section
+                    icon={<Clock className="size-3.5" />}
+                    title="Funcionamento"
+                    hint="Fora desses horários o cardápio não aceita pedidos."
+                  >
+                    <OperatingHoursConfig
+                      value={form.operating_hours}
+                      onChange={(h) => patch({ operating_hours: h })}
+                    />
+                  </Section>
+
+                  <Section icon={<Palette className="size-3.5" />} title="Aparência">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-gray-300">Cor principal</Label>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={form.primary_color}
+                            onChange={(e) => patch({ primary_color: e.target.value })}
+                            className="size-9 shrink-0 rounded border-0 bg-transparent"
+                          />
+                          <Input
+                            value={form.primary_color}
+                            onChange={(e) => patch({ primary_color: e.target.value })}
+                            className={`h-9 font-mono text-xs ${fieldClass}`}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Cor secundária</Label>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={form.secondary_color}
+                            onChange={(e) => patch({ secondary_color: e.target.value })}
+                            className="size-9 shrink-0 rounded border-0 bg-transparent"
+                          />
+                          <Input
+                            value={form.secondary_color}
+                            onChange={(e) => patch({ secondary_color: e.target.value })}
+                            className={`h-9 font-mono text-xs ${fieldClass}`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {/* Prévia em tempo real do que o cliente verá no cardápio */}
+                    <div
+                      className="flex items-center gap-3 rounded-xl p-3"
+                      style={{
+                        background: `linear-gradient(135deg, ${form.primary_color}22, ${form.secondary_color}22)`,
+                      }}
+                    >
+                      <span
+                        className="grid size-9 shrink-0 place-items-center rounded-lg text-black"
+                        style={{ background: form.primary_color }}
+                      >
+                        <Store className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-white">
+                          {form.name || "Nome do restaurante"}
+                        </p>
+                        <p className="truncate text-[11px] text-gray-400">
+                          {form.description || "Descrição ou slogan"}
+                        </p>
+                      </div>
+                      <span
+                        className="ml-auto shrink-0 rounded-full px-3 py-1 text-[11px] font-bold text-black"
+                        style={{ background: form.secondary_color }}
+                      >
+                        Pedir
+                      </span>
+                    </div>
+                  </Section>
                 </div>
               </div>
             </div>
-          )}
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-5">
-              <Section icon={<Store className="size-3.5" />} title="Dados básicos">
-                <div>
-                  <Label htmlFor="rest-name" className="text-gray-300">
-                    Nome *
-                  </Label>
-                  <Input
-                    id="rest-name"
-                    value={form.name}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setForm((s) => ({ ...s, name: v, slug: slugTouched ? s.slug : slugify(v) }));
-                    }}
-                    placeholder="Ex: Cantina da Pracinha"
-                    className={`mt-1.5 ${fieldClass}`}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="rest-slug" className="text-gray-300">
-                    Link público
-                  </Label>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span className="shrink-0 text-xs text-gray-500">/cardapio/</span>
-                    <Input
-                      id="rest-slug"
-                      value={form.slug}
-                      onChange={(e) => {
-                        setSlugTouched(true);
-                        patch({ slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") });
-                      }}
-                      placeholder="cantina-da-pracinha"
-                      className={`flex-1 font-mono text-sm ${fieldClass}`}
-                    />
-                  </div>
-                  <p className="mt-1 text-[11px] text-gray-600">
-                    Se já existir, ajustamos automaticamente.
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="rest-desc" className="text-gray-300">
-                    Descrição / slogan
-                  </Label>
-                  <Textarea
-                    id="rest-desc"
-                    value={form.description}
-                    onChange={(e) => patch({ description: e.target.value })}
-                    placeholder="Ex: Massas artesanais desde 2018"
-                    rows={2}
-                    className={`mt-1.5 ${fieldClass}`}
-                  />
-                </div>
-              </Section>
-
-              <Section icon={<Store className="size-3.5" />} title="Contato">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="rest-phone" className="text-gray-300">
-                      Telefone
-                    </Label>
-                    <Input
-                      id="rest-phone"
-                      value={form.phone}
-                      onChange={(e) => patch({ phone: e.target.value })}
-                      placeholder="(11) 99999-9999"
-                      className={`mt-1.5 ${fieldClass}`}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rest-wa" className="text-gray-300">
-                      WhatsApp
-                    </Label>
-                    <Input
-                      id="rest-wa"
-                      value={form.whatsapp}
-                      onChange={(e) => patch({ whatsapp: e.target.value })}
-                      placeholder="5511999999999"
-                      className={`mt-1.5 ${fieldClass}`}
-                    />
-                    <p className="mt-1 text-[11px] text-gray-600">Recebe os pedidos e o link.</p>
-                  </div>
-                </div>
-              </Section>
-
-              <Section icon={<Store className="size-3.5" />} title="Localização">
-                <div>
-                  <Label htmlFor="rest-address" className="text-gray-300">
-                    Endereço
-                  </Label>
-                  <Input
-                    id="rest-address"
-                    value={form.address}
-                    onChange={(e) => patch({ address: e.target.value })}
-                    placeholder="Rua, número, bairro"
-                    className={`mt-1.5 ${fieldClass}`}
-                  />
-                </div>
-              </Section>
-
-              <Section
-                icon={<Wallet className="size-3.5" />}
-                title="Delivery"
-                hint="Valor inicial da entrega, usado quando o bairro não tem taxa própria."
-              >
-                <div>
-                  <Label htmlFor="rest-delivery-fee" className="text-gray-300">
-                    Taxa padrão de entrega (R$)
-                  </Label>
-                  <Input
-                    id="rest-delivery-fee"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={form.delivery_fee}
-                    onChange={(e) => patch({ delivery_fee: e.target.value })}
-                    placeholder="Ex: 5.00"
-                    className={`mt-1.5 ${fieldClass}`}
-                  />
-                  <p className="mt-1 text-[11px] text-gray-600">
-                    Pode ser sobrescrita por bairros específicos.
-                  </p>
-                </div>
-              </Section>
-
-              <Section icon={<Wallet className="size-3.5" />} title="Pagamentos">
-                <div>
-                  <Label htmlFor="rest-pix" className="text-gray-300">
-                    Chave PIX
-                  </Label>
-                  <Input
-                    id="rest-pix"
-                    value={form.pix_key}
-                    onChange={(e) => patch({ pix_key: e.target.value })}
-                    placeholder="CPF, telefone, e-mail ou aleatória"
-                    className={`mt-1.5 ${fieldClass}`}
-                  />
-                  <p className="mt-1 text-[11px] text-gray-600">
-                    Exibida no QR Code ao finalizar o pagamento.
-                  </p>
-                </div>
-              </Section>
-            </div>
-
-            <div className="space-y-5">
-              <Section icon={<ImageIcon className="size-3.5" />} title="Identidade visual">
-                <ImageUploader
-                  label="Logo"
-                  kind="logo"
-                  value={form.logo_url}
-                  pendingFile={logoFile}
-                  onPick={setLogoFile}
-                  onClearValue={() => patch({ logo_url: "" })}
-                  onClearPending={() => setLogoFile(null)}
-                  disabled={uploading}
-                />
-                <ImageUploader
-                  label="Banner / capa"
-                  kind="banner"
-                  value={form.banner_url}
-                  pendingFile={bannerFile}
-                  onPick={setBannerFile}
-                  onClearValue={() => patch({ banner_url: "" })}
-                  onClearPending={() => setBannerFile(null)}
-                  disabled={uploading}
-                />
-              </Section>
-
-              <Section
-                icon={<Clock className="size-3.5" />}
-                title="Funcionamento"
-                hint="Fora desses horários o cardápio não aceita pedidos."
-              >
-                <OperatingHoursConfig
-                  value={form.operating_hours}
-                  onChange={(h) => patch({ operating_hours: h })}
-                />
-              </Section>
-
-              <Section icon={<Palette className="size-3.5" />} title="Aparência">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-gray-300">Cor principal</Label>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={form.primary_color}
-                        onChange={(e) => patch({ primary_color: e.target.value })}
-                        className="size-9 shrink-0 rounded border-0 bg-transparent"
-                      />
-                      <Input
-                        value={form.primary_color}
-                        onChange={(e) => patch({ primary_color: e.target.value })}
-                        className={`h-9 font-mono text-xs ${fieldClass}`}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-gray-300">Cor secundária</Label>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={form.secondary_color}
-                        onChange={(e) => patch({ secondary_color: e.target.value })}
-                        className="size-9 shrink-0 rounded border-0 bg-transparent"
-                      />
-                      <Input
-                        value={form.secondary_color}
-                        onChange={(e) => patch({ secondary_color: e.target.value })}
-                        className={`h-9 font-mono text-xs ${fieldClass}`}
-                      />
-                    </div>
-                  </div>
-                </div>
-                {/* Prévia em tempo real do que o cliente verá no cardápio */}
-                <div
-                  className="flex items-center gap-3 rounded-xl p-3"
-                  style={{
-                    background: `linear-gradient(135deg, ${form.primary_color}22, ${form.secondary_color}22)`,
-                  }}
+            {/* Rodapé fixo: as ações não somem no fim de um formulário longo */}
+            <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-white/[0.06] bg-black/20 px-6 py-4">
+              <p className="hidden text-[11px] text-gray-600 sm:block">
+                {isEdit
+                  ? "As alterações valem no link público."
+                  : "Você poderá ajustar tudo depois."}
+              </p>
+              <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+                <Button
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={busy}
+                  className="border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white"
                 >
-                  <span
-                    className="grid size-9 shrink-0 place-items-center rounded-lg text-black"
-                    style={{ background: form.primary_color }}
-                  >
-                    <Store className="size-4" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-white">
-                      {form.name || "Nome do restaurante"}
-                    </p>
-                    <p className="truncate text-[11px] text-gray-400">
-                      {form.description || "Descrição ou slogan"}
-                    </p>
-                  </div>
-                  <span
-                    className="ml-auto shrink-0 rounded-full px-3 py-1 text-[11px] font-bold text-black"
-                    style={{ background: form.secondary_color }}
-                  >
-                    Pedir
-                  </span>
-                </div>
-              </Section>
-            </div>
-          </div>
-
-          {error && (
-            <p className="mt-5 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              <AlertCircle className="mt-0.5 size-4 shrink-0" />
-              {error}
-            </p>
-          )}
-        </div>
-
-        {/* Rodapé fixo: as ações não somem no fim de um formulário longo */}
-        <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-white/[0.06] bg-black/20 px-6 py-4">
-          <p className="hidden text-[11px] text-gray-600 sm:block">
-            {isEdit ? "As alterações valem no link público." : "Você poderá ajustar tudo depois."}
-          </p>
-          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={busy}
-              className="border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={busy}
-              className="bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-50"
-            >
-              {busy && <Loader2 className="mr-1.5 size-4 animate-spin" />}
-              {busy ? "Salvando…" : isEdit ? "Salvar restaurante" : "Criar restaurante"}
-            </Button>
-          </div>
-        </footer>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={busy}
+                  className="bg-cyan-500 text-black hover:bg-cyan-400 disabled:opacity-50"
+                >
+                  {busy && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+                  {busy ? "Salvando…" : isEdit ? "Salvar restaurante" : "Criar restaurante"}
+                </Button>
+              </div>
+            </footer>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

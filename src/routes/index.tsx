@@ -5,13 +5,16 @@ import {
   BadgeCheck,
   BellRing,
   Bike,
+  Bot,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChefHat,
   Clock,
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageCircle,
   Minus,
   Palette,
   Plus,
@@ -24,6 +27,7 @@ import {
   Star,
   Store,
   TrendingUp,
+  User,
   Users,
   UtensilsCrossed,
   X,
@@ -345,6 +349,11 @@ const FEATURES = [
     title: "Sem comissão",
     desc: "O que o cliente paga é seu. Aqui não tem 15–30% por pedido.",
   },
+  {
+    icon: MessageCircle,
+    title: "Suporte Pracinha",
+    desc: "Assistente do time da Variant que responde na hora e leva o problema pro dev.",
+  },
 ];
 
 const COMPARISON = [
@@ -371,6 +380,10 @@ const FAQ = [
   {
     q: "Preciso de app ou site próprio?",
     a: "Não. Seu cardápio ganha um link próprio e um QR Code. Coloca no status, na bio ou no balcão e já está no ar.",
+  },
+  {
+    q: "Se der problema, com quem eu falo?",
+    a: "Com o Pracinha, o suporte do time da Variant, dentro do próprio painel. Ele responde na hora e, se for algo técnico, leva o caso direto para a engenharia com o contexto da sua tela — você não precisa explicar o erro.",
   },
 ];
 
@@ -401,7 +414,123 @@ const TUTORIAL_STEPS = [
   },
 ];
 
-/** Rótulo com o atraso da revelação em cascata. */
+/* ============================================================
+   Demo do Pracinha — o suporte que responde e resolve
+   Respostas pré-escritas: é vitrine, não chama a IA nem o backend.
+   ============================================================ */
+
+const PRACINHA_SCRIPT: { q: string; a: string }[] = [
+  {
+    q: "Como coloco meu cardápio no ar?",
+    a: "Você cria a conta grátis, adiciona os itens com foto e preço e publica. Sai um link só seu e um QR Code pra pôr no status e no balcão. Leva uns 5 minutos.",
+  },
+  {
+    q: "Meus pedidos não estão chegando",
+    a: "Já entendi. Vou verificar o alerta e a conexão da sua loja e, se não resolver, passo direto pro time de engenharia da Variant com o contexto da sua tela.",
+  },
+  {
+    q: "Quanto custa?",
+    a: "Você começa grátis com 5 pedidos por mês. Depois é a diária de R$ 1,99 por 24h, só quando cair pedido, ou o Premium ilimitado por R$ 28,99/mês (R$ 199,99/ano).",
+  },
+  {
+    q: "Deu erro na tela de pedidos",
+    a: "Obrigado por avisar. Capturei o erro com a página e o horário e enviei pro time com tudo que o dev precisa pra corrigir. Fico te avisando por aqui.",
+  },
+];
+
+function PracinhaDemo() {
+  const [asked, setAsked] = useState<number[]>([]);
+  const active = asked[asked.length - 1];
+
+  return (
+    <div className="relative mx-auto w-full max-w-[350px]">
+      <div
+        aria-hidden
+        className="animate-aurora absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-tr from-cyan-500/25 via-blue-500/10 to-violet-500/20 blur-3xl"
+      />
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#14141d] to-[#0a0a10] p-2.5 shadow-[0_40px_90px_-25px_rgba(6,182,212,0.45)]">
+        <div className="overflow-hidden rounded-[1.6rem] border border-white/[0.06] bg-[#0b0b12]">
+          {/* Cabeçalho */}
+          <div className="relative border-b border-white/[0.07] px-4 py-3.5">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-cyan-500/20 blur-3xl"
+            />
+            <div className="relative flex items-center gap-2.5">
+              <span className="relative grid size-9 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 text-black shadow-[0_8px_24px_rgba(6,182,212,0.35)]">
+                <MessageCircle className="size-4" />
+                <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-[#0b0b12] bg-emerald-400" />
+              </span>
+              <div>
+                <p className="text-xs font-bold text-white">
+                  Pracinha <span className="font-normal text-gray-500">· Variant</span>
+                </p>
+                <p className="flex items-center gap-1 text-[10px] text-cyan-300/80">
+                  <ShieldCheck className="size-2.5" /> Suporte oficial · resposta na hora
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Conversa */}
+          <div className="space-y-2.5 px-3 py-3.5">
+            {active === undefined ? (
+              <p className="text-xs leading-relaxed text-gray-400">
+                Oi! Sou o Pracinha, do time da Variant. Toca numa pergunta que eu mostro como
+                respondo.
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-row-reverse items-start gap-2">
+                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-white/10 text-gray-300">
+                    <User className="size-3" />
+                  </span>
+                  <p className="max-w-[85%] rounded-2xl rounded-tr-sm bg-cyan-500 px-3 py-2 text-[11px] leading-relaxed text-black">
+                    {PRACINHA_SCRIPT[active].q}
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500/20 text-cyan-300">
+                    <Bot className="size-3" />
+                  </span>
+                  <p className="max-w-[85%] rounded-2xl rounded-tl-sm border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-[11px] leading-relaxed text-gray-200">
+                    {PRACINHA_SCRIPT[active].a}
+                  </p>
+                </div>
+                {active === 1 || active === 3 ? (
+                  <div className="flex items-start gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-2 text-[10px] text-emerald-200">
+                    <CheckCircle2 className="mt-0.5 size-3 shrink-0" />
+                    <span>Relato enviado para a engenharia da Variant com o contexto da tela.</span>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+
+          {/* Perguntas */}
+          <div className="flex flex-wrap gap-1.5 border-t border-white/[0.07] px-3 py-3">
+            {PRACINHA_SCRIPT.map((s, i) => (
+              <button
+                key={s.q}
+                type="button"
+                onClick={() => setAsked((prev) => [...prev.filter((x) => x !== i), i])}
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-colors",
+                  active === i
+                    ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
+                    : "border-white/10 bg-white/[0.04] text-gray-400 hover:border-cyan-400/40 hover:text-white",
+                )}
+              >
+                {s.q}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function delay(ms: number) {
   return { animationDelay: `${ms}ms` };
 }
@@ -870,6 +999,46 @@ function LandingPage() {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Suporte: o Pracinha */}
+      <section className="relative overflow-hidden border-t border-white/[0.07] py-20 sm:py-24">
+        <div
+          aria-hidden
+          className="animate-aurora pointer-events-none absolute -right-24 top-1/3 h-[360px] w-[520px] rounded-full bg-cyan-500/10 blur-[120px]"
+        />
+        <div className="relative mx-auto grid max-w-5xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-cyan-300">
+              <MessageCircle className="size-3.5" /> Suporte que responde
+            </span>
+            <h2 className="font-display mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Conheça o <span className="text-cyan-400">Pracinha</span>.
+            </h2>
+            <p className="mt-4 text-gray-400">
+              O suporte do Cardápio Cidadela, do time da Variant. O nome é uma homenagem aos
+              pracinhas da FEB — brasileiros que foram à Itália em 1945 e voltaram com a missão
+              cumprida. É esse o espírito: resolver, não transferir.
+            </p>
+            <ul className="mt-6 space-y-3">
+              {[
+                "Responde na hora, dentro do próprio painel",
+                "Se o problema for técnico, vai direto para a engenharia da Variant",
+                "Vai com o contexto da sua tela — você não precisa explicar o erro",
+                "Avisa por e-mail para o time não perder nenhum caso",
+              ].map((t) => (
+                <li key={t} className="flex items-start gap-2.5 text-sm text-gray-300">
+                  <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 text-sm text-gray-500">
+              Um sistema que não te deixa na mão quando dá problema. Isso é o mínimo — e a maioria
+              não faz.
+            </p>
+          </div>
+          <PracinhaDemo />
         </div>
       </section>
 

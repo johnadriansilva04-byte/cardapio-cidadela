@@ -43,7 +43,7 @@ export interface DevReport {
   text: string;
 }
 
-const GREETING_NAME = "CEOa";
+const GREETING_NAME = "CEO";
 const BRAND = "Cardápio Cidadela";
 const SIGNATURE = "Pracinha · Suporte da Variant";
 const DIVIDER = "────────────────────────────────────────";
@@ -53,16 +53,21 @@ export function buildDevReport(input: DevReportInput): DevReport {
   const isError = kind === "erro";
   const when = formatWhen(new Date());
 
-  const facts: Array<[string, string]> = [["Loja", storeName || "não informada"]];
-  if (storeId) facts.push(["ID da loja", storeId]);
-  facts.push(["Conta", ownerEmail || "desconhecida"]);
-  facts.push(["Página", meta?.url || error?.route || "não informada"]);
-  if (meta?.screen) facts.push(["Tela", meta.screen]);
-  if (meta?.locale) facts.push(["Idioma", meta.locale]);
-  if (meta?.userAgent) facts.push(["Dispositivo", meta.userAgent]);
-  facts.push(["Quando", when]);
+  // Fatos "de gente": só o que o CEO precisa para se situar.
+  const ceoFacts: Array<[string, string]> = [["Loja", storeName || "não informada"]];
+  ceoFacts.push(["Quando", when]);
 
-  const contextLines = facts.map(([label, value]) => `${label}: ${value}`);
+  // Fatos "de dev": contexto técnico completo, só na parte de baixo.
+  const devFacts: Array<[string, string]> = [["Loja", storeName || "não informada"]];
+  if (storeId) devFacts.push(["ID da loja", storeId]);
+  devFacts.push(["Conta", ownerEmail || "desconhecida"]);
+  devFacts.push(["Página", meta?.url || error?.route || "não informada"]);
+  if (meta?.screen) devFacts.push(["Tela", meta.screen]);
+  if (meta?.locale) devFacts.push(["Idioma", meta.locale]);
+  if (meta?.userAgent) devFacts.push(["Dispositivo", meta.userAgent]);
+  devFacts.push(["Quando", when]);
+
+  const contextLines = devFacts.map(([label, value]) => `${label}: ${value}`);
 
   const story = isError
     ? `${error?.message ?? "erro"}\nComponente: ${error?.component ?? "não identificado"}\n\n${error?.stack ?? "(sem stack)"}`
@@ -81,6 +86,12 @@ export function buildDevReport(input: DevReportInput): DevReport {
     ? `[Pracinha] Erro no app · ${(error?.message ?? "erro").slice(0, 60)}`
     : `[Pracinha] Relato de cliente · ${(storeName || turns[turns.length - 1]?.content || "suporte").slice(0, 60)}`;
 
+  // No relato de suporte a conversa é o miolo — o CEO lê. No erro, o stack é
+  // jargão e fica só na parte do dev.
+  const ceoStoryText = isError
+    ? []
+    : ["", "CONVERSA", ...turns.map((t) => `${t.role === "user" ? "Cliente" : "Pracinha"}: ${t.content}`)];
+
   const text = [
     `${BRAND} · Variant`,
     isError ? "Erro no app" : "Relato de cliente",
@@ -89,7 +100,8 @@ export function buildDevReport(input: DevReportInput): DevReport {
     "",
     ceoSummary,
     "",
-    ...facts.map(([label, value]) => `${label}: ${value}`),
+    ...ceoFacts.map(([label, value]) => `${label}: ${value}`),
+    ...ceoStoryText,
     "",
     DIVIDER,
     "PARA O DEV — copie daqui para baixo e cole no agente com o código",
@@ -100,7 +112,7 @@ export function buildDevReport(input: DevReportInput): DevReport {
     `— ${SIGNATURE}`,
   ].join("\n");
 
-  const factsHtml = facts
+  const factsHtml = ceoFacts
     .map(
       ([label, value]) => `<tr>
         <td style="padding:3px 16px 3px 0;color:#8a8a8a;font-size:13px;white-space:nowrap;vertical-align:top">${esc(label)}</td>
@@ -122,6 +134,12 @@ export function buildDevReport(input: DevReportInput): DevReport {
         )
         .join("");
 
+  // Para o CEO, a conversa do suporte é legível e vale a pena; o stack de erro, não.
+  const ceoStoryBlock = isError
+    ? ""
+    : `<p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a9a">Conversa</p>
+  <div style="margin:0 0 26px">${storyHtml}</div>`;
+
   const html = `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;color:#1a1a1a;max-width:600px;margin:0 auto;line-height:1.5">
   <p style="margin:0 0 2px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a9a">${esc(BRAND)} · Variant</p>
   <h1 style="margin:0 0 20px;font-size:19px;font-weight:600">${isError ? "Erro no app" : "Relato de cliente"}</h1>
@@ -131,8 +149,7 @@ export function buildDevReport(input: DevReportInput): DevReport {
 
   <table style="border-collapse:collapse;width:100%;margin:0 0 24px">${factsHtml}</table>
 
-  <p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a9a">${isError ? "O que aconteceu" : "Conversa"}</p>
-  <div style="margin:0 0 26px">${storyHtml}</div>
+  ${ceoStoryBlock}
 
   <table style="border-collapse:collapse;width:100%;margin:0 0 10px"><tr>
     <td style="border-top:1px solid #e6e8eb;padding-top:16px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9a9a9a">Para o dev</td>

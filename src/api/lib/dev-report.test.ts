@@ -16,7 +16,7 @@ describe("buildDevReport — erro", () => {
     });
     expect(r.subject).toContain("[Pracinha]");
     expect(r.subject).toContain("Erro no app");
-    expect(r.text).toContain("Olá, CEOa!");
+    expect(r.text).toContain("Olá, CEO!");
     expect(r.text).toContain("Cannot read properties of undefined");
     expect(r.text).toContain("OrderCard.tsx:42");
     expect(r.text).toContain("PARA O DEV");
@@ -45,7 +45,7 @@ describe("buildDevReport — suporte", () => {
     });
     expect(r.subject).toContain("[Pracinha]");
     expect(r.subject).toContain("Relato de cliente");
-    expect(r.text).toContain("Olá, CEOa!");
+    expect(r.text).toContain("Olá, CEO!");
     expect(r.text).toContain("o preço está errado no pedido");
     expect(r.text).toContain("PARA O DEV");
     expect(r.text).toContain("causa raiz");

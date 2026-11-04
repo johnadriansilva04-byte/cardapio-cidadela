@@ -134,30 +134,28 @@ for (const route of ["/", "/terms", "/privacy"]) {
   });
 }
 
-test("calculadora de economia abre no painel e mostra a economia", async ({ page }) => {
+test("calculadora de economia mostra o número e abre no painel", async ({ page }) => {
   await page.goto("/");
   // Espera a hidratação: sem isso o primeiro clique pode cair antes do handler.
   await page.waitForLoadState("networkidle");
 
-  // O atalho da calculadora fica no herói; o resultado não aparece antes.
-  await expect(page.getByText(/Quanto você está perdendo hoje\?/)).toBeVisible();
-  await expect(page.getByText("Você economiza", { exact: true })).toHaveCount(0);
+  // O número aparece na tela principal, sem clique: é o argumento da página.
+  await expect(page.getByText(/Quanto você está perdendo\? Ex\.: pagando/)).toBeVisible();
+  await expect(page.getByText(/no seu bolso/)).toBeVisible();
 
   await page.getByRole("button", { name: /Fazer a conta/ }).click();
 
-  // O painel abre por cima com a pergunta e o X de fechar.
+  // O painel abre por cima com a pergunta, o resultado já calculado e o X.
   await expect(
     page.getByRole("heading", { name: /Quer ver quanto de dinheiro você está perdendo/ }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Fechar" })).toBeVisible();
+  await expect(page.getByText("Você economiza", { exact: true })).toBeVisible();
 
-  // Dono informa o que paga hoje e clica.
+  // O dono ajusta o que paga hoje e o número acompanha na hora.
   await page.getByLabel(/Quanto você paga por mês/).fill("200");
-  await page.getByRole("button", { name: /Ver quanto estou perdendo/ }).click();
-
   await expect(page.getByText("Você paga hoje", { exact: true })).toBeVisible();
   await expect(page.getByText("Melhor plano pra você", { exact: true })).toBeVisible();
-  await expect(page.getByText("Você economiza", { exact: true })).toBeVisible();
   // A economia no ano é sempre positiva para um gasto acima do plano.
   await expect(page.getByText(/\/ano/).first()).toBeVisible();
   // CTA de conversão.

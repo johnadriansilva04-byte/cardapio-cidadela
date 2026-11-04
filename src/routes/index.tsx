@@ -360,33 +360,45 @@ function LiveMenuDemo() {
 /** Acima disso, o Premium anual fica mais barato que pagar diária todo dia. */
 const DAY_PASS_BREAK_EVEN = Math.ceil(PREMIUM_PRICE_VALUE / 12 / DAY_PASS_PRICE_VALUE);
 
-function LossCalculator() {
-  const [spend, setSpend] = useState(149);
-  const [days, setDays] = useState(8);
-  const [revealed, setRevealed] = useState(false);
+/** Valores iniciais do simulador — e do número que aparece no herói. */
+const LOSS_DEFAULT_SPEND = 149;
+const LOSS_DEFAULT_DAYS = 8;
 
-  const plan = useMemo(() => {
-    const monthlyPremium = PREMIUM_PRICE_VALUE / 12;
-    const monthlyDayPass = days * DAY_PASS_PRICE_VALUE;
-    if (days <= DAY_PASS_BREAK_EVEN) {
-      return {
-        name: "Diária",
-        cost: monthlyDayPass,
-        why: `Você abre ~${days} dia(s) por mês. Na diária você paga só os dias que usar — ${DAY_PASS_PRICE_LABEL} por 24h.`,
-        cta: "Comece grátis e ative a diária quando cair pedido",
-      };
-    }
-    return {
-      name: "Premium anual",
-      cost: monthlyPremium,
-      why: `Com ${days} dias de movimento, o Premium ilimitado sai mais barato que pagar diária todo dia. Equivale a ${brl(monthlyPremium)}/mês.`,
-      cta: "Comece grátis e assine o Premium quando quiser",
-    };
-  }, [days]);
-
+/**
+ * A conta da perda, isolada para o herói e o painel mostrarem o MESMO número.
+ * O argumento da página é o número, não o adjetivo.
+ */
+function computeLossPlan(spend: number, days: number) {
+  const monthlyPremium = PREMIUM_PRICE_VALUE / 12;
+  const monthlyDayPass = days * DAY_PASS_PRICE_VALUE;
+  const plan =
+    days <= DAY_PASS_BREAK_EVEN
+      ? {
+          name: "Diária",
+          cost: monthlyDayPass,
+          why: `Você abre ~${days} dia(s) por mês. Na diária você paga só os dias que usar — ${DAY_PASS_PRICE_LABEL} por 24h.`,
+          cta: "Comece grátis e ative a diária quando cair pedido",
+        }
+      : {
+          name: "Premium anual",
+          cost: monthlyPremium,
+          why: `Com ${days} dias de movimento, o Premium ilimitado sai mais barato que pagar diária todo dia. Equivale a ${brl(monthlyPremium)}/mês.`,
+          cta: "Comece grátis e assine o Premium quando quiser",
+        };
   const monthlySaved = Math.max(0, spend - plan.cost);
-  const yearlySaved = monthlySaved * 12;
-  const payingNothing = spend <= 0;
+  return { plan, monthlySaved, yearlySaved: monthlySaved * 12, payingNothing: spend <= 0 };
+}
+
+/** A conta do exemplo padrão, mostrada no herói antes de qualquer clique. */
+const HERO_LOSS = computeLossPlan(LOSS_DEFAULT_SPEND, LOSS_DEFAULT_DAYS);
+
+function LossCalculator() {
+  const [spend, setSpend] = useState(LOSS_DEFAULT_SPEND);
+  const [days, setDays] = useState(LOSS_DEFAULT_DAYS);
+  const { plan, monthlySaved, yearlySaved, payingNothing } = useMemo(
+    () => computeLossPlan(spend, days),
+    [spend, days],
+  );
 
   return (
     <div className="relative">
@@ -420,7 +432,6 @@ function LossCalculator() {
                 value={spend}
                 onChange={(e) => {
                   setSpend(Math.max(0, Number(e.target.value) || 0));
-                  setRevealed(false);
                 }}
                 className="w-full bg-transparent font-display text-2xl font-black text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 aria-label="Quanto você paga por mês no seu cardápio atual"
@@ -449,85 +460,72 @@ function LossCalculator() {
               value={days}
               onChange={(e) => {
                 setDays(Number(e.target.value));
-                setRevealed(false);
               }}
               className="mt-3 w-full accent-cyan-400"
               aria-label="Quantos dias por mês você abre a loja"
             />
           </label>
 
-          {!revealed ? (
-            <button
-              type="button"
-              onClick={() => setRevealed(true)}
-              className="sheen mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-rose-500 py-4 text-base font-black text-white transition-all hover:-translate-y-0.5 hover:bg-rose-400 hover:shadow-[0_0_40px_rgba(244,63,94,0.45)]"
-            >
-              Ver quanto estou perdendo <ArrowRight className="size-5" />
-            </button>
-          ) : (
-            <div className="animate-pop-in mt-8">
-              {payingNothing ? (
-                <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
-                  <p className="font-display text-xl font-black text-emerald-300">
-                    Você já não paga nada hoje. 🎉
+          <div className="animate-pop-in mt-7">
+            {payingNothing ? (
+              <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
+                <p className="font-display text-xl font-black text-emerald-300">
+                  Você já não paga nada hoje. 🎉
+                </p>
+                <p className="mt-2 text-sm text-gray-400">
+                  Então comece pelo plano grátis: 5 pedidos por mês, sem cartão. Quando o movimento
+                  crescer, a diária ou o Premium entram sozinhos.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                      Você paga hoje
+                    </p>
+                    <p className="mt-2 font-display text-3xl font-black text-rose-300">
+                      {brl(spend)}
+                      <span className="text-sm font-bold text-gray-500"> /mês</span>
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.08] p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
+                      Melhor plano pra você
+                    </p>
+                    <p className="mt-2 font-display text-3xl font-black text-white">{plan.name}</p>
+                    <p className="text-sm font-bold text-gray-400">{brl(plan.cost)}/mês</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
+                  <p className="text-xs font-bold uppercase tracking-widest text-emerald-300">
+                    Você economiza
                   </p>
-                  <p className="mt-2 text-sm text-gray-400">
-                    Então comece pelo plano grátis: 5 pedidos por mês, sem cartão. Quando o
-                    movimento crescer, a diária ou o Premium entram sozinhos.
+                  <p className="mt-1 font-display text-4xl font-black text-emerald-300">
+                    {brl(yearlySaved)}
+                    <span className="text-base font-bold text-gray-500"> /ano</span>
+                  </p>
+                  <p className="mt-1 text-sm text-gray-400">
+                    {brl(monthlySaved)} por mês no seu bolso.
                   </p>
                 </div>
-              ) : (
-                <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                      <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
-                        Você paga hoje
-                      </p>
-                      <p className="mt-2 font-display text-3xl font-black text-rose-300">
-                        {brl(spend)}
-                        <span className="text-sm font-bold text-gray-500"> /mês</span>
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.08] p-5">
-                      <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
-                        Melhor plano pra você
-                      </p>
-                      <p className="mt-2 font-display text-3xl font-black text-white">
-                        {plan.name}
-                      </p>
-                      <p className="text-sm font-bold text-gray-400">{brl(plan.cost)}/mês</p>
-                    </div>
-                  </div>
 
-                  <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
-                    <p className="text-xs font-bold uppercase tracking-widest text-emerald-300">
-                      Você economiza
-                    </p>
-                    <p className="mt-1 font-display text-4xl font-black text-emerald-300">
-                      {brl(yearlySaved)}
-                      <span className="text-base font-bold text-gray-500"> /ano</span>
-                    </p>
-                    <p className="mt-1 text-sm text-gray-400">
-                      {brl(monthlySaved)} por mês no seu bolso.
-                    </p>
-                  </div>
+                <p className="mt-4 text-center text-sm text-gray-400">{plan.why}</p>
+              </>
+            )}
 
-                  <p className="mt-4 text-center text-sm text-gray-400">{plan.why}</p>
-                </>
-              )}
-
-              <Link
-                to="/login"
-                search={{ mode: "register" }}
-                className="sheen mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-4 text-base font-black text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.45)]"
-              >
-                {plan.cta} <ArrowRight className="size-5" />
-              </Link>
-              <p className="mt-3 text-center text-xs text-gray-500">
-                Comece já — abra sua conta grátis, sem cartão. Leva menos de 2 minutos.
-              </p>
-            </div>
-          )}
+            <Link
+              to="/login"
+              search={{ mode: "register" }}
+              className="sheen mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-4 text-base font-black text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.45)]"
+            >
+              {plan.cta} <ArrowRight className="size-5" />
+            </Link>
+            <p className="mt-3 text-center text-xs text-gray-500">
+              Comece já — abra sua conta grátis, sem cartão. Leva menos de 2 minutos.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -1105,7 +1103,8 @@ function LandingPage() {
               </span>
             </div>
 
-            {/* A conta que ninguém faz — o atalho mais visível da página. */}
+            {/* O número na cara: a conta do exemplo padrão já aparece aqui, sem
+                clique. Quem quiser refinar abre o painel. */}
             <button
               type="button"
               onClick={() => openPanel("calc")}
@@ -1116,11 +1115,12 @@ function LandingPage() {
                 <TrendingUp className="size-5" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-black text-white">
-                  Quanto você está perdendo hoje?
+                <span className="block text-[11px] font-bold uppercase tracking-widest text-rose-300/80">
+                  Quanto você está perdendo? Ex.: pagando {brl(LOSS_DEFAULT_SPEND)}/mês
                 </span>
-                <span className="mt-0.5 block text-xs text-rose-200/80">
-                  Abra a calculadora e veja o que sobra no seu bolso
+                <span className="mt-0.5 block font-display text-lg font-black leading-tight text-white">
+                  {brl(HERO_LOSS.yearlySaved)}
+                  <span className="text-xs font-bold text-gray-400"> /ano no seu bolso</span>
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-500 px-3 py-1.5 text-[11px] font-black text-white transition-colors group-hover:bg-rose-400">

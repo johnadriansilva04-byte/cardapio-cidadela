@@ -319,6 +319,14 @@
   Os dados/snapshots vivem em `src/components/landing/landing-data.ts`.
   **Nenhum mockup de celular**: o cardápio é um cartão, não uma moldura de
   telefone — o dono odeia a cara de "print de app".
+- **Movimento e identidade da landing** (`src/styles.css`): a troca de aba
+  remonta o conteúdo com `key={view}` + `animate-panel` (subida + desfoque),
+  então a aba "abre" em vez de só aparecer. O painel tem um cabeçalho
+  "«aba» · ao vivo" com varredura (`animate-scan`) — sensação de painel ligado.
+  O fundo é autoral: `.variant-grid` (grade técnica) + `.variant-grid-nodes`
+  (nós de ciano) sobre a aurora. É a identidade da Variant (casa de tecnologia),
+  de propósito — não um gradiente de template. Tudo desliga com
+  `prefers-reduced-motion` (o bloco global zera as animações).
 - **Simulador "quanto você está perdendo?"** (`LossSimulator`, `#simulador`): o
   dono informa o que paga hoje e os dias de movimento; o sistema recomenda o
   plano (diária ou Premium) e mostra a economia no ano. O ponto de virada é

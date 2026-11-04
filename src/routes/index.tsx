@@ -702,8 +702,11 @@ function LandingPage() {
 
   return (
     <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#07070c] text-white selection:bg-cyan-400/30">
-      {/* Fundo aurora fixo */}
+      {/* Fundo autoral: malha técnica (grade + nós) sobre aurora. É a cara da
+          Variant — casa de tecnologia —, não um gradiente de template. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="variant-grid absolute inset-0" />
+        <div className="variant-grid-nodes absolute inset-0" />
         <div className="animate-aurora absolute left-1/2 top-0 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/15 blur-[130px]" />
         <div className="animate-aurora absolute -left-24 top-1/3 h-[360px] w-[360px] rounded-full bg-violet-600/10 blur-[110px] [animation-delay:3s]" />
         <div className="animate-aurora absolute -right-24 bottom-0 h-[340px] w-[440px] rounded-full bg-blue-500/10 blur-[120px] [animation-delay:6s]" />
@@ -869,124 +872,144 @@ function LandingPage() {
 
         {/* Painel vivo: a aba troca o conteúdo na hora. */}
         <div className="relative mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/[0.07] bg-white/[0.02]">
+          <div className="relative flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-4 py-2.5">
+            <span className="size-2 animate-pulse rounded-full bg-emerald-400" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+              {TABS.find((t) => t.key === view)?.label} · ao vivo
+            </span>
+            <span className="ml-auto flex gap-1">
+              <span className="size-1.5 rounded-full bg-white/15" />
+              <span className="size-1.5 rounded-full bg-white/15" />
+              <span className="size-1.5 rounded-full bg-white/15" />
+            </span>
+            {/* Varredura: dá a sensação de painel ligado, não de print. */}
+            <span
+              aria-hidden
+              className="animate-scan pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-cyan-400/12 to-transparent"
+            />
+          </div>
           <div className="flex-1 overflow-y-auto p-4 [scrollbar-width:none] sm:p-6 [&::-webkit-scrollbar]:hidden">
-            {view === "cardapio" && (
-              <div className="mx-auto max-w-2xl">
-                <p className="mb-4 text-center text-xs text-gray-400">
-                  O cardápio real, vivo. Toque para abrir e monte um pedido de verdade.
-                </p>
-                <MenuReveal />
-              </div>
-            )}
+            {/* key={view} remonta o conteúdo a cada troca, disparando a
+                animação de entrada — a aba "abre" em vez de só aparecer. */}
+            <div key={view} className="animate-panel">
+              {view === "cardapio" && (
+                <div className="mx-auto max-w-2xl">
+                  <p className="mb-4 text-center text-xs text-gray-400">
+                    O cardápio real, vivo. Toque para abrir e monte um pedido de verdade.
+                  </p>
+                  <MenuReveal />
+                </div>
+              )}
 
-            {view === "montagem" && (
-              <div className="grid items-center gap-6 lg:grid-cols-2">
+              {view === "montagem" && (
+                <div className="grid items-center gap-6 lg:grid-cols-2">
+                  <div>
+                    <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
+                      Seu cardápio nasce <span className="text-violet-300">numa conversa.</span>
+                    </h2>
+                    <p className="mt-3 text-sm leading-relaxed text-gray-400">
+                      Sem formulário de 20 campos. A Pracinha pergunta o nome, o WhatsApp, o
+                      endereço — e o cardápio se monta sozinho. Quer mais rápido? Tire uma foto do
+                      cardápio antigo.
+                    </p>
+                    <ul className="mt-4 space-y-2">
+                      {[
+                        "Uma pergunta por vez, do jeito que o dono fala",
+                        "Monta itens, preços e categorias enquanto você responde",
+                        "Importa o cardápio antigo por foto",
+                        "Funciona no celular, na correria do balcão",
+                      ].map((t) => (
+                        <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
+                          <Check className="mt-0.5 size-4 shrink-0 text-violet-400" /> {t}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <WizardChat />
+                </div>
+              )}
+
+              {view === "templates" && (
                 <div>
-                  <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
-                    Seu cardápio nasce <span className="text-violet-300">numa conversa.</span>
-                  </h2>
-                  <p className="mt-3 text-sm leading-relaxed text-gray-400">
-                    Sem formulário de 20 campos. A Pracinha pergunta o nome, o WhatsApp, o endereço
-                    — e o cardápio se monta sozinho. Quer mais rápido? Tire uma foto do cardápio
-                    antigo.
-                  </p>
-                  <ul className="mt-4 space-y-2">
-                    {[
-                      "Uma pergunta por vez, do jeito que o dono fala",
-                      "Monta itens, preços e categorias enquanto você responde",
-                      "Importa o cardápio antigo por foto",
-                      "Funciona no celular, na correria do balcão",
-                    ].map((t) => (
-                      <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
-                        <Check className="mt-0.5 size-4 shrink-0 text-violet-400" /> {t}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mx-auto mb-5 max-w-xl text-center">
+                    <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
+                      Não comece do zero. <span className="text-emerald-300">Escolha um tema.</span>
+                    </h2>
+                    <p className="mt-2 text-sm text-gray-400">
+                      Já vem com as cores e os itens do seu ramo. Você só troca a foto e o preço.
+                    </p>
+                  </div>
+                  <TemplateGallery />
                 </div>
-                <WizardChat />
-              </div>
-            )}
+              )}
 
-            {view === "templates" && (
-              <div>
-                <div className="mx-auto mb-5 max-w-xl text-center">
-                  <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
-                    Não comece do zero. <span className="text-emerald-300">Escolha um tema.</span>
-                  </h2>
-                  <p className="mt-2 text-sm text-gray-400">
-                    Já vem com as cores e os itens do seu ramo. Você só troca a foto e o preço.
-                  </p>
-                </div>
-                <TemplateGallery />
-              </div>
-            )}
-
-            {view === "recursos" && (
-              <div className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {STEPS.map((s, i) => (
-                    <div
-                      key={s.title}
-                      className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
-                    >
-                      <span className="grid size-10 place-items-center rounded-xl border border-cyan-500/25 bg-[#0b0b12] text-cyan-300">
-                        <s.icon className="size-5" />
-                      </span>
-                      <h3 className="font-display mt-3 text-base font-extrabold text-white">
-                        <span className="mr-1.5 text-cyan-400">
-                          {String(i + 1).padStart(2, "0")}
+              {view === "recursos" && (
+                <div className="space-y-5">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {STEPS.map((s, i) => (
+                      <div
+                        key={s.title}
+                        className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
+                      >
+                        <span className="grid size-10 place-items-center rounded-xl border border-cyan-500/25 bg-[#0b0b12] text-cyan-300">
+                          <s.icon className="size-5" />
                         </span>
-                        {s.title}
-                      </h3>
-                      <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{s.desc}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {FEATURES.map((f) => (
-                    <div
-                      key={f.title}
-                      className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
-                    >
-                      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
-                        <f.icon className="size-4" />
-                      </span>
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-bold text-white">{f.title}</h3>
-                        <p className="mt-1 text-sm leading-relaxed text-gray-400">{f.desc}</p>
+                        <h3 className="font-display mt-3 text-base font-extrabold text-white">
+                          <span className="mr-1.5 text-cyan-400">
+                            {String(i + 1).padStart(2, "0")}
+                          </span>
+                          {s.title}
+                        </h3>
+                        <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{s.desc}</p>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {view === "pracinha" && (
-              <div className="grid items-center gap-6 lg:grid-cols-2">
-                <div>
-                  <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
-                    Um garçom que nunca <span className="text-cyan-300">sai do salão.</span>
-                  </h2>
-                  <p className="mt-3 text-sm leading-relaxed text-gray-400">
-                    O Pracinha atende na hora, dentro do seu painel. Se for coisa técnica, ele leva
-                    o caso pro time com o contexto da sua tela.
-                  </p>
-                  <ul className="mt-4 space-y-2">
-                    {[
-                      "Responde na hora, dentro do próprio painel",
-                      "Vai com o contexto da sua tela — sem print",
-                      "Se for técnico, cai direto na engenharia da Variant",
-                      "Avisa por e-mail para o time não perder nenhum caso",
-                    ].map((t) => (
-                      <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
-                        <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
-                      </li>
                     ))}
-                  </ul>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {FEATURES.map((f) => (
+                      <div
+                        key={f.title}
+                        className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
+                      >
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
+                          <f.icon className="size-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-white">{f.title}</h3>
+                          <p className="mt-1 text-sm leading-relaxed text-gray-400">{f.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <WaiterChat />
-              </div>
-            )}
+              )}
+
+              {view === "pracinha" && (
+                <div className="grid items-center gap-6 lg:grid-cols-2">
+                  <div>
+                    <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
+                      Um garçom que nunca <span className="text-cyan-300">sai do salão.</span>
+                    </h2>
+                    <p className="mt-3 text-sm leading-relaxed text-gray-400">
+                      O Pracinha atende na hora, dentro do seu painel. Se for coisa técnica, ele
+                      leva o caso pro time com o contexto da sua tela.
+                    </p>
+                    <ul className="mt-4 space-y-2">
+                      {[
+                        "Responde na hora, dentro do próprio painel",
+                        "Vai com o contexto da sua tela — sem print",
+                        "Se for técnico, cai direto na engenharia da Variant",
+                        "Avisa por e-mail para o time não perder nenhum caso",
+                      ].map((t) => (
+                        <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
+                          <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <WaiterChat />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>

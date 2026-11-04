@@ -958,6 +958,13 @@ contador sobre virar ME.
   `scan_failed`. O modelo de visão também exige aceitar a licença da Meta UMA
   vez por conta (`POST {model}` com `{"prompt":"agree"}`); sem isso devolve
   `AiError 5016 Model Agreement`. Já aceito na conta de produção.
+- **⚠️ O `CLOUDFLARE_AI_TOKEN` gravado no Pages foi revogado (2026-11-04).** O
+  token que estava nas env (`cfut_56ud…`) passou a devolver `10000
+  Authentication error` em `/ai/run`, então **foto e chat de IA estão desligados
+  agora** (caem no fallback: parser determinístico / texto-guia — nada quebra).
+  Para religar: incluir `Workers AI → Read` no token e regravar com
+  `wrangler pages secret put CLOUDFLARE_AI_TOKEN`. O token atual do projeto
+  (`cfut_06LI…`) tem Pages + DNS, mas **não** Workers AI.
 - **Custo é irrelevante neste volume.** O Workers AI tem cota diária gratuita e
   só é chamado quando o dono cria/edita a loja ou pede ajuda — não é por pedido
   nem por visita. Centenas de conversas/dia cabem no gratuito.
@@ -1055,30 +1062,29 @@ contador sobre virar ME.
   workflow: `SUPABASE_SERVICE_ROLE_KEY`, `MERCADOPAGO_ACCESS_TOKEN`,
   `MERCADOPAGO_WEBHOOK_SECRET`, `RESEND_API_KEY`. Sem eles o app sobe e degrada
   em silêncio; o webhook do MP é o que exige o service role.
-- **Estado real das env do Pages (verificado em 2026-11-04):** produção tem
-  `CLOUDFLARE_AI_TOKEN`, `RESEND_API_KEY`, `INVOICE_NOTIFY_EMAIL`,
-  `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET` e
-  `SUPABASE_SERVICE_ROLE_KEY`; o preview tem só as `VITE_*`
-  (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SITE_URL`). O canal de
-  e-mail está LIGADO: um POST de teste em `/api/support/error` devolveu
-  `{"ok":true}` e o Resend registrou `delivered`.
-- **O Resend sem domínio verificado só entrega para o dono da conta.** A chave
-  do Resend pertence a `johnadriansilva04@gmail.com`, e o `from` é
-  `onboarding@resend.dev`; nesse estado a API recusa qualquer destinatário que
-  não seja esse (`403 validation_error`). Por isso o `INVOICE_NOTIFY_EMAIL` está
-  apontado para `johnadriansilva04@gmail.com` — o destino precisa ser o dono da
-  conta até o domínio `cardapio.pracinha.online` verificar no Resend. Depois de
-  verificado, troque o destino (e o `EMAIL_FROM`) para o endereço de suporte
-  real. `COMPANY.supportEmail` (`variantfeb@gmail.com`) segue sendo o fallback
-  do código, mas hoje **não recebe** — é o dono da conta do Resend que recebe.
-- **Verificar o domínio no Resend exige 3 registros na zona.** O Resend fornece
-  (via `GET /domains/{id}`): TXT `resend._domainkey.cardapio` (DKIM), CNAME
-  `rsend.cardapio` e CNAME `send.cardapio` — todos com o sufixo
-  `.pracinha.online` na zona. Eles precisam ser criados **manualmente** no
-  painel da Cloudflare: nenhum token de deploy do projeto tem `Zone: DNS Edit`
-  (o `GET /zones` devolve lista vazia), então nem a API nem o workflow
-  `cf-dns-setup.yml` conseguem criá-los. O `cf-dns-setup.yml` existe para quando
-  um token com DNS for configurado — ele cria só o que falta.
+- **O canal de e-mail está LIGADO e testado (2026-11-04).** Env do Pages:
+  `RESEND_API_KEY`, `EMAIL_FROM=Cardápio Cidadela
+  <no-reply@cardapio.pracinha.online>` e `INVOICE_NOTIFY_EMAIL=variantfeb@gmail.com`.
+  Um POST de teste em `/api/support/error` devolve `{"ok":true}` e o Resend
+  registra `delivered` para `variantfeb@gmail.com`. Suporte, erro automático e
+  pedido de nota chegam.
+- **O domínio `cardapio.pracinha.online` está verificado no Resend.** São 3
+  registros na zona `pracinha.online` (TXT `resend._domainkey.cardapio` + CNAME
+  `rsend.cardapio` e `send.cardapio`, ambos **DNS only**). Com o domínio
+  verificado dá para enviar de `no-reply@cardapio.pracinha.online` para
+  **qualquer** destinatário; sem ele o Resend só entrega para o dono da conta
+  (`403 validation_error`). Se um dia recriar o domínio, o `EMAIL_FROM` precisa
+  acompanhar o novo endereço.
+- **O token da Cloudflare precisa das 3 permissões certas, e elas não são
+  óbvias.** Para este projeto o token tem que ter:
+  - `Cloudflare Pages` → **Edit** (deploy);
+  - `DNS` → **Edit** na zona `pracinha.online` (criar registros). **Não** é
+    `Configurações de DNS` (`zone_dns_settings`) — essa só mexe em SOA/TTL/modo
+    e o `POST /dns_records` continua dando `10000`;
+  - `Workers AI` → **Read** (foto/chat).
+  Sem `Zone Read` o `GET /zones` devolve lista vazia mesmo com o DNS liberado —
+  não use esse endpoint para concluir que o DNS não funciona; teste direto em
+  `GET /zones/{zone_id}/dns_records` com o `zone_tag` que vem do domínio Pages.
 - **Dois tokens da Cloudflare, papéis diferentes.** `CLOUDFLARE_API_TOKEN`
   (secret do GitHub) é o de DEPLOY: precisa de **Cloudflare Pages: Edit** (a
   permissão `Pages Read` só vê o projeto e o deploy falha com

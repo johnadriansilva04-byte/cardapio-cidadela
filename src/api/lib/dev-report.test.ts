@@ -16,6 +16,9 @@ describe("buildDevReport — erro", () => {
     });
     expect(r.subject).toContain("[Pracinha]");
     expect(r.subject).toContain("Erro no app");
+    expect(r.subject).toContain("Cantina");
+    // O assunto é a cara do e-mail: não pode vazar a mensagem técnica.
+    expect(r.subject).not.toContain("Cannot read properties");
     expect(r.text).toContain("Olá, CEO!");
     expect(r.text).toContain("Cannot read properties of undefined");
     expect(r.text).toContain("OrderCard.tsx:42");

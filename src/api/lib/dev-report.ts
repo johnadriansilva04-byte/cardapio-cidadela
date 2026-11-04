@@ -82,9 +82,13 @@ export function buildDevReport(input: DevReportInput): DevReport {
     ? `Um cliente esbarrou num erro no app${storeName ? ` na loja ${storeName}` : ""}. Nada foi perdido: o pedido continua salvo e o cliente pode seguir. O time já tem tudo o que precisa para corrigir.`
     : `Um cliente pediu ajuda pelo chat${storeName ? ` da loja ${storeName}` : ""} e o caso precisa de uma olhada no código. A conversa completa está abaixo.`;
 
+  // O assunto é a primeira coisa que o CEO vê na caixa de entrada: nada de
+  // mensagem de erro em inglês. A loja identifica o caso; o técnico fica no corpo.
   const subject = isError
-    ? `[Pracinha] Erro no app · ${(error?.message ?? "erro").slice(0, 60)}`
-    : `[Pracinha] Relato de cliente · ${(storeName || turns[turns.length - 1]?.content || "suporte").slice(0, 60)}`;
+    ? storeName
+      ? `[Pracinha] Erro no app · ${storeName.slice(0, 50)}`
+      : "[Pracinha] Erro no app"
+    : `[Pracinha] Relato de cliente · ${(storeName || turns[turns.length - 1]?.content || "suporte").slice(0, 50)}`;
 
   // No relato de suporte a conversa é o miolo — o CEO lê. No erro, o stack é
   // jargão e fica só na parte do dev.

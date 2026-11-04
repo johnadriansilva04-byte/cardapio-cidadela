@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -40,6 +40,12 @@ import { COMPANY, VARIANT, hasSupportContact } from "@/lib/company";
 import { useAuth } from "@/components/AuthProvider";
 import { switchAccount } from "@/modules/supabase/auth";
 import {
+  getLandingDemoStore,
+  type DemoMenuItem,
+  type DemoStoreMenu,
+} from "@/modules/supabase/landing-demo";
+import { SmartImage } from "@/components/ui/SmartImage";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -79,88 +85,175 @@ export const Route = createFileRoute("/")({
    ============================================================ */
 
 /**
- * O cardápio-modelo da landing é o da própria Variant — a hamburgueria do time.
- * Serve de vitrine real: mesmas categorias, itens e preços que um cliente veria.
+ * Vitrine da landing = o cardápio REAL da loja da Variant.
+ *
+ * Os dados abaixo são só o SNAPSHOT da primeira pintura (evita tela vazia e
+ * flash enquanto o banco responde). Em seguida o componente carrega a loja de
+ * verdade e substitui tudo — trocar a foto, o preço ou um item no painel muda a
+ * home sozinho. Se o banco falhar, o snapshot segura a página.
  */
-const DEMO_CATEGORIES = ["Destaques", "Burgers", "Porções", "Bebidas"] as const;
 
-const DEMO_ITEMS = [
-  {
-    id: "p1",
-    cat: "Destaques",
-    emoji: "🍔",
-    name: "Variant Burger",
-    desc: "Blend 180g, cheddar duplo e bacon",
-    price: 32,
-    tag: "Mais pedido",
-  },
-  {
-    id: "p2",
-    cat: "Destaques",
-    emoji: "🌶️",
-    name: "Cidadela Picante",
-    desc: "Blend 180g, jalapeño e maionese defumada",
-    price: 35,
-  },
-  {
-    id: "p3",
-    cat: "Burgers",
-    emoji: "🧀",
-    name: "Cheese Bacon",
-    desc: "Blend 160g, cheddar e bacon crocante",
-    price: 29,
-  },
-  {
-    id: "p4",
-    cat: "Burgers",
-    emoji: "🥬",
-    name: "Veggie da Casa",
-    desc: "Burger de grão-de-bico e rúcula",
-    price: 27,
-  },
-  {
-    id: "p5",
-    cat: "Porções",
-    emoji: "🍟",
-    name: "Batata rústica",
-    desc: "Alecrim e parmesão",
-    price: 18,
-  },
-  {
-    id: "p6",
-    cat: "Bebidas",
-    emoji: "🥤",
-    name: "Milkshake",
-    desc: "Chocolate belga 400ml",
-    price: 16,
-  },
-  {
-    id: "p7",
-    cat: "Bebidas",
-    emoji: "🍺",
-    name: "Cerveja artesanal",
-    desc: "IPA 500ml gelada",
-    price: 22,
-  },
-];
+const DEMO_SNAPSHOT: DemoStoreMenu = {
+  name: "Variant",
+  logoUrl:
+    "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/logo_1789410322493_v0yxrp.jpg",
+  categories: [
+    { id: "lanches", name: "Lanches" },
+    { id: "combos", name: "Combos" },
+    { id: "bebidas", name: "Bebidas" },
+  ],
+  items: [
+    {
+      id: "s-xburger",
+      categoryId: "lanches",
+      name: "X-Burger",
+      description: "Pão, hambúrguer, queijo, alface e tomate",
+      price: 29.99,
+      imageUrl:
+        "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/product_1789411917034_401lra.jpg",
+      tag: "Mais pedido",
+    },
+    {
+      id: "s-xbacon",
+      categoryId: "lanches",
+      name: "X-Bacon",
+      description: "Pão, hambúrguer, queijo, bacon crocante",
+      price: 21.9,
+      imageUrl:
+        "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/product_1790975930471_3o9b3b.webp",
+    },
+    {
+      id: "s-xtudo",
+      categoryId: "lanches",
+      name: "X-Tudo",
+      description: "Hambúrguer duplo, queijo, bacon, ovo, presunto",
+      price: 28.9,
+      imageUrl:
+        "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/product_1790976043341_1g2r69.webp",
+    },
+    {
+      id: "s-frango",
+      categoryId: "lanches",
+      name: "Frango Grelhado",
+      description: "Peito de frango grelhado com salada",
+      price: 22.9,
+      imageUrl:
+        "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/product_1790976105381_3uc1ei.webp",
+    },
+    {
+      id: "s-hotdog",
+      categoryId: "lanches",
+      name: "Hot Dog Especial",
+      description: "Salsicha, purê, milho, batata palha",
+      price: 16.9,
+      imageUrl:
+        "https://images.pracinha.online/8956f83c-f65e-41a1-b524-56c4434aa9a1/product_1790976129745_cf78jp.webp",
+    },
+    {
+      id: "s-comboburger",
+      categoryId: "combos",
+      name: "Combo Burger + Refri",
+      description: "X-Burger + Coca-Cola Lata",
+      price: 22.9,
+      emoji: "🍔",
+    },
+    {
+      id: "s-combofome",
+      categoryId: "combos",
+      name: "Combo Fome Zero",
+      description: "X-Bacon + Batata + Refri",
+      price: 32.9,
+      emoji: "🍔",
+    },
+    {
+      id: "s-combofamilia",
+      categoryId: "combos",
+      name: "Combo Família",
+      description: "2 X-Tudo + 2 Refris + Batata",
+      price: 69.9,
+      emoji: "🍔",
+    },
+    {
+      id: "s-coca",
+      categoryId: "bebidas",
+      name: "Coca-Cola Lata",
+      description: "350ml gelada",
+      price: 5.9,
+      emoji: "🥤",
+    },
+    {
+      id: "s-guarana",
+      categoryId: "bebidas",
+      name: "Guaraná Lata",
+      description: "350ml gelada",
+      price: 5.9,
+      emoji: "🥤",
+    },
+    {
+      id: "s-suco",
+      categoryId: "bebidas",
+      name: "Suco Natural",
+      description: "Laranja ou limão 400ml",
+      price: 7.9,
+      emoji: "🥤",
+    },
+    {
+      id: "s-cerveja",
+      categoryId: "bebidas",
+      name: "Cerveja Lata",
+      description: "Brahma ou Skol 350ml",
+      price: 7.9,
+      emoji: "🍺",
+    },
+    {
+      id: "s-agua",
+      categoryId: "bebidas",
+      name: "Água Mineral",
+      description: "500ml sem gás",
+      price: 3.9,
+      emoji: "💧",
+    },
+  ],
+};
 
 function LiveMenuDemo() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [sent, setSent] = useState(false);
-  const [activeCat, setActiveCat] = useState<(typeof DEMO_CATEGORIES)[number]>("Destaques");
+  // Começa no snapshot (pinta na hora) e é trocado pelo cardápio real assim que
+  // o banco responde. A primeira aba é sempre a primeira categoria da loja.
+  const [store, setStore] = useState<DemoStoreMenu>(DEMO_SNAPSHOT);
+  const [activeCat, setActiveCat] = useState<string>(DEMO_SNAPSHOT.categories[0].id);
 
-  const visibleItems = useMemo(() => DEMO_ITEMS.filter((i) => i.cat === activeCat), [activeCat]);
+  useEffect(() => {
+    let alive = true;
+    getLandingDemoStore().then((real) => {
+      if (!alive || !real) return;
+      setStore(real);
+      setActiveCat((prev) =>
+        real.categories.some((c) => c.id === prev) ? prev : real.categories[0].id,
+      );
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const items: DemoMenuItem[] = store.items;
+  const visibleItems = useMemo(
+    () => items.filter((i) => i.categoryId === activeCat),
+    [items, activeCat],
+  );
 
   const { count, total } = useMemo(() => {
     let count = 0;
     let total = 0;
-    for (const item of DEMO_ITEMS) {
+    for (const item of items) {
       const qty = cart[item.id] ?? 0;
       count += qty;
       total += qty * item.price;
     }
     return { count, total };
-  }, [cart]);
+  }, [cart, items]);
 
   function add(id: string) {
     setSent(false);
@@ -210,12 +303,25 @@ function LiveMenuDemo() {
                 className="absolute -right-6 -top-8 size-24 rounded-full bg-cyan-400/30 blur-2xl"
               />
               <div className="relative flex items-center gap-2.5">
-                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#0b0b12] text-xl ring-1 ring-white/10">
-                  🍔
+                <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-[#0b0b12] text-xl ring-1 ring-white/10">
+                  {store.logoUrl ? (
+                    <SmartImage
+                      src={store.logoUrl}
+                      alt={store.name}
+                      width={88}
+                      height={88}
+                      className="size-full"
+                      imgClassName="size-full object-cover"
+                      eager
+                      fallback={<span>🍔</span>}
+                    />
+                  ) : (
+                    <span>🍔</span>
+                  )}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1 truncate text-sm font-black text-white">
-                    Variant <BadgeCheck className="size-3.5 shrink-0 text-cyan-300" />
+                    {store.name} <BadgeCheck className="size-3.5 shrink-0 text-cyan-300" />
                   </p>
                   <p className="flex items-center gap-1.5 text-[10px] text-gray-300">
                     <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Aberto
@@ -230,25 +336,26 @@ function LiveMenuDemo() {
 
           {/* Categorias */}
           <div className="mt-2.5 flex gap-1.5 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {DEMO_CATEGORIES.map((cat) => (
+            {store.categories.map((cat) => (
               <button
-                key={cat}
+                key={cat.id}
                 type="button"
-                onClick={() => setActiveCat(cat)}
+                onClick={() => setActiveCat(cat.id)}
                 className={cn(
                   "shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition-colors",
-                  activeCat === cat
+                  activeCat === cat.id
                     ? "bg-cyan-500 text-black"
                     : "bg-white/[0.06] text-gray-400 hover:text-white",
                 )}
               >
-                {cat}
+                {cat.name}
               </button>
             ))}
           </div>
 
-          {/* Itens */}
-          <div className="mt-2.5 space-y-2 px-3">
+          {/* Itens — área com altura fixa: o telefone não cresce com a
+              categoria (o hub da landing precisa caber na tela). */}
+          <div className="mt-2.5 max-h-[142px] space-y-2 overflow-y-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {visibleItems.map((item) => {
               const qty = cart[item.id] ?? 0;
               return (
@@ -261,8 +368,21 @@ function LiveMenuDemo() {
                       : "border-white/[0.06] bg-white/[0.02]",
                   )}
                 >
-                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/[0.05] text-xl">
-                    {item.emoji}
+                  <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-white/[0.05] text-xl">
+                    {item.imageUrl ? (
+                      <SmartImage
+                        src={item.imageUrl}
+                        alt={item.name}
+                        width={88}
+                        height={88}
+                        resize="cover"
+                        className="size-full"
+                        imgClassName="size-full object-cover"
+                        fallback={<span>{item.emoji ?? "🍽️"}</span>}
+                      />
+                    ) : (
+                      <span>{item.emoji ?? "🍽️"}</span>
+                    )}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-1.5 truncate text-xs font-bold text-white">
@@ -273,7 +393,7 @@ function LiveMenuDemo() {
                         </span>
                       )}
                     </p>
-                    <p className="truncate text-[10px] text-gray-500">{item.desc}</p>
+                    <p className="truncate text-[10px] text-gray-500">{item.description}</p>
                     <p className="text-[11px] font-black text-cyan-300">{brl(item.price)}</p>
                   </div>
                   {qty > 0 ? (
@@ -969,7 +1089,7 @@ function LandingPage() {
               Quem faz
             </button>
             <a
-              href="/cardapio/cidadela"
+              href="/cardapio/dona-da-pensao"
               className="text-sm text-gray-400 transition-colors hover:text-white"
             >
               Ver cardápio
@@ -1015,7 +1135,7 @@ function LandingPage() {
               </button>
             ))}
             <a
-              href="/cardapio/cidadela"
+              href="/cardapio/dona-da-pensao"
               onClick={() => setMenuOpen(false)}
               className="rounded-lg px-3 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
             >
@@ -1079,7 +1199,7 @@ function LandingPage() {
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <a
-                href="/cardapio/cidadela"
+                href="/cardapio/dona-da-pensao"
                 className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-7 py-3.5 text-sm font-semibold text-gray-300 transition-all hover:border-white/30 hover:text-white sm:w-auto"
               >
                 Ver cardápio real

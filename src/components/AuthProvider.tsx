@@ -15,6 +15,7 @@ import {
   signOut as authSignOut,
   type UserProfile,
 } from "@/modules/supabase/auth";
+import { usePresencePing } from "@/hooks/usePresencePing";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextValue {
@@ -41,6 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Presença: mantém a conta fora da limpeza de inativos (debounce de 6h).
+  usePresencePing(!!user);
 
   useEffect(() => {
     let alive = true;

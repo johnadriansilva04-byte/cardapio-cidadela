@@ -619,6 +619,18 @@
   `cleanup_old_data(30)` + dois jobs `pg_cron`: limpeza diária (03:00 UTC) e
   reset do contador mensal. `order_items`/`order_status_history` caem por
   `ON DELETE CASCADE`; `admin_trials` **nunca** é apagada.
+- **Conta sem atividade há 30 dias é apagada por inteiro.**
+  `supabase/supabase_inactive_accounts_migration.sql` (idempotente) adiciona
+  `profiles.last_seen_at` e agenda o job `mata-fome-inactive-accounts`
+  (pg_cron, 04:00 UTC). A RPC `purge_inactive_accounts(30, false)` apaga
+  restaurantes (cascata em cardápio/pedidos) → perfil → `auth.users`. O que
+  mantém a conta viva (basta UM sinal recente): o dono abrir o painel
+  (`last_seen_at`, via `touch_last_seen()` chamado pelo `usePresencePing`),
+  receber pedido (`orders.created_at`) ou a loja ficar online
+  (`store_usage.day`). **Premium vigente nunca é apagado** — quem pagou não
+  perde a conta por inatividade. A tela de Configurações mostra o aviso lendo
+  `account_purge_status()` (some sem a migração). É fail-safe: sem o job, nada
+  é apagado. `delete_own_account()` continua sendo a exclusão a pedido.
 - **Produto não tem mais foto — só um tile genérico.** O cardápio público, o
   carrinho e o painel renderizam o mesmo bloco (`UtensilsCrossed` na cor de
   destaque / 🍔 no carrinho) em vez de `item.image_url`. A coluna
@@ -808,11 +820,16 @@ Números verificados em **2026-11-03** (supabase.com/pricing,
 developers.cloudflare.com). Reconfira antes de decidir — os planos mudam.
 
 **Limites do plano gratuito (o que morde):**
-- Supabase: **5 GB de egress/mês**, 500 MB de banco, 1 GB de Storage,
+- Supabase: **5 GB de egress de origem + 5 GB de egress em cache** (dois baldes
+  separados, não um só), 500 MB de banco, 1 GB de Storage, 50.000 MAUs,
   200 conexões de realtime simultâneas, 2M mensagens/mês, 500k invocações de
   Edge Function, **pausa após 7 dias sem uso**, 2 projetos ativos, sem backup.
-- Cloudflare Pages: **100.000 invocações de Function/dia** (SSR e rotas de API
-  contam; estático é ilimitado e não conta). Zera 00:00 UTC.
+  Com a imagem no R2, o egress de origem é só o JSON — ver "Efeito do R2".
+- Cloudflare Pages: **estático é grátis e ilimitado** (HTML/CSS/JS/imagens não
+  contam); só as **Functions** (SSR e rotas de API) consomem a cota, que é a do
+  Workers Free: **100.000 invocações/dia** (compartilhada com Workers), 10 ms de
+  CPU por invocação, 50 subrequests por chamada, 500 builds/mês. Zera 00:00 UTC.
+  No teto, o dinâmico para (erro 1027) até o reset; o estático continua.
 - Mercado Pago: Pix 0,99%; cartão 3,99% (30 dias) a 4,98% (na hora). Use ~3,5%
   como taxa média no mix Pix + cartão.
 - Resend: 3.000 e-mails/mês.
@@ -891,9 +908,23 @@ Premium anual R$ 16,08/mês · diária R$ 1,92.
 
 | Cenário | Bruto/mês | Líquido (free) | Líquido (Pro) |
 | --- | --- | --- | --- |
+| Todos grátis | R$ 0,00 | −R$ 89,38 | −R$ 226,38 |
 | 10 grátis + 5 diária + 5 Premium | R$ 212,23 | **R$ 115,42** | −R$ 21,58 |
 | 5 grátis + 5 diária + 10 Premium | R$ 344,85 | **R$ 243,40** | R$ 106,40 |
 | 15 mensal + 5 anual (otimista) | R$ 518,18 | **R$ 410,66** | R$ 273,66 |
+
+Recomputado em 2026-11-03 com os preços do código (`src/lib/pricing.ts`): anual
+**R$ 199,99**, mensal **R$ 28,99**, diária **R$ 1,99**. Atenção: material antigo
+citava a diária a R$ 1,49 — está desatualizado, o valor vigente é R$ 1,99. A
+diária do cenário supõe 8 dias de movimento/mês por cliente.
+
+**O gatilho de gasto é o Pro (R$ 137/mês), e só ele.** No free, os 20 lojas dos
+cenários acima rodam com **infra R$ 0,00** — o custo fixo é só MEI + domínio
+(R$ 89,38). Migrar para o Pro antes da receita cobrir vira prejuízo: com 5
+Premium (R$ 115,42 líquido) o Pro deixa o mês **negativo em R$ 21,58**. Migre
+quando o líquido free passar de R$ 137/mês de forma recorrente — ou seja, **a
+partir do cenário de 10 Premium**. Até lá, keep-alive + os jobs de VACUUM
+seguram a operação no grátis.
 
 **A IA não muda a conta.** O Workers AI dá 10.000 Neurons/dia grátis — com o
 Llama 3.1-8B isso é ~centenas de conversas de suporte ou extrações por dia, e a
@@ -1173,6 +1204,17 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
 
 ## Domínio, acompanhamento e performance do cardápio
 
+- **A vitrine da landing é o cardápio REAL da Variant, não um mock.** O
+  `LiveMenuDemo` (`src/routes/index.tsx`) começa com um snapshot estático
+  (`DEMO_SNAPSHOT`) e logo troca pelos dados de `getLandingDemoStore()`
+  (`src/modules/supabase/landing-demo.ts`), que lê a loja `dona-da-pensao` por
+  slug. Trocar a foto, o preço ou um item no painel muda a home sozinha — sem
+  deploy. Os botões "Ver cardápio real" apontam para `/cardapio/dona-da-pensao`
+  (a mesma loja), então a vitrine e o cardápio público mostram a mesma coisa. O
+  snapshot existe só para não piscar em branco antes da resposta; se o banco
+  falhar, ele segura a página. A área de itens tem altura fixa com rolagem
+  interna: sem isso, uma categoria com 5 itens estourava o hub da landing (o
+  E2E `smoke-routes.spec.ts` mede `scrollHeight - clientHeight <= 4`).
 - **O link compartilhado usa o domínio canônico, não o host do navegador.**
   `currentOrigin()` (`src/lib/site.ts`) devolve `SITE_URL`
   (`cardapio.pracinha.online`) em produção e só mantém a origem local quando ela

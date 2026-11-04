@@ -339,6 +339,57 @@ export async function updatePassword(
 }
 
 /**
+ * Registra que o dono abriu o painel agora (`profiles.last_seen_at`).
+ *
+ * É um dos sinais que mantêm a conta viva contra a limpeza de inativos: quem
+ * só lê o painel sem receber pedido também conta como ativo. Best-effort — sem
+ * a migração `supabase_inactive_accounts_migration.sql` a RPC não existe e o
+ * erro é ignorado (nada quebra).
+ */
+export async function touchLastSeen(): Promise<void> {
+  try {
+    await supabase.rpc("touch_last_seen");
+  } catch {
+    /* RPC ausente (migração não aplicada) — sem presença, sem quebrar */
+  }
+}
+
+export interface AccountPurgeStatus {
+  retentionDays: number;
+  /** Última atividade conhecida (painel, pedido ou loja online). */
+  lastActivity: string | null;
+  /** Dias restantes antes da remoção. */
+  daysLeft: number;
+}
+
+/**
+ * Situação da conta frente à limpeza de inativos, para a tela de Configurações.
+ * Devolve `null` sem a migração (feature desligada) em vez de estourar.
+ */
+export async function getAccountPurgeStatus(): Promise<AccountPurgeStatus | null> {
+  try {
+    const { data, error } = await supabase.rpc("account_purge_status", {
+      p_retention_days: 30,
+    });
+    if (error || !data) return null;
+    const row = data as {
+      ok?: boolean;
+      retention_days?: number;
+      last_activity?: string | null;
+      days_left?: number;
+    };
+    if (!row.ok) return null;
+    return {
+      retentionDays: row.retention_days ?? 30,
+      lastActivity: row.last_activity ?? null,
+      daysLeft: row.days_left ?? 30,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Exclui a conta do usuário atual.
  * Delega para a RPC `delete_own_account` (SECURITY DEFINER) que remove os
  * restaurantes do dono (CASCADE) e depois o registro em auth.users (que

@@ -47,7 +47,14 @@ CREATE INDEX IF NOT EXISTS idx_products_restaurant_available
 -- mais de `retention_days` dias (a janela evita apagar uma foto recém-enviada
 -- cujo UPDATE da URL ainda não commitou).
 --
--- Só apaga arquivos do caminho de uma loja existente; nunca mexe no bucket.
+-- O Supabase bloqueia DELETE direto em `storage.objects` (trigger
+-- `protect_objects_delete`) e manda usar a Storage API. Isso é bom contra
+-- acidente, mas o cron rodava e FALHAVA TODO DIA em silêncio — a limpeza nunca
+-- aconteceu. A saída suportada é liberar o delete só nesta transação via
+-- `storage.allow_delete_query`; o trigger respeita esse setting.
+--
+-- `strpos` (substring exata) em vez de LIKE: o nome do arquivo tem `_`, que no
+-- LIKE é curinga e casaria coisas demais.
 CREATE OR REPLACE FUNCTION public.cleanup_orphan_images(retention_days integer DEFAULT 7)
 RETURNS integer
 LANGUAGE plpgsql
@@ -58,21 +65,22 @@ DECLARE
   deleted integer := 0;
   cutoff timestamptz := now() - make_interval(days => retention_days);
 BEGIN
-  WITH referenced AS (
-    SELECT logo_url AS url FROM restaurants WHERE logo_url <> ''
-    UNION
-    SELECT banner_url FROM restaurants WHERE banner_url <> ''
-    UNION
-    SELECT image_url FROM products WHERE image_url <> ''
-  ),
-  orphans AS (
+  -- Libera o DELETE em storage.objects apenas para esta transação.
+  PERFORM set_config('storage.allow_delete_query', 'true', true);
+
+  WITH orphans AS (
     SELECT o.name
       FROM storage.objects o
      WHERE o.bucket_id = 'restaurant-images'
        AND o.created_at < cutoff
-       -- nome do objeto não aparece em nenhuma URL referenciada
        AND NOT EXISTS (
-         SELECT 1 FROM referenced r WHERE r.url LIKE '%' || o.name
+         SELECT 1 FROM restaurants r
+          WHERE strpos(r.logo_url, o.name) > 0
+             OR strpos(r.banner_url, o.name) > 0
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM products p
+          WHERE strpos(p.image_url, o.name) > 0
        )
   )
   DELETE FROM storage.objects o

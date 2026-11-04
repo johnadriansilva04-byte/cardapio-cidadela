@@ -98,8 +98,6 @@ CREATE TABLE IF NOT EXISTS categories (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_categories_restaurant ON categories(restaurant_id);
-
 -- ============================================================
 -- PRODUCTS
 -- ============================================================
@@ -116,7 +114,6 @@ CREATE TABLE IF NOT EXISTS products (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_products_restaurant ON products(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 
 -- ============================================================
@@ -215,8 +212,6 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'pix';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cidadela_unlocked BOOLEAN DEFAULT false;
 
-CREATE INDEX IF NOT EXISTS idx_orders_restaurant ON orders(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_orders_guest ON orders(guest_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_comanda ON orders(comanda);
@@ -224,8 +219,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key
   ON orders (idempotency_key)
   WHERE idempotency_key IS NOT NULL;
 
--- Sustenta a checagem antiflood da RPC (por loja + janela de tempo).
-CREATE INDEX IF NOT EXISTS idx_orders_store_created ON orders(restaurant_id, created_at DESC);
 
 -- ============================================================
 -- ORDER ITEMS

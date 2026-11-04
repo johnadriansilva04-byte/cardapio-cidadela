@@ -35,25 +35,34 @@ const run = (args) => {
   }
 };
 
-// `add` falha quando a regra já existe; isso não é erro para nós.
-const r = run([
-  "r2",
-  "bucket",
-  "lifecycle",
-  "add",
-  BUCKET,
-  RULE,
-  "",
-  "--expire-days",
-  String(days),
-  "--force",
-]);
+// `add` falha quando a regra já existe; nesse caso removemos e recriamos, para
+// que uma mudança nos dias também seja aplicada. O R2 responde
+// "Invalid Lifecycle Configuration: Rule IDs must be unique" (code 10061) —
+// não é erro para nós, é sinal de que a regra já está lá.
+const isDuplicate = (out) => /already exists|conflict|duplicate|must be unique/i.test(out);
+
+const addRule = () =>
+  run([
+    "r2",
+    "bucket",
+    "lifecycle",
+    "add",
+    BUCKET,
+    RULE,
+    "",
+    "--expire-days",
+    String(days),
+    "--force",
+  ]);
+
+let r = addRule();
+
+if (!r.ok && isDuplicate(r.out)) {
+  run(["r2", "bucket", "lifecycle", "remove", BUCKET, RULE]);
+  r = addRule();
+}
 
 if (!r.ok) {
-  if (/already exists|conflict|duplicate/i.test(r.out)) {
-    console.log(`[lifecycle] regra '${RULE}' já existe em ${BUCKET} (nada a fazer)`);
-    process.exit(0);
-  }
   console.error(`[lifecycle] falha ao aplicar a regra em ${BUCKET}`);
   process.exit(1);
 }

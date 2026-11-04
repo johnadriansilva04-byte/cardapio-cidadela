@@ -50,7 +50,8 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { PlanCards } from "@/modules/ui/PlanCards";
-import { GuidePanel, GuideTile } from "@/modules/ui/GuidePanel";
+import { GuidePanel } from "@/modules/ui/GuidePanel";
+import { useCountUp } from "@/hooks/useCountUp";
 
 /** Painéis do hub da landing. `null` = nenhum aberto. */
 type LandingPanel =
@@ -184,7 +185,7 @@ function MenuReveal() {
               <span className="text-xs font-black text-cyan-300">R$ 5,90</span>
             </span>
 
-            <span className="sheen mt-1 flex items-center justify-center gap-2 rounded-full bg-cyan-500 py-3.5 text-sm font-black text-black transition-colors group-hover:bg-cyan-400">
+            <span className="mt-1 flex items-center justify-center gap-2 rounded-full bg-cyan-500 py-3.5 text-sm font-black text-black transition-colors group-hover:bg-cyan-400">
               Ver cardápio real
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
             </span>
@@ -372,6 +373,28 @@ function LossCalculator() {
             <p className="mt-3 text-center text-xs text-gray-500">
               Comece já — abra sua conta grátis, sem cartão. Leva menos de 2 minutos.
             </p>
+
+            <div className="mt-8 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+              <div className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.08] bg-white/[0.03] text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="px-4 py-3">Por que sai mais barato</div>
+                <div className="flex items-center gap-1.5 px-4 py-3 text-cyan-300">
+                  <UtensilsCrossed className="size-3.5" /> Cidadela
+                </div>
+                <div className="px-4 py-3">App de entrega</div>
+              </div>
+              {COMPARISON.map((row) => (
+                <div
+                  key={row.label}
+                  className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.05] text-sm last:border-0"
+                >
+                  <div className="px-4 py-3 text-gray-300">{row.label}</div>
+                  <div className="flex items-center gap-1.5 px-4 py-3 font-bold text-emerald-300">
+                    <Check className="size-4 shrink-0" /> {row.us}
+                  </div>
+                  <div className="px-4 py-3 text-gray-500">{row.them}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -497,10 +520,10 @@ const FEATURES = [
 
 const COMPARISON = [
   { label: "Comissão por pedido", us: "0%", them: "15–30%" },
-  { label: "Mensalidade fixa", us: "Começa grátis", them: "Alta e obrigatória" },
-  { label: "Paga só quando vender", us: "Sim, na diária", them: "Não" },
-  { label: "Link e marca próprios", us: "Sim", them: "Fica no app deles" },
-  { label: "Precisa instalar app", us: "Não", them: "Cliente baixa o app" },
+  { label: "Seu cliente baixa um app", us: "Não, é só um link", them: "Sim, o app deles" },
+  { label: "Link e marca próprios", us: "Sim, é seu", them: "Não, fica no app" },
+  { label: "Pra começar", us: "Grátis, sem cartão", them: "Cadastro e contrato" },
+  { label: "Você fica com os dados", us: "Sim, é seu cliente", them: "Não, é deles" },
 ];
 
 const FAQ = [
@@ -644,13 +667,32 @@ function NavAccount({ className }: { className?: string }) {
   );
 }
 
+const TABS = [
+  { key: "cardapio", label: "Cardápio", icon: UtensilsCrossed },
+  { key: "montagem", label: "Montagem", icon: Sparkles },
+  { key: "templates", label: "Templates", icon: LayoutTemplate },
+  { key: "recursos", label: "Recursos", icon: ChefHat },
+  { key: "pracinha", label: "Pracinha", icon: MessageCircle },
+] as const;
+
+type LandingView = (typeof TABS)[number]["key"];
+
+/**
+ * Home-cockpit: um bloco único, sem rolagem de página.
+ *
+ * O herói, as abas e o painel vivem na mesma tela. Cada aba troca o painel na
+ * hora — nada de empilhar seções para o visitante rolar. O único scroll é o de
+ * dentro do painel (quando um conteúdo é mais alto que a área), então o
+ * `documentElement` nunca cresce. Os assuntos de apoio (preço, economia, quem
+ * faz, dúvidas) abrem por cima, em painel.
+ */
 function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
-  // Cada assunto abre num painel por cima (X para fechar), em vez de empilhar
-  // seções numa rolagem longa.
   const [panel, setPanel] = useState<LandingPanel>(null);
+  const [view, setView] = useState<LandingView>("cardapio");
+  const lossYear = useCountUp(brl(HERO_LOSS.yearlySaved));
 
   function openPanel(p: NonNullable<LandingPanel>) {
     setMenuOpen(false);
@@ -659,8 +701,8 @@ function LandingPage() {
   const closePanel = () => setPanel(null);
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#07070c] text-white selection:bg-cyan-400/30">
-      {/* Fundo aurora fixo (não conta para o scroll) */}
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#07070c] text-white selection:bg-cyan-400/30">
+      {/* Fundo aurora fixo */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="animate-aurora absolute left-1/2 top-0 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/15 blur-[130px]" />
         <div className="animate-aurora absolute -left-24 top-1/3 h-[360px] w-[360px] rounded-full bg-violet-600/10 blur-[110px] [animation-delay:3s]" />
@@ -668,24 +710,18 @@ function LandingPage() {
       </div>
 
       {/* Navbar */}
-      <nav className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#07070c]/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
+      <nav className="relative z-40 shrink-0 border-b border-white/[0.07] bg-[#07070c]/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Link to="/" className="group flex items-center gap-2.5">
-            <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-transform group-hover:scale-105">
+            <span className="grid size-8 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-transform group-hover:scale-105">
               <UtensilsCrossed className="size-4 text-black" />
             </span>
-            <span className="font-display text-base font-extrabold tracking-tight">
+            <span className="font-display text-sm font-extrabold tracking-tight sm:text-base">
               Cardápio <span className="text-cyan-400">Cidadela</span>
             </span>
           </Link>
 
-          <div className="hidden items-center gap-6 md:flex">
-            <button
-              onClick={() => openPanel("recursos")}
-              className="text-sm text-gray-400 transition-colors hover:text-white"
-            >
-              Recursos
-            </button>
+          <div className="hidden items-center gap-5 md:flex">
             <button
               onClick={() => openPanel("preco")}
               className="text-sm text-gray-400 transition-colors hover:text-white"
@@ -726,11 +762,9 @@ function LandingPage() {
         </div>
 
         {menuOpen && (
-          <div className="grid grid-cols-2 gap-1 border-t border-white/10 px-4 py-4 md:hidden">
+          <div className="grid grid-cols-2 gap-1 border-t border-white/10 px-4 py-3 md:hidden">
             {(
               [
-                ["recursos", "Recursos"],
-                ["templates", "Templates"],
                 ["preco", "Preços"],
                 ["calc", "Economia"],
                 ["variant", "Quem faz"],
@@ -750,7 +784,7 @@ function LandingPage() {
                 setMenuOpen(false);
                 setTutorialOpen(true);
               }}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+              className="col-span-2 flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
             >
               <BookOpen className="size-4" /> Tutorial
             </button>
@@ -758,264 +792,229 @@ function LandingPage() {
         )}
       </nav>
 
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
-        {/* Hero */}
-        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="text-center lg:text-left">
-            <p
-              className="animate-reveal mb-4 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300"
-              style={delay(0)}
-            >
-              <Sparkles className="size-3.5" /> Para micro-restaurantes
-            </p>
+      {/* Conteúdo: única área com scroll (interno) — a página em si não rola. */}
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Herói compacto */}
+        <div className="shrink-0 text-center">
+          <p className="animate-reveal mb-3 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+            <Sparkles className="size-3" /> Para micro-restaurantes
+          </p>
 
-            <h1
-              className="animate-reveal font-display text-[2.1rem] font-extrabold leading-[1.05] tracking-tight sm:text-[2.6rem] lg:text-[3rem]"
-              style={delay(80)}
-            >
-              Seu cardápio no ar
-              <br />
+          <h1 className="animate-reveal font-display text-[1.7rem] font-extrabold leading-[1.05] tracking-tight sm:text-4xl">
+            Seu cardápio no ar{" "}
+            <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
               em minutos.
-              <br />
-              <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
-                Pague só quando vender.
-              </span>
-            </h1>
+            </span>
+          </h1>
+          <p className="animate-reveal mx-auto mt-2.5 max-w-xl text-[13px] leading-relaxed text-gray-300 sm:text-sm">
+            Link próprio, QR Code e pedidos na hora. O cliente pede pelo celular, você só recebe —{" "}
+            <strong className="font-bold text-white">sem comissão por pedido</strong>.
+          </p>
 
-            <p
-              className="animate-reveal mx-auto mt-4 max-w-lg text-sm leading-relaxed text-gray-300 sm:text-base lg:mx-0"
-              style={delay(160)}
+          <div className="animate-reveal mt-4 flex flex-col items-center justify-center gap-2.5 sm:flex-row">
+            <Link
+              to="/login"
+              search={{ mode: "register" }}
+              className="sheen group flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 px-6 py-3 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] sm:w-auto"
             >
-              Link próprio, QR Code e pedidos em tempo real. O cliente pede pelo celular, você só
-              recebe — <strong className="font-bold text-white">sem comissão por pedido</strong>.
-            </p>
-
-            <div
-              className="animate-reveal mt-6 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start"
-              style={delay(240)}
-            >
-              <Link
-                to="/login"
-                search={{ mode: "register" }}
-                className="sheen group flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 px-7 py-3.5 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] sm:w-auto"
-              >
-                Criar meu cardápio grátis
-                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <a
-                href="/cardapio/dona-da-pensao"
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-7 py-3.5 text-sm font-semibold text-gray-300 transition-all hover:border-white/30 hover:text-white sm:w-auto"
-              >
-                Ver cardápio real
-              </a>
-            </div>
-
-            <div
-              className="animate-reveal mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-xs text-gray-500 lg:justify-start"
-              style={delay(320)}
-            >
-              <span className="flex items-center gap-1.5">
-                <Check className="size-3.5 text-emerald-400" /> Comece grátis · 5 pedidos/mês
-              </span>
-              <span className="hidden text-gray-700 sm:inline">•</span>
-              <span className="flex items-center gap-1.5">
-                <Check className="size-3.5 text-emerald-400" /> Sem cartão
-              </span>
-              <span className="hidden text-gray-700 sm:inline">•</span>
-              <span className="flex items-center gap-1.5">
-                <Check className="size-3.5 text-emerald-400" /> Sem comissão
-              </span>
-            </div>
-
-            {/* O número na cara: a conta do exemplo padrão já aparece aqui, sem
-                clique. Quem quiser refinar abre o painel. */}
+              Criar meu cardápio grátis
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
             <button
               type="button"
               onClick={() => openPanel("calc")}
-              className="animate-reveal group mt-5 flex w-full items-center gap-3 rounded-2xl border border-rose-500/30 bg-gradient-to-r from-rose-500/[0.14] to-transparent p-4 text-left transition-colors hover:border-rose-400/60 lg:max-w-md"
-              style={delay(400)}
+              className="group flex w-full items-center justify-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/[0.08] px-5 py-3 text-sm font-semibold text-rose-200 transition-all hover:border-rose-400/60 hover:text-white sm:w-auto"
             >
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-rose-500/15 text-rose-300">
-                <TrendingUp className="size-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-bold uppercase tracking-widest text-rose-300/80">
-                  Quanto você está perdendo? Ex.: pagando {brl(LOSS_DEFAULT_SPEND)}/mês
-                </span>
-                <span className="mt-0.5 block font-display text-lg font-black leading-tight text-white">
-                  {brl(HERO_LOSS.yearlySaved)}
-                  <span className="text-xs font-bold text-gray-400"> /ano no seu bolso</span>
-                </span>
-              </span>
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-500 px-3 py-1.5 text-[11px] font-black text-white transition-colors group-hover:bg-rose-400">
-                Fazer a conta <ArrowRight className="size-3" />
-              </span>
+              <TrendingUp className="size-4" /> Perco {lossYear}/ano?
             </button>
           </div>
 
-          {/* O cardápio real mora aqui, dentro do botão. */}
-          <div className="animate-reveal" style={delay(200)}>
-            <MenuReveal />
+          <div className="animate-reveal mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
+            <span className="flex items-center gap-1">
+              <Check className="size-3 text-emerald-400" /> Comece grátis
+            </span>
+            <span className="hidden text-gray-700 sm:inline">•</span>
+            <span className="flex items-center gap-1">
+              <Check className="size-3 text-emerald-400" /> Sem cartão
+            </span>
+            <span className="hidden text-gray-700 sm:inline">•</span>
+            <span className="flex items-center gap-1">
+              <Check className="size-3 text-emerald-400" /> Sem comissão
+            </span>
           </div>
         </div>
 
-        {/* Criação por conversa */}
-        <section className="mt-24 grid items-center gap-12 lg:grid-cols-2">
-          <div className="text-center lg:text-left">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
-              <Sparkles className="size-3.5" /> Montagem por conversa
-            </span>
-            <h2 className="font-display mt-4 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-              Seu cardápio nasce
-              <br />
-              <span className="text-violet-300">numa conversa.</span>
-            </h2>
-            <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-gray-400 sm:text-base lg:mx-0">
-              Sem formulário de 20 campos. A Pracinha pergunta o nome, o WhatsApp, o endereço — e o
-              cardápio se monta sozinho na tela. Quer mais rápido? Tire uma foto do cardápio antigo
-              e a gente lê pra você.
-            </p>
-            <ul className="mx-auto mt-5 max-w-md space-y-2.5 text-left lg:mx-0">
-              {[
-                "Uma pergunta por vez, do jeito que o dono fala",
-                "Monta itens, preços e categorias enquanto você responde",
-                "Importa o cardápio antigo por foto",
-                "Funciona no celular, na correria do balcão",
-              ].map((t) => (
-                <li key={t} className="flex items-start gap-2.5 text-sm text-gray-300">
-                  <Check className="mt-0.5 size-4 shrink-0 text-violet-400" /> {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="animate-reveal" style={delay(120)}>
-            <WizardChat />
-          </div>
-        </section>
+        {/* Abas */}
+        <div className="mt-5 flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {TABS.map((t) => {
+            const on = view === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setView(t.key)}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition-all",
+                  on
+                    ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
+                    : "border-white/10 bg-white/[0.03] text-gray-400 hover:border-white/20 hover:text-white",
+                )}
+              >
+                <t.icon className="size-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
 
-        {/* Templates prontos */}
-        <section className="mt-24">
-          <div className="mx-auto max-w-2xl text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-emerald-300">
-              <LayoutTemplate className="size-3.5" /> Templates prontos
-            </span>
-            <h2 className="font-display mt-4 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-              Não comece do zero.
-              <br />
-              <span className="text-emerald-300">Escolha um tema e pronto.</span>
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-gray-400 sm:text-base">
-              Hambúrguer, pizzaria, açaí, natural, cafeteria ou japonês: já vem com as cores, os
-              itens e o jeito certo do seu ramo. Você só troca a foto e o preço.
-            </p>
-          </div>
-          <div className="mt-10">
-            <TemplateGallery />
-          </div>
-        </section>
+        {/* Painel vivo: a aba troca o conteúdo na hora. */}
+        <div className="relative mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/[0.07] bg-white/[0.02]">
+          <div className="flex-1 overflow-y-auto p-4 [scrollbar-width:none] sm:p-6 [&::-webkit-scrollbar]:hidden">
+            {view === "cardapio" && (
+              <div className="mx-auto max-w-2xl">
+                <p className="mb-4 text-center text-xs text-gray-400">
+                  O cardápio real, vivo. Toque para abrir e monte um pedido de verdade.
+                </p>
+                <MenuReveal />
+              </div>
+            )}
 
-        {/* Garçom virtual */}
-        <section className="mt-24 grid items-center gap-12 lg:grid-cols-2">
-          <div className="animate-reveal order-2 lg:order-1" style={delay(120)}>
-            <WaiterChat />
-          </div>
-          <div className="order-1 text-center lg:order-2 lg:text-left">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-cyan-300">
-              <Bot className="size-3.5" /> Garçom virtual
-            </span>
-            <h2 className="font-display mt-4 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-              Um garçom que nunca
-              <br />
-              <span className="text-cyan-300">sai do salão.</span>
-            </h2>
-            <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-gray-400 sm:text-base lg:mx-0">
-              O Pracinha atende na hora, dentro do seu painel. Se for coisa técnica, ele leva o caso
-              pro time com o contexto da sua tela — você não precisa explicar o erro.
-            </p>
-            <ul className="mx-auto mt-5 max-w-md space-y-2.5 text-left lg:mx-0">
-              {[
-                "Responde na hora, dentro do próprio painel",
-                "Vai com o contexto da sua tela — sem print, sem explicação",
-                "Se for técnico, cai direto na engenharia da Variant",
-                "Avisa por e-mail para o time não perder nenhum caso",
-              ].map((t) => (
-                <li key={t} className="flex items-start gap-2.5 text-sm text-gray-300">
-                  <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+            {view === "montagem" && (
+              <div className="grid items-center gap-6 lg:grid-cols-2">
+                <div>
+                  <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
+                    Seu cardápio nasce <span className="text-violet-300">numa conversa.</span>
+                  </h2>
+                  <p className="mt-3 text-sm leading-relaxed text-gray-400">
+                    Sem formulário de 20 campos. A Pracinha pergunta o nome, o WhatsApp, o endereço
+                    — e o cardápio se monta sozinho. Quer mais rápido? Tire uma foto do cardápio
+                    antigo.
+                  </p>
+                  <ul className="mt-4 space-y-2">
+                    {[
+                      "Uma pergunta por vez, do jeito que o dono fala",
+                      "Monta itens, preços e categorias enquanto você responde",
+                      "Importa o cardápio antigo por foto",
+                      "Funciona no celular, na correria do balcão",
+                    ].map((t) => (
+                      <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
+                        <Check className="mt-0.5 size-4 shrink-0 text-violet-400" /> {t}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <WizardChat />
+              </div>
+            )}
 
-        {/* Atalhos do hub: cada um abre um painel por cima. */}
-        <div
-          className="animate-reveal mt-24 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
-          style={delay(120)}
-        >
-          <GuideTile
-            icon={<Sparkles className="size-4" />}
-            title="Recursos"
-            hint="O que tem dentro"
-            tone="cyan"
-            onClick={() => openPanel("recursos")}
-          />
-          <GuideTile
-            icon={<LayoutTemplate className="size-4" />}
-            title="Templates"
-            hint="Comece pronto"
-            tone="emerald"
-            onClick={() => openPanel("templates")}
-          />
-          <GuideTile
-            icon={<Palette className="size-4" />}
-            title="Sua marca"
-            hint="Logo e cores"
-            tone="violet"
-            onClick={() => openPanel("marca")}
-          />
-          <GuideTile
-            icon={<MessageCircle className="size-4" />}
-            title="Pracinha"
-            hint="Suporte na hora"
-            tone="cyan"
-            onClick={() => openPanel("pracinha")}
-          />
-          <GuideTile
-            icon={<ReceiptText className="size-4" />}
-            title="Preços"
-            hint="Grátis ou Premium"
-            tone="emerald"
-            onClick={() => openPanel("preco")}
-          />
-          <GuideTile
-            icon={<Store className="size-4" />}
-            title="Quem faz"
-            hint="A Variant"
-            tone="violet"
-            onClick={() => openPanel("variant")}
-          />
-          <GuideTile
-            icon={<BookOpen className="size-4" />}
-            title="Dúvidas"
-            hint="Perguntas frequentes"
-            tone="amber"
-            onClick={() => openPanel("faq")}
-          />
+            {view === "templates" && (
+              <div>
+                <div className="mx-auto mb-5 max-w-xl text-center">
+                  <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
+                    Não comece do zero. <span className="text-emerald-300">Escolha um tema.</span>
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-400">
+                    Já vem com as cores e os itens do seu ramo. Você só troca a foto e o preço.
+                  </p>
+                </div>
+                <TemplateGallery />
+              </div>
+            )}
+
+            {view === "recursos" && (
+              <div className="space-y-5">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {STEPS.map((s, i) => (
+                    <div
+                      key={s.title}
+                      className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
+                    >
+                      <span className="grid size-10 place-items-center rounded-xl border border-cyan-500/25 bg-[#0b0b12] text-cyan-300">
+                        <s.icon className="size-5" />
+                      </span>
+                      <h3 className="font-display mt-3 text-base font-extrabold text-white">
+                        <span className="mr-1.5 text-cyan-400">
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        {s.title}
+                      </h3>
+                      <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{s.desc}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {FEATURES.map((f) => (
+                    <div
+                      key={f.title}
+                      className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
+                    >
+                      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
+                        <f.icon className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-bold text-white">{f.title}</h3>
+                        <p className="mt-1 text-sm leading-relaxed text-gray-400">{f.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {view === "pracinha" && (
+              <div className="grid items-center gap-6 lg:grid-cols-2">
+                <div>
+                  <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
+                    Um garçom que nunca <span className="text-cyan-300">sai do salão.</span>
+                  </h2>
+                  <p className="mt-3 text-sm leading-relaxed text-gray-400">
+                    O Pracinha atende na hora, dentro do seu painel. Se for coisa técnica, ele leva
+                    o caso pro time com o contexto da sua tela.
+                  </p>
+                  <ul className="mt-4 space-y-2">
+                    {[
+                      "Responde na hora, dentro do próprio painel",
+                      "Vai com o contexto da sua tela — sem print",
+                      "Se for técnico, cai direto na engenharia da Variant",
+                      "Avisa por e-mail para o time não perder nenhum caso",
+                    ].map((t) => (
+                      <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
+                        <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <WaiterChat />
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
       {/* Rodapé compacto */}
-      <footer className="relative z-10 border-t border-white/[0.07] py-5">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 sm:flex-row sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600">
-              <UtensilsCrossed className="size-3.5 text-black" />
+      <footer className="relative z-10 shrink-0 border-t border-white/[0.07] py-3">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
+          <div className="flex items-center gap-2">
+            <span className="grid size-6 place-items-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600">
+              <UtensilsCrossed className="size-3 text-black" />
             </span>
-            <span className="font-display text-sm font-extrabold text-gray-300">
+            <span className="font-display text-xs font-extrabold text-gray-300">
               Cardápio <span className="text-cyan-400">Cidadela</span>
             </span>
           </div>
-          <div className="flex items-center gap-5 text-xs text-gray-500">
+          <div className="flex items-center gap-4 text-[11px] text-gray-500">
+            <button
+              onClick={() => openPanel("variant")}
+              className="transition-colors hover:text-gray-300"
+            >
+              A Variant
+            </button>
+            <button
+              onClick={() => openPanel("faq")}
+              className="transition-colors hover:text-gray-300"
+            >
+              Dúvidas
+            </button>
             <Link to="/terms" className="transition-colors hover:text-gray-300">
               Termos
             </Link>
@@ -1036,8 +1035,7 @@ function LandingPage() {
             )}
           </div>
           <p className="text-center text-[10px] text-gray-600 sm:text-right">
-            © {new Date().getFullYear()} {COMPANY.brandName} · {COMPANY.legalName} · CNPJ{" "}
-            {COMPANY.cnpj}
+            © {new Date().getFullYear()} {COMPANY.brandName} · CNPJ {COMPANY.cnpj}
           </p>
         </div>
       </footer>
@@ -1053,171 +1051,6 @@ function LandingPage() {
         width="lg"
       >
         <LossCalculator />
-      </GuidePanel>
-
-      <GuidePanel
-        open={panel === "recursos"}
-        onOpenChange={(o) => !o && closePanel()}
-        title="Tudo que sua operação precisa"
-        icon={<Sparkles className="size-4" />}
-        width="lg"
-        description="Do zero ao primeiro pedido, sem painel complicado"
-      >
-        <div className="space-y-7">
-          <div className="grid gap-3 sm:grid-cols-3">
-            {STEPS.map((s, i) => (
-              <div
-                key={s.title}
-                className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
-              >
-                <span className="grid size-10 place-items-center rounded-xl border border-cyan-500/25 bg-[#0b0b12] text-cyan-300">
-                  <s.icon className="size-5" />
-                </span>
-                <h3 className="font-display mt-3 text-base font-extrabold text-white">
-                  <span className="mr-1.5 text-cyan-400">{String(i + 1).padStart(2, "0")}</span>
-                  {s.title}
-                </h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {FEATURES.map((f) => (
-              <div
-                key={f.title}
-                className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
-              >
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
-                  <f.icon className="size-4" />
-                </span>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-white">{f.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-gray-400">{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
-            <div className="grid grid-cols-[1.4fr_1fr_1fr] border-b border-white/[0.08] bg-white/[0.03] text-[11px] font-bold uppercase tracking-wider text-gray-500">
-              <div className="px-4 py-3">Comparação</div>
-              <div className="flex items-center gap-1.5 px-4 py-3 text-cyan-300">
-                <UtensilsCrossed className="size-3.5" /> Cidadela
-              </div>
-              <div className="px-4 py-3">Apps de entrega</div>
-            </div>
-            {COMPARISON.map((row) => (
-              <div
-                key={row.label}
-                className="grid grid-cols-[1.4fr_1fr_1fr] border-b border-white/[0.05] text-sm last:border-0"
-              >
-                <div className="px-4 py-3 text-gray-300">{row.label}</div>
-                <div className="flex items-center gap-1.5 px-4 py-3 font-bold text-emerald-300">
-                  <Check className="size-4 shrink-0" /> {row.us}
-                </div>
-                <div className="px-4 py-3 text-gray-500">{row.them}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </GuidePanel>
-
-      <GuidePanel
-        open={panel === "templates"}
-        onOpenChange={(o) => !o && closePanel()}
-        title="Templates prontos"
-        icon={<LayoutTemplate className="size-4" />}
-        tone="emerald"
-        width="xl"
-        description="Um ponto de partida por ramo — cor, itens e jeito"
-      >
-        <TemplateGallery />
-      </GuidePanel>
-
-      <GuidePanel
-        open={panel === "marca"}
-        onOpenChange={(o) => !o && closePanel()}
-        title="Sua marca, sua cara"
-        icon={<Palette className="size-4" />}
-        tone="violet"
-        description="Logo, banner e as cores da sua marca"
-      >
-        <div className="space-y-5">
-          <p className="text-sm leading-relaxed text-gray-400">
-            O cliente sabe que está no seu negócio, não num app de terceiro.
-          </p>
-          <ul className="space-y-2">
-            {[
-              "Cor primária e secundária da marca",
-              "Logo e banner personalizados",
-              "Descrição e preço em cada item",
-              "Link próprio com o nome do seu restaurante",
-            ].map((t) => (
-              <li key={t} className="flex items-start gap-2.5 text-sm text-gray-300">
-                <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
-              </li>
-            ))}
-          </ul>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { emoji: "🍕", name: "Pizza da casa", price: "R$ 42,00", tone: "from-orange-500/20" },
-              {
-                emoji: "🥗",
-                name: "Salada caesar",
-                price: "R$ 24,00",
-                tone: "from-emerald-500/20",
-              },
-              { emoji: "🍣", name: "Combinado 20", price: "R$ 58,00", tone: "from-rose-500/20" },
-              { emoji: "🍰", name: "Fatia de bolo", price: "R$ 14,00", tone: "from-pink-500/20" },
-            ].map((p) => (
-              <div
-                key={p.name}
-                className={cn(
-                  "overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-b to-transparent",
-                  p.tone,
-                )}
-              >
-                <div className="grid h-20 place-items-center text-4xl">{p.emoji}</div>
-                <div className="border-t border-white/[0.06] bg-[#0b0b12]/80 px-3 py-2">
-                  <p className="truncate text-xs font-bold text-white">{p.name}</p>
-                  <p className="text-xs font-black text-cyan-300">{p.price}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </GuidePanel>
-
-      <GuidePanel
-        open={panel === "pracinha"}
-        onOpenChange={(o) => !o && closePanel()}
-        title="Conheça o Pracinha"
-        icon={<MessageCircle className="size-4" />}
-        width="xl"
-        description="O suporte do time da Variant, dentro do painel"
-      >
-        <div className="grid items-center gap-8 lg:grid-cols-2">
-          <div>
-            <p className="text-sm leading-relaxed text-gray-400 sm:text-base">
-              O nome é uma homenagem aos pracinhas da FEB — brasileiros que foram à Itália em 1945 e
-              voltaram com a missão cumprida. É esse o espírito: resolver, não transferir.
-            </p>
-            <ul className="mt-5 space-y-3">
-              {[
-                "Responde na hora, dentro do próprio painel",
-                "Se o problema for técnico, vai direto para a engenharia da Variant",
-                "Vai com o contexto da sua tela — você não precisa explicar o erro",
-                "Avisa por e-mail para o time não perder nenhum caso",
-              ].map((t) => (
-                <li key={t} className="flex items-start gap-2.5 text-sm text-gray-300">
-                  <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <WaiterChat />
-        </div>
       </GuidePanel>
 
       <GuidePanel
@@ -1270,6 +1103,28 @@ function LandingPage() {
             </a>
           </div>
 
+          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+            <div className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.08] bg-white/[0.03] text-[11px] font-bold uppercase tracking-wider text-gray-500">
+              <div className="px-4 py-3">Por que sai mais barato</div>
+              <div className="flex items-center gap-1.5 px-4 py-3 text-cyan-300">
+                <UtensilsCrossed className="size-3.5" /> Cidadela
+              </div>
+              <div className="px-4 py-3">App de entrega</div>
+            </div>
+            {COMPARISON.map((row) => (
+              <div
+                key={row.label}
+                className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.05] text-sm last:border-0"
+              >
+                <div className="px-4 py-3 text-gray-300">{row.label}</div>
+                <div className="flex items-center gap-1.5 px-4 py-3 font-bold text-emerald-300">
+                  <Check className="size-4 shrink-0" /> {row.us}
+                </div>
+                <div className="px-4 py-3 text-gray-500">{row.them}</div>
+              </div>
+            ))}
+          </div>
+
           <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-5">
             <div className="flex items-start gap-4">
               <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-amber-500/20 text-amber-300">
@@ -1279,8 +1134,7 @@ function LandingPage() {
                 <h4 className="mb-1.5 text-base font-bold text-white">Cardápio nunca trava</h4>
                 <p className="text-sm leading-relaxed text-gray-400">
                   Mesmo com 0 pedidos grátis, seu cliente SEMPRE consegue pedir. O pedido chega com
-                  preço, endereço e nome. Se quiser ver os itens, usa a diária. Não trava venda, não
-                  perde cliente.
+                  preço, endereço e nome. Não trava venda, não perde cliente.
                 </p>
               </div>
             </div>

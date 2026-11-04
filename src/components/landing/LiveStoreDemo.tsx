@@ -71,16 +71,8 @@ export function LiveStoreDemo({ className }: { className?: string }) {
 
   return (
     <div className={cn("relative mx-auto w-full max-w-[380px]", className)}>
-      <div className="relative rounded-[2.2rem] border border-white/10 bg-gradient-to-b from-[#14141d] to-[#0a0a10] p-2.5 shadow-[0_40px_90px_-25px_rgba(6,182,212,0.45)]">
-        <div className="relative overflow-hidden rounded-[1.8rem] border border-white/[0.06] bg-[#0b0b12]">
-          <div className="flex items-center justify-between px-4 pt-3 text-[10px] font-semibold text-gray-500">
-            <span>9:41</span>
-            <span className="h-1.5 w-16 rounded-full bg-white/10" />
-            <span className="flex items-center gap-1">
-              <span className="size-1.5 rounded-full bg-emerald-400" /> 5G
-            </span>
-          </div>
-
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#14141d] to-[#0a0a10] shadow-[0_40px_90px_-25px_rgba(6,182,212,0.45)]">
+        <div className="relative overflow-hidden rounded-[2rem]">
           <div className="relative mt-2 px-3">
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500/25 via-blue-500/10 to-violet-500/20 p-3">
               <div

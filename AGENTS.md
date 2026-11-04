@@ -296,8 +296,14 @@
   Fica fora de `modules/supabase` de propósito: a landing precisa exibir o preço
   sem arrastar o cliente Supabase para o bundle público. `subscription.ts`
   reexporta para compatibilidade — ao mudar o preço, mude só lá.
-- Landing (`src/routes/index.tsx`) é viva e interativa, montada com componentes
-  em `src/components/landing/`. Três blocos, e nenhum cardápio solto na página:
+- Landing (`src/routes/index.tsx`) é um **cockpit de uma tela só**, montado com
+  componentes em `src/components/landing/`. Nada de empilhar seções: o herói, as
+  **abas** (`TABS`) e o painel vivem na mesma tela, e o root é
+  `h-[100dvh] overflow-hidden`. A aba troca o conteúdo na hora; o único scroll
+  é o de dentro do painel. O E2E mede `scrollHeight - clientHeight <= 4` (a
+  página não rola). Abas: Cardápio, Montagem, Templates, Recursos, Pracinha.
+  Os assuntos de apoio (Preços, Economia, Quem faz, Dúvidas) abrem por cima em
+  `GuidePanel`, disparados pela navbar/rodapé.
   1. `MenuReveal` — o cardápio REAL mora DENTRO de um botão-convite ("Ver
      cardápio real"); ao tocar, o botão se abre e vira o cardápio interativo
      (`LiveStoreDemo`). Fechado, o cardápio não existe no DOM.
@@ -311,6 +317,8 @@
      (`src/lib/restaurantChat.ts`) que o wizard aplica de verdade, então o
      preview não engana.
   Os dados/snapshots vivem em `src/components/landing/landing-data.ts`.
+  **Nenhum mockup de celular**: o cardápio é um cartão, não uma moldura de
+  telefone — o dono odeia a cara de "print de app".
 - **Simulador "quanto você está perdendo?"** (`LossSimulator`, `#simulador`): o
   dono informa o que paga hoje e os dias de movimento; o sistema recomenda o
   plano (diária ou Premium) e mostra a economia no ano. O ponto de virada é

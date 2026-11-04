@@ -337,8 +337,9 @@
 - **Cena viva do herói** (`src/components/landing/HeroScene.tsx`): em loop, um
   pedido nasce no cardápio do cliente e cai no painel do dono como "Novo
   pedido". É a história do produto em cinco segundos, sem vídeo e sem peso.
-  Só aparece no `lg` (no celular o herói fica só texto, para caber sem rolar);
-  o E2E `hero-scene` cobre isso.
+  Aparece em **qualquer largura** (ficava `hidden lg:block` e sumia abaixo de
+  1024px, deixando um buraco — regressão coberta pelo E2E "a cena viva aparece
+  também em tela média").
 - **Simulador "quanto você está perdendo?"** (`LossSimulator`, `#simulador`): o
   dono informa o que paga hoje e os dias de movimento; o sistema recomenda o
   plano (diária ou Premium) e mostra a economia no ano. O ponto de virada é

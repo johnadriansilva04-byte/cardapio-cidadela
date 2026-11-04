@@ -146,10 +146,27 @@ test("a home é um bloco único: a página não rola", async ({ page }) => {
   });
   expect(overflow).toBeLessThanOrEqual(4);
 
-  // No desktop o herói mostra a cena viva: o pedido saindo do cardápio do
-  // cliente e chegando no painel do dono.
+  // O herói mostra a cena viva: o pedido saindo do cardápio do cliente e
+  // chegando no painel do dono.
   await expect(page.getByTestId("hero-scene")).toBeVisible();
   await expect(page.getByText("Painel do dono")).toBeVisible();
+});
+
+test("a cena viva aparece também em tela média (sem virar vazio)", async ({ page }) => {
+  // Regressão: com `hidden lg:block` a cena sumia abaixo de 1024px e sobrava um
+  // buraco. Agora ela aparece em qualquer largura, e a página segue sem rolar.
+  await page.setViewportSize({ width: 900, height: 800 });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByTestId("hero-scene")).toBeVisible();
+  await expect(page.getByText("Painel do dono")).toBeVisible();
+
+  const overflow = await page.evaluate(() => {
+    const el = document.documentElement;
+    return el.scrollHeight - el.clientHeight;
+  });
+  expect(overflow).toBeLessThanOrEqual(4);
 });
 
 test("calculadora de economia mostra o número e abre no painel", async ({ page }) => {

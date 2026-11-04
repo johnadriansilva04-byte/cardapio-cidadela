@@ -92,10 +92,12 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
     PERFORM cron.unschedule('mata-fome-images')
       WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'mata-fome-images');
+    -- Dollar-tag próprio para a query do job: o dollar-quote aninhado no corpo
+    -- do DO confunde o parser do Postgres, então o job usa $cron$ ... $cron$.
     PERFORM cron.schedule(
       'mata-fome-images',
       '20 3 * * *',
-      $$SELECT public.cleanup_orphan_images(7)$$
+      $cron$SELECT public.cleanup_orphan_images(7)$cron$
     );
   END IF;
 END;

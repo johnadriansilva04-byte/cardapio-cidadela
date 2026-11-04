@@ -182,7 +182,7 @@
 
 ## Assinatura Premium (Mercado Pago)
 
-- **Modelo atual: anual (R$ 199,99) OU diária de 24h (R$ 1,49), comprável em
+- **Modelo atual: anual (R$ 199,99) OU diária de 24h (R$ 1,99), comprável em
   pacote.** A diária vive em `store_day_passes` (livro-razão, `mp_payment_id`
   UNIQUE → webhook idempotente) e é concedida só pela RPC SECURITY DEFINER
   `grant_day_pass(p_store, p_mp_payment_id, p_amount_cents, p_source,
@@ -245,7 +245,7 @@
   `reward_grants.day_credits`, `rewards.day_credits`). `redeemDayPass` troca 1
   crédito por 24h sem passar pelo Mercado Pago.
 - **Preços e env.** `src/lib/pricing.ts` é a fonte única: `PREMIUM_PRICE_VALUE`
-  (anual) e `DAY_PASS_PRICE_VALUE` (diária, padrão 1.49), configuráveis por
+  (anual) e `DAY_PASS_PRICE_VALUE` (diária, padrão 1.99), configuráveis por
   `VITE_ANNUAL_PRICE_VALUE` / `VITE_DAY_PASS_PRICE_VALUE` (+ `..._LABEL` para o
   rótulo). Nomes legados `VITE_PREMIUM_PRICE_VALUE` /
   `VITE_PREMIUM_ANNUAL_PRICE` continuam aceitos para o anual. **São `VITE_*`:
@@ -778,6 +778,11 @@ developers.cloudflare.com). Reconfira antes de decidir — os planos mudam.
 - Mercado Pago: Pix 0,99%; cartão 3,99% (30 dias) a 4,98% (na hora). Use ~3,5%
   como taxa média no mix Pix + cartão.
 - Resend: 3.000 e-mails/mês.
+- Cloudflare Workers AI: **10.000 Neurons/dia** grátis (zera 00:00 UTC);
+  excedente US$ 0,011/1.000 Neurons (só no Workers Paid — no free é teto rígido).
+  Llama 3.1-8B gasta ~4.119 Neurons por 1M tokens de entrada e ~34.868 por 1M de
+  saída. Neste app a IA só roda ao criar/editar loja ou pedir suporte: **centenas
+  de conversas/dia cabem no grátis**, e no volume atual o custo é R$ 0,00.
 
 **Manutenção do banco — automatizada pelo cron `cidadela-vacuum-*`.**
 A retenção (`cleanup_old_data`) apaga pedidos todo dia às 03:00; no Postgres o
@@ -835,36 +840,50 @@ distância — não são motivo para migrar agora.
 | DAS do MEI (serviços) | R$ 86,05 |
 | Domínio | R$ 3,33 |
 | Supabase free + Cloudflare | R$ 0,00 |
+| IA (Cloudflare Workers AI, free) | R$ 0,00 |
 | **Total** | **R$ 89,38/mês** |
 
 Mais: taxa do Mercado Pago de **3,5%** sobre tudo que entra (Pix 0,99%;
 cartão 3,99–4,98%). Quando migrar, o Pro soma **R$ 137/mês**.
 
 **Líquido por venda (já com a taxa do MP):** Premium mensal R$ 27,98 ·
-Premium anual R$ 16,08/mês · diária R$ 1,44.
+Premium anual R$ 16,08/mês · diária R$ 1,92.
 
 **20 lojas:**
 
 | Cenário | Bruto/mês | Líquido (free) | Líquido (Pro) |
 | --- | --- | --- | --- |
-| 10 grátis + 5 diária + 5 Premium | R$ 192,23 | **R$ 96,11** | −R$ 40,89 |
-| 5 grátis + 5 diária + 10 Premium | R$ 324,85 | **R$ 224,10** | R$ 87,10 |
+| 10 grátis + 5 diária + 5 Premium | R$ 212,23 | **R$ 115,42** | −R$ 21,58 |
+| 5 grátis + 5 diária + 10 Premium | R$ 344,85 | **R$ 243,40** | R$ 106,40 |
 | 15 mensal + 5 anual (otimista) | R$ 518,18 | **R$ 410,66** | R$ 273,66 |
+
+**A IA não muda a conta.** O Workers AI dá 10.000 Neurons/dia grátis — com o
+Llama 3.1-8B isso é ~centenas de conversas de suporte ou extrações por dia, e a
+IA só roda ao criar/editar loja ou pedir ajuda (não é por pedido nem por visita).
+No volume de 20 lojas o gasto é **R$ 0,00**; o teto diário só apertaria em uso
+muito acima disso, e aí o excedente é US$ 0,011/1.000 Neurons (~R$ 0,06 por
+1.000 Neurons). O chat de suporte reduz o custo humano, não o de infra.
+
+**Teto da diária (15/mês):** 15 × R$ 1,99 = R$ 29,85 — acima do Premium mensal
+(R$ 28,99). É de propósito: no teto, o Premium vira a opção mais barata, então o
+limite empurra o cliente de uso intenso para a assinatura em vez de deixá-lo
+pagar diária todo dia.
 
 **Ponto de equilíbrio:** no free, **4 assinantes mensais** cobrem os R$ 89,38.
 No Pro, **9 assinantes** cobrem os R$ 226,38. O Pro se paga sozinho com
 **5 assinantes mensais** (5 × R$ 27,98 = R$ 139,88 > R$ 137).
 
 **Projeção de 12 meses** (conversão lenta: 3 meses só diária, 3 com 5 Premium,
-6 com 10 Premium): bruto R$ 2.889,45, **líquido R$ 1.715,72 → média
-R$ 142,98/mês**. Os 3 primeiros meses fecham no **vermelho** (só diária não
+6 com 10 Premium): bruto R$ 2.944,59, **líquido R$ 1.768,97 → média
+R$ 147,41/mês**. Os 3 primeiros meses fecham no **vermelho** (só diária não
 cobre o custo fixo), e o ano vira no mês 4.
 
 **Receita média por loja ativa** (mix 30% Premium + 30% diária ×8 dias + 40%
-grátis): **R$ 12,27/mês**. É esse número que dimensiona a meta — para
-R$ 1.000/mês líquido são **~89 lojas ativas**, para R$ 2.000, ~170.
+grátis): **R$ 13,47/mês** bruto (R$ 13,00 líquido). É esse número que
+dimensiona a meta — para R$ 1.000/mês líquido são **~77 lojas ativas**, para
+R$ 2.000, ~154.
 
-**A diária é isca, não sustento.** 5 clientes × 8 dias = R$ 57,51 líquido,
+**A diária é isca, não sustento.** 5 clientes × 8 dias = R$ 76,81 líquido,
 abaixo dos R$ 89,38 de custo fixo. Sozinha, dá prejuízo. O negócio vive do
 Premium — a diária existe para converter quem tem movimento esporádico.
 

@@ -82,13 +82,18 @@ describe("menuCache", () => {
   });
 
   it("ignora payload corrompido", () => {
-    localStorage.setItem("cidadela:menu:v1:lanchonete", "{not json");
+    localStorage.setItem("cidadela:menu:v3:lanchonete", "{not json");
     expect(readMenuCache("lanchonete")).toBeNull();
   });
 
   it("ignora payload sem restaurante", () => {
-    localStorage.setItem("cidadela:menu:v1:lanchonete", JSON.stringify({ cachedAt: Date.now() }));
+    localStorage.setItem("cidadela:menu:v3:lanchonete", JSON.stringify({ cachedAt: Date.now() }));
     expect(readMenuCache("lanchonete")).toBeNull();
+  });
+
+  it("guarda o flag Premium junto do snapshot (evita RPC por visita)", () => {
+    writeMenuCache("lanchonete", { ...makeSnapshot(), isPremium: true });
+    expect(readMenuCache("lanchonete")?.isPremium).toBe(true);
   });
 
   it("a janela fresca é menor que o TTL (senão nunca revalidaria)", () => {

@@ -122,6 +122,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       setProducts(cached.products);
       setNeighborhoods(cached.neighborhoods);
       setProductAddons(cached.addons);
+      if (typeof cached.isPremium === "boolean") setIsPremiumStore(cached.isPremium);
       setLoading(false);
       if (cached.categories.length > 0) setActiveCat((prev) => prev || cached.categories[0].id);
       if (Date.now() - cached.cachedAt < MENU_CACHE_FRESH_MS)
@@ -152,10 +153,13 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           getAddonsByRestaurant(r.id),
         ]);
         if (!alive) return;
+        const premium = await isRestaurantPremium(r.id);
+        if (!alive) return;
         setCategories(cats);
         setProducts(prods);
         setNeighborhoods(nbrs);
         setProductAddons(pas);
+        setIsPremiumStore(premium);
         if (cats.length > 0) setActiveCat((prev) => prev || cats[0].id);
         writeMenuCache(slug, {
           restaurant: r,
@@ -163,6 +167,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           products: prods,
           neighborhoods: nbrs,
           addons: pas,
+          isPremium: premium,
         });
       } catch (e) {
         console.error("[public menu] load", e);
@@ -194,8 +199,12 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   // `admin_trials` (RLS do dono), então pergunta o booleano pela RPC pública.
   // O gate de verdade é o 403 em /api/order/draft; aqui é só para não mostrar um
   // botão que vai falhar.
+  //
+  // Quando o snapshot já traz o flag (cache fresco), não bate na RPC de novo:
+  // era uma requisição por visita só para decidir se mostra um botão.
   useEffect(() => {
     if (!restaurantId) return;
+    if (typeof readMenuCache(slug)?.isPremium === "boolean") return;
     let alive = true;
     void isRestaurantPremium(restaurantId).then((v) => {
       if (alive) setIsPremiumStore(v);
@@ -203,7 +212,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     return () => {
       alive = false;
     };
-  }, [restaurantId]);
+  }, [restaurantId, slug]);
 
   // Revalidação do cardápio público — SEM Realtime.
   //
@@ -233,9 +242,12 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         const { categories: cats, products: prods } = await getMenuWithProducts(rid);
         const pas = await getAddonsByRestaurant(rid);
         if (!alive) return;
+        const premium = await isRestaurantPremium(rid);
+        if (!alive) return;
         setCategories(cats);
         setProducts(prods);
         setProductAddons(pas);
+        setIsPremiumStore(premium);
         // Mantém o cache local em dia, para a próxima abertura (mesmo offline)
         // já nascer atualizada.
         const current = readMenuCache(slug);
@@ -246,6 +258,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             products: prods,
             neighborhoods: current.neighborhoods,
             addons: pas,
+            isPremium: premium,
           });
         }
       } catch {

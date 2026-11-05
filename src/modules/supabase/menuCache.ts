@@ -24,11 +24,18 @@ export interface PublicMenuSnapshot {
   products: Product[];
   neighborhoods: DeliveryNeighborhood[];
   addons: ProductAddon[];
+  /**
+   * Se a loja é Premium (habilita o garçom digital). Guardado junto do snapshot
+   * para que uma visita com cache fresco não precise bater na RPC
+   * `store_is_premium` só para saber se mostra o botão — a revalidação de
+   * segundo plano atualiza o valor quando o cardápio é rebaixado.
+   */
+  isPremium?: boolean;
   cachedAt: number;
 }
 
 /** Versão do formato: muda quando o payload muda de forma. */
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const KEY_PREFIX = `cidadela:menu:v${CACHE_VERSION}:`;
 
 /** Idade máxima em que o cache ainda vale como "instantâneo" no primeiro paint. */

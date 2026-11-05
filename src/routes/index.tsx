@@ -153,11 +153,11 @@ function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
     <button
       type="button"
       onClick={onOpenFull}
-      className="group inline-flex items-center gap-2 rounded-full border border-rose-500/25 bg-rose-500/[0.06] px-4 py-2 text-xs font-bold text-rose-200 transition-all hover:bg-rose-500/15 hover:text-white"
+      className="group w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-rose-500/40 bg-gradient-to-r from-rose-500/10 to-rose-500/5 p-4 transition-all hover:border-rose-400/60 hover:from-rose-500/20 hover:to-rose-500/10"
     >
-      <TrendingUp className="size-3.5" />
-      Calcular minha economia
-      <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+      <TrendingUp className="size-5 text-rose-300" />
+      <span className="text-sm font-bold text-white">Calcular minha economia</span>
+      <ArrowRight className="size-5 shrink-0 text-rose-300 transition-transform group-hover:translate-x-1" />
     </button>
   );
 }

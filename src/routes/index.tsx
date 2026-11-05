@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BellRing,
@@ -113,8 +113,8 @@ function MenuReveal() {
 /** Acima disso, o Premium anual fica mais barato que pagar diária todo dia. */
 const DAY_PASS_BREAK_EVEN = Math.ceil(PREMIUM_PRICE_VALUE / 12 / DAY_PASS_PRICE_VALUE);
 
-/** Valores iniciais do simulador — e do número que aparece no herói. */
-const LOSS_DEFAULT_SPEND = 149;
+/** Valores iniciais do simulador — R$ 59,00 como solicitado. */
+const LOSS_DEFAULT_SPEND = 59;
 const LOSS_DEFAULT_DAYS = 8;
 
 /**
@@ -143,26 +143,48 @@ function computeLossPlan(spend: number, days: number) {
 }
 
 /**
- * Simulador compacto do herói.
+ * Simulador compacto do herói — OCULTO POR PADRÃO.
  *
- * Fica na cara, sem clique: o visitante mexe em dois campos e vê a economia
- * mudar na hora. É o argumento da página em forma de brinquedo — o número é a
- * mensagem, então ele não pode morar atrás de um botão.
+ * O visitante primeiro entende o produto. Depois, se quiser, calcula economia.
  */
 function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
+  const [revealed, setRevealed] = useState(false);
   const [spend, setSpend] = useState(LOSS_DEFAULT_SPEND);
   const [days, setDays] = useState(LOSS_DEFAULT_DAYS);
   const { plan, yearlySaved, payingNothing } = useMemo(
     () => computeLossPlan(spend, days),
     [spend, days],
   );
+
+  if (!revealed) {
+    return (
+      <div className="animate-reveal mt-3.5 text-center">
+        <button
+          type="button"
+          onClick={() => setRevealed(true)}
+          className="group inline-flex items-center gap-2 rounded-full border border-rose-500/25 bg-rose-500/[0.06] px-4 py-2 text-xs font-bold text-rose-200 transition-all hover:bg-rose-500/15 hover:text-white"
+        >
+          <TrendingUp className="size-3.5" />
+          Calcular minha economia
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-reveal mt-3.5 rounded-2xl border border-rose-500/25 bg-rose-500/[0.06] p-3 text-left">
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-rose-300">
           <TrendingUp className="size-3" /> Simulador de economia
         </span>
-        <span className="text-[10px] text-gray-500">arraste e veja</span>
+        <button
+          type="button"
+          onClick={() => setRevealed(false)}
+          className="text-[10px] text-gray-500 hover:text-white"
+        >
+          <X className="size-3" />
+        </button>
       </div>
 
       <div className="mt-2 flex flex-wrap items-end gap-2">
@@ -518,6 +540,52 @@ function VariantBand() {
         </p>
       </div>
     </section>
+  );
+}
+
+/* ============================================================
+   Apresentação dinâmica de recursos
+   Textos alternantes mostrando benefícios sem poluir a tela
+   ============================================================ */
+
+const RESOURCE_MESSAGES = [
+  "Seu cardápio digital pronto em minutos.",
+  "Pedidos recebidos diretamente no seu painel.",
+  "Garçom digital para atender suas mesas.",
+  "QR Code para seus clientes pedirem.",
+  "Sem comissão por pedido.",
+  "Templates para personalizar seu cardápio.",
+  "Inteligência artificial para usuários Premium.",
+  "Controle seus pedidos em um único lugar.",
+];
+
+function DynamicResourceDisplay() {
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIndex((prev) => (prev + 1) % RESOURCE_MESSAGES.length);
+        setVisible(true);
+      }, 300);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="mt-4 flex min-h-[2rem] items-center justify-center lg:justify-start">
+      <p
+        className={cn(
+          "text-sm font-medium text-cyan-300 transition-all duration-300",
+          visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2",
+        )}
+      >
+        {RESOURCE_MESSAGES[index]}
+      </p>
+    </div>
   );
 }
 
@@ -883,42 +951,67 @@ function LandingPage() {
                 <Sparkles className="size-3" /> Para micro-restaurantes
               </p>
 
-              <h1 className="animate-reveal font-display text-[1.55rem] font-extrabold leading-[1.08] tracking-tight sm:text-[2rem] lg:text-[2.35rem]">
+              <h1 className="animate-reveal font-display text-[1.8rem] font-extrabold leading-[1.15] tracking-tight sm:text-[2.25rem] lg:text-[2.5rem]">
                 Seu cardápio no ar{" "}
                 <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
                   em minutos.
                 </span>
               </h1>
-              <p className="animate-reveal mx-auto mt-2 max-w-lg text-[13px] leading-snug text-gray-300 lg:mx-0">
+              <p className="animate-reveal mx-auto mt-3 max-w-lg text-[14px] leading-relaxed text-gray-300 lg:mx-0">
                 Link próprio, QR Code e pedidos na hora —{" "}
                 <strong className="font-bold text-white">sem comissão por pedido</strong>.
               </p>
-              <div className="animate-reveal mt-2.5 flex flex-wrap items-center justify-center gap-1.5 lg:justify-start">
-                <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/25 bg-violet-500/[0.08] px-2.5 py-1 text-[10px] font-bold text-violet-200">
-                  <MessageCircle className="size-3" /> Monte a loja conversando
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-2.5 py-1 text-[10px] font-bold text-cyan-200">
-                  <Bot className="size-3" /> Garçom digital no seu painel
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-2.5 py-1 text-[10px] font-bold text-emerald-200">
-                  <TrendingUp className="size-3" /> 0% de comissão
-                </span>
-              </div>
 
-              <div className="animate-reveal mt-3.5 flex flex-col items-center justify-center gap-2.5 sm:flex-row lg:justify-start">
+              {/* Cards compactos de ação */}
+              <div className="animate-reveal mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 <Link
                   to="/login"
                   search={{ mode: "register" }}
-                  className="sheen group flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 px-5 py-2.5 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] sm:w-auto"
+                  className="group relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.08] p-4 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/[0.12]"
                 >
-                  Criar meu cardápio grátis
-                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                  <div
+                    aria-hidden
+                    className="absolute -right-4 -top-4 size-20 rounded-full bg-cyan-500/20 blur-2xl transition-opacity group-hover:opacity-100 opacity-60"
+                  />
+                  <div className="relative flex items-center gap-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/20 text-cyan-300">
+                      <Store className="size-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-white">Crie seu cardápio</p>
+                      <p className="mt-0.5 text-[11px] text-gray-400">
+                        Monte grátis em minutos, sem cartão
+                      </p>
+                    </div>
+                    <ArrowRight className="size-4 shrink-0 text-cyan-300 transition-transform group-hover:translate-x-0.5" />
+                  </div>
                 </Link>
+
+                <button
+                  type="button"
+                  onClick={() => setView("cardapio")}
+                  className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:border-white/20 hover:bg-white/[0.04]"
+                >
+                  <div className="relative flex items-center gap-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/10 text-gray-300">
+                      <UtensilsCrossed className="size-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-white">Veja funcionando</p>
+                      <p className="mt-0.5 text-[11px] text-gray-400">
+                        Conheça um cardápio real
+                      </p>
+                    </div>
+                    <ArrowRight className="size-4 shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                </button>
               </div>
 
               <InlineSimulator onOpenFull={() => openPanel("calc")} />
 
-              <p className="animate-reveal mt-2.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-gray-500 lg:justify-start">
+              <DynamicResourceDisplay />
+
+              <p className="animate-reveal mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-gray-500 lg:justify-start">
                 <span className="flex items-center gap-1">
                   <Check className="size-3 text-emerald-400" /> Comece grátis
                 </span>
@@ -997,8 +1090,9 @@ function LandingPage() {
                           <span className="text-emerald-300">Escolha um tema.</span>
                         </h2>
                         <p className="mt-2 text-sm text-gray-400">
-                          Já vem com as cores e os itens do seu ramo. Você só troca a foto e o
-                          preço.
+                          Templates visuais prontos com cores e itens do seu ramo. Você só troca a
+                          foto e o preço. A inteligência artificial (Premium) ajuda a montar o
+                          cardápio conversando ou por foto.
                         </p>
                       </div>
                       <TemplateGallery />
@@ -1026,6 +1120,23 @@ function LandingPage() {
                           </div>
                         ))}
                       </div>
+
+                      {/* Demonstração do Garçom Digital */}
+                      <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.06] p-5">
+                        <div className="mb-4 flex items-center gap-2">
+                          <span className="grid size-8 place-items-center rounded-lg bg-cyan-500/20 text-cyan-300">
+                            <Bot className="size-4" />
+                          </span>
+                          <div>
+                            <h3 className="text-sm font-bold text-white">Garçom Digital</h3>
+                            <p className="text-[11px] text-gray-400">
+                              Assistente IA que responde na hora dentro do seu painel
+                            </p>
+                          </div>
+                        </div>
+                        <WaiterChat />
+                      </div>
+
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {FEATURES.map((f) => (
                           <div

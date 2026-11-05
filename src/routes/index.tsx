@@ -615,7 +615,7 @@ function OutdoorDisplay() {
         });
         setVisible(true);
       }, 300);
-    }, 6000);
+    }, 8000); // 8 segundos por passo - mais lento para comercial
 
     return () => clearInterval(stepInterval);
   }, [currentScene.steps.length]);

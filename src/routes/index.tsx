@@ -12,6 +12,7 @@ import {
   Clock,
   LayoutDashboard,
   LayoutTemplate,
+  LogIn,
   LogOut,
   Menu,
   MessageCircle,

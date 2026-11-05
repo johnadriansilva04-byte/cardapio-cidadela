@@ -160,60 +160,6 @@ function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
     </button>
   );
 }
-        <label className="flex-1">
-          <span className="block text-[10px] text-gray-400">Paga hoje (R$/mês)</span>
-          <div className="mt-1 flex items-center gap-1 rounded-lg border border-white/10 bg-black/30 px-2 py-1 focus-within:border-rose-400/60">
-            <span className="text-xs font-bold text-gray-500">R$</span>
-            <input
-              type="number"
-              min={0}
-              max={5000}
-              step={10}
-              value={spend}
-              onChange={(e) => setSpend(Math.max(0, Number(e.target.value) || 0))}
-              aria-label="Quanto você paga por mês hoje"
-              className="w-full bg-transparent font-display text-sm font-black text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-        </label>
-        <label className="flex-1">
-          <span className="flex items-center justify-between text-[10px] text-gray-400">
-            Abre por mês <b className="text-cyan-300">{days} dias</b>
-          </span>
-          <input
-            type="range"
-            min={1}
-            max={30}
-            step={1}
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            aria-label="Quantos dias por mês você abre"
-            className="mt-2 w-full accent-cyan-400"
-          />
-        </label>
-      </div>
-
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.07] pt-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-gray-500">
-            {payingNothing ? "Sua economia" : "Economia estimada"}
-          </p>
-          <p className="font-display text-lg font-black leading-none text-emerald-300">
-            {brl(yearlySaved)}
-            <span className="text-[11px] font-bold text-gray-500">/ano</span>
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onOpenFull}
-          className="rounded-full border border-rose-400/40 px-3 py-1.5 text-[11px] font-bold text-rose-200 transition-colors hover:bg-rose-500/15 hover:text-white"
-        >
-          {plan.name} é o seu plano →
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function LossCalculator() {
   const [spend, setSpend] = useState(LOSS_DEFAULT_SPEND);

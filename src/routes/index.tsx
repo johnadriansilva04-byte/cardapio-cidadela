@@ -56,7 +56,7 @@ import { GuidePanel } from "@/modules/ui/GuidePanel";
 import { VariantMark } from "@/components/brand/VariantMark";
 
 /** Painéis do hub da landing. `null` = nenhum aberto. */
-type LandingPanel = "calc" | "preco" | "faq" | null;
+type LandingPanel = "calc" | "preco" | "faq" | "features" | null;
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -158,22 +158,20 @@ function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
 
   if (!revealed) {
     return (
-      <div className="animate-reveal mt-3.5 text-center">
-        <button
-          type="button"
-          onClick={() => setRevealed(true)}
-          className="group inline-flex items-center gap-2 rounded-full border border-rose-500/25 bg-rose-500/[0.06] px-4 py-2 text-xs font-bold text-rose-200 transition-all hover:bg-rose-500/15 hover:text-white"
-        >
-          <TrendingUp className="size-3.5" />
-          Calcular minha economia
-          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setRevealed(true)}
+        className="group inline-flex items-center gap-2 rounded-full border border-rose-500/25 bg-rose-500/[0.06] px-4 py-2 text-xs font-bold text-rose-200 transition-all hover:bg-rose-500/15 hover:text-white"
+      >
+        <TrendingUp className="size-3.5" />
+        Calcular minha economia
+        <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+      </button>
     );
   }
 
   return (
-    <div className="animate-reveal mt-3.5 rounded-2xl border border-rose-500/25 bg-rose-500/[0.06] p-3 text-left">
+    <div className="rounded-2xl border border-rose-500/25 bg-rose-500/[0.06] p-4 text-left">
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-rose-300">
           <TrendingUp className="size-3" /> Simulador de economia
@@ -187,7 +185,7 @@ function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
         </button>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-end gap-2">
+      <div className="mt-3 flex flex-wrap items-end gap-3">
         <label className="flex-1">
           <span className="block text-[10px] text-gray-400">Paga hoje (R$/mês)</span>
           <div className="mt-1 flex items-center gap-1 rounded-lg border border-white/10 bg-black/30 px-2 py-1 focus-within:border-rose-400/60">
@@ -221,7 +219,7 @@ function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
         </label>
       </div>
 
-      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-white/[0.07] pt-2.5">
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.07] pt-3">
         <div>
           <p className="text-[10px] uppercase tracking-wide text-gray-500">
             {payingNothing ? "Sua economia" : "Economia estimada"}
@@ -544,22 +542,22 @@ function VariantBand() {
 }
 
 /* ============================================================
-   Apresentação dinâmica de recursos
-   Textos alternantes mostrando benefícios sem poluir a tela
+   OUTDOOR - apresentação dinâmica das features
+   Textos alternantes mostrando benefícios no canto direito
    ============================================================ */
 
-const RESOURCE_MESSAGES = [
-  "Seu cardápio digital pronto em minutos.",
-  "Pedidos recebidos diretamente no seu painel.",
-  "Garçom digital para atender suas mesas.",
-  "QR Code para seus clientes pedirem.",
-  "Sem comissão por pedido.",
-  "Templates para personalizar seu cardápio.",
-  "Inteligência artificial para usuários Premium.",
-  "Controle seus pedidos em um único lugar.",
+const OUTDOOR_MESSAGES = [
+  { text: "Seu cardápio digital pronto em minutos.", icon: Smartphone },
+  { text: "Garçom digital IA que responde na hora.", icon: Bot },
+  { text: "0% de comissão por pedido.", icon: TrendingUp },
+  { text: "Diária de R$ 1,99 só quando usar.", icon: Clock },
+  { text: "Monte conversando, sem formulário.", icon: MessageCircle },
+  { text: "Leia cardápio por foto (Premium).", icon: Sparkles },
+  { text: "QR Code e link só seu.", icon: QrCode },
+  { text: "Painel de gestão completo.", icon: LayoutDashboard },
 ];
 
-function DynamicResourceDisplay() {
+function OutdoorDisplay() {
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
 
@@ -567,7 +565,7 @@ function DynamicResourceDisplay() {
     const interval = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
-        setIndex((prev) => (prev + 1) % RESOURCE_MESSAGES.length);
+        setIndex((prev) => (prev + 1) % OUTDOOR_MESSAGES.length);
         setVisible(true);
       }, 300);
     }, 4000);
@@ -575,16 +573,45 @@ function DynamicResourceDisplay() {
     return () => clearInterval(interval);
   }, []);
 
+  const current = OUTDOOR_MESSAGES[index];
+  const Icon = current.icon;
+
   return (
-    <div className="mt-4 flex min-h-[2rem] items-center justify-center lg:justify-start">
-      <p
-        className={cn(
-          "text-sm font-medium text-cyan-300 transition-all duration-300",
-          visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2",
-        )}
-      >
-        {RESOURCE_MESSAGES[index]}
-      </p>
+    <div className="relative h-full min-h-[400px] flex items-center justify-center">
+      <div
+        aria-hidden
+        className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-violet-500/20 blur-3xl"
+      />
+      <div className="relative flex flex-col items-center gap-6 text-center px-8">
+        <div className="relative">
+          <div className="animate-aurora absolute -inset-8 rounded-full bg-cyan-500/30 blur-2xl" />
+          <span className="relative grid size-24 place-items-center rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-600 text-black shadow-[0_20px_60px_-20px_rgba(34,211,238,0.5)]">
+            <Icon className="size-12" />
+          </span>
+        </div>
+        <div className="space-y-2">
+          <p
+            className={cn(
+              "font-display text-3xl font-extrabold text-white transition-all duration-300 sm:text-4xl lg:text-5xl",
+              visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
+            )}
+          >
+            {current.text}
+          </p>
+          <div className="flex justify-center gap-2">
+            {OUTDOOR_MESSAGES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setIndex(i)}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index ? "w-6 bg-cyan-400" : "w-1.5 bg-white/20"
+                }`}
+                aria-label={`Mensagem ${i + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -812,25 +839,17 @@ const TABS = [
 type LandingView = (typeof TABS)[number]["key"];
 
 /**
- * Home-cockpit: um bloco único, sem rolagem de página.
- *
- * O herói, as abas e o painel vivem na mesma tela. Cada aba troca o painel na
- * hora — nada de empilhar seções para o visitante rolar. O único scroll é o de
- * dentro do painel (quando um conteúdo é mais alto que a área), então o
- * `documentElement` nunca cresce. Os assuntos de apoio (preço, economia, quem
- * faz, dúvidas) abrem por cima, em painel.
+ * COCKPIT SEM SCROLL - aba única
+ * Canto esquerdo: botões de ação
+ * Meio: slogan principal
+ * Canto direito: outdoor animado com features
+ * Tudo abre em painéis
  */
 function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [panel, setPanel] = useState<LandingPanel>(null);
-  const [view, setView] = useState<LandingView>("cardapio");
-
-  function scrollToSection(id: string) {
-    setMenuOpen(false);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
 
   function openPanel(p: NonNullable<LandingPanel>) {
     setMenuOpen(false);
@@ -839,9 +858,8 @@ function LandingPage() {
   const closePanel = () => setPanel(null);
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col overflow-x-hidden bg-[#07070c] text-white selection:bg-cyan-400/30">
-      {/* Fundo autoral: malha técnica (grade + nós) sobre aurora. É a cara da
-          Variant — casa de tecnologia —, não um gradiente de template. */}
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#07070c] text-white selection:bg-cyan-400/30">
+      {/* Fundo autoral */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="variant-grid absolute inset-0" />
         <div className="variant-grid-nodes absolute inset-0" />
@@ -852,7 +870,7 @@ function LandingPage() {
 
       {/* Navbar */}
       <nav className="relative z-40 shrink-0 border-b border-white/[0.07] bg-[#07070c]/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
           <Link to="/" className="group flex items-center gap-2.5">
             <VariantMark className="size-8 shadow-[0_0_20px_rgba(34,211,238,0.35)] transition-transform group-hover:scale-105" />
             <span className="font-display text-sm font-extrabold tracking-tight sm:text-base">
@@ -874,10 +892,10 @@ function LandingPage() {
               Economia
             </button>
             <button
-              onClick={() => scrollToSection("variant")}
+              onClick={() => openPanel("features")}
               className="text-sm text-gray-400 transition-colors hover:text-white"
             >
-              Quem faz
+              Recursos
             </button>
             <button
               onClick={() => setTutorialOpen(true)}
@@ -906,6 +924,7 @@ function LandingPage() {
               [
                 ["preco", "Preços"],
                 ["calc", "Economia"],
+                ["features", "Recursos"],
                 ["faq", "Dúvidas"],
               ] as const
             ).map(([key, label]) => (
@@ -926,247 +945,115 @@ function LandingPage() {
             >
               <BookOpen className="size-4" /> Tutorial
             </button>
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                scrollToSection("variant");
-              }}
-              className="col-span-2 flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-            >
-              <Store className="size-4" /> Quem faz
-            </button>
           </div>
         )}
       </nav>
 
-      {/* Conteúdo: única área com scroll (interno) — a página em si não rola. */}
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-5 sm:px-6 lg:py-8">
-        {/* Cockpit: texto à esquerda, cardápio à direita, lado a lado. No
-            celular empilha (texto em cima, cardápio embaixo) — nada de deixar
-            o cardápio espremido numa faixa. */}
-        <div className="flex flex-col gap-5 lg:min-h-[540px] lg:flex-row lg:items-stretch lg:gap-8">
-          <div className="text-center lg:flex lg:min-h-0 lg:w-[38%] lg:flex-col lg:justify-center lg:text-left">
-            <div>
-              <p className="animate-reveal mb-2 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
+      {/* COCKPIT - tela única sem scroll */}
+      <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 items-center px-4 sm:px-6 lg:px-8">
+        <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* CANTO ESQUERDO - Botões de ação */}
+          <div className="flex flex-col justify-center lg:col-span-3">
+            <div className="space-y-4">
+              <p className="animate-reveal inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
                 <Sparkles className="size-3" /> Para micro-restaurantes
               </p>
 
-              <h1 className="animate-reveal font-display text-[1.8rem] font-extrabold leading-[1.15] tracking-tight sm:text-[2.25rem] lg:text-[2.5rem]">
+              <h1 className="animate-reveal font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
                 Seu cardápio no ar{" "}
                 <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
                   em minutos.
                 </span>
               </h1>
-              <p className="animate-reveal mx-auto mt-3 max-w-lg text-[14px] leading-relaxed text-gray-300 lg:mx-0">
+
+              <p className="animate-reveal text-sm leading-relaxed text-gray-300">
                 Link próprio, QR Code e pedidos na hora —{" "}
                 <strong className="font-bold text-white">sem comissão por pedido</strong>.
               </p>
 
-              {/* Cards compactos de ação */}
-              <div className="animate-reveal mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="space-y-3 pt-4">
                 <Link
                   to="/login"
                   search={{ mode: "register" }}
-                  className="group relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.08] p-4 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/[0.12]"
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.08] p-4 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/[0.12]"
                 >
-                  <div
-                    aria-hidden
-                    className="absolute -right-4 -top-4 size-20 rounded-full bg-cyan-500/20 blur-2xl transition-opacity group-hover:opacity-100 opacity-60"
-                  />
-                  <div className="relative flex items-center gap-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/20 text-cyan-300">
-                      <Store className="size-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-white">Crie seu cardápio</p>
-                      <p className="mt-0.5 text-[11px] text-gray-400">
-                        Monte grátis em minutos, sem cartão
-                      </p>
-                    </div>
-                    <ArrowRight className="size-4 shrink-0 text-cyan-300 transition-transform group-hover:translate-x-0.5" />
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/20 text-cyan-300">
+                    <Store className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white">Crie seu cardápio</p>
+                    <p className="text-[11px] text-gray-400">Monte grátis em minutos</p>
                   </div>
+                  <ArrowRight className="size-4 shrink-0 text-cyan-300 transition-transform group-hover:translate-x-0.5" />
                 </Link>
 
                 <button
                   type="button"
-                  onClick={() => setView("cardapio")}
-                  className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:border-white/20 hover:bg-white/[0.04]"
+                  onClick={() => {
+                    const realMenuUrl = `${SITE_URL}/cardapio/${DEMO_STORE_SLUG}`;
+                    window.open(realMenuUrl, "_blank");
+                  }}
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:border-white/20 hover:bg-white/[0.04]"
                 >
-                  <div className="relative flex items-center gap-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/10 text-gray-300">
-                      <UtensilsCrossed className="size-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-white">Veja funcionando</p>
-                      <p className="mt-0.5 text-[11px] text-gray-400">
-                        Conheça um cardápio real
-                      </p>
-                    </div>
-                    <ArrowRight className="size-4 shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5" />
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/10 text-gray-300">
+                    <UtensilsCrossed className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white">Ver cardápio</p>
+                    <p className="text-[11px] text-gray-400">Cardápio real funcionando</p>
                   </div>
+                  <ArrowRight className="size-4 shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5" />
                 </button>
+
+                <InlineSimulator onOpenFull={() => openPanel("calc")} />
               </div>
-
-              <InlineSimulator onOpenFull={() => openPanel("calc")} />
-
-              <DynamicResourceDisplay />
-
-              <p className="animate-reveal mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-gray-500 lg:justify-start">
-                <span className="flex items-center gap-1">
-                  <Check className="size-3 text-emerald-400" /> Comece grátis
-                </span>
-                <span className="flex items-center gap-1">
-                  <Check className="size-3 text-emerald-400" /> Sem cartão
-                </span>
-                <span className="flex items-center gap-1">
-                  <Check className="size-3 text-emerald-400" /> Sem comissão
-                </span>
-              </p>
             </div>
           </div>
 
-          {/* Coluna direita: só o cardápio — abas + painel. */}
-          <div className="flex flex-col gap-3 lg:w-[62%]">
-            {/* Abas */}
-            <div className="mt-5 flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {TABS.map((t) => {
-                const on = view === t.key;
-                return (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setView(t.key)}
-                    className={cn(
-                      "flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition-all",
-                      on
-                        ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
-                        : "border-white/10 bg-white/[0.03] text-gray-400 hover:border-white/20 hover:text-white",
-                    )}
-                  >
-                    <t.icon className="size-3.5" />
-                    {t.label}
-                  </button>
-                );
-              })}
+          {/* CANTO DIREITO - Outdoor animado */}
+          <div className="flex items-center justify-center lg:col-span-6">
+            <div className="relative w-full max-w-2xl">
+              <OutdoorDisplay />
             </div>
+          </div>
 
-            {/* Painel vivo: a aba troca o conteúdo na hora. */}
-            <div className="relative flex flex-col rounded-3xl border border-white/[0.07] bg-white/[0.02]">
-              <div className="relative flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-4 py-2.5">
-                <span className="size-2 animate-pulse rounded-full bg-emerald-400" />
-                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
-                  {TABS.find((t) => t.key === view)?.label} · ao vivo
-                </span>
-                <span className="ml-auto flex gap-1">
-                  <span className="size-1.5 rounded-full bg-white/15" />
-                  <span className="size-1.5 rounded-full bg-white/15" />
-                  <span className="size-1.5 rounded-full bg-white/15" />
-                </span>
-                {/* Varredura: dá a sensação de painel ligado, não de print. */}
-                <span
-                  aria-hidden
-                  className="animate-scan pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-cyan-400/12 to-transparent"
-                />
+          {/* CANTO DIREITO EXTRA - Informações */}
+          <div className="hidden flex-col justify-center lg:flex lg:col-span-3">
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                  Comece grátis
+                </p>
+                <p className="mt-2 text-sm text-gray-300">
+                  5 pedidos por mês, sem cartão. Quando o movimento crescer, a diária ou o Premium entram sozinhos.
+                </p>
               </div>
-              <div className="p-4 sm:p-6">
-                {/* key={view} remonta o conteúdo a cada troca, disparando a
-                animação de entrada — a aba "abre" em vez de só aparecer. */}
-                <div key={view} className="animate-panel">
-                  {view === "cardapio" && (
-                    <div className="mx-auto max-w-2xl">
-                      <p className="mb-5 text-center text-sm text-gray-400">
-                        O cardápio que o seu cliente vê. Um link, QR Code na mesa — e o pedido cai
-                        no seu painel. Sem comissão.
-                      </p>
-                      <MenuReveal />
-                    </div>
-                  )}
 
-                  {view === "templates" && (
-                    <div>
-                      <div className="mx-auto mb-5 max-w-xl text-center">
-                        <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
-                          Não comece do zero.{" "}
-                          <span className="text-emerald-300">Escolha um tema.</span>
-                        </h2>
-                        <p className="mt-2 text-sm text-gray-400">
-                          Templates visuais prontos com cores e itens do seu ramo. Você só troca a
-                          foto e o preço. A inteligência artificial (Premium) ajuda a montar o
-                          cardápio conversando ou por foto.
-                        </p>
-                      </div>
-                      <TemplateGallery />
-                    </div>
-                  )}
+              <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.06] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-300">
+                  Diária {DAY_PASS_PRICE_LABEL}
+                </p>
+                <p className="mt-2 text-sm text-gray-300">
+                  Abre só no fim de semana? Usa a diária só nesses dias e paga menos. Empilhável.
+                </p>
+              </div>
 
-                  {view === "recursos" && (
-                    <div className="space-y-5">
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        {STEPS.map((s, i) => (
-                          <div
-                            key={s.title}
-                            className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
-                          >
-                            <span className="grid size-10 place-items-center rounded-xl border border-cyan-500/25 bg-[#0b0b12] text-cyan-300">
-                              <s.icon className="size-5" />
-                            </span>
-                            <h3 className="font-display mt-3 text-base font-extrabold text-white">
-                              <span className="mr-1.5 text-cyan-400">
-                                {String(i + 1).padStart(2, "0")}
-                              </span>
-                              {s.title}
-                            </h3>
-                            <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{s.desc}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Demonstração do Garçom Digital */}
-                      <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.06] p-5">
-                        <div className="mb-4 flex items-center gap-2">
-                          <span className="grid size-8 place-items-center rounded-lg bg-cyan-500/20 text-cyan-300">
-                            <Bot className="size-4" />
-                          </span>
-                          <div>
-                            <h3 className="text-sm font-bold text-white">Garçom Digital</h3>
-                            <p className="text-[11px] text-gray-400">
-                              Assistente IA que responde na hora dentro do seu painel
-                            </p>
-                          </div>
-                        </div>
-                        <WaiterChat />
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {FEATURES.map((f) => (
-                          <div
-                            key={f.title}
-                            className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
-                          >
-                            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
-                              <f.icon className="size-4" />
-                            </span>
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-bold text-white">{f.title}</h3>
-                              <p className="mt-1 text-sm leading-relaxed text-gray-400">{f.desc}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+              <div className="rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-violet-300">
+                  Garçom digital
+                </p>
+                <p className="mt-2 text-sm text-gray-300">
+                  Assistente IA que responde na hora dentro do seu painel. Sem formulário, você conversa.
+                </p>
               </div>
             </div>
           </div>
         </div>
-        <ChatAiSection />
-        <VariantBand />
       </main>
 
       {/* Rodapé compacto */}
       <footer className="relative z-10 shrink-0 border-t border-white/[0.07] py-3">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
           <div className="flex items-center gap-2">
             <VariantMark className="size-6" />
             <span className="font-display text-xs font-extrabold text-gray-300">
@@ -1174,12 +1061,6 @@ function LandingPage() {
             </span>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-gray-500">
-            <button
-              onClick={() => scrollToSection("variant")}
-              className="transition-colors hover:text-gray-300"
-            >
-              A Variant
-            </button>
             <button
               onClick={() => openPanel("faq")}
               className="transition-colors hover:text-gray-300"
@@ -1309,6 +1190,64 @@ function LandingPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </GuidePanel>
+
+      <GuidePanel
+        open={panel === "features"}
+        onOpenChange={(o) => !o && closePanel()}
+        title="Recursos"
+        icon={<ChefHat className="size-4" />}
+        tone="violet"
+        width="xl"
+      >
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.06] p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="grid size-8 place-items-center rounded-lg bg-cyan-500/20 text-cyan-300">
+                <Bot className="size-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-white">Garçom Digital</h3>
+                <p className="text-[11px] text-gray-400">
+                  Assistente IA que responde na hora dentro do seu painel
+                </p>
+              </div>
+            </div>
+            <WaiterChat />
+          </div>
+
+          <div className="rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="grid size-8 place-items-center rounded-lg bg-violet-500/20 text-violet-300">
+                <MessageCircle className="size-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-white">Monte conversando</h3>
+                <p className="text-[11px] text-gray-400">
+                  Uma pergunta por vez, sem formulário de 20 campos
+                </p>
+              </div>
+            </div>
+            <WizardChat />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
+                  <f.icon className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white">{f.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-gray-400">{f.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </GuidePanel>

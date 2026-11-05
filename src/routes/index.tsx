@@ -1094,6 +1094,20 @@ function LandingPage() {
                   <ArrowRight className="size-4 shrink-0 text-cyan-300 transition-transform group-hover:translate-x-0.5" />
                 </Link>
 
+                <Link
+                  to="/login"
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:border-white/20 hover:bg-white/[0.04]"
+                >
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/10 text-gray-300">
+                    <LogIn className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white">Entrar</p>
+                    <p className="text-[11px] text-gray-400">Acesse sua conta</p>
+                  </div>
+                  <ArrowRight className="size-4 shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+
                 <button
                   type="button"
                   onClick={() => {

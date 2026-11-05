@@ -185,6 +185,10 @@ function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
         </button>
       </div>
 
+      <p className="mt-2 text-[10px] text-gray-400">
+        Coloque quanto você paga por mês em comissão e veja quanto economiza conosco.
+      </p>
+
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <label className="flex-1">
           <span className="block text-[10px] text-gray-400">Paga hoje (R$/mês)</span>
@@ -666,9 +670,9 @@ function OutdoorDisplay() {
 
             {/* Área de chat */}
             <div className="flex-1 space-y-3 overflow-hidden">
-              {/* Histórico de mensagens anteriores */}
-              {stepIndex > 0 && currentScene.steps.slice(0, stepIndex).map((msg, i) => (
-                <div key={i} className="opacity-50">
+              {/* Histórico de mensagens anteriores + mensagem atual */}
+              {currentScene.steps.slice(0, stepIndex + 1).map((msg, i) => (
+                <div key={i} className={i === stepIndex ? "" : "opacity-50"}>
                   {msg.user && (
                     <div className="flex justify-end">
                       <div className="max-w-[80%] rounded-xl bg-cyan-500/10 border border-cyan-500/20 px-3 py-1.5">
@@ -690,27 +694,6 @@ function OutdoorDisplay() {
                   )}
                 </div>
               ))}
-
-              {/* Mensagem atual */}
-              {visible && currentStep.user && (
-                <div className="flex justify-end">
-                  <div className="max-w-[80%] rounded-xl bg-cyan-500/20 border border-cyan-500/30 px-3 py-1.5">
-                    <p className="text-xs text-white">{currentStep.user}</p>
-                  </div>
-                </div>
-              )}
-              {visible && currentStep.bot && (
-                <div className="flex justify-start">
-                  <div className="flex items-start gap-2 max-w-[80%]">
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
-                      <Bot className="size-3" />
-                    </span>
-                    <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-1.5">
-                      <p className="text-xs text-gray-200">{currentStep.bot}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Indicador de digitando - como mensagem do Pracinha */}
               {!visible && (

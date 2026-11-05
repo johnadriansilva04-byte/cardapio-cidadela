@@ -548,47 +548,47 @@ function VariantBand() {
 
 const OUTDOOR_SCENES = [
   {
-    type: "chat",
+    type: "mortalidade",
+    title: "Variant existe por um motivo",
+    subtitle: "80% das empresas fecham em 3 anos",
+    steps: [
+      { bot: "Olá! Eu sou o Pracinha. A Variant existe porque 80% das empresas fecham em 3 anos." },
+      { bot: "Não é falta de cliente. É margem apertada, comissão alta, gasto escondido." },
+      { bot: "Nós cortamos esse gasto. Devolvemos a margem. O negócio continua de pé." },
+      { bot: "Cada loja que sobe é um fornecedor, um funcionário, uma família." },
+    ],
+  },
+  {
+    type: "montagem",
     title: "Monte conversando",
     subtitle: "Sem formulário de 20 campos",
     steps: [
-      { text: "Nome do restaurante?", highlight: "Variant Burger" },
-      { text: "WhatsApp?", highlight: "(48) 99999-9999" },
-      { text: "Endereço?", highlight: "Rua das Flores, 123" },
-      { text: "Cardápio pronto! 🎉", highlight: "3 categorias, 8 itens" },
+      { user: "Vou começar!", bot: "Perfeito! Qual é o nome do seu restaurante?" },
+      { user: "Variant Burger", bot: "Legal! E qual é o WhatsApp para receber pedidos?" },
+      { user: "(48) 99999-9999", bot: "Endereço?" },
+      { user: "Rua das Flores, 123", bot: "Cardápio pronto! 🎉 3 categorias, 8 itens criados." },
     ],
   },
   {
-    type: "garcom",
+    type: "pedido",
     title: "Garçom digital IA",
     subtitle: "Responde na hora no seu painel",
     steps: [
-      { text: "Cliente: 'Quanto custa o X-Burger?'", highlight: "" },
-      { text: "Pracinha: 'R$ 29,00 com cheddar'", highlight: "" },
-      { text: "Cliente: 'Tem batata?'", highlight: "" },
-      { text: "Pracinha: 'Sim, R$ 18,00 rústica'", highlight: "" },
+      { user: "Quanto custa o X-Burger?", bot: "R$ 29,00 com cheddar fresco." },
+      { user: "Tem batata?", bot: "Sim! Batata rústica por R$ 18,00." },
+      { user: "Quero um com cebola", bot: "Anotei: X-Burger com cebola. Algo mais?" },
+      { user: "Só isso", bot: "Pedido anotado! Total: R$ 47,00. Já chega pra cozinha." },
     ],
   },
   {
-    type: "assinatura",
-    title: "Assine quando precisar",
+    type: "precos",
+    title: "Só paga quando usar",
     subtitle: "Diária, Mensal ou Anual",
     steps: [
-      { text: "Vá em Assinatura", highlight: "" },
-      { text: "Escolha: Diária R$ 1,99", highlight: "24h" },
-      { text: "Ou Premium: R$ 28,99/mês", highlight: "Ilimitado" },
-      { text: "Anual: R$ 199,99/ano", highlight: "Foto por IA" },
-    ],
-  },
-  {
-    type: "cardapio",
-    title: "Cardápio nunca trava",
-    subtitle: "Mesmo sem pagamento, cliente pede",
-    steps: [
-      { text: "5 pedidos grátis por mês", highlight: "Grátis" },
-      { text: "Depois: diária ou Premium", highlight: "Escolha" },
-      { text: "Cliente sempre vê o cardápio", highlight: "Sempre" },
-      { text: "Pedido chega com preço e endereço", highlight: "Garan" },
+      { bot: "Vá em Assinatura no painel." },
+      { bot: "Diária R$ 1,99 libera 24h. Só quando tiver pedido." },
+      { bot: "Premium R$ 28,99/mês é ilimitado. Movimento constante?" },
+      { bot: "Anual R$ 199,99/ano inclui foto por IA! Leve o cardápio antigo, eu leio." },
     ],
   },
 ];
@@ -615,102 +615,128 @@ function OutdoorDisplay() {
         });
         setVisible(true);
       }, 300);
-    }, 8000); // 8 segundos por passo - mais lento para comercial
+    }, 8000);
 
     return () => clearInterval(stepInterval);
   }, [currentScene.steps.length]);
 
   return (
-    <div className="relative h-full min-h-[500px] flex items-center justify-center">
-      {/* Outdoor realista no poste */}
-      <div className="relative w-full max-w-2xl">
-        <div className="relative mx-auto max-w-xl">
-          {/* Estrutura do outdoor */}
-          <div className="relative rounded-lg border-4 border-gray-700 bg-gradient-to-b from-gray-800 to-gray-900 p-1 shadow-2xl">
-            {/* Luz do outdoor */}
-            <div className="relative overflow-hidden rounded bg-gradient-to-br from-cyan-500/30 via-blue-600/20 to-violet-600/30">
-              <div
-                aria-hidden
-                className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"
-              />
-              
-              {/* Conteúdo do outdoor - comercial animado */}
-              <div className="relative p-8 sm:p-12">
-                <div className="space-y-5">
-                  {/* Título da cena */}
-                  <div className="text-center">
-                    <p
-                      className={cn(
-                        "font-display text-xl font-extrabold text-cyan-200 transition-all duration-500 sm:text-2xl lg:text-3xl",
-                        visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
-                      )}
-                    >
-                      {currentScene.title}
-                    </p>
-                    <p
-                      className={cn(
-                        "text-xs font-bold uppercase tracking-widest text-gray-400 transition-all duration-500 delay-100",
-                        visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
-                      )}
-                    >
-                      {currentScene.subtitle}
-                    </p>
-                  </div>
+    <div className="relative w-full max-w-2xl">
+      {/* Estrutura do outdoor - parece tela/gravação */}
+      <div className="relative rounded-lg border-4 border-gray-800 bg-gradient-to-b from-gray-900 to-black p-1 shadow-2xl">
+        {/* Moldura de tela */}
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-red-500" />
+          <div className="w-2 h-2 rounded-full bg-yellow-500" />
+          <div className="w-2 h-2 rounded-full bg-green-500" />
+        </div>
 
-                  {/* Passo atual */}
-                  <div
-                    className={cn(
-                      "rounded-2xl border border-white/10 bg-white/[0.05] p-4 transition-all duration-500",
-                      visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
+        {/* Conteúdo do outdoor - gravação de tela simulada */}
+        <div className="relative overflow-hidden rounded bg-gradient-to-br from-gray-800 to-gray-900 aspect-video">
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"
+          />
+          
+          {/* Simulação de tela */}
+          <div className="relative p-4 sm:p-6 h-full flex flex-col">
+            {/* Header da tela */}
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/10">
+              <span className="grid size-6 place-items-center rounded bg-cyan-500 text-black">
+                <Bot className="size-3" />
+              </span>
+              <span className="text-xs font-bold text-gray-300">Pracinha - Assistente IA</span>
+              <div className="ml-auto flex gap-1">
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-[10px] text-gray-500">Ao vivo</span>
+              </div>
+            </div>
+
+            {/* Área de chat */}
+            <div className="flex-1 space-y-3 overflow-hidden">
+              <div
+                className={cn(
+                  "space-y-3 transition-all duration-500",
+                  visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
+                )}
+              >
+                {/* Histórico de mensagens anteriores */}
+                {stepIndex > 0 && currentScene.steps.slice(0, stepIndex).map((msg, i) => (
+                  <div key={i} className="opacity-50">
+                    {msg.user && (
+                      <div className="flex justify-end">
+                        <div className="max-w-[80%] rounded-xl bg-cyan-500/10 border border-cyan-500/20 px-3 py-1.5">
+                          <p className="text-xs text-white">{msg.user}</p>
+                        </div>
+                      </div>
                     )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="grid size-8 place-items-center rounded-full bg-cyan-500/20 text-cyan-300">
-                        <span className="text-sm font-bold">{stepIndex + 1}</span>
-                      </span>
-                      <p className="text-sm text-gray-300">
-                        {currentStep.text}
-                      </p>
-                    </div>
-                    {currentStep.highlight && (
-                      <div className="ml-auto px-3 py-1 rounded-full bg-cyan-500/20">
-                        <p className="text-xs font-bold text-cyan-200">{currentStep.highlight}</p>
+                    {msg.bot && (
+                      <div className="flex justify-start">
+                        <div className="flex items-start gap-2 max-w-[80%]">
+                          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
+                            <Bot className="size-3" />
+                          </span>
+                          <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-1.5">
+                            <p className="text-xs text-gray-300">{msg.bot}</p>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
+                ))}
 
-                  {/* Indicador de progresso */}
-                  <div className="flex justify-center gap-1.5 pt-2">
-                    {currentScene.steps.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => {
-                          setStepIndex(i);
-                          setVisible(false);
-                          setTimeout(() => setVisible(true), 300);
-                        }}
-                        className={`h-1.5 rounded-full transition-all ${
-                          i === stepIndex ? "w-8 bg-cyan-400" : "w-1.5 bg-white/30"
-                        }`}
-                        aria-label={`Passo ${i + 1}`}
-                      />
-                    ))}
+                {/* Mensagem atual aparecendo */}
+                {currentStep.user && (
+                  <div className="flex justify-end animate-pop-in">
+                    <div className="max-w-[80%] rounded-xl bg-cyan-500/20 border border-cyan-500/30 px-3 py-1.5">
+                      <p className="text-xs text-white">{currentStep.user}</p>
+                    </div>
                   </div>
-
-                  <p className="text-[10px] text-gray-500 text-center mt-2">
-                    Cardápio Cidadela • Variant
-                  </p>
-                </div>
+                )}
+                {currentStep.bot && (
+                  <div className="flex justify-start animate-pop-in">
+                    <div className="flex items-start gap-2 max-w-[80%]">
+                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
+                        <Bot className="size-3" />
+                      </span>
+                      <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-1.5">
+                        <p className="text-xs text-gray-200">{currentStep.bot}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* POSTE do outdoor */}
-          <div className="relative mx-auto w-2 h-40 bg-gradient-to-b from-gray-700 via-gray-600 to-gray-800 shadow-xl mt-2">
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-gray-500/50 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-gray-500/50 to-transparent" />
+            {/* Indicador de progresso */}
+            <div className="flex justify-center gap-1.5 pt-3 border-t border-white/10">
+              {currentScene.steps.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setStepIndex(i);
+                    setVisible(false);
+                    setTimeout(() => setVisible(true), 300);
+                  }}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === stepIndex ? "w-8 bg-cyan-400" : "w-1.5 bg-white/30"
+                  }`}
+                  aria-label={`Passo ${i + 1}`}
+                />
+              ))}
+            </div>
+
+            <p className="text-[10px] text-gray-500 text-center mt-2">
+              Cardápio Cidadela • Variant
+            </p>
           </div>
         </div>
+      </div>
+
+      {/* POSTE do outdoor */}
+      <div className="relative mx-auto w-2 h-32 bg-gradient-to-b from-gray-700 via-gray-600 to-gray-800 shadow-xl mt-2">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-gray-500/50 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-gray-500/50 to-transparent" />
       </div>
     </div>
   );
@@ -1077,10 +1103,10 @@ function LandingPage() {
       </nav>
 
       {/* COCKPIT - tela única sem scroll */}
-      <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 items-center px-4 sm:px-6 lg:px-8">
-        <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* CANTO ESQUERDO - Botões de ação */}
-          <div className="flex flex-col justify-center lg:col-span-3">
+          <div className="flex flex-col justify-center lg:col-span-4">
             <div className="space-y-4">
               <p className="animate-reveal inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
                 <Sparkles className="size-3" /> Para micro-restaurantes
@@ -1137,9 +1163,9 @@ function LandingPage() {
             </div>
           </div>
 
-          {/* CANTO DIREITO - Outdoor animado */}
-          <div className="flex items-center justify-center lg:col-span-9">
-            <div className="relative w-full max-w-3xl">
+          {/* CANTO DIREITO SUPERIOR - Outdoor animado */}
+          <div className="lg:col-span-8 lg:col-start-5 flex justify-end">
+            <div className="relative w-full max-w-xl">
               <OutdoorDisplay />
             </div>
           </div>

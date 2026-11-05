@@ -652,14 +652,11 @@ function OutdoorDisplay() {
           <div className="relative p-4 sm:p-6 h-full flex flex-col">
             {/* Header da tela */}
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/10">
-              <span className="grid size-6 place-items-center rounded bg-cyan-500 text-black">
+              <span className="grid size-6 place-items-center rounded bg-cyan-500 text-black relative">
                 <Bot className="size-3" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               </span>
               <span className="text-xs font-bold text-gray-300">Pracinha - Assistente IA</span>
-              <div className="ml-auto flex gap-1">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-[10px] text-green-400">Online</span>
-              </div>
             </div>
 
             {/* Área de chat */}
@@ -717,21 +714,6 @@ function OutdoorDisplay() {
                 )}
               </div>
             </div>
-
-            {/* Indicador de digitando */}
-            {visible && (
-              <div className="flex justify-center pt-3 border-t border-white/10">
-                <div className="flex gap-1 items-center">
-                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-            )}
-
-            <p className="text-[10px] text-gray-500 text-center mt-2">
-              Cardápio Cidadela • Variant
-            </p>
           </div>
         </div>
       </div>

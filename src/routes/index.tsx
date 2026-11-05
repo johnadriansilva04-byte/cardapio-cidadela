@@ -1073,10 +1073,7 @@ function LandingPage() {
                   <ArrowRight className="size-5 shrink-0 text-gray-400 transition-transform group-hover:translate-x-1" />
                 </button>
 
-                <div className="pt-2">
-                  <p className="text-xs text-gray-500 mb-2">Calcule quanto economiza:</p>
-                  <InlineSimulator onOpenFull={() => openPanel("calc")} />
-                </div>
+                <InlineSimulator onOpenFull={() => openPanel("calc")} />
               </div>
             </div>
           </div>

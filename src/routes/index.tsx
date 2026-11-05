@@ -1133,9 +1133,9 @@ function LandingPage() {
               <h1 className="animate-reveal font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
                 {christmas ? (
                   <>
-                    Seu cardápio de Natal{" "}
+                    Seu cardápio no ar em minutos{" "}
                     <span className="text-shine bg-gradient-to-r from-red-400 via-emerald-300 to-red-400 bg-clip-text text-transparent">
-                      no ar em minutos.
+                      nesse Natal.
                     </span>
                   </>
                 ) : (
@@ -1183,7 +1183,7 @@ function LandingPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-base font-bold text-white">
-                      {christmas ? "Crie seu cardápio de Natal" : "Crie seu cardápio"}
+                      {christmas ? "Crie seu cardápio nesse Natal" : "Crie seu cardápio"}
                     </p>
                     <p className={cn("text-xs", christmas ? "text-red-200" : "text-cyan-200")}>
                       Monte grátis em minutos

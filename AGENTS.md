@@ -1094,6 +1094,22 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
   cai no fallback: o formulário usa a extração determinística
   (`parseRestaurantText`) e o chat devolve um texto-guia com o e-mail de suporte.
   Nada quebra, nada trava — só perde o "entender texto livre".
+- **⚠️ Resposta JSON do Workers AI vem como OBJETO, não string.** O
+  `llama-3.1-8b-fast-v2` devolve `result.response` já parseado quando a saída é
+  JSON (prosa continua vindo como string). O código só aceitava string, então
+  **toda** resposta JSON era descartada em silêncio e o chamador caía no
+  fallback — a IA parecia desligada (`ai:false`) mesmo com o token certo e HTTP
+  200. `extractAiText` (`ai.ts`) normaliza os dois formatos (`response`
+  string/objeto) e também `choices[0].message.content` (formato OpenAI); usada
+  por `runAi` e `runAiVision`, com teste próprio. Diagnóstico: o
+  `wrangler pages deployment tail` mostrava `logs: []` (o `runAi` nem era
+  chamado) e um `runAi("Responda: pong")` dentro do Worker devolvia `Pong!` —
+  provando que token e rede estavam certos e o problema era o parse.
+- **Antes de culpar o token, confira o formato da resposta.** O token
+  `CLOUDFLARE_AI_TOKEN` (server-only) é lido via `readEnv`, que funciona no
+  Pages (o `env` do handler chega por `process.env`); `SUPABASE_SERVICE_ROLE_KEY`
+  pelo mesmo caminho já funcionava. Um teste de `GET` que só imprime
+  `Boolean(readEnv(key))` por chave confirma a env sem vazar valor.
 - **A visão vai DENTRO de `messages`.** O modelo de visão
   (`llama-3.2-11b-vision-instruct`) recusa `image` como campo de topo:
   `AiError 3030: Unable to add image when there are no user-supplied nor
@@ -1103,13 +1119,6 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
   `scan_failed`. O modelo de visão também exige aceitar a licença da Meta UMA
   vez por conta (`POST {model}` com `{"prompt":"agree"}`); sem isso devolve
   `AiError 5016 Model Agreement`. Já aceito na conta de produção.
-- **⚠️ O `CLOUDFLARE_AI_TOKEN` gravado no Pages foi revogado (2026-11-04).** O
-  token que estava nas env (`cfut_56ud…`) passou a devolver `10000
-  Authentication error` em `/ai/run`, então **foto e chat de IA estão desligados
-  agora** (caem no fallback: parser determinístico / texto-guia — nada quebra).
-  Para religar: incluir `Workers AI → Read` no token e regravar com
-  `wrangler pages secret put CLOUDFLARE_AI_TOKEN`. O token atual do projeto
-  (`cfut_06LI…`) tem Pages + DNS, mas **não** Workers AI.
 - **Custo é irrelevante neste volume.** O Workers AI tem cota diária gratuita e
   só é chamado quando o dono cria/edita a loja ou pede ajuda — não é por pedido
   nem por visita. Centenas de conversas/dia cabem no gratuito.
@@ -1525,6 +1534,12 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
   rebatia os quatro payloads a cada 5 min mesmo com o cache fresco, o pior dos
   dois mundos. `getMenuWithProducts` também deduplica consultas em voo por
   restaurante (`inflightMenu`).
+- **O flag Premium também vive no snapshot.** Cada visita disparava a RPC
+  `store_is_premium` só para decidir se mostra o botão do garçom digital — mesmo
+  quando o cache fresco já evitava todo o resto. Agora o `isPremium` é gravado
+  junto do snapshot (`menuCache.ts`, `CACHE_VERSION` 3) e uma abertura com cache
+  fresco faz **zero** requisições ao Supabase; `load()` e a revalidação de
+  segundo plano atualizam o valor.
 - **Preço da cota em número de aberturas.** Payload do menu ~6,6 kB por visita
   fria; com banner WebP de 24 kB, cada visita gasta ~31 kB. Os 5 GB do plano
   gratuito cobrem ~160 mil visitas frias/mês (mais, porque o cache do navegador

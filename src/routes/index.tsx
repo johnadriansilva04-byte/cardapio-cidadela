@@ -550,12 +550,13 @@ const OUTDOOR_SCENES = [
   {
     type: "mortalidade",
     title: "Variant existe por um motivo",
-    subtitle: "80% das empresas fecham em 3 anos",
+    subtitle: "Comissão de 23-30% quebra pequenos negócios",
     steps: [
-      { bot: "📊 Eu sou o Pracinha. A Variant existe porque 80% das empresas fecham em 3 anos." },
-      { bot: "💸 Não é falta de cliente. É margem apertada, comissão alta, gasto escondido." },
-      { bot: "✂️ Nós cortamos esse gasto. Devolvemos a margem. O negócio continua de pé." },
-      { bot: "🏢 Cada loja que sobe é um fornecedor, um funcionário, uma família." },
+      { bot: "� Eu sou o Pracinha. A Variant existe porque 80% dos restaurantes fecham em 3 anos." },
+      { bot: "� Não é falta de cliente. É comissão de 23-30% nos apps que come sua margem." },
+      { bot: "📉 Pizza de R$ 50: você recebe R$ 30. Margem líquida de 3-5% é prejuízo silencioso." },
+      { bot: "🛡️ Zero comissão por pedido. Só paga R$ 1,99 quando tiver movimento. Sua margem volta pra você." },
+      { bot: "🏢 Cada loja que sobe é um fornecedor, um funcionário, uma família que não perde renda." },
     ],
   },
   {

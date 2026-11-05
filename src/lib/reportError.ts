@@ -12,6 +12,25 @@
 
 const sent = new Set<string>();
 
+/**
+ * Ruído de navegadores in-app (Instagram/Facebook `iabjs://`), não do app.
+ *
+ * O "Android WebView" do Instagram injeta um script próprio
+ * (`navigation_performance_logger_android`) que chama `postMessage` na bridge
+ * nativa. Quando o usuário fecha a aba no meio da navegação, a bridge já não
+ * existe e o script lança `Error invoking postMessage: Java object is gone` —
+ * o `window.onerror` do nosso root captura e reporta, mas a falha é 100% do
+ * host (o app nunca usa `postMessage`). Filtrar evita abrir um caso urgente de
+ * "cardápio quebrado" para um erro que não afeta nenhum cliente.
+ */
+const BRIDGE_NOISE = /iabjs:\/\/|Java object is gone/i;
+
+/** `true` quando o erro vem da bridge do navegador in-app, não do app. */
+export function isThirdPartyBridgeNoise(error: unknown): boolean {
+  const { message, stack } = describe(error);
+  return BRIDGE_NOISE.test(message) || (!!stack && BRIDGE_NOISE.test(stack));
+}
+
 function describe(error: unknown): { message: string; stack?: string } {
   if (error instanceof Error) {
     return { message: error.message || error.name, stack: error.stack };
@@ -29,6 +48,7 @@ export function reportError(
   context: { component?: string; storeId?: string; storeName?: string } = {},
 ): void {
   if (typeof window === "undefined") return;
+  if (isThirdPartyBridgeNoise(error)) return;
   const { message, stack } = describe(error);
   if (!message) return;
 

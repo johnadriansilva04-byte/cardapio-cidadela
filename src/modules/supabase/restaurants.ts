@@ -5,18 +5,26 @@ import type { Restaurant, RestaurantStatus, DeliveryNeighborhood } from "@/lib/t
 // Cache admin_trials availability per session to avoid repeated 400 errors
 let _adminTrialsAvailable: boolean | null = null;
 
+// Colunas que o cardápio público realmente lê. Deixa de fora `owner_id`
+// (UUID do dono), `created_at`, `updated_at` e `slogan`: o visitante anônimo
+// não precisa delas, e `owner_id` vazando para o cardápio público é exposição
+// desnecessária. É o mesmo raciocínio de CATEGORY_COLUMNS/PRODUCT_COLUMNS.
+const PUBLIC_RESTAURANT_COLUMNS =
+  "id, name, slug, description, phone, whatsapp, address, logo_url, banner_url, " +
+  "primary_color, secondary_color, status, pix_key, delivery_fee, operating_hours";
+
 /**
  * Resolve a slug to a restaurant
  */
 export async function getRestaurantBySlug(slug: string): Promise<Restaurant | null> {
   const { data, error } = await supabase
     .from("restaurants")
-    .select("*")
+    .select(PUBLIC_RESTAURANT_COLUMNS)
     .eq("slug", slug)
     .maybeSingle();
 
   if (error || !data) return null;
-  return data as Restaurant;
+  return data as unknown as Restaurant;
 }
 
 /**

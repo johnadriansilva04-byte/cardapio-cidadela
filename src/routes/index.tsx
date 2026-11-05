@@ -186,7 +186,7 @@ function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
       </div>
 
       <p className="mt-2 text-[10px] text-gray-400">
-        Coloque quanto você paga por mês em comissão e veja quanto economiza conosco.
+        Coloque quanto você paga por mês em comissão e mensalidade, veja quanto economiza conosco.
       </p>
 
       <div className="mt-3 flex flex-wrap items-end gap-3">

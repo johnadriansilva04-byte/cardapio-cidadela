@@ -877,6 +877,55 @@
 }
 
 /* ============================================================
+   Galáxia animada - estrelas, cometas e planetas
+   ============================================================ */
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes comet {
+  0% {
+    transform: translateX(100%) translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(-100%) translateY(-50px);
+    opacity: 0;
+  }
+}
+
+@keyframes planet {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(5deg);
+  }
+}
+
+@utility animate-comet {
+  animation: comet 8s linear infinite;
+}
+
+@utility animate-planet {
+  animation: planet 12s ease-in-out infinite;
+}
+
+/* ============================================================
    Selo de plano — vive no cabeçalho de toda tela autenticada
    ============================================================ */
 

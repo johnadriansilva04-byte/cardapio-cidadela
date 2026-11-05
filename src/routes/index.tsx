@@ -546,42 +546,85 @@ function VariantBand() {
    Textos alternantes mostrando benefícios no canto direito
    ============================================================ */
 
-const OUTDOOR_MESSAGES = [
-  { text: "80% das empresas fecham em 3 anos. Você não precisa ser um deles.", icon: TrendingUp },
-  { text: "A Variant existe para reduzir a mortalidade de pequenos negócios.", icon: Store },
-  { text: "Cardápio Cidadela: nossa primeira ferramenta pra você escalar.", icon: UtensilsCrossed },
-  { text: "0% de comissão. O que o cliente paga é seu.", icon: ShieldCheck },
-  { text: "Diária de R$ 1,99 só quando tiver pedido.", icon: Clock },
-  { text: "Pracinha: garçom digital IA, inspirado na Força Expedicionária Brasileira.", icon: Bot },
-  { text: "Monte conversando, sem formulário de 20 campos.", icon: MessageCircle },
-  { text: "Leia cardápio por foto (plano anual).", icon: Sparkles },
+const OUTDOOR_SCENES = [
+  {
+    type: "chat",
+    title: "Monte conversando",
+    subtitle: "Sem formulário de 20 campos",
+    steps: [
+      { text: "Nome do restaurante?", highlight: "Variant Burger" },
+      { text: "WhatsApp?", highlight: "(48) 99999-9999" },
+      { text: "Endereço?", highlight: "Rua das Flores, 123" },
+      { text: "Cardápio pronto! 🎉", highlight: "3 categorias, 8 itens" },
+    ],
+  },
+  {
+    type: "garcom",
+    title: "Garçom digital IA",
+    subtitle: "Responde na hora no seu painel",
+    steps: [
+      { text: "Cliente: 'Quanto custa o X-Burger?'", highlight: "" },
+      { text: "Pracinha: 'R$ 29,00 com cheddar'", highlight: "" },
+      { text: "Cliente: 'Tem batata?'", highlight: "" },
+      { text: "Pracinha: 'Sim, R$ 18,00 rústica'", highlight: "" },
+    ],
+  },
+  {
+    type: "assinatura",
+    title: "Assine quando precisar",
+    subtitle: "Diária, Mensal ou Anual",
+    steps: [
+      { text: "Vá em Assinatura", highlight: "" },
+      { text: "Escolha: Diária R$ 1,99", highlight: "24h" },
+      { text: "Ou Premium: R$ 28,99/mês", highlight: "Ilimitado" },
+      { text: "Anual: R$ 199,99/ano", highlight: "Foto por IA" },
+    ],
+  },
+  {
+    type: "cardapio",
+    title: "Cardápio nunca trava",
+    subtitle: "Mesmo sem pagamento, cliente pede",
+    steps: [
+      { text: "5 pedidos grátis por mês", highlight: "Grátis" },
+      { text: "Depois: diária ou Premium", highlight: "Escolha" },
+      { text: "Cliente sempre vê o cardápio", highlight: "Sempre" },
+      { text: "Pedido chega com preço e endereço", highlight: "Garan" },
+    ],
+  },
 ];
 
 function OutdoorDisplay() {
-  const [index, setIndex] = useState(0);
+  const [sceneIndex, setSceneIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(0);
   const [visible, setVisible] = useState(true);
 
+  const currentScene = OUTDOOR_SCENES[sceneIndex];
+  const currentStep = currentScene.steps[stepIndex];
+
   useEffect(() => {
-    const interval = setInterval(() => {
+    const stepInterval = setInterval(() => {
       setVisible(false);
       setTimeout(() => {
-        setIndex((prev) => (prev + 1) % OUTDOOR_MESSAGES.length);
+        setStepIndex((prev) => {
+          const next = prev + 1;
+          if (next >= currentScene.steps.length) {
+            setSceneIndex((s) => (s + 1) % OUTDOOR_SCENES.length);
+            return 0;
+          }
+          return next;
+        });
         setVisible(true);
       }, 300);
-    }, 4000);
+    }, 6000);
 
-    return () => clearInterval(interval);
-  }, []);
-
-  const current = OUTDOOR_MESSAGES[index];
-  const Icon = current.icon;
+    return () => clearInterval(stepInterval);
+  }, [currentScene.steps.length]);
 
   return (
-    <div className="relative h-full min-h-[550px] flex items-center justify-center">
-      {/* Outdoor com casinha/galpão da Variant embaixo */}
+    <div className="relative h-full min-h-[500px] flex items-center justify-center">
+      {/* Outdoor realista no poste */}
       <div className="relative w-full max-w-2xl">
-        {/* Poste do outdoor em cima */}
-        <div className="relative mx-auto max-w-xl mb-4">
+        <div className="relative mx-auto max-w-xl">
           {/* Estrutura do outdoor */}
           <div className="relative rounded-lg border-4 border-gray-700 bg-gradient-to-b from-gray-800 to-gray-900 p-1 shadow-2xl">
             {/* Luz do outdoor */}
@@ -591,135 +634,81 @@ function OutdoorDisplay() {
                 className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"
               />
               
-              {/* Conteúdo do outdoor */}
+              {/* Conteúdo do outdoor - comercial animado */}
               <div className="relative p-8 sm:p-12">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-12 place-items-center rounded-xl bg-cyan-500 text-black shadow-lg">
-                      <Icon className="size-6" />
-                    </span>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-200">
-                        Variant
-                      </p>
-                      <p className="text-[9px] text-gray-300">Tecnologia para o pequeno negócio</p>
-                    </div>
+                <div className="space-y-5">
+                  {/* Título da cena */}
+                  <div className="text-center">
+                    <p
+                      className={cn(
+                        "font-display text-xl font-extrabold text-cyan-200 transition-all duration-500 sm:text-2xl lg:text-3xl",
+                        visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
+                      )}
+                    >
+                      {currentScene.title}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-xs font-bold uppercase tracking-widest text-gray-400 transition-all duration-500 delay-100",
+                        visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
+                      )}
+                    >
+                      {currentScene.subtitle}
+                    </p>
                   </div>
-                  
-                  <p
+
+                  {/* Passo atual */}
+                  <div
                     className={cn(
-                      "font-display text-2xl font-extrabold leading-tight text-white transition-all duration-300 sm:text-3xl lg:text-4xl",
+                      "rounded-2xl border border-white/10 bg-white/[0.05] p-4 transition-all duration-500",
                       visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
                     )}
                   >
-                    {current.text}
-                  </p>
-
-                  <div className="flex items-center gap-4 pt-2">
-                    <div className="flex gap-1">
-                      {OUTDOOR_MESSAGES.map((_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setIndex(i)}
-                          className={`h-1 rounded-full transition-all ${
-                            i === index ? "w-4 bg-cyan-400" : "w-1 bg-white/30"
-                          }`}
-                          aria-label={`Mensagem ${i + 1}`}
-                        />
-                      ))}
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-8 place-items-center rounded-full bg-cyan-500/20 text-cyan-300">
+                        <span className="text-sm font-bold">{stepIndex + 1}</span>
+                      </span>
+                      <p className="text-sm text-gray-300">
+                        {currentStep.text}
+                      </p>
                     </div>
-                    <p className="text-[10px] text-gray-400 ml-auto">
-                      Cardápio Cidadela
-                    </p>
+                    {currentStep.highlight && (
+                      <div className="ml-auto px-3 py-1 rounded-full bg-cyan-500/20">
+                        <p className="text-xs font-bold text-cyan-200">{currentStep.highlight}</p>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Indicador de progresso */}
+                  <div className="flex justify-center gap-1.5 pt-2">
+                    {currentScene.steps.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          setStepIndex(i);
+                          setVisible(false);
+                          setTimeout(() => setVisible(true), 300);
+                        }}
+                        className={`h-1.5 rounded-full transition-all ${
+                          i === stepIndex ? "w-8 bg-cyan-400" : "w-1.5 bg-white/30"
+                        }`}
+                        aria-label={`Passo ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+
+                  <p className="text-[10px] text-gray-500 text-center mt-2">
+                    Cardápio Cidadela • Variant
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* POSTE/BRAÇO do outdoor */}
-          <div className="relative mx-auto w-1 h-32 bg-gradient-to-b from-gray-700 to-gray-800 shadow-xl">
+          {/* POSTE do outdoor */}
+          <div className="relative mx-auto w-2 h-40 bg-gradient-to-b from-gray-700 via-gray-600 to-gray-800 shadow-xl mt-2">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-gray-500/50 to-transparent" />
-          </div>
-
-          {/* CASINHA/GALPÃO DA VARIANT - QG */}
-          <div className="relative mx-auto max-w-lg">
-            <div className="relative">
-              {/* Telhado */}
-              <div className="relative h-20 bg-gradient-to-b from-violet-900 to-violet-950 border-t-2 border-violet-500/30 rounded-t-lg shadow-xl">
-                {/* Detalhes do telhado */}
-                <div className="absolute inset-x-4 top-2 h-1 bg-violet-500/20" />
-                <div className="absolute inset-x-8 top-4 h-1 bg-violet-500/10" />
-                
-                {/* Chaminé */}
-                <div className="absolute right-8 -top-8 w-6 h-10 bg-gradient-to-b from-violet-800 to-violet-900 border-2 border-violet-500/40 rounded-t shadow-lg">
-                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-2 bg-violet-500/30 rounded-full blur-sm" />
-                </div>
-              </div>
-
-              {/* Corpo da casinha */}
-              <div className="relative bg-gradient-to-b from-violet-950 via-violet-900 to-violet-950 border-x-2 border-violet-500/20 px-6 py-8">
-                {/* Logo da Variant */}
-                <div className="flex flex-col items-center gap-3 mb-4">
-                  <div className="relative">
-                    <div className="animate-aurora absolute -inset-3 rounded-full bg-violet-500/30 blur-xl" />
-                    <div className="relative grid size-16 place-items-center rounded-xl bg-gradient-to-br from-violet-600 to-violet-800 border-2 border-violet-400/50 shadow-[0_0_30px_rgba(139,92,246,0.4)]">
-                      <VariantMark variant="full" className="size-10" />
-                    </div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <p className="font-display text-base font-black text-violet-200">
-                      {VARIANT.name}
-                    </p>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-violet-300">
-                      QG
-                    </p>
-                  </div>
-                </div>
-
-                {/* Janelas com luz */}
-                <div className="flex justify-center gap-4 mb-4">
-                  <div className="relative w-12 h-10 bg-gradient-to-b from-cyan-500/30 to-cyan-600/10 border-2 border-cyan-400/40 rounded shadow-[0_0_20px_rgba(34,211,238,0.3)]">
-                    <div className="absolute inset-1 bg-cyan-400/20" />
-                    {/* Silhueta de alguém trabalhando */}
-                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-2 h-4 bg-gray-900/80 rounded-t" />
-                  </div>
-                  <div className="relative w-12 h-10 bg-gradient-to-b from-cyan-500/30 to-cyan-600/10 border-2 border-cyan-400/40 rounded shadow-[0_0_20px_rgba(34,211,238,0.3)]">
-                    <div className="absolute inset-1 bg-cyan-400/20" />
-                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-2 h-4 bg-gray-900/80 rounded-t" />
-                  </div>
-                </div>
-
-                {/* Porta */}
-                <div className="relative mx-auto w-16 h-20 bg-gradient-to-b from-violet-800 to-violet-900 border-2 border-violet-500/30 rounded-t shadow-inner">
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-violet-500/40 rounded-full" />
-                  {/* Placa da porta */}
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-violet-500/20 px-2 py-0.5 rounded">
-                    <p className="text-[7px] font-bold text-violet-200 text-center">ABERTO</p>
-                  </div>
-                </div>
-
-                {/* Placa informativa */}
-                <div className="mt-4 rounded-lg border border-violet-500/30 bg-violet-500/[0.06] p-3">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-violet-300 mb-1">
-                    Sede
-                  </p>
-                  <p className="text-[10px] text-gray-300 leading-relaxed text-center">
-                    Onde construimos ferramentas para seu negócio não fechar.
-                  </p>
-                </div>
-
-                {/* Detalhes do fundo */}
-                <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-violet-400/30 to-transparent" />
-              </div>
-
-              {/* Base da casinha */}
-              <div className="relative h-4 bg-gradient-to-b from-violet-950 to-black border-x-2 border-violet-500/10 border-b-2 border-violet-500/20" />
-              
-              {/* Chão */}
-              <div className="h-3 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-b shadow-lg" />
-            </div>
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-gray-500/50 to-transparent" />
           </div>
         </div>
       </div>
@@ -951,9 +940,10 @@ type LandingView = (typeof TABS)[number]["key"];
 
 /**
  * COCKPIT SEM SCROLL - aba única
+ * Fundo galáxia animado com estrelas, cometas e planetas
  * Canto esquerdo: botões de ação
  * Meio: slogan principal
- * Canto direito: outdoor animado com features
+ * Canto direito: outdoor animado no poste
  * Tudo abre em painéis
  */
 function LandingPage() {
@@ -969,14 +959,40 @@ function LandingPage() {
   const closePanel = () => setPanel(null);
 
   return (
-    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#07070c] text-white selection:bg-cyan-400/30">
-      {/* Fundo autoral */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="variant-grid absolute inset-0" />
-        <div className="variant-grid-nodes absolute inset-0" />
-        <div className="animate-aurora absolute left-1/2 top-0 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/15 blur-[130px]" />
-        <div className="animate-aurora absolute -left-24 top-1/3 h-[360px] w-[360px] rounded-full bg-violet-600/10 blur-[110px] [animation-delay:3s]" />
-        <div className="animate-aurora absolute -right-24 bottom-0 h-[340px] w-[440px] rounded-full bg-blue-500/10 blur-[120px] [animation-delay:6s]" />
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden text-white selection:bg-cyan-400/30">
+      {/* Fundo galáxia animado com estrelas, cometas e planetas */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden bg-gradient-to-b from-[#0a0a1a] via-[#0f0f2a] to-[#070714]">
+        {/* Estrelas estáticas */}
+        <div className="absolute inset-0">
+          {[...Array(100)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full bg-white"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                width: `${Math.random() * 2 + 1}px`,
+                height: `${Math.random() * 2 + 1}px`,
+                opacity: Math.random() * 0.5 + 0.2,
+                animation: `twinkle ${Math.random() * 3 + 2}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Cometa animado */}
+        <div className="absolute top-20 right-10 w-32 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent rounded-full opacity-60 animate-comet">
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-cyan-300 rounded-full blur-sm" />
+        </div>
+
+        {/* Planeta animado */}
+        <div className="absolute bottom-20 left-10 w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 opacity-40 animate-planet">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-2 bg-violet-400/30 rounded-full -rotate-12" />
+        </div>
+
+        {/* Nebulosa */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-br from-cyan-500/10 to-violet-500/10 rounded-full blur-3xl animate-aurora" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl animate-aurora [animation-delay:2s]" />
       </div>
 
       {/* Navbar */}
@@ -1122,77 +1138,9 @@ function LandingPage() {
           </div>
 
           {/* CANTO DIREITO - Outdoor animado */}
-          <div className="flex items-center justify-center lg:col-span-6">
-            <div className="relative w-full max-w-2xl">
+          <div className="flex items-center justify-center lg:col-span-9">
+            <div className="relative w-full max-w-3xl">
               <OutdoorDisplay />
-            </div>
-          </div>
-
-          {/* CANTO DIREITO EXTRA - Identidade Variant e Pracinha */}
-          <div className="hidden flex-col justify-center lg:flex lg:col-span-3">
-            <div className="space-y-4">
-              {/* Variant - Missão */}
-              <div className="rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="grid size-8 place-items-center rounded-lg bg-violet-500/20 text-violet-300">
-                    <Store className="size-4" />
-                  </span>
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-violet-300">
-                      {VARIANT.name}
-                    </p>
-                    <p className="text-[9px] text-gray-400">Tecnologia para o pequeno negócio</p>
-                  </div>
-                </div>
-                <p className="text-xs leading-relaxed text-gray-300">
-                  {VARIANT.tagline}
-                </p>
-                <p className="mt-2 text-[10px] text-gray-400">
-                  80% das empresas fecham em 3 anos. A Variant existe para reduzir essa mortalidade.
-                </p>
-              </div>
-
-              {/* Pracinha - Identidade FEB */}
-              <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.06] p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="grid size-8 place-items-center rounded-lg bg-cyan-500/20 text-cyan-300">
-                    <Bot className="size-4" />
-                  </span>
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-300">
-                      Pracinha
-                    </p>
-                    <p className="text-[9px] text-gray-400">IA • Atendimento e Suporte</p>
-                  </div>
-                </div>
-                <p className="text-xs leading-relaxed text-gray-300">
-                  Garçom digital inspirado na Força Expedicionária Brasileira. Responde na hora, vai ao combate, leva o caso pra engenharia.
-                </p>
-                <p className="mt-2 text-[10px] text-gray-400">
-                  "Pracinha: quem vai à luta pelo seu negócio."
-                </p>
-              </div>
-
-              {/* Marketing forte */}
-              <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-300">
-                  Por que Cidadela?
-                </p>
-                <ul className="mt-2 space-y-2">
-                  <li className="flex items-start gap-2 text-[10px] text-gray-300">
-                    <Check className="mt-0.5 size-3 shrink-0 text-emerald-400" />
-                    <span>App de entrega cobra 15-30%. Cidadela: 0%.</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-[10px] text-gray-300">
-                    <Check className="mt-0.5 size-3 shrink-0 text-emerald-400" />
-                    <span>Cardápio nunca trava, mesmo sem pagamento.</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-[10px] text-gray-300">
-                    <Check className="mt-0.5 size-3 shrink-0 text-emerald-400" />
-                    <span>Diária só quando usar. Premium anual com foto.</span>
-                  </li>
-                </ul>
-              </div>
             </div>
           </div>
         </div>

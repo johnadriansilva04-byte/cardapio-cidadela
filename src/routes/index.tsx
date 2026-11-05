@@ -56,8 +56,7 @@ import { GuidePanel } from "@/modules/ui/GuidePanel";
 import { VariantMark } from "@/components/brand/VariantMark";
 
 /** Painéis do hub da landing. `null` = nenhum aberto. */
-type LandingPanel =
-  "calc" | "recursos" | "marca" | "pracinha" | "preco" | "variant" | "faq" | "templates" | null;
+type LandingPanel = "calc" | "preco" | "faq" | null;
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -385,32 +384,120 @@ function LossCalculator() {
 }
 
 /* ============================================================
-   Variant — quem está por trás e por quê
+   Monte a loja conversando (chat + IA) — SEÇÃO VISÍVEL
+   O wizard de criação e o garçom digital são o que vende o produto.
+   Antes viviam em abas ("Montagem"/"Pracinha") que ninguém abria.
    ============================================================ */
 
-function VariantSection() {
+const CHAT_HIGHLIGHTS = [
+  "Uma pergunta por vez, do jeito que o dono fala",
+  "Monta itens, preços e categorias enquanto você responde",
+  "Importa o cardápio antigo por foto",
+  "Funciona no celular, na correria do balcão",
+];
+
+const WAITER_HIGHLIGHTS = [
+  "Responde na hora, dentro do próprio painel",
+  "Vai com o contexto da sua tela — sem print",
+  "Se for técnico, cai direto na engenharia da Variant",
+  "Avisa por e-mail para o time não perder nenhum caso",
+];
+
+function ChatAiSection() {
   return (
-    <div className="relative">
-      <div className="relative">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
-            <Store className="size-3.5" /> Quem faz
-          </span>
-          <VariantMark variant="full" className="mx-auto mt-6 size-20" />
-          <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
-            {VARIANT.name} existe por um motivo.
-          </h2>
-          <p className="mt-3 font-display text-lg font-bold text-violet-300">{VARIANT.tagline}</p>
-          <p className="mt-5 text-sm leading-relaxed text-gray-400 sm:text-base">
-            {VARIANT.mission}
+    <section id="chat" className="mt-14 scroll-mt-20">
+      <div className="mx-auto max-w-2xl text-center">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
+          <MessageCircle className="size-3.5" /> Monte a loja conversando
+        </span>
+        <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
+          Você não preenche formulário. <span className="text-violet-300">Você conversa.</span>
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-gray-400 sm:text-base">
+          A Pracinha pergunta o nome, o WhatsApp e o endereço — e o cardápio se monta sozinho.
+          Depois ela fica no painel como seu garçom digital, respondendo na hora.
+        </p>
+      </div>
+
+      <div className="mt-8 grid items-center gap-8 lg:grid-cols-2">
+        <div className="order-2 lg:order-1">
+          <h3 className="font-display text-lg font-extrabold sm:text-xl">
+            Seu cardápio nasce <span className="text-violet-300">numa conversa.</span>
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-gray-400">
+            Sem formulário de 20 campos. Quer mais rápido? Tire uma foto do cardápio antigo.
           </p>
+          <ul className="mt-4 space-y-2">
+            {CHAT_HIGHLIGHTS.map((t) => (
+              <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
+                <Check className="mt-0.5 size-4 shrink-0 text-violet-400" /> {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="order-1 lg:order-2">
+          <WizardChat />
+        </div>
+      </div>
+
+      <div className="mt-12 grid items-center gap-8 lg:grid-cols-2">
+        <div className="order-1">
+          <WaiterChat />
+        </div>
+        <div className="order-2">
+          <h3 className="font-display text-lg font-extrabold sm:text-xl">
+            Um garçom que nunca <span className="text-cyan-300">sai do salão.</span>
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-gray-400">
+            O Pracinha atende na hora, dentro do seu painel. Se for coisa técnica, ele leva o caso
+            pro time com o contexto da sua tela.
+          </p>
+          <ul className="mt-4 space-y-2">
+            {WAITER_HIGHLIGHTS.map((t) => (
+              <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
+                <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   Variant — quem está por trás (SEÇÃO VISÍVEL)
+   A identidade é parte da venda: o dono precisa saber em quem
+   está confiando. Antes ficava só no painel "Quem faz".
+   ============================================================ */
+
+function VariantBand() {
+  return (
+    <section id="variant" className="mt-14 scroll-mt-20">
+      <div className="rounded-3xl border border-white/[0.07] bg-white/[0.02] p-6 sm:p-10">
+        <div className="grid items-center gap-8 lg:grid-cols-[auto_1fr]">
+          <div className="mx-auto lg:mx-0">
+            <VariantMark variant="full" className="size-24" />
+          </div>
+          <div className="text-center lg:text-left">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
+              <Store className="size-3.5" /> Quem faz
+            </span>
+            <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
+              {VARIANT.name} existe por um motivo.
+            </h2>
+            <p className="mt-2 font-display text-base font-bold text-violet-300">
+              {VARIANT.tagline}
+            </p>
+            <p className="mt-4 text-sm leading-relaxed text-gray-400">{VARIANT.mission}</p>
+          </div>
         </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
           {VARIANT.pillars.map((p) => (
             <div
               key={p.title}
-              className="card-lift rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6"
+              className="card-lift rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5"
             >
               <span className="grid size-10 place-items-center rounded-xl bg-violet-500/10 text-violet-300">
                 <Check className="size-5" />
@@ -421,18 +508,16 @@ function VariantSection() {
           ))}
         </div>
 
-        <div className="mt-10 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 text-center">
-          <p className="text-sm leading-relaxed text-gray-400">
-            Cada loja que continua aberta é um fornecedor, um funcionário e uma família que não
-            perdem a renda.{" "}
-            <strong className="font-bold text-white">
-              Reduzir a mortalidade das pequenas empresas não é slogan — é a razão de existir da{" "}
-              {VARIANT.name}.
-            </strong>
-          </p>
-        </div>
+        <p className="mt-8 text-center text-sm leading-relaxed text-gray-400">
+          Cada loja que continua aberta é um fornecedor, um funcionário e uma família que não perdem
+          a renda.{" "}
+          <strong className="font-bold text-white">
+            Reduzir a mortalidade das pequenas empresas não é slogan — é a razão de existir da{" "}
+            {VARIANT.name}.
+          </strong>
+        </p>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -652,10 +737,8 @@ function NavAccount({ className }: { className?: string }) {
 
 const TABS = [
   { key: "cardapio", label: "Cardápio", icon: UtensilsCrossed },
-  { key: "montagem", label: "Montagem", icon: Sparkles },
   { key: "templates", label: "Templates", icon: LayoutTemplate },
   { key: "recursos", label: "Recursos", icon: ChefHat },
-  { key: "pracinha", label: "Pracinha", icon: MessageCircle },
 ] as const;
 
 type LandingView = (typeof TABS)[number]["key"];
@@ -675,6 +758,11 @@ function LandingPage() {
   const [tutorialStep, setTutorialStep] = useState(0);
   const [panel, setPanel] = useState<LandingPanel>(null);
   const [view, setView] = useState<LandingView>("cardapio");
+
+  function scrollToSection(id: string) {
+    setMenuOpen(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   function openPanel(p: NonNullable<LandingPanel>) {
     setMenuOpen(false);
@@ -718,7 +806,7 @@ function LandingPage() {
               Economia
             </button>
             <button
-              onClick={() => openPanel("variant")}
+              onClick={() => scrollToSection("variant")}
               className="text-sm text-gray-400 transition-colors hover:text-white"
             >
               Quem faz
@@ -750,7 +838,6 @@ function LandingPage() {
               [
                 ["preco", "Preços"],
                 ["calc", "Economia"],
-                ["variant", "Quem faz"],
                 ["faq", "Dúvidas"],
               ] as const
             ).map(([key, label]) => (
@@ -771,16 +858,25 @@ function LandingPage() {
             >
               <BookOpen className="size-4" /> Tutorial
             </button>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                scrollToSection("variant");
+              }}
+              className="col-span-2 flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+            >
+              <Store className="size-4" /> Quem faz
+            </button>
           </div>
         )}
       </nav>
 
       {/* Conteúdo: única área com scroll (interno) — a página em si não rola. */}
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-5 sm:px-6 lg:min-h-0">
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-5 sm:px-6 lg:py-8">
         {/* Cockpit: texto à esquerda, cardápio à direita, lado a lado. No
             celular empilha (texto em cima, cardápio embaixo) — nada de deixar
             o cardápio espremido numa faixa. */}
-        <div className="flex flex-col gap-5 lg:min-h-0 lg:flex-1 lg:flex-row lg:items-stretch lg:gap-8">
+        <div className="flex flex-col gap-5 lg:min-h-[540px] lg:flex-row lg:items-stretch lg:gap-8">
           <div className="text-center lg:flex lg:min-h-0 lg:w-[38%] lg:flex-col lg:justify-center lg:text-left">
             <div>
               <p className="animate-reveal mb-2 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
@@ -837,7 +933,7 @@ function LandingPage() {
           </div>
 
           {/* Coluna direita: só o cardápio — abas + painel. */}
-          <div className="flex flex-col gap-3 lg:w-[62%] lg:min-h-0">
+          <div className="flex flex-col gap-3 lg:w-[62%]">
             {/* Abas */}
             <div className="mt-5 flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {TABS.map((t) => {
@@ -862,7 +958,7 @@ function LandingPage() {
             </div>
 
             {/* Painel vivo: a aba troca o conteúdo na hora. */}
-            <div className="relative flex shrink-0 flex-col rounded-3xl border border-white/[0.07] bg-white/[0.02] lg:min-h-0 lg:flex-1">
+            <div className="relative flex flex-col rounded-3xl border border-white/[0.07] bg-white/[0.02]">
               <div className="relative flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-4 py-2.5">
                 <span className="size-2 animate-pulse rounded-full bg-emerald-400" />
                 <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
@@ -879,7 +975,7 @@ function LandingPage() {
                   className="animate-scan pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-cyan-400/12 to-transparent"
                 />
               </div>
-              <div className="p-4 sm:p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="p-4 sm:p-6">
                 {/* key={view} remonta o conteúdo a cada troca, disparando a
                 animação de entrada — a aba "abre" em vez de só aparecer. */}
                 <div key={view} className="animate-panel">
@@ -890,34 +986,6 @@ function LandingPage() {
                         no seu painel. Sem comissão.
                       </p>
                       <MenuReveal />
-                    </div>
-                  )}
-
-                  {view === "montagem" && (
-                    <div className="grid items-center gap-6 lg:grid-cols-2">
-                      <div>
-                        <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
-                          Seu cardápio nasce <span className="text-violet-300">numa conversa.</span>
-                        </h2>
-                        <p className="mt-3 text-sm leading-relaxed text-gray-400">
-                          Sem formulário de 20 campos. A Pracinha pergunta o nome, o WhatsApp, o
-                          endereço — e o cardápio se monta sozinho. Quer mais rápido? Tire uma foto
-                          do cardápio antigo.
-                        </p>
-                        <ul className="mt-4 space-y-2">
-                          {[
-                            "Uma pergunta por vez, do jeito que o dono fala",
-                            "Monta itens, preços e categorias enquanto você responde",
-                            "Importa o cardápio antigo por foto",
-                            "Funciona no celular, na correria do balcão",
-                          ].map((t) => (
-                            <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
-                              <Check className="mt-0.5 size-4 shrink-0 text-violet-400" /> {t}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <WizardChat />
                     </div>
                   )}
 
@@ -976,38 +1044,13 @@ function LandingPage() {
                       </div>
                     </div>
                   )}
-
-                  {view === "pracinha" && (
-                    <div className="grid items-center gap-6 lg:grid-cols-2">
-                      <div>
-                        <h2 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
-                          Um garçom que nunca <span className="text-cyan-300">sai do salão.</span>
-                        </h2>
-                        <p className="mt-3 text-sm leading-relaxed text-gray-400">
-                          O Pracinha atende na hora, dentro do seu painel. Se for coisa técnica, ele
-                          leva o caso pro time com o contexto da sua tela.
-                        </p>
-                        <ul className="mt-4 space-y-2">
-                          {[
-                            "Responde na hora, dentro do próprio painel",
-                            "Vai com o contexto da sua tela — sem print",
-                            "Se for técnico, cai direto na engenharia da Variant",
-                            "Avisa por e-mail para o time não perder nenhum caso",
-                          ].map((t) => (
-                            <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
-                              <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <WaiterChat />
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
+        <ChatAiSection />
+        <VariantBand />
       </main>
 
       {/* Rodapé compacto */}
@@ -1021,7 +1064,7 @@ function LandingPage() {
           </div>
           <div className="flex items-center gap-4 text-[11px] text-gray-500">
             <button
-              onClick={() => openPanel("variant")}
+              onClick={() => scrollToSection("variant")}
               className="transition-colors hover:text-gray-300"
             >
               A Variant
@@ -1157,17 +1200,6 @@ function LandingPage() {
             </div>
           </div>
         </div>
-      </GuidePanel>
-
-      <GuidePanel
-        open={panel === "variant"}
-        onOpenChange={(o) => !o && closePanel()}
-        title="Quem faz"
-        icon={<Store className="size-4" />}
-        tone="violet"
-        width="lg"
-      >
-        <VariantSection />
       </GuidePanel>
 
       <GuidePanel

@@ -134,20 +134,29 @@ for (const route of ["/", "/terms", "/privacy"]) {
   });
 }
 
-test("a home é um bloco único: a página não rola", async ({ page }) => {
+test("a home rola de propósito e nada que vende fica escondido", async ({ page }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  // O herói, as abas e o painel cabem na viewport. O único scroll é o de
-  // dentro do painel; o documento em si não cresce.
+  // A página ROLA: as seções vivas (chat+IA e Variant) ficam visíveis, não
+  // atrás de uma aba. Antes era um cockpit de uma tela só, e o que vendia o
+  // produto ficava em abas que ninguém abria.
   const overflow = await page.evaluate(() => {
     const el = document.documentElement;
     return el.scrollHeight - el.clientHeight;
   });
-  expect(overflow).toBeLessThanOrEqual(4);
+  expect(overflow).toBeGreaterThan(100);
 
   // O simulador fica na cara, sem clique — é o argumento da página.
   await expect(page.getByText("Simulador de economia")).toBeVisible();
+
+  // O chat que monta a loja e o garçom digital são SEÇÕES, não abas.
+  await expect(page.getByRole("heading", { name: /Você não preenche formulário/ })).toBeVisible();
+  await expect(page.getByText("Suporte oficial", { exact: false }).first()).toBeVisible();
+
+  // A identidade Variant também é uma seção visível.
+  await expect(page.getByRole("heading", { name: /Variant existe por um motivo/ })).toBeVisible();
+  await expect(page.getByText(/Reduzir a mortalidade das pequenas empresas/)).toBeVisible();
 });
 
 test("em tela média o cardápio aparece inteiro, sem corte", async ({ page }) => {
@@ -161,12 +170,20 @@ test("em tela média o cardápio aparece inteiro, sem corte", async ({ page }) =
 
   await expect(page.getByText("Simulador de economia")).toBeVisible();
 
+  // O painel do cardápio não tem mais rolagem interna própria: ele cresce com
+  // o conteúdo e a página rola. (As abas e os chats têm scroll interno de
+  // propósito; o que não pode é o PAINEL cortar o cardápio.)
   const cortado = await page.evaluate(() => {
-    const cockpit = document.querySelector("main")!.children[0] as HTMLElement;
-    const scroller = cockpit.children[1].children[1].children[1] as HTMLElement;
-    return scroller.scrollHeight > scroller.clientHeight + 2;
+    const painel = document
+      .querySelector("main")!
+      .querySelector("div.flex-col.rounded-3xl") as HTMLElement | null;
+    if (!painel) return true;
+    return painel.scrollHeight > painel.clientHeight + 2;
   });
   expect(cortado).toBe(false);
+
+  // E o cardápio real continua acessível, sem corte, no fim do painel.
+  await expect(page.getByRole("link", { name: /Abrir o cardápio real/i })).toBeVisible();
 });
 
 test("calculadora de economia mostra o número e abre no painel", async ({ page }) => {
@@ -212,20 +229,25 @@ test("as abas trocam o painel na hora, sem rolar a página", async ({ page }) =>
   // O cardápio não é renderizado dentro da landing — só o link.
   await expect(page.getByText("Enviar pedido")).toHaveCount(0);
 
-  // Montagem: a criação por conversa.
-  await page.getByRole("button", { name: "Montagem" }).click();
-  await expect(page.getByRole("heading", { name: /numa conversa/i })).toBeVisible();
-
   // Templates: escolher um tema troca o preview.
   await page.getByRole("button", { name: "Templates" }).click();
   await expect(page.getByText("Hamburgueria").first()).toBeVisible();
   await page.getByRole("button", { name: /Pizzaria/ }).click();
   await expect(page.getByText("Margherita").first()).toBeVisible();
   await expect(page.getByText(/Usar o tema Pizzaria/)).toBeVisible();
+});
 
-  // Pracinha: o garçom virtual responde sozinho.
-  await page.getByRole("button", { name: "Pracinha" }).click();
-  await expect(page.getByText(/Suporte oficial/i)).toBeVisible();
+test("o chat de montagem e o garçom digital ficam visíveis, sem clique", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  // Seção "Monte a loja conversando": o wizard animado roda sozinho.
+  const chat = page.locator("#chat");
+  await chat.scrollIntoViewIfNeeded();
+  await expect(chat.getByRole("heading", { name: /numa conversa/i })).toBeVisible();
+  await expect(chat.getByText("Monte seu cardápio")).toBeVisible();
+
+  // O garçom digital responde — sem precisar abrir aba nenhuma.
   await page.getByRole("button", { name: /Meus pedidos não estão chegando/ }).click();
   await expect(page.getByText(/Vou verificar o alerta/i)).toBeVisible();
 });
@@ -238,10 +260,9 @@ test("os atalhos do topo abrem cada assunto em painel por cima", async ({ page }
   await expect(page.getByRole("heading", { name: /Escolha como pagar/ })).toBeVisible();
   await page.getByRole("button", { name: "Fechar" }).click();
 
+  // "Quem faz" rola até a seção visível (não abre mais painel por cima).
   await page.getByRole("button", { name: "Quem faz", exact: true }).click();
-  await expect(page.getByRole("heading", { name: /Variant existe por um motivo/ })).toBeVisible();
-  await expect(page.getByText(/Reduzir a mortalidade das pequenas empresas/)).toBeVisible();
-  await page.getByRole("button", { name: "Fechar" }).click();
+  await expect(page.locator("#variant")).toBeInViewport();
 
   await expect(page.getByText("Você economiza", { exact: true })).toHaveCount(0);
 });

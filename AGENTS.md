@@ -296,14 +296,16 @@
   Fica fora de `modules/supabase` de propósito: a landing precisa exibir o preço
   sem arrastar o cliente Supabase para o bundle público. `subscription.ts`
   reexporta para compatibilidade — ao mudar o preço, mude só lá.
-- Landing (`src/routes/index.tsx`) é um **cockpit de uma tela só**, montado com
-  componentes em `src/components/landing/`. Nada de empilhar seções: o herói, as
-  **abas** (`TABS`) e o painel vivem na mesma tela, e o root é
-  `h-[100dvh] overflow-hidden`. A aba troca o conteúdo na hora; o único scroll
-  é o de dentro do painel. O E2E mede `scrollHeight - clientHeight <= 4` (a
-  página não rola). Abas: Cardápio, Montagem, Templates, Recursos, Pracinha.
-  Os assuntos de apoio (Preços, Economia, Quem faz, Dúvidas) abrem por cima em
-  `GuidePanel`, disparados pela navbar/rodapé.
+- Landing (`src/routes/index.tsx`) é **herói-cockpit + seções visíveis**,
+  montada com componentes em `src/components/landing/`. O topo é o cockpit lado
+  a lado (texto à esquerda, abas + painel à direita) e **a página ROLA** para as
+  seções que vendem o produto. Antes era um cockpit de uma tela só
+  (`h-[100dvh] overflow-hidden`): o chat que monta a loja, o garçom digital e a
+  identidade Variant ficavam em **abas/painéis que ninguém abria** — o visitante
+  nunca via o que o produto faz. Abas do cockpit: Cardápio, Templates, Recursos.
+  Os assuntos de apoio (Preços, Economia, Dúvidas) abrem por cima em
+  `GuidePanel`, disparados pela navbar/rodapé; **"Quem faz" rola até a seção**
+  (`scrollToSection("variant")`), não abre mais painel.
   1. `MenuReveal` — o cardápio REAL mora DENTRO de um botão-convite ("Ver
      cardápio real"); ao tocar, o botão se abre e vira o cardápio interativo
      (`LiveStoreDemo`). Fechado, o cardápio não existe no DOM.
@@ -353,6 +355,13 @@
 - **Os três diferenciais ficam em chips no herói**: "Monte a loja conversando"
   (WizardChat), "Garçom digital no seu painel" (WaiterChat) e "0% de comissão".
   São os recursos que vendem o produto — não os esconda dentro das abas.
+- **O que vende o produto é SEÇÃO, não aba.** `ChatAiSection` (`#chat`) mostra o
+  `WizardChat` ("monte a loja conversando") e o `WaiterChat` (garçom digital)
+  lado a lado com o texto, e `VariantBand` (`#variant`) traz a identidade da
+  Variant — marca, missão e pilares — **visíveis sem clique**. Não devolva
+  nenhum dos dois para dentro de uma aba ou de um `GuidePanel`: era exatamente
+  aí que eles se perdiam. O E2E "a home rola de propósito e nada que vende fica
+  escondido" exige os dois na tela e mede que a página rola (`overflow > 100`).
 - **O cockpit é lado a lado, não empilhado.** Texto (+ a cena viva) à esquerda,
   cardápio à direita: `lg:flex-row` com a linha esticando até o rodapé
   (`lg:min-h-0 lg:flex-1`) para o painel receber todo o espaço que sobra. Antes

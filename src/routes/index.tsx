@@ -666,70 +666,70 @@ function OutdoorDisplay() {
 
             {/* Área de chat */}
             <div className="flex-1 space-y-3 overflow-hidden">
-              <div
-                className={cn(
-                  "space-y-3 transition-all duration-500",
-                  visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
-                )}
-              >
-                {/* Histórico de mensagens anteriores */}
-                {stepIndex > 0 && currentScene.steps.slice(0, stepIndex).map((msg, i) => (
-                  <div key={i} className="opacity-50">
-                    {msg.user && (
-                      <div className="flex justify-end">
-                        <div className="max-w-[80%] rounded-xl bg-cyan-500/10 border border-cyan-500/20 px-3 py-1.5">
-                          <p className="text-xs text-white">{msg.user}</p>
-                        </div>
-                      </div>
-                    )}
-                    {msg.bot && (
-                      <div className="flex justify-start">
-                        <div className="flex items-start gap-2 max-w-[80%]">
-                          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
-                            <Bot className="size-3" />
-                          </span>
-                          <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-1.5">
-                            <p className="text-xs text-gray-300">{msg.bot}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {/* Mensagem atual aparecendo */}
-                {currentStep.user && (
-                  <div className="flex justify-end animate-pop-in">
-                    <div className="max-w-[80%] rounded-xl bg-cyan-500/20 border border-cyan-500/30 px-3 py-1.5">
-                      <p className="text-xs text-white">{currentStep.user}</p>
-                    </div>
-                  </div>
-                )}
-                {currentStep.bot && (
-                  <div className="flex justify-start animate-pop-in">
-                    <div className="flex items-start gap-2 max-w-[80%]">
-                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
-                        <Bot className="size-3" />
-                      </span>
-                      <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-1.5">
-                        <p className="text-xs text-gray-200">{currentStep.bot}</p>
+              {/* Histórico de mensagens anteriores */}
+              {stepIndex > 0 && currentScene.steps.slice(0, stepIndex).map((msg, i) => (
+                <div key={i} className="opacity-50">
+                  {msg.user && (
+                    <div className="flex justify-end">
+                      <div className="max-w-[80%] rounded-xl bg-cyan-500/10 border border-cyan-500/20 px-3 py-1.5">
+                        <p className="text-xs text-white">{msg.user}</p>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Indicador de digitando */}
-            {!visible && (
-              <div className="flex justify-center pt-3">
-                <div className="flex gap-1 items-center">
-                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  )}
+                  {msg.bot && (
+                    <div className="flex justify-start">
+                      <div className="flex items-start gap-2 max-w-[80%]">
+                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
+                          <Bot className="size-3" />
+                        </span>
+                        <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-1.5">
+                          <p className="text-xs text-gray-300">{msg.bot}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              ))}
+
+              {/* Mensagem atual */}
+              {visible && currentStep.user && (
+                <div className="flex justify-end">
+                  <div className="max-w-[80%] rounded-xl bg-cyan-500/20 border border-cyan-500/30 px-3 py-1.5">
+                    <p className="text-xs text-white">{currentStep.user}</p>
+                  </div>
+                </div>
+              )}
+              {visible && currentStep.bot && (
+                <div className="flex justify-start">
+                  <div className="flex items-start gap-2 max-w-[80%]">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
+                      <Bot className="size-3" />
+                    </span>
+                    <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-1.5">
+                      <p className="text-xs text-gray-200">{currentStep.bot}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Indicador de digitando - como mensagem do Pracinha */}
+              {!visible && (
+                <div className="flex justify-start">
+                  <div className="flex items-start gap-2 max-w-[80%]">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
+                      <Bot className="size-3" />
+                    </span>
+                    <div className="rounded-xl bg-white/10 border border-white/20 px-3 py-1.5">
+                      <div className="flex gap-1 items-center">
+                        <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

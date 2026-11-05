@@ -32,6 +32,30 @@ export interface ChatMessage {
 }
 
 /**
+ * Extrai o texto da resposta do Workers AI, seja qual for o formato.
+ *
+ * O mesmo endpoint devolve `result.response` de duas formas: texto puro quando
+ * o modelo responde prosa, e **objeto já parseado** quando a resposta é JSON
+ * (o `llama-3.1-8b-fast-v2` faz isso). Antes só a string era aceita, então toda
+ * resposta JSON era descartada em silêncio e o chamador caía no fallback
+ * determinístico — a IA parecia desligada mesmo com o token certo. Também
+ * cobrimos o formato OpenAI (`choices[0].message.content`), que alguns modelos
+ * devolvem.
+ */
+export function extractAiText(result: unknown): string | null {
+  if (!result || typeof result !== "object") return null;
+  const r = result as {
+    response?: unknown;
+    choices?: Array<{ message?: { content?: unknown } }>;
+  };
+  if (typeof r.response === "string" && r.response.trim()) return r.response.trim();
+  if (r.response && typeof r.response === "object") return JSON.stringify(r.response);
+  const choice = r.choices?.[0]?.message?.content;
+  if (typeof choice === "string" && choice.trim()) return choice.trim();
+  return null;
+}
+
+/**
  * Monta o corpo do Workers AI para o modelo de visão.
  *
  * A imagem vai DENTRO de `messages`, como `image_url` no `content` — é o
@@ -86,9 +110,8 @@ export async function runAiVision(
       console.error("[ai] Workers AI (visão) falhou:", res.status, detail);
       return null;
     }
-    const data = (await res.json()) as { result?: { response?: string } };
-    const text = data?.result?.response;
-    return typeof text === "string" && text.trim() ? text.trim() : null;
+    const data = (await res.json()) as { result?: unknown };
+    return extractAiText(data?.result);
   } catch (err) {
     console.error("[ai] erro inesperado (visão):", err);
     return null;
@@ -125,12 +148,8 @@ export async function runAi(
       console.error("[ai] Workers AI falhou:", res.status, detail);
       return null;
     }
-    const data = (await res.json()) as {
-      result?: { response?: string };
-      success?: boolean;
-    };
-    const text = data?.result?.response;
-    return typeof text === "string" && text.trim() ? text.trim() : null;
+    const data = (await res.json()) as { result?: unknown; success?: boolean };
+    return extractAiText(data?.result);
   } catch (err) {
     console.error("[ai] erro inesperado:", err);
     return null;

@@ -1025,7 +1025,7 @@ function LandingPage() {
                 <strong className="font-bold text-white">sem comissão por pedido</strong>.
               </p>
 
-              <div className="space-y-4 pt-4">
+              <div className="space-y-3 pt-2">
                 <Link
                   to="/login"
                   search={{ mode: "register" }}

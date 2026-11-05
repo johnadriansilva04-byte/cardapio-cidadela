@@ -547,14 +547,14 @@ function VariantBand() {
    ============================================================ */
 
 const OUTDOOR_MESSAGES = [
-  { text: "Seu cardápio digital pronto em minutos.", icon: Smartphone },
-  { text: "Garçom digital IA que responde na hora.", icon: Bot },
-  { text: "0% de comissão por pedido.", icon: TrendingUp },
-  { text: "Diária de R$ 1,99 só quando usar.", icon: Clock },
-  { text: "Monte conversando, sem formulário.", icon: MessageCircle },
-  { text: "Leia cardápio por foto (Premium).", icon: Sparkles },
-  { text: "QR Code e link só seu.", icon: QrCode },
-  { text: "Painel de gestão completo.", icon: LayoutDashboard },
+  { text: "80% das empresas fecham em 3 anos. Você não precisa ser um deles.", icon: TrendingUp },
+  { text: "A Variant existe para reduzir a mortalidade de pequenos negócios.", icon: Store },
+  { text: "Cardápio Cidadela: nossa primeira ferramenta pra você escalar.", icon: UtensilsCrossed },
+  { text: "0% de comissão. O que o cliente paga é seu.", icon: ShieldCheck },
+  { text: "Diária de R$ 1,99 só quando tiver pedido.", icon: Clock },
+  { text: "Pracinha: garçom digital IA, inspirado na Força Expedicionária Brasileira.", icon: Bot },
+  { text: "Monte conversando, sem formulário de 20 campos.", icon: MessageCircle },
+  { text: "Leia cardápio por foto (plano anual).", icon: Sparkles },
 ];
 
 function OutdoorDisplay() {
@@ -577,38 +577,149 @@ function OutdoorDisplay() {
   const Icon = current.icon;
 
   return (
-    <div className="relative h-full min-h-[400px] flex items-center justify-center">
-      <div
-        aria-hidden
-        className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-violet-500/20 blur-3xl"
-      />
-      <div className="relative flex flex-col items-center gap-6 text-center px-8">
-        <div className="relative">
-          <div className="animate-aurora absolute -inset-8 rounded-full bg-cyan-500/30 blur-2xl" />
-          <span className="relative grid size-24 place-items-center rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-600 text-black shadow-[0_20px_60px_-20px_rgba(34,211,238,0.5)]">
-            <Icon className="size-12" />
-          </span>
-        </div>
-        <div className="space-y-2">
-          <p
-            className={cn(
-              "font-display text-3xl font-extrabold text-white transition-all duration-300 sm:text-4xl lg:text-5xl",
-              visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
-            )}
-          >
-            {current.text}
-          </p>
-          <div className="flex justify-center gap-2">
-            {OUTDOOR_MESSAGES.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setIndex(i)}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === index ? "w-6 bg-cyan-400" : "w-1.5 bg-white/20"
-                }`}
-                aria-label={`Mensagem ${i + 1}`}
+    <div className="relative h-full min-h-[550px] flex items-center justify-center">
+      {/* Outdoor com casinha/galpão da Variant embaixo */}
+      <div className="relative w-full max-w-2xl">
+        {/* Poste do outdoor em cima */}
+        <div className="relative mx-auto max-w-xl mb-4">
+          {/* Estrutura do outdoor */}
+          <div className="relative rounded-lg border-4 border-gray-700 bg-gradient-to-b from-gray-800 to-gray-900 p-1 shadow-2xl">
+            {/* Luz do outdoor */}
+            <div className="relative overflow-hidden rounded bg-gradient-to-br from-cyan-500/30 via-blue-600/20 to-violet-600/30">
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"
               />
-            ))}
+              
+              {/* Conteúdo do outdoor */}
+              <div className="relative p-8 sm:p-12">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-12 place-items-center rounded-xl bg-cyan-500 text-black shadow-lg">
+                      <Icon className="size-6" />
+                    </span>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-200">
+                        Variant
+                      </p>
+                      <p className="text-[9px] text-gray-300">Tecnologia para o pequeno negócio</p>
+                    </div>
+                  </div>
+                  
+                  <p
+                    className={cn(
+                      "font-display text-2xl font-extrabold leading-tight text-white transition-all duration-300 sm:text-3xl lg:text-4xl",
+                      visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
+                    )}
+                  >
+                    {current.text}
+                  </p>
+
+                  <div className="flex items-center gap-4 pt-2">
+                    <div className="flex gap-1">
+                      {OUTDOOR_MESSAGES.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setIndex(i)}
+                          className={`h-1 rounded-full transition-all ${
+                            i === index ? "w-4 bg-cyan-400" : "w-1 bg-white/30"
+                          }`}
+                          aria-label={`Mensagem ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-gray-400 ml-auto">
+                      Cardápio Cidadela
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* POSTE/BRAÇO do outdoor */}
+          <div className="relative mx-auto w-1 h-32 bg-gradient-to-b from-gray-700 to-gray-800 shadow-xl">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-gray-500/50 to-transparent" />
+          </div>
+
+          {/* CASINHA/GALPÃO DA VARIANT - QG */}
+          <div className="relative mx-auto max-w-lg">
+            <div className="relative">
+              {/* Telhado */}
+              <div className="relative h-20 bg-gradient-to-b from-violet-900 to-violet-950 border-t-2 border-violet-500/30 rounded-t-lg shadow-xl">
+                {/* Detalhes do telhado */}
+                <div className="absolute inset-x-4 top-2 h-1 bg-violet-500/20" />
+                <div className="absolute inset-x-8 top-4 h-1 bg-violet-500/10" />
+                
+                {/* Chaminé */}
+                <div className="absolute right-8 -top-8 w-6 h-10 bg-gradient-to-b from-violet-800 to-violet-900 border-2 border-violet-500/40 rounded-t shadow-lg">
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-2 bg-violet-500/30 rounded-full blur-sm" />
+                </div>
+              </div>
+
+              {/* Corpo da casinha */}
+              <div className="relative bg-gradient-to-b from-violet-950 via-violet-900 to-violet-950 border-x-2 border-violet-500/20 px-6 py-8">
+                {/* Logo da Variant */}
+                <div className="flex flex-col items-center gap-3 mb-4">
+                  <div className="relative">
+                    <div className="animate-aurora absolute -inset-3 rounded-full bg-violet-500/30 blur-xl" />
+                    <div className="relative grid size-16 place-items-center rounded-xl bg-gradient-to-br from-violet-600 to-violet-800 border-2 border-violet-400/50 shadow-[0_0_30px_rgba(139,92,246,0.4)]">
+                      <VariantMark variant="full" className="size-10" />
+                    </div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <p className="font-display text-base font-black text-violet-200">
+                      {VARIANT.name}
+                    </p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-violet-300">
+                      QG
+                    </p>
+                  </div>
+                </div>
+
+                {/* Janelas com luz */}
+                <div className="flex justify-center gap-4 mb-4">
+                  <div className="relative w-12 h-10 bg-gradient-to-b from-cyan-500/30 to-cyan-600/10 border-2 border-cyan-400/40 rounded shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+                    <div className="absolute inset-1 bg-cyan-400/20" />
+                    {/* Silhueta de alguém trabalhando */}
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-2 h-4 bg-gray-900/80 rounded-t" />
+                  </div>
+                  <div className="relative w-12 h-10 bg-gradient-to-b from-cyan-500/30 to-cyan-600/10 border-2 border-cyan-400/40 rounded shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+                    <div className="absolute inset-1 bg-cyan-400/20" />
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-2 h-4 bg-gray-900/80 rounded-t" />
+                  </div>
+                </div>
+
+                {/* Porta */}
+                <div className="relative mx-auto w-16 h-20 bg-gradient-to-b from-violet-800 to-violet-900 border-2 border-violet-500/30 rounded-t shadow-inner">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-violet-500/40 rounded-full" />
+                  {/* Placa da porta */}
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-violet-500/20 px-2 py-0.5 rounded">
+                    <p className="text-[7px] font-bold text-violet-200 text-center">ABERTO</p>
+                  </div>
+                </div>
+
+                {/* Placa informativa */}
+                <div className="mt-4 rounded-lg border border-violet-500/30 bg-violet-500/[0.06] p-3">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-violet-300 mb-1">
+                    Sede
+                  </p>
+                  <p className="text-[10px] text-gray-300 leading-relaxed text-center">
+                    Onde construimos ferramentas para seu negócio não fechar.
+                  </p>
+                </div>
+
+                {/* Detalhes do fundo */}
+                <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-violet-400/30 to-transparent" />
+              </div>
+
+              {/* Base da casinha */}
+              <div className="relative h-4 bg-gradient-to-b from-violet-950 to-black border-x-2 border-violet-500/10 border-b-2 border-violet-500/20" />
+              
+              {/* Chão */}
+              <div className="h-3 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-b shadow-lg" />
+            </div>
           </div>
         </div>
       </div>
@@ -1017,34 +1128,70 @@ function LandingPage() {
             </div>
           </div>
 
-          {/* CANTO DIREITO EXTRA - Informações */}
+          {/* CANTO DIREITO EXTRA - Identidade Variant e Pracinha */}
           <div className="hidden flex-col justify-center lg:flex lg:col-span-3">
             <div className="space-y-4">
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                  Comece grátis
-                </p>
-                <p className="mt-2 text-sm text-gray-300">
-                  5 pedidos por mês, sem cartão. Quando o movimento crescer, a diária ou o Premium entram sozinhos.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.06] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-300">
-                  Diária {DAY_PASS_PRICE_LABEL}
-                </p>
-                <p className="mt-2 text-sm text-gray-300">
-                  Abre só no fim de semana? Usa a diária só nesses dias e paga menos. Empilhável.
-                </p>
-              </div>
-
+              {/* Variant - Missão */}
               <div className="rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-violet-300">
-                  Garçom digital
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="grid size-8 place-items-center rounded-lg bg-violet-500/20 text-violet-300">
+                    <Store className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-violet-300">
+                      {VARIANT.name}
+                    </p>
+                    <p className="text-[9px] text-gray-400">Tecnologia para o pequeno negócio</p>
+                  </div>
+                </div>
+                <p className="text-xs leading-relaxed text-gray-300">
+                  {VARIANT.tagline}
                 </p>
-                <p className="mt-2 text-sm text-gray-300">
-                  Assistente IA que responde na hora dentro do seu painel. Sem formulário, você conversa.
+                <p className="mt-2 text-[10px] text-gray-400">
+                  80% das empresas fecham em 3 anos. A Variant existe para reduzir essa mortalidade.
                 </p>
+              </div>
+
+              {/* Pracinha - Identidade FEB */}
+              <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.06] p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="grid size-8 place-items-center rounded-lg bg-cyan-500/20 text-cyan-300">
+                    <Bot className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-300">
+                      Pracinha
+                    </p>
+                    <p className="text-[9px] text-gray-400">IA • Atendimento e Suporte</p>
+                  </div>
+                </div>
+                <p className="text-xs leading-relaxed text-gray-300">
+                  Garçom digital inspirado na Força Expedicionária Brasileira. Responde na hora, vai ao combate, leva o caso pra engenharia.
+                </p>
+                <p className="mt-2 text-[10px] text-gray-400">
+                  "Pracinha: quem vai à luta pelo seu negócio."
+                </p>
+              </div>
+
+              {/* Marketing forte */}
+              <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-300">
+                  Por que Cidadela?
+                </p>
+                <ul className="mt-2 space-y-2">
+                  <li className="flex items-start gap-2 text-[10px] text-gray-300">
+                    <Check className="mt-0.5 size-3 shrink-0 text-emerald-400" />
+                    <span>App de entrega cobra 15-30%. Cidadela: 0%.</span>
+                  </li>
+                  <li className="flex items-start gap-2 text-[10px] text-gray-300">
+                    <Check className="mt-0.5 size-3 shrink-0 text-emerald-400" />
+                    <span>Cardápio nunca trava, mesmo sem pagamento.</span>
+                  </li>
+                  <li className="flex items-start gap-2 text-[10px] text-gray-300">
+                    <Check className="mt-0.5 size-3 shrink-0 text-emerald-400" />
+                    <span>Diária só quando usar. Premium anual com foto.</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>

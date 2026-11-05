@@ -143,53 +143,23 @@ function computeLossPlan(spend: number, days: number) {
 }
 
 /**
- * Simulador compacto do herói — OCULTO POR PADRÃO.
+ * Simulador compacto do herói — SEMPRE ABRE O PAINEL FULL.
  *
  * O visitante primeiro entende o produto. Depois, se quiser, calcula economia.
  */
 function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
-  const [revealed, setRevealed] = useState(false);
-  const [spend, setSpend] = useState(LOSS_DEFAULT_SPEND);
-  const [days, setDays] = useState(LOSS_DEFAULT_DAYS);
-  const { plan, yearlySaved, payingNothing } = useMemo(
-    () => computeLossPlan(spend, days),
-    [spend, days],
-  );
-
-  if (!revealed) {
-    return (
-      <button
-        type="button"
-        onClick={() => setRevealed(true)}
-        className="group inline-flex items-center gap-2 rounded-full border border-rose-500/25 bg-rose-500/[0.06] px-4 py-2 text-xs font-bold text-rose-200 transition-all hover:bg-rose-500/15 hover:text-white"
-      >
-        <TrendingUp className="size-3.5" />
-        Calcular minha economia
-        <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-      </button>
-    );
-  }
-
   return (
-    <div className="rounded-2xl border border-rose-500/25 bg-rose-500/[0.06] p-4 text-left">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-rose-300">
-          <TrendingUp className="size-3" /> Simulador de economia
-        </span>
-        <button
-          type="button"
-          onClick={() => setRevealed(false)}
-          className="text-[10px] text-gray-500 hover:text-white"
-        >
-          <X className="size-3" />
-        </button>
-      </div>
-
-      <p className="mt-2 text-[10px] text-gray-400">
-        Coloque quanto você paga por mês em comissão e mensalidade, veja quanto economiza conosco.
-      </p>
-
-      <div className="mt-3 flex flex-wrap items-end gap-3">
+    <button
+      type="button"
+      onClick={onOpenFull}
+      className="group inline-flex items-center gap-2 rounded-full border border-rose-500/25 bg-rose-500/[0.06] px-4 py-2 text-xs font-bold text-rose-200 transition-all hover:bg-rose-500/15 hover:text-white"
+    >
+      <TrendingUp className="size-3.5" />
+      Calcular minha economia
+      <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+    </button>
+  );
+}
         <label className="flex-1">
           <span className="block text-[10px] text-gray-400">Paga hoje (R$/mês)</span>
           <div className="mt-1 flex items-center gap-1 rounded-lg border border-white/10 bg-black/30 px-2 py-1 focus-within:border-rose-400/60">

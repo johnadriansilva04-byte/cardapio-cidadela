@@ -718,23 +718,16 @@ function OutdoorDisplay() {
               </div>
             </div>
 
-            {/* Indicador de progresso */}
-            <div className="flex justify-center gap-1.5 pt-3 border-t border-white/10">
-              {currentScene.steps.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => {
-                    setStepIndex(i);
-                    setVisible(false);
-                    setTimeout(() => setVisible(true), 300);
-                  }}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === stepIndex ? "w-8 bg-cyan-400" : "w-1.5 bg-white/30"
-                  }`}
-                  aria-label={`Passo ${i + 1}`}
-                />
-              ))}
-            </div>
+            {/* Indicador de digitando */}
+            {visible && (
+              <div className="flex justify-center pt-3 border-t border-white/10">
+                <div className="flex gap-1 items-center">
+                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            )}
 
             <p className="text-[10px] text-gray-500 text-center mt-2">
               Cardápio Cidadela • Variant

@@ -625,7 +625,7 @@ function OutdoorDisplay() {
           return next;
         });
         setVisible(true);
-      }, 300);
+      }, 1000); // Aumentado para 1 segundo para mostrar os pontinhos
     }, 8000);
 
     return () => clearInterval(stepInterval);
@@ -643,10 +643,14 @@ function OutdoorDisplay() {
         </div>
 
         {/* Conteúdo do outdoor - gravação de tela simulada */}
-        <div className="relative overflow-hidden rounded bg-gradient-to-br from-gray-800 to-gray-900 aspect-video">
+        <div className="relative overflow-hidden rounded bg-gradient-to-br from-gray-800 via-slate-800 to-gray-900 aspect-video animate-aurora">
           <div
             aria-hidden
             className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"
+          />
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-violet-500/5 animate-aurora"
           />
           
           {/* Simulação de tela */}

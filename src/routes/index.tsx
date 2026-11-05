@@ -592,10 +592,13 @@ const OUTDOOR_SCENES = [
     title: "Só paga quando usar",
     subtitle: "Diária, Mensal ou Anual",
     steps: [
-      { bot: "Vá em Assinatura no painel quando precisar." },
-      { bot: "Diária R$ 1,99 libera 24h. Só quando tiver pedido." },
-      { bot: "Premium R$ 28,99/mês é ilimitado. Tem movimento constante?" },
-      { bot: "Anual R$ 199,99/ano inclui foto por IA! Leve o cardápio antigo, eu leio." },
+      { bot: "Vou explicar os planos quando você precisar." },
+      { user: "Diária é só quando usar?" },
+      { bot: "Sim! R$ 1,99 libera 24h. Só quando tiver pedido." },
+      { user: "E Premium?" },
+      { bot: "R$ 28,99/mês é ilimitado. Tem movimento constante?" },
+      { user: "Tem foto por IA?" },
+      { bot: "Anual R$ 199,99/ano inclui foto! Leve o cardápio antigo, eu leio." },
     ],
   },
 ];

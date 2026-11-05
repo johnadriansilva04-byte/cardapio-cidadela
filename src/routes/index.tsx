@@ -657,8 +657,8 @@ function OutdoorDisplay() {
               </span>
               <span className="text-xs font-bold text-gray-300">Pracinha - Assistente IA</span>
               <div className="ml-auto flex gap-1">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[10px] text-red-400 font-bold">REC</span>
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-[10px] text-green-400">Online</span>
               </div>
             </div>
 

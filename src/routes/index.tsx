@@ -1025,34 +1025,34 @@ function LandingPage() {
                 <strong className="font-bold text-white">sem comissão por pedido</strong>.
               </p>
 
-              <div className="space-y-3 pt-4">
+              <div className="space-y-4 pt-4">
                 <Link
                   to="/login"
                   search={{ mode: "register" }}
-                  className="group flex w-full items-center gap-3 rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.08] p-4 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/[0.12]"
+                  className="group flex w-full items-center gap-3 rounded-2xl border-2 border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 to-cyan-500/5 p-4 transition-all hover:border-cyan-400/60 hover:from-cyan-500/20 hover:to-cyan-500/10"
                 >
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/20 text-cyan-300">
-                    <Store className="size-5" />
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-cyan-500 text-black shadow-lg shadow-cyan-500/30">
+                    <Store className="size-6" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white">Crie seu cardápio</p>
-                    <p className="text-[11px] text-gray-400">Monte grátis em minutos</p>
+                    <p className="text-base font-bold text-white">Crie seu cardápio</p>
+                    <p className="text-xs text-cyan-200">Monte grátis em minutos</p>
                   </div>
-                  <ArrowRight className="size-4 shrink-0 text-cyan-300 transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="size-5 shrink-0 text-cyan-300 transition-transform group-hover:translate-x-1" />
                 </Link>
 
                 <Link
                   to="/login"
-                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:border-white/20 hover:bg-white/[0.04]"
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/[0.05] p-4 transition-all hover:border-white/30 hover:bg-white/[0.08]"
                 >
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/10 text-gray-300">
-                    <LogIn className="size-5" />
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15 text-gray-300">
+                    <LogIn className="size-6" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white">Entrar</p>
-                    <p className="text-[11px] text-gray-400">Acesse sua conta</p>
+                    <p className="text-base font-bold text-white">Entrar</p>
+                    <p className="text-xs text-gray-400">Acesse sua conta</p>
                   </div>
-                  <ArrowRight className="size-4 shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="size-5 shrink-0 text-gray-400 transition-transform group-hover:translate-x-1" />
                 </Link>
 
                 <button
@@ -1061,19 +1061,22 @@ function LandingPage() {
                     const realMenuUrl = `${SITE_URL}/cardapio/${DEMO_STORE_SLUG}`;
                     window.open(realMenuUrl, "_blank");
                   }}
-                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 transition-all hover:border-white/20 hover:bg-white/[0.04]"
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/[0.05] p-4 transition-all hover:border-white/30 hover:bg-white/[0.08]"
                 >
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/10 text-gray-300">
-                    <UtensilsCrossed className="size-5" />
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15 text-gray-300">
+                    <UtensilsCrossed className="size-6" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white">Ver cardápio</p>
-                    <p className="text-[11px] text-gray-400">Cardápio real funcionando</p>
+                    <p className="text-base font-bold text-white">Ver cardápio</p>
+                    <p className="text-xs text-gray-400">Cardápio real funcionando</p>
                   </div>
-                  <ArrowRight className="size-4 shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="size-5 shrink-0 text-gray-400 transition-transform group-hover:translate-x-1" />
                 </button>
 
-                <InlineSimulator onOpenFull={() => openPanel("calc")} />
+                <div className="pt-2">
+                  <p className="text-xs text-gray-500 mb-2">Calcule quanto economiza:</p>
+                  <InlineSimulator onOpenFull={() => openPanel("calc")} />
+                </div>
               </div>
             </div>
           </div>

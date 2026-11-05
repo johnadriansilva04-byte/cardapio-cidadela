@@ -181,7 +181,16 @@ function buildErrorPrompt(
   error: DevReportInput["error"],
   body: string,
 ): string {
-  return `Você é engenheiro no projeto "cardapio-cidadela" (React + TanStack Start + Vite + Nitro + Supabase + Cloudflare Pages). Um erro foi capturado automaticamente em produção pelo suporte Pracinha. Encontre a causa raiz no código e corrija.
+  const errorMessage = error?.message || "erro desconhecido";
+  
+  return `Você é engenheiro no projeto "cardapio-cidadela" (React + TanStack Start + Vite + Nitro + Supabase + Cloudflare Pages). Um erro foi capturado automaticamente em produção pelo suporte Pracinha.
+
+O QUE ACONTECEU
+Erro: ${errorMessage}
+${error?.component ? `Componente: ${error.component}` : ""}
+${error?.route ? `Página: ${error.route}` : ""}
+
+Este erro indica que um ícone do lucide-react está sendo usado sem ser importado. Verifique os imports do arquivo onde o erro ocorre.
 
 CONTEXTO
 ${contextLines.map((l) => `- ${l}`).join("\n")}
@@ -189,10 +198,10 @@ ${contextLines.map((l) => `- ${l}`).join("\n")}
 ${body}
 
 O QUE FAZER
-1. Procure no código pela mensagem do erro e pelo componente/página indicados.
-2. Reproduza a causa raiz em src/routes, src/components ou src/modules/supabase (não trate só o sintoma).
-3. Corrija com a menor mudança possível e, se fizer sentido, adicione um teste que falharia antes.
-4. Rode a verificação: npx tsc --noEmit && npx vitest run && npm run build.
+1. Procure no código pelo componente/página indicados acima.
+2. Verifique os imports de lucide-react - o ícone usado deve estar importado.
+3. Adicione o ícone faltante nos imports do lucide-react.
+4. Rode a verificação: npx tsc --noEmit && npm run build.
 5. Abra um PR descrevendo a causa, a correção e como testou.`;
 }
 

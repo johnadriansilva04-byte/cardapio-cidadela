@@ -10,6 +10,7 @@ import {
   ChefHat,
   ChevronDown,
   Clock,
+  Gift,
   LayoutDashboard,
   LayoutTemplate,
   LogIn,
@@ -22,8 +23,10 @@ import {
   ReceiptText,
   ShieldCheck,
   Smartphone,
+  Snowflake,
   Sparkles,
   Store,
+  TreePine,
   TrendingUp,
   Users,
   UtensilsCrossed,
@@ -33,6 +36,7 @@ import { PREMIUM_PRICE_VALUE, DAY_PASS_PRICE_LABEL, DAY_PASS_PRICE_VALUE } from 
 
 import { brl, cn } from "@/lib/utils";
 import { COMPANY, VARIANT, hasSupportContact } from "@/lib/company";
+import { isChristmasSeason } from "@/lib/seasonal";
 import { SITE_URL } from "@/lib/site";
 import { DEMO_STORE_SLUG } from "@/modules/supabase/landing-demo";
 import { useAuth } from "@/components/AuthProvider";
@@ -525,7 +529,7 @@ const OUTDOOR_SCENES = [
   },
 ];
 
-function OutdoorDisplay() {
+function OutdoorDisplay({ christmas = false }: { christmas?: boolean }) {
   const [sceneIndex, setSceneIndex] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const [visible, setVisible] = useState(true);
@@ -555,13 +559,38 @@ function OutdoorDisplay() {
   return (
     <div className="relative w-full max-w-2xl">
       {/* Estrutura do outdoor - parece tela/gravação */}
-      <div className="relative rounded-lg border-4 border-gray-800 bg-gradient-to-b from-gray-900 to-black p-1 shadow-2xl">
+      <div
+        className={cn(
+          "relative rounded-lg border-4 bg-gradient-to-b from-gray-900 to-black p-1 shadow-2xl",
+          christmas ? "border-red-900/70" : "border-gray-800",
+        )}
+      >
         {/* Moldura de tela */}
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-red-500" />
           <div className="w-2 h-2 rounded-full bg-yellow-500" />
           <div className="w-2 h-2 rounded-full bg-green-500" />
         </div>
+
+        {/* Natal: guirlanda de luzes em volta do letreiro. */}
+        {christmas && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-2 inset-x-2 flex justify-between"
+          >
+            {["#ef4444", "#22c55e", "#facc15", "#ef4444", "#22c55e"].map((c, i) => (
+              <span
+                key={i}
+                className="fairy-bulb size-1.5 rounded-full"
+                style={{
+                  backgroundColor: c,
+                  boxShadow: `0 0 6px 1px ${c}`,
+                  animationDelay: `${i * 0.22}s`,
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Conteúdo do outdoor - gravação de tela simulada */}
         <div className="relative overflow-hidden rounded bg-gradient-to-br from-gray-800 via-slate-800 to-gray-900 aspect-video animate-aurora">
@@ -866,6 +895,70 @@ const TABS = [
 type LandingView = (typeof TABS)[number]["key"];
 
 /**
+ * Enfeite natalino do "outdoor" da home.
+ *
+ * Puramente decorativo (`aria-hidden`, `pointer-events-none`) e só renderiza na
+ * janela de Natal (`isChristmasSeason`). A neve é determinística — mesmas
+ * posições a cada render, sem `Math.random` — para não brigar com a hidratação
+ * nem piscar a cada estado. O fio de lâmpadas atravessa o topo, logo abaixo da
+ * navbar, emoldurando o outdoor sem cobrir nada.
+ */
+function ChristmasHero() {
+  const flakes = useMemo(
+    () =>
+      Array.from({ length: 22 }, (_, i) => ({
+        left: `${(i * 53 + 7) % 100}%`,
+        size: 3 + (i % 3) * 2,
+        duration: `${9 + (i % 5) * 2}s`,
+        delay: `${(i % 7) * 1.3}s`,
+        drift: `${((i % 5) - 2) * 30}px`,
+        opacity: 0.4 + (i % 4) * 0.15,
+      })),
+    [],
+  );
+
+  const bulbs = ["#ef4444", "#22c55e", "#facc15"];
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+      {flakes.map((f, i) => (
+        <span
+          key={i}
+          className="snowflake"
+          style={
+            {
+              left: f.left,
+              width: f.size,
+              height: f.size,
+              animationDuration: f.duration,
+              animationDelay: f.delay,
+              "--snow-drift": f.drift,
+              "--snow-o": f.opacity,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+
+      <div className="absolute inset-x-0 top-14 flex items-start justify-between px-2 sm:top-16 sm:px-6">
+        {Array.from({ length: 18 }, (_, i) => (
+          <span key={i} className="flex flex-col items-center">
+            <span className="h-3 w-px bg-white/25 sm:h-4" />
+            <span
+              className="fairy-bulb size-2 rounded-full sm:size-2.5"
+              style={{
+                backgroundColor: bulbs[i % bulbs.length],
+                boxShadow: `0 0 8px 1px ${bulbs[i % bulbs.length]}`,
+                animationDelay: `${(i % 6) * 0.28}s`,
+              }}
+            />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * COCKPIT SEM SCROLL - aba única
  * Fundo galáxia animado com estrelas, cometas e planetas
  * Canto esquerdo: botões de ação
@@ -878,6 +971,10 @@ function LandingPage() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [panel, setPanel] = useState<LandingPanel>(null);
+
+  // O "outdoor" veste o Natal em nov/dez — a melhor época do ano para vender
+  // cardápio digital (pico do delivery nas festas).
+  const christmas = isChristmasSeason();
 
   function openPanel(p: NonNullable<LandingPanel>) {
     setMenuOpen(false);
@@ -920,7 +1017,12 @@ function LandingPage() {
         {/* Nebulosa */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-br from-cyan-500/10 to-violet-500/10 rounded-full blur-3xl animate-aurora" />
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl animate-aurora [animation-delay:2s]" />
+
+        {/* Natal: o céu respira vermelho/verde no lugar do ciano. */}
+        {christmas && <div className="aurora-christmas absolute inset-0 animate-aurora" />}
       </div>
+
+      {christmas && <ChristmasHero />}
 
       {/* Navbar */}
       <nav className="relative z-40 shrink-0 border-b border-white/[0.07] bg-[#07070c]/70 backdrop-blur-xl">
@@ -1009,36 +1111,90 @@ function LandingPage() {
           {/* CANTO ESQUERDO - Botões de ação */}
           <div className="flex flex-col justify-center lg:col-span-4">
             <div className="space-y-4">
-              <p className="animate-reveal inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
-                <Sparkles className="size-3" /> Para micro-restaurantes
+              <p
+                className={cn(
+                  "animate-reveal inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]",
+                  christmas
+                    ? "border-red-500/30 bg-red-500/[0.1] text-red-200"
+                    : "border-cyan-500/25 bg-cyan-500/[0.08] text-cyan-300",
+                )}
+              >
+                {christmas ? (
+                  <>
+                    <TreePine className="size-3" /> Campanha de Natal
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="size-3" /> Para micro-restaurantes
+                  </>
+                )}
               </p>
 
               <h1 className="animate-reveal font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-                Seu cardápio no ar{" "}
-                <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
-                  em minutos.
-                </span>
+                {christmas ? (
+                  <>
+                    Seu cardápio de Natal{" "}
+                    <span className="text-shine bg-gradient-to-r from-red-400 via-emerald-300 to-red-400 bg-clip-text text-transparent">
+                      no ar em minutos.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    Seu cardápio no ar{" "}
+                    <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
+                      em minutos.
+                    </span>
+                  </>
+                )}
               </h1>
 
               <p className="animate-reveal text-sm leading-relaxed text-gray-300">
-                Link próprio, QR Code e pedidos na hora —{" "}
-                <strong className="font-bold text-white">sem comissão por pedido</strong>.
+                {christmas ? (
+                  <>
+                    O Natal é o pico do delivery. Link próprio, QR Code e pedidos na hora —{" "}
+                    <strong className="font-bold text-white">sem comissão por pedido</strong>.
+                  </>
+                ) : (
+                  <>
+                    Link próprio, QR Code e pedidos na hora —{" "}
+                    <strong className="font-bold text-white">sem comissão por pedido</strong>.
+                  </>
+                )}
               </p>
 
               <div className="space-y-3 pt-2">
                 <Link
                   to="/login"
                   search={{ mode: "register" }}
-                  className="group flex w-full items-center gap-3 rounded-2xl border-2 border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 to-cyan-500/5 p-4 transition-all hover:border-cyan-400/60 hover:from-cyan-500/20 hover:to-cyan-500/10"
+                  className={cn(
+                    "group flex w-full items-center gap-3 rounded-2xl border-2 p-4 transition-all",
+                    christmas
+                      ? "border-red-500/40 bg-gradient-to-r from-red-500/10 to-red-500/5 hover:border-red-400/60 hover:from-red-500/20 hover:to-red-500/10"
+                      : "border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 to-cyan-500/5 hover:border-cyan-400/60 hover:from-cyan-500/20 hover:to-cyan-500/10",
+                  )}
                 >
-                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-cyan-500 text-black shadow-lg shadow-cyan-500/30">
-                    <Store className="size-6" />
+                  <span
+                    className={cn(
+                      "grid size-12 shrink-0 place-items-center rounded-xl text-black shadow-lg",
+                      christmas ? "bg-red-500 shadow-red-500/30" : "bg-cyan-500 shadow-cyan-500/30",
+                    )}
+                  >
+                    {christmas ? <Gift className="size-6" /> : <Store className="size-6" />}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-base font-bold text-white">Crie seu cardápio</p>
-                    <p className="text-xs text-cyan-200">Monte grátis em minutos</p>
+                    <p className="text-base font-bold text-white">
+                      {christmas ? "Crie seu cardápio de Natal" : "Crie seu cardápio"}
+                    </p>
+                    <p className={cn("text-xs", christmas ? "text-red-200" : "text-cyan-200")}>
+                      Monte grátis em minutos
+                    </p>
                   </div>
-                  <ArrowRight className="size-5 shrink-0 text-cyan-300 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight
+                    className={cn(
+                      "size-5 shrink-0 transition-transform group-hover:translate-x-1",
+                      christmas ? "text-red-300" : "text-cyan-300",
+                    )}
+                  />
                 </Link>
 
                 <Link
@@ -1074,6 +1230,20 @@ function LandingPage() {
                 </button>
 
                 <InlineSimulator onOpenFull={() => openPanel("calc")} />
+
+                {christmas && (
+                  <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pt-1 text-[11px] text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <Snowflake className="size-3 text-cyan-300" /> Pronto antes do Natal
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Check className="size-3 text-emerald-400" /> Sem comissão
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Check className="size-3 text-emerald-400" /> Sem cartão
+                    </span>
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1081,7 +1251,7 @@ function LandingPage() {
           {/* CANTO DIREITO SUPERIOR - Outdoor animado */}
           <div className="lg:col-span-8 lg:col-start-5 flex justify-end">
             <div className="relative w-full max-w-xl">
-              <OutdoorDisplay />
+              <OutdoorDisplay christmas={christmas} />
             </div>
           </div>
         </div>

@@ -926,6 +926,75 @@
 }
 
 /* ============================================================
+   Tema natalino do "outdoor" da home (nov/dez)
+   Só aparece na janela de Natal (ver `isChristmasSeason`). Aditivo:
+   não toca nos tokens nem nas classes existentes.
+   ============================================================ */
+
+/* Neve caindo. Cada floco recebe left/duração/atraso/tamanho por inline style,
+   então o mesmo keyframe serve para a tempestade inteira. */
+@keyframes snow-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--snow-o, 0.8);
+  }
+  90% {
+    opacity: var(--snow-o, 0.8);
+  }
+  100% {
+    transform: translate3d(var(--snow-drift, 0), 112vh, 0);
+    opacity: 0;
+  }
+}
+
+@utility snowflake {
+  position: absolute;
+  top: 0;
+  border-radius: 9999px;
+  background: #fff;
+  animation: snow-fall linear infinite;
+  will-change: transform, opacity;
+}
+
+/* Luzes de Natal piscando: o fio de lâmpadas que atravessa o topo do outdoor. */
+@keyframes fairy-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+    filter: brightness(1.15);
+  }
+  50% {
+    opacity: 0.45;
+    filter: brightness(0.85);
+  }
+}
+
+@utility fairy-bulb {
+  animation: fairy-twinkle 1.8s ease-in-out infinite;
+}
+
+/* Aurora do fundo: no Natal ela respira em vermelho/verde em vez de ciano. */
+@utility aurora-christmas {
+  background-image:
+    radial-gradient(60% 60% at 30% 30%, rgba(239, 68, 68, 0.16), transparent 70%),
+    radial-gradient(55% 55% at 70% 40%, rgba(16, 185, 129, 0.15), transparent 70%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snowflake,
+  .fairy-bulb {
+    animation: none !important;
+  }
+  /* Sem animação a neve ficaria parada no topo: esconde e mantém só as luzes. */
+  .snowflake {
+    display: none;
+  }
+}
+
+/* ============================================================
    Selo de plano — vive no cabeçalho de toda tela autenticada
    ============================================================ */
 

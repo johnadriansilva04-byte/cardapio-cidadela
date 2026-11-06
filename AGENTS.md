@@ -1587,28 +1587,38 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
   viram órfãos e são removidos na janela de 7 dias. O bucket do Supabase fica
   vazio com o tempo.
 
-## Landing: hub de uma tela (sem rolagem)
+## Landing: página que ROLA com seções visíveis
 
-- **A home (`src/routes/index.tsx`) não rola.** Herói + atalhos + rodapé cabem na
-  viewport; cada assunto (Recursos, Sua marca, Pracinha, Preços, Quem faz,
-  Dúvidas) abre num **painel por cima** (`GuidePanel`, o mesmo do
-  `/admin/assinatura`) com X para fechar. O E2E
-  (`smoke-routes.spec.ts` → "landing não rola") mede
-  `scrollHeight - clientHeight <= 4`; ao mexer no layout, revalide por ele.
-- Os atalhos são `GuideTile` (`src/modules/ui/GuidePanel.tsx`). O conteúdo de
-  cada painel vive em componentes (`LossCalculator`, `VariantSection`,
-  `PracinhaDemo`, `PlanCards` + FAQ inline) — não recrie as seções empilhadas.
-- O herói carrega o atalho mais visível para a calculadora ("Quanto você está
-  perdendo hoje?"). A promessa da landing é **mostrar em número**, não convencer
-  com adjetivo: quem quiser vender mais forte, melhore o número do
-  `LossCalculator`, não o texto.
-- **O fundo aurora é `absolute inset-0 overflow-hidden`** dentro do root
-  (`min-h-screen flex-col`). Um `overflow-hidden` no root corta conteúdo em
-  viewport baixa; os blobs com `-left/-right` negativos precisam do clip para
-  não criar scroll horizontal. Mantenha esse par.
-
-
-
+- **A home (`src/routes/index.tsx`) ROLA de propósito.** Herói (cockpit lado a
+  lado: texto + simulador à esquerda, painel de abas à direita), depois as seções
+  que vendem o produto empilhadas e visíveis — outdoor, "três passos", chat+IA
+  (`#chat`), Variant (`#variant`), preços (`#planos`). Antes era um cockpit de
+  uma tela só e o que vendia o produto ficava em abas que ninguém abria. O E2E
+  `smoke-routes.spec.ts` → "a home rola de propósito e nada que vende fica
+  escondido" exige `scrollHeight - clientHeight > 100` e as seções na tela.
+- O painel de abas do herói (`HeroPanel`, Cardápio/Templates/Recursos) é o
+  produto na mão do visitante: cada aba entra com `key={view}` + `animate-panel`.
+  A aba "Cardápio" NÃO renderiza um mockup — é um link ("Abrir o cardápio real")
+  para o cardápio de verdade (`/cardapio/<slug>`), em outra aba.
+- **O simulador fica na cara, no herói** (`InlineSimulator`): campo "paga hoje",
+  slider de dias e a economia/ano, sem clique. O painel completo
+  (`LossCalculator`) abre pelo botão "«plano» é o seu plano". O rótulo é
+  "Economia estimada" para não colidir com o "Você economiza" do painel.
+- **O outdoor** (`src/components/landing/OutdoorBillboard.tsx`) é uma peça de
+  rua com ESTRUTURA de verdade (travessa, colunas, base), emoldurada por um fio
+  de lâmpadas (`LightString` + `fairy-bulb`/`bulb-chase`). Dentro da tela, o
+  Pracinha atende cena a cena (problema → montagem → pedido → preço), com
+  legenda e indicador de cena. Na janela de Natal (`isChristmasSeason`) as
+  lâmpadas viram vermelho/verde/amarelo; fora dela, ciano/índigo/rosa.
+- Os assuntos de apoio (Economia, Preços, Recursos, Dúvidas) abrem em painel por
+  cima (`GuidePanel`); **"Quem faz" rola até a seção** (`scrollToSection("variant")`),
+  não abre painel.
+- **O fundo** é `.variant-grid` + `.variant-grid-nodes` (malha técnica) sobre a
+  aurora, dentro de um `absolute inset-0 -z-10 overflow-hidden`. O root é
+  `min-h-[100dvh] overflow-x-hidden` (o `overflow-x-hidden` impede o scroll
+  horizontal dos blobs; o eixo Y fica livre para a página rolar).
+- A navbar é `sticky top-0 z-40`. O CTA do herói é único por intenção (criar
+  conta grátis / entrar), sem repetir a mesma ação em vários cards.
 
 ## MATA FOME (movimento solidário opcional)
 

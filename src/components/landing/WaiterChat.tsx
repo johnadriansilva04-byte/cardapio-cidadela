@@ -142,6 +142,14 @@ export function WaiterChat() {
             </div>
           </div>
 
+          {/* Progresso dos assuntos: mostra que a conversa anda, não só gira. */}
+          <div className="h-0.5 w-full bg-white/[0.06]">
+            <div
+              className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-700"
+              style={{ width: `${((active + 1) / SCRIPT.length) * 100}%` }}
+            />
+          </div>
+
           <div
             ref={scrollRef}
             className="h-[212px] space-y-2.5 overflow-y-auto px-3 py-3.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

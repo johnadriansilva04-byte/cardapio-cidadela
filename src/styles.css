@@ -976,6 +976,12 @@
   animation: fairy-twinkle 1.8s ease-in-out infinite;
 }
 
+/* Corrente de luzes: a lâmpada acende em sequência (chase), como um letreiro
+   de loja. Usada no fio que emoldura o outdoor da home. */
+@utility bulb-chase {
+  animation: fairy-twinkle 2.4s ease-in-out infinite;
+}
+
 /* Aurora do fundo: no Natal ela respira em vermelho/verde em vez de ciano. */
 @utility aurora-christmas {
   background-image:

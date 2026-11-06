@@ -95,6 +95,16 @@ export function WizardChat() {
             </button>
           </div>
 
+          {/* Progresso da conversa: dá a sensação de avanço, não de demo em loop. */}
+          <div className="h-0.5 w-full bg-white/[0.06]">
+            <div
+              className="h-full bg-gradient-to-r from-violet-400 to-violet-600 transition-all duration-700"
+              style={{
+                width: `${Math.min(100, (messages.filter((m) => m.role === "user").length / WIZARD_SCRIPT.length) * 100)}%`,
+              }}
+            />
+          </div>
+
           <div
             ref={scrollRef}
             className="h-[212px] space-y-2.5 overflow-y-auto px-3 py-3.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

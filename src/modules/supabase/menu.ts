@@ -4,9 +4,25 @@ import type { Category, Product, ProductAddon, RestaurantAddon } from "@/lib/typ
 // Payload enxuto: só o que o cardápio renderiza no celular do cliente.
 // `restaurant_id` e `created_at` ficam de fora de propósito — são usados só em
 // consultas admin e economizam KB por produto/por celular em cada carregamento.
+// `image_url` também fica de fora: o produto usa um tile genérico (só logo e
+// capa da loja têm foto), então o campo é peso morto no payload público.
 const CATEGORY_COLUMNS = "id, name, sort_order";
-const PRODUCT_COLUMNS =
-  "id, category_id, name, description, price, image_url, available, sort_order";
+const PRODUCT_COLUMNS = "id, category_id, name, description, price, available, sort_order";
+// Colunas que o cardápio/adicionais realmente leem. `restaurant_id` e
+// `created_at` ficam de fora: o cardápio público já conhece a loja e não usa a
+// data, então trazer as duas em cada adicional é egress por visita que não vira
+// tela. Mesmo raciocínio de CATEGORY_COLUMNS/PRODUCT_COLUMNS.
+const ADDON_COLUMNS = "id, product_id, name, price, available, sort_order";
+
+/**
+ * Dedupe de consultas em voo por restaurante.
+ *
+ * O cardápio dispara a mesma carga por dois caminhos (efeito de carga + efeito
+ * de revalidação, e o React pode montar duas vezes em dev). Sem isto, cada
+ * abertura podia virar 8 consultas em vez de 4. A promessa fica aqui até
+ * resolver; quem chegar depois pega a mesma — mesma resposta, sem ida extra.
+ */
+const inflightMenu = new Map<string, Promise<{ categories: Category[]; products: Product[] }>>();
 
 /**
  * Get all categories for a restaurant with their products
@@ -14,23 +30,33 @@ const PRODUCT_COLUMNS =
 export async function getMenuWithProducts(
   restaurantId: string,
 ): Promise<{ categories: Category[]; products: Product[] }> {
-  const [catResult, prodResult] = await Promise.all([
-    supabase
-      .from("categories")
-      .select(CATEGORY_COLUMNS)
-      .eq("restaurant_id", restaurantId)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("products")
-      .select(PRODUCT_COLUMNS)
-      .eq("restaurant_id", restaurantId)
-      .order("sort_order", { ascending: true }),
-  ]);
+  const existing = inflightMenu.get(restaurantId);
+  if (existing) return existing;
 
-  return {
-    categories: (catResult.data ?? []) as Category[],
-    products: (prodResult.data ?? []) as Product[],
-  };
+  const request = (async () => {
+    const [catResult, prodResult] = await Promise.all([
+      supabase
+        .from("categories")
+        .select(CATEGORY_COLUMNS)
+        .eq("restaurant_id", restaurantId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("products")
+        .select(PRODUCT_COLUMNS)
+        .eq("restaurant_id", restaurantId)
+        .order("sort_order", { ascending: true }),
+    ]);
+
+    return {
+      categories: (catResult.data ?? []) as Category[],
+      products: (prodResult.data ?? []) as Product[],
+    };
+  })().finally(() => {
+    inflightMenu.delete(restaurantId);
+  });
+
+  inflightMenu.set(restaurantId, request);
+  return request;
 }
 
 /**
@@ -246,7 +272,7 @@ export async function getProductAddons(productId: string): Promise<ProductAddon[
 export async function getAddonsByRestaurant(restaurantId: string): Promise<ProductAddon[]> {
   const { data, error } = await supabase
     .from("product_addons")
-    .select("*")
+    .select(ADDON_COLUMNS)
     .eq("restaurant_id", restaurantId)
     .order("sort_order", { ascending: true });
   if (error) {

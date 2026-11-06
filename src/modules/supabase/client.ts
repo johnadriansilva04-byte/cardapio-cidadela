@@ -29,6 +29,24 @@ function getSupabaseAnonKey(): string {
   return getEnv("VITE_SUPABASE_ANON_KEY");
 }
 
+/**
+ * Origem do projeto Supabase, para o `preconnect` do `<head>`.
+ *
+ * O primeiro fetch do cardápio paga DNS + TLS até o Supabase. Abrir a conexão
+ * enquanto o HTML ainda está sendo parseado adianta esse handshake e corta
+ * latência no 4G. Devolve `null` quando não há URL (build sem env) — aí o
+ * `<head>` simplesmente não emite o hint.
+ */
+export function supabaseOrigin(): string | null {
+  const url = getSupabaseUrl();
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 function makeClient(url: string, key: string): SupabaseClient {
   if (!url || !key) {
     // Placeholder that won't throw during SSR/build but will be replaced once env is present.

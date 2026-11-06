@@ -478,7 +478,7 @@ function FinanceiroPage() {
                         {...tooltipHighContrast}
                         formatter={(v: number) => [brl(Number(v)), "Faturamento"]}
                       />
-                      <Bar dataKey="revenue" fill="#06b6d4" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="revenue" fill="#06b6d4" radius={[6, 6, 0, 0]} maxBarSize={48} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -634,7 +634,7 @@ function FinanceiroPage() {
                         {...tooltipHighContrast}
                         formatter={(v: number) => [brl(Number(v)), "Faturamento"]}
                       />
-                      <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
+                      <Bar dataKey="revenue" radius={[6, 6, 0, 0]} maxBarSize={48}>
                         {perRestaurant.map((_, i) => (
                           <Cell key={i} fill={RESTAURANT_COLORS[i % RESTAURANT_COLORS.length]} />
                         ))}

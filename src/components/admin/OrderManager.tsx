@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   RefreshCw,
@@ -62,7 +62,9 @@ import { OrderStatusBadge } from "@/components/admin/StatusBadge";
 import { KitchenMode } from "@/components/admin/KitchenMode";
 import { ProgressiveList } from "@/modules/ui/ProgressiveList";
 import {
-  getOrdersByRestaurant,
+  getOrdersByRestaurants,
+  getOrderStatusesByRestaurants,
+  getOrderById,
   getOrderForOwner,
   getOwnerLockedStores,
   updateOrderStatus,
@@ -97,6 +99,16 @@ const COLUMN_HEAD_ICON: Record<OrderStatus, string> = {
   cancelled: "text-red-400 bg-red-500/15",
 };
 
+// Ordem dos blocos na aba "Todos": fluxo operacional primeiro, histórico depois.
+const GROUP_ORDER: OrderStatus[] = [
+  "received",
+  "preparing",
+  "ready",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+];
+
 type PeriodKey = "today" | "7d" | "30d" | "all";
 
 function periodStart(period: PeriodKey): Date | null {
@@ -129,8 +141,10 @@ export function OrderManager({
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // A visão inicial é "Recebidos": é o que o operador precisa ver ao abrir.
-  const [filter, setFilter] = useState<OrderStatus | "all">("received");
+  // A visão inicial é "Todos": a fila inteira visível de uma vez. Antes abria em
+  // "Recebidos" e o pedido sumia ao avançar para "Em preparo" — o operador
+  // achava que tinha perdido o pedido. As abas continuam servindo para recortar.
+  const [filter, setFilter] = useState<OrderStatus | "all">("all");
   // A loja vem do seletor do cabeçalho; trocar aqui muda a loja ativa do painel.
   const [storeFilter, setStoreFilter] = useState<string>(initialStoreId ?? "all");
 
@@ -149,13 +163,58 @@ export function OrderManager({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [kitchenOpen, setKitchenOpen] = useState(false);
 
+  // Espelho de `orders` para o poll comparar sem entrar como dependência do
+  // efeito (senão o realtime recriaria o interval a cada pedido).
+  const ordersRef = useRef<Order[]>([]);
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+
+  // Busca o pedido completo (com itens) e o mescla na lista. O realtime entrega
+  // só a linha de `orders`, SEM `order_items` — por isso o card do pedido novo
+  // nascia sem os itens e o operador precisava clicar para vê-los. Aqui o card
+  // já entra completo.
+  const hydrateOrder = useCallback(async (id: string) => {
+    try {
+      const full = await getOrderById(id);
+      if (!full) return;
+      setOrders((prev) => {
+        const idx = prev.findIndex((o) => o.id === id);
+        if (idx === -1) {
+          return [full, ...prev].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          );
+        }
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...full };
+        return next;
+      });
+    } catch {
+      /* best-effort: o clique no card ainda carrega o detalhe */
+    }
+  }, []);
+
   const fetchAllOrders = useCallback(async (): Promise<Order[]> => {
     if (restaurantIds.length === 0) return [];
-    const batches = await Promise.all(restaurantIds.map((id) => getOrdersByRestaurant(id)));
-    return batches
-      .flat()
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    // Uma consulta `.in()` em vez de N consultas (uma por loja) — vale para o
+    // load inicial, o poll de 15s e a revalidação após mudança de status.
+    return getOrdersByRestaurants(restaurantIds);
   }, [restaurantIds]);
+
+  /** Revalidação silenciosa: não liga o "Carregando" nem apaga o que já está na tela. */
+  const revalidateOrders = useCallback(async () => {
+    try {
+      const data = await fetchAllOrders();
+      setOrders((current) => {
+        const prevMap = new Map(current.map((o) => [o.id, o.status]));
+        const same =
+          current.length === data.length && data.every((d) => prevMap.get(d.id) === d.status);
+        return same ? current : data;
+      });
+    } catch {
+      /* silencioso: o realtime ainda cobre */
+    }
+  }, [fetchAllOrders]);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -206,6 +265,9 @@ export function OrderManager({
         if (prev.some((o) => o.id === row.id)) return prev;
         return [row, ...prev];
       });
+      // O payload do realtime não traz `order_items`: busca o pedido completo
+      // para o card já nascer com os itens à vista, sem clique.
+      void hydrateOrder(row.id);
       // Realça o que acabou de chegar e limpa depois de um tempo — o dono que
       // está olhando a tela precisa ver o pedido novo sem caçar na coluna.
       setFreshIds((prev) => new Set(prev).add(row.id));
@@ -233,13 +295,22 @@ export function OrderManager({
             if (eventType === "INSERT") {
               applyInsert(payload.new as Order);
             } else if (eventType === "UPDATE") {
+              const next = payload.new as Order;
               setOrders((prev) =>
-                prev.map((o) =>
-                  o.id === (payload.new as Order).id
-                    ? ({ ...o, ...(payload.new as Order) } as Order)
-                    : o,
-                ),
+                prev.map((o) => {
+                  if (o.id !== next.id) return o;
+                  // O UPDATE do realtime também vem sem `order_items`. Mescla só
+                  // os campos presentes e mantém os itens que já temos; se o
+                  // card ainda não tinha itens, hidrata.
+                  const merged: Order = {
+                    ...o,
+                    ...next,
+                    order_items: next.order_items ?? o.order_items ?? [],
+                  };
+                  return merged;
+                }),
               );
+              if (!next.order_items) void hydrateOrder(next.id);
             } else if (eventType === "DELETE") {
               const oldId = (payload.old as { id: string }).id;
               setOrders((prev) => prev.filter((o) => o.id !== oldId));
@@ -251,22 +322,43 @@ export function OrderManager({
     }
 
     poll = setInterval(() => {
-      // fallback polling silencioso quando realtime falhar
-      fetchAllOrders()
-        .then((data) => {
-          // só atualiza se tamanho/status mudou para evitar piscar
-          setOrders((prev) => {
-            if (prev.length !== data.length) return data;
-            const prevMap = new Map(prev.map((o) => [o.id, o.status]));
-            const changed = data.some((d) => prevMap.get(d.id) !== d.status);
-            return changed ? data : prev;
+      // Não faz sentido consultar com a aba escondida — o realtime cobre a
+      // volta (visibilitychange dispara um poll imediato).
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+
+      // Poll leve: traz só id+status (centenas de bytes). Só rebaixa os pedidos
+      // completos quando algo realmente mudou. Antes o poll rebaixava tudo, com
+      // itens, a cada 15s — com a tela aberta o dia todo isso sozinho estourava
+      // o egress do plano gratuito.
+      getOrderStatusesByRestaurants(restaurantIds)
+        .then((statuses) => {
+          if (!statuses) return;
+          const prev = ordersRef.current;
+          const changed =
+            prev.length !== statuses.size || prev.some((o) => statuses.get(o.id) !== o.status);
+          if (!changed) return;
+          return fetchAllOrders().then((data) => {
+            setOrders((current) => {
+              const prevMap = new Map(current.map((o) => [o.id, o.status]));
+              const same =
+                current.length === data.length && data.every((d) => prevMap.get(d.id) === d.status);
+              return same ? current : data;
+            });
           });
         })
         .catch(() => {});
     }, 15000);
 
+    // Ao voltar para a aba, confere na hora o que o realtime perdeu em segundo
+    // plano — sem esperar até 15s pelo próximo tick.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void revalidateOrders();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       if (poll) clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
       // Limpa os realces pendentes: sem isso o timeout dispara após o unmount.
       for (const t of freshTimers) clearTimeout(t);
       for (const channel of channels) {
@@ -277,7 +369,7 @@ export function OrderManager({
         }
       }
     };
-  }, [restaurantIds, fetchAllOrders]);
+  }, [restaurantIds, fetchAllOrders, revalidateOrders, hydrateOrder]);
 
   async function changeStatus(orderId: string, status: OrderStatus) {
     const ok = await updateOrderStatus(orderId, status);
@@ -498,6 +590,17 @@ export function OrderManager({
     );
   }, [displayedOrders, filter]);
 
+  // No "Todos" os pedidos ficam separados por status (em blocos), em vez de
+  // tudo numa grade só — antes recebido, entregue e cancelado se misturavam e a
+  // fila ativa sumia no meio do histórico.
+  const groupedOrders = useMemo(() => {
+    if (filter !== "all") return null;
+    return GROUP_ORDER.map((status) => ({
+      status,
+      orders: tabOrders.filter((o) => o.status === status),
+    })).filter((g) => g.orders.length > 0);
+  }, [tabOrders, filter]);
+
   if (loading && orders.length === 0) {
     return (
       <div className="flex justify-center py-12">
@@ -666,6 +769,51 @@ export function OrderManager({
               </p>
             </div>
           </div>
+        ) : filter === "all" && groupedOrders ? (
+          // "Todos": blocos por status, na ordem do fluxo. Antes era uma grade
+          // única e o pedido recém-recebido se perdia no meio de entregues e
+          // cancelados.
+          <div className="h-full overflow-y-auto pb-1 pr-0.5">
+            <div className="space-y-4">
+              {groupedOrders.map((group) => (
+                <section key={group.status}>
+                  <div className="mb-2 flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-[11px] font-bold",
+                        TAB_TONE[group.status],
+                      )}
+                    >
+                      {TAB_LABEL[group.status]}
+                    </span>
+                    <span className="text-[11px] font-bold text-gray-500">
+                      {group.orders.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                    {group.orders.map((order) => {
+                      const locked = lockedStores.has(order.restaurant_id);
+                      return (
+                        <OrderCard
+                          key={order.id}
+                          order={order}
+                          storeName={multi ? restaurantNames.get(order.restaurant_id) : undefined}
+                          locked={locked}
+                          fresh={freshIds.has(order.id)}
+                          showStatus={false}
+                          onOpen={() => openDetail(order)}
+                          onAdvance={
+                            locked ? undefined : () => changeStatus(order.id, nextStatusFor(order)!)
+                          }
+                          onCancel={locked ? undefined : () => requestCancel(order)}
+                        />
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
         ) : (
           <div className="h-full overflow-y-auto pb-1 pr-0.5">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
@@ -750,10 +898,14 @@ function OrderCard({
   const next = nextStatusFor(order);
   const nextLabel = advanceActionLabel(order);
   const items = order.order_items ?? [];
+  // Itens numa linha só (qtd + nome, separados por ·). A lista vertical de até
+  // 4 itens era o que inflava o card; o detalhe completo vive no painel.
+  const itemsLine = items.map((i) => `${i.quantity}x ${i.product_name}`).join(" · ");
+  const extra = items.length > 3 ? ` +${items.length - 3}` : "";
   return (
     <div
       className={cn(
-        "card-lift group flex flex-col rounded-xl border p-2.5 transition-all",
+        "card-lift group flex flex-col rounded-xl border p-3 transition-all",
         locked
           ? "border-amber-500/25 bg-amber-500/[0.04] hover:border-amber-500/40 hover:bg-amber-500/[0.07]"
           : "border-white/8 bg-white/[0.03] hover:border-cyan-500/30 hover:bg-white/[0.05]",
@@ -761,26 +913,35 @@ function OrderCard({
           "animate-[slide-up_0.28s_ease-out_both] border-cyan-400/60 bg-cyan-500/[0.06] shadow-[0_0_0_1px_rgba(34,211,238,0.25)]",
       )}
     >
-      <button onClick={onOpen} className="flex flex-1 flex-col gap-1.5 text-left">
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-1.5">
-            {fresh && (
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-cyan-500 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-black">
-                Novo
+      <button onClick={onOpen} className="flex flex-1 flex-col gap-2 text-left">
+        {/* Cabeçalho: comanda e cliente em destaque — é o que o operador lê de
+            longe, então saiu do cinza minúsculo. */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              {fresh && (
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-cyan-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-black">
+                  Novo
+                </span>
+              )}
+              <span className="truncate font-mono text-base font-black leading-none text-white">
+                {order.comanda}
               </span>
-            )}
-            <span className="truncate font-mono text-xs font-bold text-white">{order.comanda}</span>
-          </span>
+            </div>
+            <p className="mt-1 truncate text-sm font-semibold text-gray-200">
+              {order.customer_name}
+            </p>
+          </div>
           <span className="flex shrink-0 items-center gap-1">
             {locked && (
-              <span className="grid size-4 place-items-center rounded-full bg-amber-500/15 text-amber-300">
-                <Lock className="size-2.5" />
+              <span className="grid size-5 place-items-center rounded-full bg-amber-500/15 text-amber-300">
+                <Lock className="size-3" />
               </span>
             )}
             {showStatus && (
               <span
                 className={cn(
-                  "rounded-full border px-2 py-0.5 text-[9px] font-bold",
+                  "rounded-full border px-2 py-0.5 text-[10px] font-bold",
                   ORDER_STATUS_COLORS[order.status],
                 )}
               >
@@ -789,17 +950,45 @@ function OrderCard({
             )}
           </span>
         </div>
+
+        {/* Valor em destaque + tipo de entrega. O total é a segunda coisa que o
+            operador confere; antes competia com o resto em fonte pequena. */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+            {order.delivery_type === "entrega" ? (
+              <Bike className="size-3.5 shrink-0" />
+            ) : (
+              <Store className="size-3.5 shrink-0" />
+            )}
+            {order.delivery_type === "entrega" ? "Entrega" : "Retirada"}
+          </span>
+          <span className="shrink-0 text-lg font-black leading-none text-cyan-300 tabular-nums">
+            {brl(order.total)}
+          </span>
+        </div>
+
         {storeName && (
-          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-semibold text-gray-400">
+          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-gray-400">
             <Store className="size-2.5" /> {storeName}
           </span>
         )}
-        <p className="truncate text-[11px] text-gray-400">{order.customer_name}</p>
 
-        {/* Itens: visíveis normalmente; com a cota estourada, só esta linha é
-            ocultada — número, cliente, horário, total e ações seguem à vista. */}
+        {order.delivery_type === "entrega" && (
+          <p className="flex items-start gap-1 text-[11px] leading-snug text-gray-400">
+            <MapPin className="mt-0.5 size-3 shrink-0 text-gray-500" />
+            <span className="line-clamp-1">
+              {[order.delivery_address, order.customer_neighborhood, order.customer_city]
+                .filter(Boolean)
+                .join(" • ") || "Endereço não informado"}
+            </span>
+          </p>
+        )}
+
+        {/* Itens numa linha: o resumo que a cozinha lê rápido, sem a lista
+            vertical que esticava o card. Com a cota estourada, só esta linha é
+            ocultada — número, cliente, total e ações seguem à vista. */}
         {locked ? (
-          <span className="flex items-center justify-between gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-200">
+          <span className="flex items-center justify-between gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1.5 text-[11px] font-bold text-amber-200">
             <span className="flex items-center gap-1.5">
               <Lock className="size-3" /> Itens bloqueados
             </span>
@@ -810,19 +999,15 @@ function OrderCard({
         ) : (
           items.length > 0 &&
           !compact && (
-            <p className="line-clamp-2 text-[10px] leading-relaxed text-gray-500">
-              {items
-                .slice(0, 3)
-                .map((i) => `${i.quantity}x ${i.product_name}`)
-                .join(" • ")}
-              {items.length > 3 ? ` • +${items.length - 3}` : ""}
+            <p className="truncate text-xs leading-snug text-gray-300" title={itemsLine}>
+              {itemsLine}
+              {extra && <span className="text-gray-500"> {extra}</span>}
             </p>
           )
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-          <span className="text-xs font-black text-cyan-400">{brl(order.total)}</span>
-          <span className="text-[9px] text-gray-600">
+        <div className="mt-auto flex items-center justify-between gap-2 pt-0.5">
+          <span className="text-[10px] font-medium text-gray-500">
             {new Date(order.created_at).toLocaleString("pt-BR", {
               hour: "2-digit",
               minute: "2-digit",
@@ -833,17 +1018,17 @@ function OrderCard({
         </div>
       </button>
       {onCancel && order.status !== "cancelled" && order.status !== "delivered" && !compact && (
-        <div className="mt-2 flex items-center gap-1.5">
+        <div className="mt-2.5 flex items-center gap-1.5">
           <button
             onClick={onCancel}
-            className="flex-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-[10px] font-bold text-red-300 transition-colors hover:bg-red-500/20"
+            className="flex-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-2 text-[11px] font-bold text-red-300 transition-colors hover:bg-red-500/20"
           >
             Cancelar
           </button>
           {onAdvance && next && (
             <button
               onClick={onAdvance}
-              className="flex-1 rounded-lg bg-cyan-500/15 px-2 py-1.5 text-[10px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-black"
+              className="flex-1 rounded-lg bg-cyan-500/15 px-2 py-2 text-[11px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-black"
             >
               → {nextLabel}
             </button>
@@ -853,7 +1038,7 @@ function OrderCard({
       {!onCancel && onAdvance && next && !compact && (
         <button
           onClick={onAdvance}
-          className="mt-2 w-full rounded-lg bg-cyan-500/15 px-2 py-1.5 text-[10px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-black"
+          className="mt-2.5 w-full rounded-lg bg-cyan-500/15 px-2 py-2 text-[11px] font-bold text-cyan-300 transition-colors hover:bg-cyan-500 hover:text-black"
         >
           → {nextLabel} avança
         </button>

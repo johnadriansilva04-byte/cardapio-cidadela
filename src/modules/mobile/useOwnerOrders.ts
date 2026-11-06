@@ -3,7 +3,8 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/modules/supabase/client";
 import { getRestaurantsByOwner } from "@/modules/supabase/restaurants";
 import {
-  getOrdersByRestaurant,
+  getOrdersByRestaurants,
+  getOrderById,
   subscribeToOrders,
   getOwnerLockedStores,
 } from "@/modules/supabase/orders";
@@ -65,13 +66,9 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
         return;
       }
 
-      const batches = await Promise.all(owned.map((r) => getOrdersByRestaurant(r.id)));
+      const all = await getOrdersByRestaurants(owned.map((r) => r.id));
       if (!aliveRef.current) return;
-      setOrders(
-        batches
-          .flat()
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-      );
+      setOrders(all);
     } catch (err) {
       console.error("[useOwnerOrders]", err);
       if (aliveRef.current) setError("Não foi possível carregar seus pedidos.");
@@ -98,18 +95,36 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
 
   const reloadOrders = useCallback(async () => {
     if (restaurants.length === 0) return;
-    const [batches, locked] = await Promise.all([
-      Promise.all(restaurants.map((r) => getOrdersByRestaurant(r.id))),
+    const [all, locked] = await Promise.all([
+      getOrdersByRestaurants(restaurants.map((r) => r.id)),
       getOwnerLockedStores(),
     ]);
     if (!aliveRef.current) return;
     setLockedStores(locked);
-    setOrders(
-      batches
-        .flat()
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-    );
+    setOrders(all);
   }, [restaurants]);
+
+  // O payload do realtime traz só a linha de `orders`, sem `order_items`. Sem
+  // isto o card do pedido novo aparece sem os itens (só ao abrir o detalhe).
+  const hydrateOrder = useCallback(async (id: string) => {
+    try {
+      const full = await getOrderById(id);
+      if (!full || !aliveRef.current) return;
+      setOrders((prev) => {
+        const idx = prev.findIndex((o) => o.id === id);
+        if (idx === -1) {
+          return [full, ...prev].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          );
+        }
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...full };
+        return next;
+      });
+    } catch {
+      /* best-effort */
+    }
+  }, []);
 
   const restaurantNames = useMemo(
     () => new Map(restaurants.map((r) => [r.id, r.name])),
@@ -143,6 +158,8 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
                 (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
               );
             });
+            // O realtime não traz os itens: hidrata para o card já nascer completo.
+            void hydrateOrder(order.id);
             // Realça o recém-chegado por 20s — no celular o alerta toca, mas
             // sem isso o operador não localiza o card na lista.
             setFreshIds((prev) => new Set(prev).add(order.id));
@@ -182,7 +199,7 @@ export function useOwnerOrders(userId: string | undefined): UseOwnerOrdersResult
         }
       }
     };
-  }, [restaurantIds, reloadOrders]);
+  }, [restaurantIds, reloadOrders, hydrateOrder]);
 
   return {
     restaurants,
@@ -223,28 +240,32 @@ export function useOwnerPendingOrders(
     let cancelled = false;
     let debounce: ReturnType<typeof setTimeout> | null = null;
     let polling: ReturnType<typeof setInterval> | null = null;
+    let pollKickoff: ReturnType<typeof setTimeout> | null = null;
     // Ids já conhecidos. Serve de rede de segurança: se o WebSocket cair, o
     // poll periódico encontra o pedido que o realtime não entregou e ainda
     // dispara o alerta. Sem isto o contador ficava certo mas o som/normal
     // notificação não tocava — o pior caso para quem está no balcão.
     const knownIds = new Set<string>();
     let seeded = false;
+    // Os ids das lojas não mudam durante a sessão: buscá-los uma vez evita uma
+    // consulta extra a cada poll de 15s (eram 2 idas ao banco por tick).
+    let restaurantIds: string[] | null = null;
 
     const countActive = async () => {
       try {
-        const rests = await getRestaurantsByOwner(userId);
-        if (cancelled) return;
-        if (rests.length === 0) {
+        if (restaurantIds === null) {
+          const rests = await getRestaurantsByOwner(userId);
+          if (cancelled) return;
+          restaurantIds = rests.map((r) => r.id);
+        }
+        if (restaurantIds.length === 0) {
           setPendingCount(0);
           return;
         }
         const { data, error } = await supabase
           .from("orders")
-          .select("id, restaurant_id, customer_name, comanda, total, status, created_at")
-          .in(
-            "restaurant_id",
-            rests.map((r) => r.id),
-          )
+          .select("id, restaurant_id, status")
+          .in("restaurant_id", restaurantIds)
           .in("status", ["received", "preparing", "ready", "out_for_delivery"]);
         if (cancelled || error) return;
         const rows = data ?? [];
@@ -256,7 +277,12 @@ export function useOwnerPendingOrders(
           for (const row of rows) {
             if (!knownIds.has(row.id)) {
               knownIds.add(row.id);
-              callbackRef.current?.(row as unknown as Order);
+              // O poll só traz id/status (payload enxuto). O alerta precisa de
+              // nome/comanda/total, então hidrata o pedido completo — só quando
+              // o realtime de fato perdeu o INSERT, que é o caso raro.
+              void getOrderById(row.id).then((full) => {
+                if (full && !cancelled) callbackRef.current?.(full);
+              });
             }
           }
         }
@@ -269,6 +295,12 @@ export function useOwnerPendingOrders(
     const scheduleCount = () => {
       if (debounce) clearTimeout(debounce);
       debounce = setTimeout(countActive, 380);
+    };
+
+    const pollTick = () => {
+      // Aba escondida não gasta consulta; o visibilitychange revalida na volta.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void countActive();
     };
 
     (async () => {
@@ -302,7 +334,17 @@ export function useOwnerPendingOrders(
       }
     })();
 
-    polling = setInterval(countActive, 15000);
+    // O realtime já entrega o pedido na hora; este poll é só a rede de
+    // segurança para quando o WebSocket cai sem avisar. 45s (era 15s) corta o
+    // egress em 3× sem atrasar o alerta normal — o INSERT e o
+    // `visibilitychange` continuam instantâneos. O jitter evita que todos os
+    // dispositivos batam no banco no mesmo segundo.
+    const POLL_MS = 45_000;
+    const POLL_JITTER_MS = 15_000;
+    pollKickoff = setTimeout(() => {
+      void pollTick();
+      polling = setInterval(pollTick, POLL_MS);
+    }, Math.random() * POLL_JITTER_MS);
 
     // Voltar para a aba revalida na hora: o navegador congela o WebSocket em
     // segundo plano, então o pedido que chegou nesse intervalo só apareceria
@@ -315,6 +357,7 @@ export function useOwnerPendingOrders(
     return () => {
       cancelled = true;
       if (debounce) clearTimeout(debounce);
+      if (pollKickoff) clearTimeout(pollKickoff);
       if (polling) clearInterval(polling);
       document.removeEventListener("visibilitychange", onVisible);
       for (const channel of channels) {

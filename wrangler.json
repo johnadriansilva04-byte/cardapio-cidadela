@@ -1,0 +1,5 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cardapio-cidadela",
+  "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "cardapio-cidadela-images" }]
+}

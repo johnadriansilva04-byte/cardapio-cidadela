@@ -41,12 +41,16 @@ CREATE TABLE IF NOT EXISTS restaurants (
   pix_key TEXT DEFAULT '',
   delivery_fee NUMERIC(10,2) DEFAULT 0,
   operating_hours JSONB,
+  mata_fome_enabled BOOLEAN DEFAULT false,
+  mata_fome_note TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 -- Migração segura: garante colunas de entrega em bancos criados por versões antigas do schema
 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS delivery_fee NUMERIC(10,2) DEFAULT 0;
 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS operating_hours JSONB;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS mata_fome_enabled BOOLEAN DEFAULT false;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS mata_fome_note TEXT DEFAULT '';
 -- Backfill: linhas antigas sem horário ganham padrão 17:00 — 00:00 todos os dias
 UPDATE restaurants
 SET operating_hours = '{
@@ -98,8 +102,6 @@ CREATE TABLE IF NOT EXISTS categories (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_categories_restaurant ON categories(restaurant_id);
-
 -- ============================================================
 -- PRODUCTS
 -- ============================================================
@@ -116,7 +118,6 @@ CREATE TABLE IF NOT EXISTS products (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_products_restaurant ON products(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 
 -- ============================================================
@@ -215,8 +216,6 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'pix';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cidadela_unlocked BOOLEAN DEFAULT false;
 
-CREATE INDEX IF NOT EXISTS idx_orders_restaurant ON orders(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_orders_guest ON orders(guest_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_comanda ON orders(comanda);
@@ -224,8 +223,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key
   ON orders (idempotency_key)
   WHERE idempotency_key IS NOT NULL;
 
--- Sustenta a checagem antiflood da RPC (por loja + janela de tempo).
-CREATE INDEX IF NOT EXISTS idx_orders_store_created ON orders(restaurant_id, created_at DESC);
 
 -- ============================================================
 -- ORDER ITEMS
@@ -261,7 +258,13 @@ CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON order_status_histor
 -- O DROP é necessário porque CREATE OR REPLACE VIEW não aceita reordenar/adicionar
 -- colunas no meio; os GRANTs SELECT mais abaixo reaplicam as permissões.
 DROP VIEW IF EXISTS order_tracking;
-CREATE OR REPLACE VIEW order_tracking AS
+-- `security_invoker = true`: a view roda com o RLS de QUEM consulta, não com o
+-- do dono (postgres). Sem isto, e com o grant default do Supabase para `anon`,
+-- um visitante sem login lia TODOS os pedidos pela view — e, como ela é
+-- auto-updatable, ainda podia UPDATE/DELETE neles (o grant default dá ALL).
+-- A leitura pública de um pedido específico é a RPC `get_order_tracking`.
+CREATE OR REPLACE VIEW order_tracking
+WITH (security_invoker = true) AS
 SELECT
   o.id,
   o.restaurant_id,
@@ -842,7 +845,12 @@ CREATE TRIGGER trg_set_restaurant_slug
 -- ============================================================
 
 -- Admin dashboard: restaurant summary
-CREATE OR REPLACE VIEW admin_restaurant_summary AS
+-- `security_invoker = true` para a view respeitar o RLS de `restaurants` e
+-- `orders`. Sem isso ela roda com o dono da view e um visitante com a chave
+-- `anon` (pública) lia TODOS os restaurantes — nome, owner_id e contagens —
+-- inclusive os não publicados.
+CREATE OR REPLACE VIEW admin_restaurant_summary
+WITH (security_invoker = true) AS
 SELECT
   r.id,
   r.name,
@@ -858,7 +866,8 @@ SELECT
 FROM restaurants r;
 
 -- Admin dashboard: today's orders count per restaurant
-CREATE OR REPLACE VIEW admin_today_orders AS
+CREATE OR REPLACE VIEW admin_today_orders
+WITH (security_invoker = true) AS
 SELECT
   restaurant_id,
   COUNT(*) AS order_count,
@@ -866,6 +875,10 @@ SELECT
 FROM orders
 WHERE created_at >= CURRENT_DATE
 GROUP BY restaurant_id;
+
+-- Views de admin não são públicas: só o dono (via RLS) as lê. `anon` fica de
+-- fora, como nas tabelas sensíveis.
+REVOKE ALL ON admin_restaurant_summary, admin_today_orders FROM anon;
 
 -- ============================================================
 CREATE TABLE IF NOT EXISTS admin_trials (
@@ -898,6 +911,10 @@ ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS monthly_order_count INTEGER DE
 ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS monthly_order_reset_date DATE DEFAULT CURRENT_DATE;
 ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS mercadopago_preapproval_id VARCHAR(255);
 ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS mercadopago_payer_email VARCHAR(255);
+-- Ciclo do Premium vigente: 'monthly' | 'annual'. Distingue os dois pacotes
+-- pagos — a leitura de cardápio por FOTO é exclusiva do anual (IA custa por
+-- uso). Escrito só pelo webhook/sync (service role); o dono não edita.
+ALTER TABLE admin_trials ADD COLUMN IF NOT EXISTS premium_cycle VARCHAR(10);
 
 CREATE TABLE IF NOT EXISTS chat_messages (
   id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -1284,6 +1301,13 @@ BEGIN
        AND NEW.mercadopago_preapproval_id IS NOT NULL THEN
       RAISE EXCEPTION 'mercadopago_preapproval_id é somente leitura para o cliente';
     END IF;
+    -- O ciclo (mensal/anual) decide o acesso à leitura por foto: se o dono
+    -- pudesse gravá-lo, bastava um PATCH premium_cycle='annual' para liberar o
+    -- recurso que custa IA. Só o webhook/sync escreve; o dono no máximo limpa.
+    IF NEW.premium_cycle IS DISTINCT FROM OLD.premium_cycle
+       AND NEW.premium_cycle IS NOT NULL THEN
+      RAISE EXCEPTION 'premium_cycle é somente leitura para o cliente';
+    END IF;
   END IF;
   RETURN NEW;
 END;
@@ -1377,7 +1401,8 @@ DO $$ BEGIN
     ));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
-GRANT SELECT ON order_tracking TO anon,authenticated;
+REVOKE ALL ON order_tracking FROM anon, authenticated;
+GRANT SELECT ON order_tracking TO authenticated;
 
 DO $$
 DECLARE
@@ -1641,7 +1666,8 @@ GRANT INSERT, SELECT ON TABLE order_items TO anon, authenticated;
 GRANT INSERT, SELECT ON TABLE order_status_history TO anon, authenticated;
 GRANT INSERT, SELECT ON TABLE cidadela_unlocks TO anon, authenticated;
 GRANT SELECT ON TABLE profiles TO anon, authenticated;
-GRANT SELECT ON order_tracking TO anon, authenticated;
+REVOKE ALL ON order_tracking FROM anon;
+GRANT SELECT ON order_tracking TO authenticated;
 
 -- Admin/dono: acesso total às tabelas de domínio via policies de owner
 GRANT ALL ON TABLE restaurants, categories, products, product_addons, addon_groups, addons,
@@ -1682,3 +1708,24 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
+
+-- ============================================================
+-- GARÇOM DIGITAL (PRACINHA) — predicado público de Premium
+-- O recurso em si é barrado no servidor (POST /api/order/draft -> 403 sem
+-- Premium). Esta função só deixa o cardápio público mostrar/esconder o botão,
+-- já que o cliente anônimo não enxerga `admin_trials`. Devolve SÓ um booleano,
+-- nada do dono/plano/pagamento. Não inclui a diária: o garçom é Premium-only.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.store_is_premium(p_store UUID)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM admin_trials a
+    WHERE a.store_id::text = p_store::text
+      AND COALESCE(a.is_premium, false)
+      AND a.premium_expires_at IS NOT NULL
+      AND a.premium_expires_at > now()
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.store_is_premium(UUID) TO anon, authenticated;

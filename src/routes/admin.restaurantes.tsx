@@ -5,14 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RestaurantCardCompact } from "@/components/admin/RestaurantCardCompact";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
+import { RestaurantLimitDialog } from "@/components/admin/RestaurantLimitDialog";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { EmptyState, InlineError, LoadingState } from "@/modules/ui/Feedback";
 import { useActiveStore } from "@/modules/store/active-store-context";
+import { usePlan } from "@/modules/premium/plan-context";
 import {
   createRestaurant,
   updateRestaurant,
   deleteRestaurant,
+  getRestaurantLimitState,
 } from "@/modules/supabase/restaurants";
 import { supabase } from "@/modules/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
@@ -29,9 +32,12 @@ function RestaurantesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { restaurants, activeId, setActiveId, reload, loading } = useActiveStore();
+  const { status: planStatus } = usePlan();
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [limitOpen, setLimitOpen] = useState(false);
+  const [limitState, setLimitState] = useState<{ premium: boolean; count: number } | null>(null);
   const [editing, setEditing] = useState<Restaurant | null>(null);
   const [deleting, setDeleting] = useState<Restaurant | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -62,6 +68,33 @@ function RestaurantesPage() {
     };
   }, [restaurants]);
 
+  // Estado do limite de restaurantes. A RPC é aditiva: sem a migração, cai para
+  // a contagem local + o status do plano. O gate real continua sendo o trigger
+  // no banco — isto só evita abrir o formulário para um INSERT que vai falhar.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void getRestaurantLimitState(restaurants.length, Boolean(planStatus?.isPremium)).then((s) => {
+      if (!cancelled) setLimitState(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, restaurants.length, planStatus?.isPremium]);
+
+  const canCreateMore = limitState
+    ? limitState.premium || limitState.count < 1
+    : restaurants.length < 1 || Boolean(planStatus?.isPremium);
+
+  function openCreate() {
+    if (!canCreateMore) {
+      setLimitOpen(true);
+      return;
+    }
+    setEditing(null);
+    setDialogOpen(true);
+  }
+
   const filtered = restaurants.filter((r) => {
     if (!q.trim()) return true;
     const s = q.toLowerCase();
@@ -89,6 +122,13 @@ function RestaurantesPage() {
         operating_hours: serializeHours(values.operating_hours),
       });
       if (!created) {
+        // O trigger do banco pode barrar mesmo com a UI liberada (ex.: Premium
+        // expirou entre a leitura e o INSERT). Nesse caso o diálogo explica.
+        if (createError && /premium|restaurante por conta/i.test(createError)) {
+          setDialogOpen(false);
+          setLimitOpen(true);
+          return null;
+        }
         toast.error(createError ?? "Erro ao criar restaurante.");
         return null;
       }
@@ -168,10 +208,7 @@ function RestaurantesPage() {
 
         actions={
           <Button
-            onClick={() => {
-              setEditing(null);
-              setDialogOpen(true);
-            }}
+            onClick={openCreate}
             className="shrink-0 rounded-full bg-cyan-500 px-5 text-sm font-bold text-black hover:bg-cyan-400"
           >
             <Plus className="size-4" /> Novo restaurante
@@ -211,10 +248,7 @@ function RestaurantesPage() {
             action={
               restaurants.length === 0 ? (
                 <Button
-                  onClick={() => {
-                    setEditing(null);
-                    setDialogOpen(true);
-                  }}
+                  onClick={openCreate}
                   className="rounded-full bg-cyan-500 text-black hover:bg-cyan-400"
                 >
                   <Plus className="size-4" /> Criar restaurante
@@ -286,6 +320,8 @@ function RestaurantesPage() {
           isEdit ? handleUpdate(values, patchId) : handleCreate(values)
         }
       />
+
+      <RestaurantLimitDialog open={limitOpen} onOpenChange={setLimitOpen} />
 
       <ConfirmDialog
         open={Boolean(deleting)}

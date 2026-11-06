@@ -104,7 +104,10 @@ BEGIN
   END IF;
 
   IF TG_OP = 'INSERT' THEN
-    NEW.requested_by := auth.uid();
+    -- Carimba quem pediu. Na inserção direta pelo dono, `auth.uid()` é o dono.
+    -- Na rota (service role), `auth.uid()` é NULL e o `requested_by` que a rota
+    -- já resolveu precisa sobreviver — sem o COALESCE a auditoria virava NULL.
+    NEW.requested_by := COALESCE(auth.uid(), NEW.requested_by);
   END IF;
 
   NEW.updated_at := now();

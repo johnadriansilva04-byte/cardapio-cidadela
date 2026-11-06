@@ -1,7 +1,15 @@
 import { createFileRoute, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { LayoutDashboard, Store, Wallet, Share2, ClipboardList, Crown } from "lucide-react";
+import {
+  LayoutDashboard,
+  Store,
+  Wallet,
+  Share2,
+  ClipboardList,
+  Crown,
+  MessageCircle,
+} from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getRestaurantsByOwner } from "@/modules/supabase/restaurants";
 import { subscribeToOrders } from "@/modules/supabase/orders";
@@ -12,6 +20,7 @@ import { PlanBadge } from "@/modules/premium/PlanBadge";
 import { playNewOrderAlert, requestOrderNotificationPermission } from "@/lib/orderAlertSound";
 import { maybeAutoPrintOrder } from "@/modules/mobile/autoPrint";
 import { ActiveStoreProvider, useActiveStore } from "@/modules/store/active-store-context";
+import { SupportChat } from "@/components/support/SupportChat";
 import {
   AppLayout,
   AppSidebar,
@@ -69,6 +78,7 @@ function AdminShell({
   user: ReturnType<typeof useAuth>["user"];
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const { restaurants, active, setActiveId } = useActiveStore();
   const matchRoute = useMatchRoute();
@@ -91,21 +101,27 @@ function AdminShell({
     const channels: RealtimeChannel[] = [];
     let cancelled = false;
     let poll: ReturnType<typeof setInterval> | null = null;
+    let pollKickoff: ReturnType<typeof setTimeout> | null = null;
     let debounce: ReturnType<typeof setTimeout> | null = null;
+    // Ids das lojas do dono, buscados uma vez por sessão do efeito.
+    let restaurantIds: string[] | null = null;
 
     const fetchPending = async () => {
       try {
-        const rests = await getRestaurantsByOwner(user.id);
-        if (cancelled) return;
-        if (rests.length === 0) {
+        // Cacheia os ids: buscá-los a cada 15s era uma consulta extra por tick.
+        if (restaurantIds === null) {
+          const rests = await getRestaurantsByOwner(user.id);
+          if (cancelled) return;
+          restaurantIds = rests.map((r) => r.id);
+        }
+        if (restaurantIds.length === 0) {
           setPendingCount(0);
           return;
         }
-        const ids = rests.map((r) => r.id);
         const { data, error } = await supabase
           .from("orders")
           .select("id,status")
-          .in("restaurant_id", ids)
+          .in("restaurant_id", restaurantIds)
           .in("status", ["received", "preparing", "ready", "out_for_delivery"]);
         if (cancelled) return;
         if (error) {
@@ -121,6 +137,12 @@ function AdminShell({
     const scheduleFetch = () => {
       if (debounce) clearTimeout(debounce);
       debounce = setTimeout(fetchPending, 380);
+    };
+
+    const pollTick = () => {
+      // Aba escondida não gasta consulta; o realtime cobre a volta.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void fetchPending();
     };
 
     (async () => {
@@ -179,11 +201,20 @@ function AdminShell({
       }
     })();
 
-    poll = setInterval(fetchPending, 15000);
+    // Rede de segurança para o realtime cair. 45s (era 15s) corta o egress em
+    // 3×; o INSERT e o `visibilitychange` continuam instantâneos. O jitter
+    // espalha os dispositivos para não baterem no banco no mesmo segundo.
+    const POLL_MS = 45_000;
+    const POLL_JITTER_MS = 15_000;
+    pollKickoff = setTimeout(() => {
+      void pollTick();
+      poll = setInterval(pollTick, POLL_MS);
+    }, Math.random() * POLL_JITTER_MS);
 
     return () => {
       cancelled = true;
       if (debounce) clearTimeout(debounce);
+      if (pollKickoff) clearTimeout(pollKickoff);
       if (poll) clearInterval(poll);
       for (const ch of channels) {
         try {
@@ -240,6 +271,17 @@ function AdminShell({
         ))}
       </nav>
       <div className="border-t border-white/[0.06] px-3 py-3">
+        <button
+          type="button"
+          onClick={() => {
+            setSidebarOpen(false);
+            setSupportOpen(true);
+          }}
+          className="tap mb-2 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/[0.05] hover:text-white"
+        >
+          <MessageCircle className="size-4 text-cyan-300" />
+          Suporte
+        </button>
         <AccountMenu
           displayName={displayName}
           avatarUrl={avatarUrl}
@@ -268,6 +310,12 @@ function AdminShell({
       <AppLayout loading={loading} sidebar={sidebar} header={header}>
         <Outlet />
       </AppLayout>
+      <SupportChat
+        open={supportOpen}
+        onOpenChange={setSupportOpen}
+        storeId={active?.id}
+        storeName={active?.name}
+      />
     </PlanProvider>
   );
 }

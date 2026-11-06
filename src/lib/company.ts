@@ -95,3 +95,37 @@ export const hasFiscalData = missingFiscalFields.length === 0;
 
 /** Linha de identificação legal usada em rodapés: "Razão social · CNPJ". */
 export const COMPANY_LEGAL_LINE = `${COMPANY.legalName} · CNPJ ${COMPANY.cnpj}`;
+
+/**
+ * Identidade da Variant — a empresa por trás do Cardápio Cidadela.
+ *
+ * Fonte única da missão: aparece na landing, no "Sobre o aplicativo" e nos
+ * materiais comerciais. Não duplique o texto em JSX.
+ */
+export const VARIANT = {
+  name: "Variant",
+  /** Uma linha, para selos e cabeçalhos. */
+  tagline: "Tecnologia para o pequeno negócio não fechar.",
+  /**
+   * A missão em si. O motivo declarado: reduzir a mortalidade das pequenas
+   * empresas atacando o que mais as mata — margem apertada e gasto operacional
+   * alto — com ferramentas que cortam custo em vez de somar mais um boleto.
+   */
+  mission:
+    "Muitas pequenas empresas não fecham por falta de cliente, e sim por margem apertada: comissão alta, gasto operacional que ninguém enxerga e preço que não cobre o custo. A Variant constrói ferramentas que cortam esse gasto e devolvem margem — para o negócio continuar de pé.",
+  /** Pilares mostrados na landing (título + explicação curta). */
+  pillars: [
+    {
+      title: "Corta o gasto operacional",
+      desc: "Sem comissão por pedido e sem app pago. O que o cliente paga fica no caixa.",
+    },
+    {
+      title: "Devolve a margem",
+      desc: "Preço e custo claros. O dono vê o ticket médio e decide com número, não no achismo.",
+    },
+    {
+      title: "Tira o peso das costas",
+      desc: "Pedido, cardápio e caixa num lugar só. Menos ferramenta, menos mensalidade, menos ruído.",
+    },
+  ],
+} as const;

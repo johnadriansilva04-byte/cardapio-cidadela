@@ -56,7 +56,7 @@
 
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --font-display: "Inter", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", "Inter", system-ui, sans-serif;
 }
 
 :root {
@@ -358,6 +358,81 @@
 
 @utility animate-float-tilt {
   animation: float-tilt 6s ease-in-out infinite;
+}
+
+/* ============================================================
+   Landing "bistrô neon" — revelações, brilho e aurora
+   ============================================================ */
+
+/* Revelação em cascata: sobe + desfoca. Usada com `animation-delay` inline
+   para escalonar os blocos da landing sem JS. */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@utility animate-reveal {
+  animation: reveal-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Faixa de logos/benefícios em loop contínuo. */
+@keyframes marquee-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@utility animate-marquee {
+  animation: marquee-x 28s linear infinite;
+}
+
+/* Aurora: manchas de cor que respiram devagar, dando profundidade ao fundo. */
+@keyframes aurora-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate3d(4%, -3%, 0) scale(1.12);
+    opacity: 0.85;
+  }
+}
+
+@utility animate-aurora {
+  animation: aurora-drift 14s ease-in-out infinite;
+}
+
+/* Brilho que atravessa o texto do título (gradiente animado). */
+@keyframes text-shine {
+  to {
+    background-position: 220% center;
+  }
+}
+
+@utility text-shine {
+  background-size: 220% auto;
+  animation: text-shine 5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-reveal,
+  .animate-marquee,
+  .animate-aurora,
+  .text-shine {
+    animation: none !important;
+  }
 }
 
 /* Brilho de carregamento em forma de esqueleto (shimmer) */
@@ -802,6 +877,130 @@
 }
 
 /* ============================================================
+   Galáxia animada - estrelas, cometas e planetas
+   ============================================================ */
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes comet {
+  0% {
+    transform: translateX(100%) translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(-100%) translateY(-50px);
+    opacity: 0;
+  }
+}
+
+@keyframes planet {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(5deg);
+  }
+}
+
+@utility animate-comet {
+  animation: comet 8s linear infinite;
+}
+
+@utility animate-planet {
+  animation: planet 12s ease-in-out infinite;
+}
+
+/* ============================================================
+   Tema natalino do "outdoor" da home (nov/dez)
+   Só aparece na janela de Natal (ver `isChristmasSeason`). Aditivo:
+   não toca nos tokens nem nas classes existentes.
+   ============================================================ */
+
+/* Neve caindo. Cada floco recebe left/duração/atraso/tamanho por inline style,
+   então o mesmo keyframe serve para a tempestade inteira. */
+@keyframes snow-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--snow-o, 0.8);
+  }
+  90% {
+    opacity: var(--snow-o, 0.8);
+  }
+  100% {
+    transform: translate3d(var(--snow-drift, 0), 112vh, 0);
+    opacity: 0;
+  }
+}
+
+@utility snowflake {
+  position: absolute;
+  top: 0;
+  border-radius: 9999px;
+  background: #fff;
+  animation: snow-fall linear infinite;
+  will-change: transform, opacity;
+}
+
+/* Luzes de Natal piscando: o fio de lâmpadas que atravessa o topo do outdoor. */
+@keyframes fairy-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+    filter: brightness(1.15);
+  }
+  50% {
+    opacity: 0.45;
+    filter: brightness(0.85);
+  }
+}
+
+@utility fairy-bulb {
+  animation: fairy-twinkle 1.8s ease-in-out infinite;
+}
+
+/* Corrente de luzes: a lâmpada acende em sequência (chase), como um letreiro
+   de loja. Usada no fio que emoldura o outdoor da home. */
+@utility bulb-chase {
+  animation: fairy-twinkle 2.4s ease-in-out infinite;
+}
+
+/* Aurora do fundo: no Natal ela respira em vermelho/verde em vez de ciano. */
+@utility aurora-christmas {
+  background-image:
+    radial-gradient(60% 60% at 30% 30%, rgba(239, 68, 68, 0.16), transparent 70%),
+    radial-gradient(55% 55% at 70% 40%, rgba(16, 185, 129, 0.15), transparent 70%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snowflake,
+  .fairy-bulb {
+    animation: none !important;
+  }
+  /* Sem animação a neve ficaria parada no topo: esconde e mantém só as luzes. */
+  .snowflake {
+    display: none;
+  }
+}
+
+/* ============================================================
    Selo de plano — vive no cabeçalho de toda tela autenticada
    ============================================================ */
 
@@ -868,5 +1067,186 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   Cockpit da landing — transição de abas e identidade visual
+   ============================================================ */
+
+/* Cada aba entra com uma leve subida + desfoque. É o que faz a troca
+   de painel parecer "abrir uma aba", não recarregar a página. */
+@keyframes panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@utility animate-panel {
+  animation: panel-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Linha de varredura horizontal: dá a sensação de painel vivo, ligado. */
+@keyframes cockpit-scan {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.6;
+  }
+  88% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(560%);
+    opacity: 0;
+  }
+}
+
+@utility animate-scan {
+  animation: cockpit-scan 7s linear infinite;
+}
+
+/* Cursor que pisca (terminal). */
+@keyframes caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@utility animate-caret {
+  animation: caret-blink 1.05s step-end infinite;
+}
+
+/* ============================================================
+   Identidade visual autoral — malha de engenharia
+   A Variant é uma casa de tecnologia. Em vez do gradiente genérico,
+   o fundo é uma malha técnica: grade fina + cruzetas nos nós +
+   varredura. É arte de propósito, não decoração de template.
+   ============================================================ */
+
+.variant-grid {
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 0%, #000 30%, transparent 100%);
+}
+
+.variant-grid-nodes {
+  background-image: radial-gradient(rgba(34, 211, 238, 0.5) 1.4px, transparent 1.4px);
+  background-size: 92px 92px;
+  mask-image: radial-gradient(ellipse 65% 60% at 50% 10%, #000 20%, transparent 100%);
+}
+
+/* Fumaça do cachimbo da cobra (marca da Variant): sobe em volutas. */
+@keyframes vm-smoke-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.9);
+  }
+  35% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-9px) scale(1.08);
+  }
+}
+
+.vm-smoke {
+  transform-origin: center bottom;
+  animation: vm-smoke-rise 3.2s ease-in-out infinite;
+}
+
+/* ============================================================
+   Cena viva do herói — "o pedido chega"
+   Um pedido sai da mão do cliente e cai no painel do dono. Conta a
+   história do produto em 5 segundos, sem vídeo e sem peso.
+   ============================================================ */
+
+@keyframes hero-fly {
+  0%,
+  18% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  62% {
+    opacity: 1;
+    transform: translate(58px, 34px) scale(0.9);
+  }
+  72%,
+  100% {
+    opacity: 0;
+    transform: translate(70px, 42px) scale(0.4);
+  }
+}
+
+@keyframes hero-drop {
+  0%,
+  58% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.92);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1.04);
+  }
+  80%,
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hero-tap {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  40%,
+  52% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes hero-ping {
+  0%,
+  58% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  66% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  78%,
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
   }
 }

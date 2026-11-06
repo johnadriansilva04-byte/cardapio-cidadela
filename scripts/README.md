@@ -1,5 +1,45 @@
 # Scripts do Projeto
 
+## keep-alive.mjs
+
+Mantém o projeto Supabase acordado no **plano gratuito**. O Free pausa o
+projeto depois de **1 semana sem nenhuma requisição**, e um projeto pausado
+derruba o app (a API responde 503). O script faz **uma** requisição leve — só
+isso.
+
+Roda sozinho a cada 5 dias (workflow `.github/workflows/keep-alive.yml`) e
+também pode ser rodado à mão:
+
+```bash
+npm run keep-alive
+```
+
+Envs: `SUPABASE_URL` e `SUPABASE_ANON_KEY` (a chave pública, a mesma do
+bundle). No GitHub já existem como `VITE_SUPABASE_URL` /
+`VITE_SUPABASE_ANON_KEY`. Nenhum token é necessário.
+
+## backup-to-r2.mjs / restore-from-r2.mjs
+
+Backup diário dos dados do Supabase para o Cloudflare R2 (10 GB grátis) e
+restauração. O plano gratuito do Supabase não tem backup automático — estes
+scripts são a rede de segurança do cardápio e das assinaturas.
+
+Documentação completa (o que é salvo, onde fica, secrets, como recuperar):
+**[BACKUP.md](./BACKUP.md)**.
+
+Uso rápido:
+
+```bash
+npm run backup                    # exporta e sobe para o R2
+npm run backup -- --dry-run       # só exporta local (DRY_RUN=1)
+npm run restore -- --latest       # mostra o plano de restauração
+npm run restore -- --latest --confirm   # restaura de verdade
+npm run backup:retention -- 3     # mantém os 3 backups mais recentes
+```
+
+O bucket guarda **3 dias** (hoje + ontem + anteontem); o R2 apaga o resto
+sozinho. Detalhes em [BACKUP.md](./BACKUP.md).
+
 ## create-payment-link.js
 
 Este script cria um link de pagamento pontual (checkout pro) no Mercado Pago com Pix habilitado.

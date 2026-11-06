@@ -205,6 +205,8 @@ export interface PreapprovalInfo {
   payerEmail: string;
   externalReference: string;
   nextPaymentDate: string | null;
+  /** Ciclo cobrado: "monthly" | "annual" | "" (deriva de auto_recurring). */
+  cycle: "monthly" | "annual" | "";
 }
 
 /** Normaliza o corpo de um preapproval do Mercado Pago. */
@@ -213,14 +215,17 @@ export function normalizePreapproval(raw: unknown): PreapprovalInfo | null {
   const r = raw as Record<string, unknown>;
   const id = String(r.id ?? "");
   if (!id) return null;
-  const next =
-    (r.next_payment_date as string) ?? (r.auto_recurring as { end_date?: string })?.end_date;
+  const recurring = r.auto_recurring as { end_date?: string; frequency?: number } | undefined;
+  const next = (r.next_payment_date as string) ?? recurring?.end_date;
+  // frequency 12 (meses) = anual; qualquer outra coisa cai em mensal.
+  const cycle: PreapprovalInfo["cycle"] = Number(recurring?.frequency) >= 12 ? "annual" : "monthly";
   return {
     id,
     status: String(r.status ?? ""),
     payerEmail: String((r.payer_email as string) ?? ""),
     externalReference: String((r.external_reference as string) ?? ""),
     nextPaymentDate: next ?? null,
+    cycle,
   };
 }
 

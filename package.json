@@ -12,11 +12,15 @@
     "format": "prettier --write .",
     "generate-icons": "node scripts/generate-icons.js",
     "create-payment-link": "node scripts/create-payment-link.js",
+    "backup": "node scripts/backup-to-r2.mjs",
+    "restore": "node scripts/restore-from-r2.mjs",
+    "backup:retention": "node scripts/r2-lifecycle.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "keep-alive": "node scripts/keep-alive.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -99,7 +103,8 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.1.5",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "wrangler": "^4.157.0"
   },
   "allowScripts": {
     "sharp@0.33.5": true

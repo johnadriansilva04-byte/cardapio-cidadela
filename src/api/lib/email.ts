@@ -15,6 +15,7 @@
 import { COMPANY } from "@/lib/company";
 import { INVOICE_KIND_LABELS } from "@/lib/invoice";
 import { readEnv } from "./mercadopago";
+import { buildInvoiceSubject } from "./report-subject";
 
 export interface EmailMessage {
   to: string;
@@ -82,7 +83,7 @@ function brlFromCents(cents: number | null): string {
  */
 export function buildInvoiceEmail(data: InvoiceEmailData): EmailMessage {
   const kindLabel = INVOICE_KIND_LABELS[data.kind] ?? data.kind;
-  const subject = `Pedido de nota fiscal · ${data.restaurantName} · ${kindLabel}`;
+  const subject = buildInvoiceSubject({ restaurantName: data.restaurantName, kindLabel });
 
   const rows: Array<[string, string]> = [
     ["Loja", data.restaurantName],

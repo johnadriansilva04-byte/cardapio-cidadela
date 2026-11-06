@@ -11,13 +11,22 @@ import {
   Eye,
   EyeOff,
   Store,
+  Clock,
 } from "lucide-react";
-import { updateProfileName, updatePassword, deleteAccount } from "@/modules/supabase/auth";
+import {
+  updateProfileName,
+  updatePassword,
+  deleteAccount,
+  getAccountPurgeStatus,
+  type AccountPurgeStatus,
+} from "@/modules/supabase/auth";
 import { getRestaurantsByOwner } from "@/modules/supabase/restaurants";
 import { useAuth } from "@/components/AuthProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { PageHeader } from "@/modules/ui/PageHeader";
 import { GuidePanel, GuideTile } from "@/modules/ui/GuidePanel";
+import { optimizedImageUrl } from "@/lib/imageOptimization";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/config")({
   head: () => ({ meta: [{ title: "Configurações — Cardápio Cidadela" }] }),
@@ -82,6 +91,9 @@ function AccountSection({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Situação da conta frente à limpeza de inativos (feature desligada → null).
+  const [purge, setPurge] = useState<AccountPurgeStatus | null>(null);
+
   const initials = displayName
     ? displayName
         .split(/\s+/)
@@ -104,6 +116,17 @@ function AccountSection({
       setStoreId(withPhoto.id);
       setStorePhoto(withPhoto.logo_url || null);
     })();
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    void getAccountPurgeStatus().then((s) => {
+      if (alive) setPurge(s);
+    });
     return () => {
       alive = false;
     };
@@ -177,6 +200,42 @@ function AccountSection({
         onClick={() => onGuideChange("acoes")}
       />
 
+      {/* Aviso de retenção: a conta é apagada após 30 dias sem atividade. Fica
+          discreto e só aparece com a migração aplicada (`purge` != null). */}
+      {purge && (
+        <div
+          className={cn(
+            "mt-1 flex items-start gap-2.5 rounded-2xl border p-3.5",
+            purge.daysLeft <= 7
+              ? "border-amber-500/30 bg-amber-500/[0.07]"
+              : "border-white/[0.07] bg-white/[0.02]",
+          )}
+        >
+          <span
+            className={cn(
+              "grid size-9 shrink-0 place-items-center rounded-xl",
+              purge.daysLeft <= 7
+                ? "bg-amber-500/15 text-amber-300"
+                : "bg-white/[0.05] text-gray-400",
+            )}
+          >
+            <Clock className="size-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-white">
+              {purge.daysLeft <= 7
+                ? `Sua conta será removida em ${purge.daysLeft} dia(s)`
+                : "Sua conta está ativa"}
+            </p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
+              Contas sem nenhuma atividade por {purge.retentionDays} dias são removidas
+              automaticamente, com cardápio e pedidos. Abrir o painel ou receber um pedido já conta
+              como atividade.
+            </p>
+          </div>
+        </div>
+      )}
+
       <GuidePanel
         open={guide === "conta"}
         onOpenChange={(o) => !o && onGuideChange(null)}
@@ -186,7 +245,19 @@ function AccountSection({
         <div className="mb-4 flex items-center gap-3">
           <span className="size-14 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-cyan-500/30 to-violet-500/20 ring-1 ring-white/10">
             {storePhoto ? (
-              <img src={storePhoto} alt="Foto do restaurante" className="size-full object-cover" />
+              <img
+                src={optimizedImageUrl(storePhoto, {
+                  width: 112,
+                  height: 112,
+                  quality: 70,
+                  resize: "cover",
+                  format: "webp",
+                })}
+                alt="Foto do restaurante"
+                className="size-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
             ) : (
               <span className="grid size-full place-items-center text-base font-bold text-cyan-200">
                 {initials}

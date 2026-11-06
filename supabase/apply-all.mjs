@@ -37,9 +37,20 @@ const FILES = [
   "supabase_rewards_migration.sql",
   "supabase_day_pass_migration.sql",
   "supabase_day_pass_rewards_migration.sql",
+  "supabase_day_pass_limit_migration.sql",
   "supabase_invoice_migration.sql",
   "supabase_push_grants_migration.sql",
   "supabase_retention.sql",
+  "supabase_inactive_accounts_migration.sql",
+  "supabase_maintenance_migration.sql",
+  "supabase_perf_indexes_migration.sql",
+  "supabase_restaurant_limit_migration.sql",
+  "supabase_garcom_premium_migration.sql",
+  "supabase_premium_cycle_migration.sql",
+  "supabase_index_cleanup_migration.sql",
+  "supabase_support_reports_migration.sql",
+  "supabase_order_tracking_guard_migration.sql",
+  "supabase_mata_fome_migration.sql",
 ];
 
 async function api(path, init = {}) {

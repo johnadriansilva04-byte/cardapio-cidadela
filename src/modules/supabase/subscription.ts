@@ -46,10 +46,13 @@ interface AccessState {
   unlocked: boolean;
   source: "annual" | "day" | "free";
   annual_expires_at: string | null;
+  premium_cycle?: "monthly" | "annual" | null;
   unlocked_until: string | null;
   quota_used: number;
   quota_limit: number;
   day_pass_credits?: number;
+  day_pass_month_used?: number;
+  day_pass_month_limit?: number;
 }
 
 /**
@@ -69,6 +72,7 @@ async function fetchAccessState(storeId: string): Promise<AccessState | null> {
     unlocked: Boolean(raw.unlocked),
     source: (raw.source as AccessState["source"]) ?? "free",
     annual_expires_at: raw.annual_expires_at ?? null,
+    premium_cycle: (raw.premium_cycle as AccessState["premium_cycle"]) ?? null,
     unlocked_until: raw.unlocked_until ?? null,
     quota_used: Math.max(0, Number(raw.quota_used ?? 0) || 0),
     quota_limit: Math.max(0, Number(raw.quota_limit ?? MONTHLY_FREE_LIMIT) || 0),
@@ -195,7 +199,12 @@ function toStatus(
     dayPassActive,
     dayPassUntil,
     dayPassCredits: Math.max(0, Number(access?.day_pass_credits ?? 0) || 0),
+    dayPassMonthUsed: Math.max(0, Number(access?.day_pass_month_used ?? 0) || 0),
+    dayPassMonthLimit: Math.max(0, Number(access?.day_pass_month_limit ?? 15) || 15),
     accessSource,
+    // Sem a migração do ciclo, a RPC não devolve o campo: tratamos como mensal
+    // (o recurso de foto fica bloqueado até o ciclo ser gravado).
+    premiumCycle: isPremium ? (access?.premium_cycle ?? "monthly") : null,
   };
 }
 
@@ -359,12 +368,29 @@ export async function getPreapprovalId(storeId: string): Promise<string | null> 
  * acontece no webhook, quando o Mercado Pago confirma o pagamento. Devolve
  * `null` em qualquer falha (a UI mostra um aviso e não abre o checkout).
  */
+export interface DayPassLinkResult {
+  /** URL de checkout do Mercado Pago, quando deu certo. */
+  initPoint?: string;
+  /** Código do erro devolvido pela rota (ex.: `day_pass_limit_reached`). */
+  error?: string;
+  /** Mensagem pronta para exibir ao usuário, quando houver. */
+  message?: string;
+}
+
+/**
+ * Cria o link de pagamento da diária (24h × quantidade).
+ *
+ * O teto mensal de diárias é decidido no servidor (a rota conta as compras do
+ * mês). Quando ele barra, devolvemos o motivo em vez de `null` para a UI poder
+ * explicar — antes um `null` genérico virava "não foi possível gerar o link",
+ * escondendo que o caminho certo era assinar o Premium.
+ */
 export async function createDayPassLink(
   storeId: string,
   accessToken: string | undefined,
   quantity = 1,
-): Promise<string | null> {
-  if (!storeId || !accessToken) return null;
+): Promise<DayPassLinkResult> {
+  if (!storeId || !accessToken) return { error: "not_authenticated" };
   try {
     const res = await fetch("/api/payment/day-pass", {
       method: "POST",
@@ -374,11 +400,15 @@ export async function createDayPassLink(
       },
       body: JSON.stringify({ storeId, quantity: Math.max(1, Math.floor(quantity) || 1) }),
     });
-    if (!res.ok) return null;
-    const data = (await res.json().catch(() => ({}))) as { initPoint?: string };
-    return data.initPoint ?? null;
+    const data = (await res.json().catch(() => ({}))) as {
+      initPoint?: string;
+      error?: string;
+      message?: string;
+    };
+    if (!res.ok) return { error: data.error ?? "link_failed", message: data.message };
+    return { initPoint: data.initPoint };
   } catch {
-    return null;
+    return { error: "network" };
   }
 }
 
@@ -389,12 +419,18 @@ export async function createDayPassLink(
  * ativação continua só no webhook; aqui apenas devolvemos o link de
  * autorização. `null` em qualquer falha (a UI avisa e não abre o checkout).
  */
+export interface SubscriptionLinkResult {
+  initPoint?: string;
+  /** Código de erro do servidor (ex.: `payer_email_required`). */
+  error?: string;
+}
+
 export async function createSubscriptionLink(
   storeId: string,
   accessToken: string | undefined,
   billing: "monthly" | "annual" = "monthly",
-): Promise<string | null> {
-  if (!storeId || !accessToken) return null;
+): Promise<SubscriptionLinkResult> {
+  if (!storeId || !accessToken) return { error: "não autenticado" };
   try {
     const res = await fetch("/api/payment/subscribe", {
       method: "POST",
@@ -404,11 +440,11 @@ export async function createSubscriptionLink(
       },
       body: JSON.stringify({ storeId, billing }),
     });
-    if (!res.ok) return null;
-    const data = (await res.json().catch(() => ({}))) as { initPoint?: string };
-    return data.initPoint ?? null;
+    const data = (await res.json().catch(() => ({}))) as { initPoint?: string; error?: string };
+    if (!res.ok) return { error: data.error ?? `http_${res.status}` };
+    return { initPoint: data.initPoint };
   } catch {
-    return null;
+    return { error: "network" };
   }
 }
 
@@ -430,4 +466,18 @@ export async function fetchDayPassCredits(storeId: string): Promise<number> {
   const { data, error } = await supabase.rpc("owner_day_pass_credits", { p_store: storeId });
   if (error) return 0;
   return Math.max(0, Number(data ?? 0) || 0);
+}
+
+/**
+ * Ciclo do Premium vigente da loja ('monthly' | 'annual' | null).
+ *
+ * Leve de propósito: só lê a RPC `store_access_state`, sem montar o
+ * `SubscriptionStatus` inteiro. Usado onde só interessa liberar a leitura por
+ * foto (exclusiva do anual). Sem a RPC/migração devolve `null` (bloqueia o
+ * recurso, que é o comportamento seguro).
+ */
+export async function fetchPremiumCycle(storeId: string): Promise<"monthly" | "annual" | null> {
+  const access = await fetchAccessState(storeId);
+  if (!access || !access.unlocked) return null;
+  return access.premium_cycle ?? "monthly";
 }

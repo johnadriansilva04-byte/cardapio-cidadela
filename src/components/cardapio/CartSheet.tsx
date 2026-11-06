@@ -79,19 +79,10 @@ export default function CartSheet({
                     style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     <div className="flex items-start gap-3">
-                      {line.item.image_url ? (
-                        <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-lg">
-                          <img
-                            src={line.item.image_url}
-                            alt=""
-                            className="size-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="grid size-12 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.03] text-gray-600">
-                          🍔
-                        </div>
-                      )}
+                      {/* Tile genérico: produto não tem mais foto. */}
+                      <div className="grid size-12 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.03] text-gray-600">
+                        🍔
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-white">{line.item.name}</p>
                         <p className="mt-0.5 text-xs text-gray-500">

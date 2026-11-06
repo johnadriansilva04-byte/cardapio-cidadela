@@ -270,3 +270,52 @@ test("abre a página pública de acompanhamento de um pedido", async ({ page }) 
   await page.goto(`/pedido/${orderId}`);
   await expect(page.getByText(/ABC123/).first()).toBeVisible();
 });
+
+test.describe("garçom digital (Pracinha) — Premium-only", () => {
+  test("loja grátis não vê 'Pedir por texto'", async ({ page }) => {
+    await page.goto(`/cardapio/${SLUG}`);
+    await expect(page.getByText("X-Burger").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Pedir por texto/ })).toHaveCount(0);
+  });
+
+  test("loja Premium vê o botão e o chat monta o carrinho", async ({ page }) => {
+    const inTenDays = new Date(Date.now() + 10 * 86_400_000).toISOString();
+    await seed(page, {
+      restaurants: [
+        {
+          id: "11111111-1111-1111-1111-111111111111",
+          owner_id: "owner-1",
+          slug: SLUG,
+          name: "Cidadela Teste",
+          status: "published",
+          primary_color: "#06b6d4",
+          secondary_color: "#8b5cf6",
+          operating_hours: null,
+          created_at: new Date().toISOString(),
+        },
+      ],
+      admin_trials: [
+        {
+          store_id: "11111111-1111-1111-1111-111111111111",
+          is_premium: true,
+          premium_expires_at: inTenDays,
+        },
+      ],
+    });
+
+    // Sem backend de IA no E2E: a rota é abortada de propósito para provar o
+    // fallback OFFLINE — o parser roda no navegador com o cardápio já carregado.
+    await page.route("**/api/order/draft", (route) => route.abort());
+
+    await page.goto(`/cardapio/${SLUG}`);
+    await page.getByRole("button", { name: /Pedir por texto/ }).click();
+    await expect(page.getByText(/Escreve que eu monto seu pedido/)).toBeVisible();
+
+    await page.getByPlaceholder(/2 x-burger sem cebola/).fill("2 x-burger");
+    await page.getByRole("button", { name: "Enviar" }).click();
+
+    await expect(page.getByText(/Anotei: 2× X-Burger/)).toBeVisible();
+    await page.getByRole("button", { name: /Ver meu pedido/ }).click();
+    await expect(page.getByText("Seu pedido").first()).toBeVisible();
+  });
+});

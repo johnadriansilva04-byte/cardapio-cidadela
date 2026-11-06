@@ -13,7 +13,9 @@ import appCss from "../styles.css?url";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { captureInstallPrompt, registerServiceWorker } from "@/modules/pwa/install";
-import { reportLovableError } from "@/lib/lovable-error-reporting";
+import { reportError } from "@/lib/reportError";
+import { supabaseOrigin } from "@/modules/supabase/client";
+import { R2_PUBLIC_BASE } from "@/api/lib/r2-images";
 
 function NotFoundComponent() {
   return (
@@ -41,11 +43,10 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   console.error(error);
   const router = useRouter();
 
-  // Encaminha o erro do boundary para a telemetria (Lovable em preview e
-  // window.onerror/unhandledrejection no navegador) — sem isso, erros de
-  // render somem no console e não há como investigar instabilidade em produção.
+  // Avisa o time (Pracinha) uma vez por erro: o relato chega por e-mail com o
+  // prompt pronto para o dev. Best-effort — não pode interferir na tela.
   useEffect(() => {
-    reportLovableError(error, { boundary: "root" });
+    reportError(error, { component: "ErrorBoundary" });
   }, [error]);
 
   return (
@@ -107,6 +108,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      // Abre DNS + TLS antes da primeira consulta: o cardápio fala com o
+      // Supabase e as fotos vêm do R2. Sem isso, o handshake acontece só quando
+      // o efeito de carga dispara, somando latência no 4G do balcão.
+      ...(supabaseOrigin()
+        ? [{ rel: "preconnect", href: supabaseOrigin()!, crossOrigin: "anonymous" as const }]
+        : []),
+      { rel: "preconnect", href: R2_PUBLIC_BASE, crossOrigin: "anonymous" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       {
         rel: "preconnect",
@@ -115,7 +123,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Permanent+Marker&family=Bangers&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=JetBrains+Mono:wght@400;600&family=Permanent+Marker&family=Bangers&display=swap",
       },
       { rel: "manifest", href: "/manifest.json" },
       { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
@@ -150,6 +158,21 @@ function RootComponent() {
   useEffect(() => {
     captureInstallPrompt();
     registerServiceWorker();
+  }, []);
+
+  // Erros que não passam pelo error boundary (promise rejeitada, throw fora do
+  // render) também precisam chegar ao time. O reporter deduplica.
+  useEffect(() => {
+    const onRejection = (e: PromiseRejectionEvent) =>
+      reportError(e.reason, { component: "unhandledrejection" });
+    const onError = (e: ErrorEvent) =>
+      reportError(e.error ?? e.message, { component: "window.onerror" });
+    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("error", onError);
+    return () => {
+      window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("error", onError);
+    };
   }, []);
 
   return (

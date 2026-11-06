@@ -1,0 +1,33 @@
+name: Keep-alive (Supabase)
+
+# O plano gratuito do Supabase pausa o projeto após 1 semana sem nenhuma
+# requisição — e um projeto pausado derruba o app inteiro (a API responde 503).
+# Este workflow faz UMA requisição leve a cada 5 dias: o intervalo máximo fica
+# bem dentro da janela de 7 dias. Sem token, sem checagem — só o ping.
+on:
+  schedule:
+    # Dias 1, 6, 11, 16, 21, 26, 31 — a maior folga entre dois pings é 5 dias.
+    - cron: "0 12 */5 * *"
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-keep-alive
+  cancel-in-progress: false
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Pingar o projeto
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: node scripts/keep-alive.mjs

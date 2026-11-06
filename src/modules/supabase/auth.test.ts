@@ -3,13 +3,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   const profileEq = vi.fn(async () => ({ error: null }));
   const profileUpdate = vi.fn(() => ({ eq: profileEq }));
+  const profileMaybeSingle = vi.fn(async () => ({ data: { id: "u1" }, error: null }));
+  const profileSelectEq = vi.fn(() => ({ maybeSingle: profileMaybeSingle }));
+  const profileSelect = vi.fn(() => ({ eq: profileSelectEq }));
+  const profileInsert = vi.fn(async () => ({ error: null }));
   return {
     getUser: vi.fn(),
     signInWithPassword: vi.fn(),
     updateUser: vi.fn(),
     profileUpdate,
     profileEq,
-    from: vi.fn(() => ({ update: profileUpdate })),
+    profileSelect,
+    profileSelectEq,
+    profileMaybeSingle,
+    profileInsert,
+    from: vi.fn(() => ({
+      update: profileUpdate,
+      select: profileSelect,
+      insert: profileInsert,
+    })),
   };
 });
 
@@ -133,6 +145,7 @@ describe("updateProfileEmail", () => {
     vi.clearAllMocks();
     mocks.getUser.mockResolvedValue({ data: { user: signedInUser() } });
     mocks.profileEq.mockResolvedValue({ error: null });
+    mocks.profileMaybeSingle.mockResolvedValue({ data: { id: "u1" }, error: null });
     mocks.updateUser.mockResolvedValue({ data: { user: {} }, error: null });
   });
 
@@ -157,6 +170,28 @@ describe("updateProfileEmail", () => {
     expect(mocks.profileEq).toHaveBeenCalledWith("id", "u1");
     expect(mocks.updateUser).toHaveBeenCalledWith({ data: { email: "dono@x.com" } });
     expect(result).toEqual({ ok: true });
+  });
+
+  it("cria a linha de perfil quando ela não existe (não salva no vazio)", async () => {
+    // Sem a linha, o UPDATE acerta zero linhas e devolve `error: null` — o
+    // e-mail parecia salvo e voltava a "pendente" no próximo carregamento.
+    mocks.profileMaybeSingle.mockResolvedValue({ data: null, error: null });
+
+    const result = await updateProfileEmail("dono@x.com");
+
+    expect(mocks.profileInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "u1", phone: "11999998888", role: "owner" }),
+    );
+    expect(mocks.profileUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "dono@x.com" }),
+    );
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("não recria a linha quando o perfil já existe", async () => {
+    mocks.profileMaybeSingle.mockResolvedValue({ data: { id: "u1" }, error: null });
+    await updateProfileEmail("dono@x.com");
+    expect(mocks.profileInsert).not.toHaveBeenCalled();
   });
 
   it("grava null quando o campo é esvaziado (remover e-mail)", async () => {

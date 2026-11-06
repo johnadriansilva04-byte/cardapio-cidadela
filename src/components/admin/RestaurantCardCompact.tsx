@@ -13,6 +13,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { optimizedImageUrl } from "@/lib/imageOptimization";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,6 +58,19 @@ export function RestaurantCardCompact({
   const isPublished = restaurant.status === "published";
   const cover = restaurant.banner_url || restaurant.logo_url || "";
   const hasImage = Boolean(cover);
+
+  // Capa otimizada: o Storage serve a arte em WebP no tamanho do card. Sem isto
+  // o card baixava o PNG/JPEG cru (havia um banner de 729 kB) — o maior item de
+  // egress do painel. `onError` volta à URL original se a transformação estiver
+  // desligada, então nunca some imagem por causa disto.
+  function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
+    const el = e.currentTarget;
+    if (el.dataset.original && el.src !== el.dataset.original) {
+      el.src = el.dataset.original;
+      return;
+    }
+    el.style.display = "none";
+  }
   // Sem banner, a capa é a própria logo (quadrada): object-contain mostra a
   // imagem inteira sem cortar; com banner de verdade, object-cover preenche.
   const coverIsLogo = !restaurant.banner_url && Boolean(restaurant.logo_url);
@@ -87,35 +101,53 @@ export function RestaurantCardCompact({
         {hasImage ? (
           coverIsLogo ? (
             <img
-              src={cover}
+              src={optimizedImageUrl(cover, {
+                width: 320,
+                quality: 70,
+                resize: "cover",
+                format: "webp",
+              })}
+              data-original={cover}
               alt={restaurant.name}
               className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
+              loading="lazy"
+              decoding="async"
+              onError={handleImgError}
             />
           ) : (
             <>
               {/* Preenchimento: o mesmo banner desfocado cobre as sobras,
                   evitando faixas vazias nas laterais. */}
               <img
-                src={cover}
+                src={optimizedImageUrl(cover, {
+                  width: 400,
+                  quality: 55,
+                  resize: "cover",
+                  format: "webp",
+                })}
+                data-original={cover}
                 alt=""
                 aria-hidden
                 className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
+                loading="lazy"
+                decoding="async"
+                onError={handleImgError}
               />
               {/* Banner inteiro e nítido: "contain" mostra a arte completa,
                   sem cortar o nome embutido nela. */}
               <img
-                src={cover}
+                src={optimizedImageUrl(cover, {
+                  width: 400,
+                  quality: 70,
+                  resize: "contain",
+                  format: "webp",
+                })}
+                data-original={cover}
                 alt={restaurant.name}
                 className="relative h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
+                loading="lazy"
+                decoding="async"
+                onError={handleImgError}
               />
             </>
           )
@@ -155,10 +187,19 @@ export function RestaurantCardCompact({
         <div className="absolute -top-8 left-1/2 z-20 flex size-16 -translate-x-1/2 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#12121a] bg-[#12121a] shadow-xl">
           {restaurant.logo_url ? (
             <img
-              src={restaurant.logo_url}
+              src={optimizedImageUrl(restaurant.logo_url, {
+                width: 128,
+                height: 128,
+                quality: 70,
+                resize: "cover",
+                format: "webp",
+              })}
+              data-original={restaurant.logo_url}
               alt={restaurant.name}
               className="size-full object-cover"
               loading="lazy"
+              decoding="async"
+              onError={handleImgError}
             />
           ) : (
             <span className="text-base font-black text-white/70">

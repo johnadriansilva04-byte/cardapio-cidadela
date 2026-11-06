@@ -1,29 +1,68 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BellRing,
   Bike,
+  BookOpen,
+  Bot,
   Check,
   ChefHat,
+  ChevronDown,
+  Clock,
+  Gift,
+  HeartHandshake,
+  LayoutDashboard,
+  LayoutTemplate,
+  LogIn,
+  LogOut,
   Menu,
+  MessageCircle,
+  Palette,
+  PartyPopper,
+  Plus,
   QrCode,
-  Send,
+  ReceiptText,
   ShieldCheck,
   Smartphone,
+  Snowflake,
+  Sparkles,
+  Store,
+  TreePine,
+  TrendingUp,
+  Users,
   UtensilsCrossed,
   X,
-  Zap,
 } from "lucide-react";
-import {
-  MONTHLY_PRICE_LABEL,
-  PREMIUM_PRICE_LABEL,
-  PREMIUM_PRICE_VALUE,
-  formatMonthlyEquivalent,
-} from "@/lib/pricing";
+import { PREMIUM_PRICE_VALUE, DAY_PASS_PRICE_LABEL, DAY_PASS_PRICE_VALUE } from "@/lib/pricing";
 
-import { brl } from "@/lib/utils";
-import { COMPANY, hasSupportContact } from "@/lib/company";
+import { brl, cn } from "@/lib/utils";
+import { COMPANY, VARIANT, hasSupportContact } from "@/lib/company";
+import { isChristmasSeason } from "@/lib/seasonal";
+import { SITE_URL } from "@/lib/site";
+import { DEMO_STORE_SLUG } from "@/modules/supabase/landing-demo";
+import { useAuth } from "@/components/AuthProvider";
+import { switchAccount } from "@/modules/supabase/auth";
+import { LiveStoreDemo } from "@/components/landing/LiveStoreDemo";
+import { WaiterChat } from "@/components/landing/WaiterChat";
+import { WizardChat } from "@/components/landing/WizardChat";
+import { TemplateGallery } from "@/components/landing/TemplateGallery";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { PlanCards } from "@/modules/ui/PlanCards";
+import { GuidePanel } from "@/modules/ui/GuidePanel";
+import { VariantMark } from "@/components/brand/VariantMark";
+
+/** Painéis do hub da landing. `null` = nenhum aberto. */
+type LandingPanel =
+  "calc" | "preco" | "faq" | "features" | "cardapio" | "templates" | "variant" | null;
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -45,133 +84,701 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-const DEMO_ITEMS = [
-  { id: "p1", emoji: "🍕", name: "Pizza da casa", price: 32, tag: "Mais pedido" },
-  { id: "p2", emoji: "🍔", name: "Burger artesanal", price: 26 },
-  { id: "p3", emoji: "🥤", name: "Refri lata", price: 6 },
-];
+/* ============================================================
+   Cardápio real — link direto
+   Nada de mockup na página. O botão manda o visitante para o
+   cardápio de verdade (a mesma URL que o cliente da loja abre).
+   ============================================================ */
 
-/** Demo viva: o visitante monta um pedido de verdade na própria landing. */
-function LiveMenuDemo() {
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [sent, setSent] = useState(false);
-
-  const { count, total } = useMemo(() => {
-    let count = 0;
-    let total = 0;
-    for (const item of DEMO_ITEMS) {
-      const qty = cart[item.id] ?? 0;
-      count += qty;
-      total += qty * item.price;
-    }
-    return { count, total };
-  }, [cart]);
-
-  function add(id: string) {
-    setSent(false);
-    setCart((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
-  }
-
-  function send() {
-    if (count === 0) return;
-    setSent(true);
-    setCart({});
-  }
-
+function MenuReveal() {
+  const realMenuUrl = `${SITE_URL}/cardapio/${DEMO_STORE_SLUG}`;
   return (
-    <div className="mx-auto w-full max-w-[340px]">
-      <div className="relative rounded-[2rem] border border-white/10 bg-[#0b0b12] p-3 shadow-[0_30px_80px_-20px_rgba(6,182,212,0.35)]">
-        <div className="absolute left-1/2 top-2 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/10" />
-
-        <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/15 text-lg">
-            🍽️
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-white">Cantina da Praça</p>
-            <p className="flex items-center gap-1.5 text-[11px] text-emerald-300">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" /> Aberto agora
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-2 space-y-2">
-          {DEMO_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => add(item.id)}
-              className="group flex w-full items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2.5 text-left transition-colors hover:border-cyan-500/30 hover:bg-cyan-500/[0.05]"
-            >
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.05] text-xl">
-                {item.emoji}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-semibold text-white">{item.name}</span>
-                <span className="text-[11px] font-bold text-cyan-300">{brl(item.price)}</span>
-                {item.tag && (
-                  <span className="ml-1.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
-                    {item.tag}
-                  </span>
-                )}
-              </span>
-              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-cyan-500 text-sm font-black text-black transition-transform group-hover:scale-110">
-                +
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-3 rounded-2xl border border-white/[0.06] bg-black/30 p-3">
-          {sent ? (
-            <div className="animate-pop-in flex items-center gap-2.5 py-1">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-500/20 text-emerald-300">
-                <Check className="size-4" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-white">Pedido enviado!</p>
-                <p className="text-[11px] text-gray-400">
-                  Chegou no painel do restaurante na hora.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between text-[11px] text-gray-400">
-                <span>{count === 0 ? "Toque nos itens acima" : `${count} item(ns)`}</span>
-                <span className="text-sm font-black text-white">{brl(total)}</span>
-              </div>
-              <button
-                type="button"
-                onClick={send}
-                disabled={count === 0}
-                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-cyan-500 py-2.5 text-xs font-bold text-black transition-all hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Send className="size-3.5" /> Enviar pedido
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-      <p className="mt-3 text-center text-[11px] text-gray-500">
-        É isto que seu cliente vê. Experimente.
+    <div className="mx-auto w-full max-w-md text-center">
+      <a
+        href={realMenuUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="sheen group inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-6 py-4 text-base font-black text-black shadow-[0_20px_50px_-20px_rgba(34,211,238,0.7)] transition-all hover:-translate-y-0.5 hover:bg-cyan-400"
+      >
+        Abrir o cardápio real
+        <ArrowRight className="size-5 transition-transform group-hover:translate-x-0.5" />
+      </a>
+      <p className="mt-3 text-[11px] text-gray-500">
+        Abre em outra aba — é o cardápio de verdade, do lado de cá.
       </p>
     </div>
   );
 }
 
-const PROOF = [
-  { icon: Zap, label: "Pedido em tempo real", hint: "alerta sonoro no painel" },
-  { icon: QrCode, label: "Link e QR próprios", hint: "bio, salão e mesa" },
-  { icon: Bike, label: "Entrega ou retirada", hint: "taxa e endereço no pedido" },
-  { icon: ShieldCheck, label: "Sem comissão", hint: "o pedido é 100% seu" },
+/* ============================================================
+   Simulador "quanto você está perdendo?"
+   Uma pergunta provocadora, o dono informa o que paga hoje e o
+   sistema recomenda o melhor plano + a economia no ano.
+   ============================================================ */
+
+/** Acima disso, o Premium anual fica mais barato que pagar diária todo dia. */
+const DAY_PASS_BREAK_EVEN = Math.ceil(PREMIUM_PRICE_VALUE / 12 / DAY_PASS_PRICE_VALUE);
+
+/** Valores iniciais do simulador — R$ 59,00 como solicitado. */
+const LOSS_DEFAULT_SPEND = 59;
+const LOSS_DEFAULT_DAYS = 8;
+
+/**
+ * A conta da perda, isolada para o herói e o painel mostrarem o MESMO número.
+ * O argumento da página é o número, não o adjetivo.
+ */
+function computeLossPlan(spend: number, days: number) {
+  const monthlyPremium = PREMIUM_PRICE_VALUE / 12;
+  const monthlyDayPass = days * DAY_PASS_PRICE_VALUE;
+  const plan =
+    days <= DAY_PASS_BREAK_EVEN
+      ? {
+          name: "Diária",
+          cost: monthlyDayPass,
+          why: `Você abre ~${days} dia(s) por mês. Na diária você paga só os dias que usar — ${DAY_PASS_PRICE_LABEL} por 24h.`,
+          cta: "Comece grátis e ative a diária quando cair pedido",
+        }
+      : {
+          name: "Premium anual",
+          cost: monthlyPremium,
+          why: `Com ${days} dias de movimento, o Premium ilimitado sai mais barato que pagar diária todo dia. Equivale a ${brl(monthlyPremium)}/mês.`,
+          cta: "Comece grátis e assine o Premium quando quiser",
+        };
+  const monthlySaved = Math.max(0, spend - plan.cost);
+  return { plan, monthlySaved, yearlySaved: monthlySaved * 12, payingNothing: spend <= 0 };
+}
+
+/**
+ * Simulador compacto do herói — SEMPRE ABRE O PAINEL FULL.
+ *
+ * O visitante primeiro entende o produto. Depois, se quiser, calcula economia.
+ */
+function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpenFull}
+      className="group w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-rose-500/40 bg-gradient-to-r from-rose-500/10 to-rose-500/5 p-4 transition-all hover:border-rose-400/60 hover:from-rose-500/20 hover:to-rose-500/10"
+    >
+      <TrendingUp className="size-5 text-rose-300" />
+      <span className="text-sm font-bold text-white">Calcular minha economia</span>
+      <ArrowRight className="size-5 shrink-0 text-rose-300 transition-transform group-hover:translate-x-1" />
+    </button>
+  );
+}
+
+function LossCalculator() {
+  const [spend, setSpend] = useState(LOSS_DEFAULT_SPEND);
+  const [days, setDays] = useState(LOSS_DEFAULT_DAYS);
+  const { plan, monthlySaved, yearlySaved, payingNothing } = useMemo(
+    () => computeLossPlan(spend, days),
+    [spend, days],
+  );
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <div className="text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/25 bg-rose-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-rose-300">
+            <TrendingUp className="size-3.5" /> Faça a conta
+          </span>
+          <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
+            Quer ver quanto de dinheiro você está perdendo?
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-gray-400">
+            Diz quanto você paga por mês no cardápio de hoje. Em 5 segundos eu mostro o melhor plano
+            pra você — e quanto sobra no seu bolso.
+          </p>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#0b0b12]/80 p-6 sm:p-8">
+          {/* Pergunta 1 — a provocação */}
+          <label className="block">
+            <span className="text-sm font-bold text-white">
+              Quanto você paga por mês no seu cardápio atual?
+            </span>
+            <div className="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 focus-within:border-cyan-400/60">
+              <span className="font-display text-xl font-black text-gray-500">R$</span>
+              <input
+                type="number"
+                min={0}
+                max={5000}
+                step={10}
+                value={spend}
+                onChange={(e) => {
+                  setSpend(Math.max(0, Number(e.target.value) || 0));
+                }}
+                className="w-full bg-transparent font-display text-2xl font-black text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                aria-label="Quanto você paga por mês no seu cardápio atual"
+              />
+            </div>
+            <span className="mt-2 block text-xs text-gray-500">
+              Pode ser app de entrega, sistema de PDV, planilha — o que você usa hoje.
+            </span>
+          </label>
+
+          {/* Pergunta 2 — dias de movimento */}
+          <label className="mt-7 block">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-bold text-white">
+                Quantos dias por mês você abre a loja?
+              </span>
+              <span className="font-display text-xl font-black text-cyan-300">
+                {days} {days === 1 ? "dia" : "dias"}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={30}
+              step={1}
+              value={days}
+              onChange={(e) => {
+                setDays(Number(e.target.value));
+              }}
+              className="mt-3 w-full accent-cyan-400"
+              aria-label="Quantos dias por mês você abre a loja"
+            />
+          </label>
+
+          <div className="animate-pop-in mt-7">
+            {payingNothing ? (
+              <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
+                <p className="font-display text-xl font-black text-emerald-300">
+                  Você já não paga nada hoje. 🎉
+                </p>
+                <p className="mt-2 text-sm text-gray-400">
+                  Então comece pelo plano grátis: 5 pedidos por mês, sem cartão. Quando o movimento
+                  crescer, a diária ou o Premium entram sozinhos.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                      Você paga hoje
+                    </p>
+                    <p className="mt-2 font-display text-3xl font-black text-rose-300">
+                      {brl(spend)}
+                      <span className="text-sm font-bold text-gray-500"> /mês</span>
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.08] p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
+                      Melhor plano pra você
+                    </p>
+                    <p className="mt-2 font-display text-3xl font-black text-white">{plan.name}</p>
+                    <p className="text-sm font-bold text-gray-400">{brl(plan.cost)}/mês</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
+                  <p className="text-xs font-bold uppercase tracking-widest text-emerald-300">
+                    Você economiza
+                  </p>
+                  <p className="mt-1 font-display text-4xl font-black text-emerald-300">
+                    {brl(yearlySaved)}
+                    <span className="text-base font-bold text-gray-500"> /ano</span>
+                  </p>
+                  <p className="mt-1 text-sm text-gray-400">
+                    {brl(monthlySaved)} por mês no seu bolso.
+                  </p>
+                </div>
+
+                <p className="mt-4 text-center text-sm text-gray-400">{plan.why}</p>
+              </>
+            )}
+
+            <Link
+              to="/login"
+              search={{ mode: "register" }}
+              className="sheen mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-4 text-base font-black text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.45)]"
+            >
+              {plan.cta} <ArrowRight className="size-5" />
+            </Link>
+            <p className="mt-3 text-center text-xs text-gray-500">
+              Comece já — abra sua conta grátis, sem cartão. Leva menos de 2 minutos.
+            </p>
+
+            <div className="mt-8 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+              <div className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.08] bg-white/[0.03] text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="px-4 py-3">Por que sai mais barato</div>
+                <div className="flex items-center gap-1.5 px-4 py-3 text-cyan-300">
+                  <UtensilsCrossed className="size-3.5" /> Cidadela
+                </div>
+                <div className="px-4 py-3">App de entrega</div>
+              </div>
+              {COMPARISON.map((row) => (
+                <div
+                  key={row.label}
+                  className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.05] text-sm last:border-0"
+                >
+                  <div className="px-4 py-3 text-gray-300">{row.label}</div>
+                  <div className="flex items-center gap-1.5 px-4 py-3 font-bold text-emerald-300">
+                    <Check className="size-4 shrink-0" /> {row.us}
+                  </div>
+                  <div className="px-4 py-3 text-gray-500">{row.them}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Monte a loja conversando (chat + IA) — SEÇÃO VISÍVEL
+   O wizard de criação e o garçom digital são o que vende o produto.
+   Antes viviam em abas ("Montagem"/"Pracinha") que ninguém abria.
+   ============================================================ */
+
+const CHAT_HIGHLIGHTS = [
+  "Uma pergunta por vez, do jeito que o dono fala",
+  "Monta itens, preços e categorias enquanto você responde",
+  "Importa o cardápio antigo por foto",
+  "Funciona no celular, na correria do balcão",
 ];
+
+const WAITER_HIGHLIGHTS = [
+  "Responde na hora, dentro do próprio painel",
+  "Vai com o contexto da sua tela — sem print",
+  "Se for técnico, cai direto na engenharia da Variant",
+  "Avisa por e-mail para o time não perder nenhum caso",
+];
+
+function ChatAiSection() {
+  return (
+    <div id="chat">
+      <div className="mx-auto max-w-2xl text-center">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
+          <MessageCircle className="size-3.5" /> Monte a loja conversando
+        </span>
+        <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
+          Você não preenche formulário. <span className="text-violet-300">Você conversa.</span>
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-gray-400 sm:text-base">
+          A Pracinha pergunta o nome, o WhatsApp e o endereço — e o cardápio se monta sozinho.
+          Depois ela fica no painel como seu garçom digital, respondendo na hora.
+        </p>
+      </div>
+
+      <div className="mt-8 grid items-center gap-8 lg:grid-cols-2">
+        <div className="order-2 lg:order-1">
+          <h3 className="font-display text-lg font-extrabold sm:text-xl">
+            Seu cardápio nasce <span className="text-violet-300">numa conversa.</span>
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-gray-400">
+            Sem formulário de 20 campos. Quer mais rápido? Tire uma foto do cardápio antigo.
+          </p>
+          <ul className="mt-4 space-y-2">
+            {CHAT_HIGHLIGHTS.map((t) => (
+              <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
+                <Check className="mt-0.5 size-4 shrink-0 text-violet-400" /> {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="order-1 lg:order-2">
+          <WizardChat />
+        </div>
+      </div>
+
+      <div className="mt-12 grid items-center gap-8 lg:grid-cols-2">
+        <div className="order-1">
+          <WaiterChat />
+        </div>
+        <div className="order-2">
+          <h3 className="font-display text-lg font-extrabold sm:text-xl">
+            Um garçom que nunca <span className="text-cyan-300">sai do salão.</span>
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-gray-400">
+            O Pracinha atende na hora, dentro do seu painel. Se for coisa técnica, ele leva o caso
+            pro time com o contexto da sua tela.
+          </p>
+          <ul className="mt-4 space-y-2">
+            {WAITER_HIGHLIGHTS.map((t) => (
+              <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
+                <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Variant — quem está por trás (SEÇÃO VISÍVEL)
+   A identidade é parte da venda: o dono precisa saber em quem
+   está confiando. Antes ficava só no painel "Quem faz".
+   ============================================================ */
+
+function VariantBand() {
+  return (
+    <div id="variant">
+      <div className="rounded-3xl border border-white/[0.07] bg-white/[0.02] p-6 sm:p-10">
+        <div className="grid items-center gap-8 lg:grid-cols-[auto_1fr]">
+          <div className="mx-auto lg:mx-0">
+            <VariantMark variant="full" className="size-24" />
+          </div>
+          <div className="text-center lg:text-left">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
+              <Store className="size-3.5" /> Quem faz
+            </span>
+            <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
+              {VARIANT.name} existe por um motivo.
+            </h2>
+            <p className="mt-2 font-display text-base font-bold text-violet-300">
+              {VARIANT.tagline}
+            </p>
+            <p className="mt-4 text-sm leading-relaxed text-gray-400">{VARIANT.mission}</p>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          {VARIANT.pillars.map((p) => (
+            <div
+              key={p.title}
+              className="card-lift rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5"
+            >
+              <span className="grid size-10 place-items-center rounded-xl bg-violet-500/10 text-violet-300">
+                <Check className="size-5" />
+              </span>
+              <h3 className="mt-4 text-base font-bold text-white">{p.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{p.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-8 text-center text-sm leading-relaxed text-gray-400">
+          Cada loja que continua aberta é um fornecedor, um funcionário e uma família que não perdem
+          a renda.{" "}
+          <strong className="font-bold text-white">
+            Reduzir a mortalidade das pequenas empresas não é slogan — é a razão de existir da{" "}
+            {VARIANT.name}.
+          </strong>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   OUTDOOR - apresentação dinâmica das features
+   Textos alternantes mostrando benefícios no canto direito
+   ============================================================ */
+
+const OUTDOOR_SCENES = [
+  {
+    type: "mortalidade",
+    title: "Variant existe por um motivo",
+    subtitle: "Comissão de 23-30% quebra pequenos negócios",
+    steps: [
+      { bot: "Eu sou o Pracinha. A Variant existe porque 80% dos restaurantes fecham em 3 anos." },
+      { bot: "Não é falta de cliente. É comissão de 23-30% nos apps que come sua margem." },
+      { bot: "Pizza de R$ 50: você recebe R$ 30. Margem líquida de 3-5% é prejuízo silencioso." },
+      {
+        bot: "Zero comissão por pedido. Só paga R$ 1,99 quando tiver movimento. Sua margem volta pra você.",
+      },
+      {
+        bot: "Cada loja que sobe é um fornecedor, um funcionário, uma família que não perde renda.",
+      },
+    ],
+  },
+  {
+    type: "montagem",
+    title: "Monte conversando",
+    subtitle: "Sem formulário de 20 campos",
+    steps: [
+      { bot: "Vamos começar! Qual é o nome do seu restaurante?" },
+      { user: "Variant Burger" },
+      { bot: "Legal! E qual é o WhatsApp para receber pedidos?" },
+      { user: "(48) 99999-9999" },
+      { bot: "Perfeito. Qual é o endereço?" },
+      { user: "Rua das Flores, 123 - Centro" },
+      { bot: "Cardápio pronto! Criei 3 categorias com 8 itens." },
+    ],
+  },
+  {
+    type: "pedido",
+    title: "Garçom digital IA",
+    subtitle: "Responde na hora no seu painel",
+    steps: [
+      { user: "Quanto custa o X-Burger?" },
+      { bot: "R$ 29,00 com cheddar fresco." },
+      { user: "Tem batata?" },
+      { bot: "Sim! Batata rústica por R$ 18,00." },
+      { user: "Quero um com cebola" },
+      { bot: "Anotei: X-Burger com cebola. Algo mais?" },
+      { user: "Só isso" },
+      { bot: "Pedido anotado! Total: R$ 47,00. Já chega pra cozinha." },
+    ],
+  },
+  {
+    type: "precos",
+    title: "Só paga quando usar",
+    subtitle: "Diária, Mensal ou Anual",
+    steps: [
+      { bot: "Vou explicar os planos quando você precisar." },
+      { user: "Diária é só quando usar?" },
+      { bot: "Sim! R$ 1,99 libera 24h. Só quando tiver pedido." },
+      { user: "E Premium?" },
+      { bot: "R$ 28,99/mês é ilimitado. Tem movimento constante?" },
+      { user: "Tem foto por IA?" },
+      { bot: "Anual R$ 199,99/ano inclui foto por IA! Leve o cardápio antigo, eu leio." },
+    ],
+  },
+];
+
+/** Fio de lâmpadas: a "luz de Natal" que emoldura o outdoor. */
+function LightString({
+  count,
+  colors,
+  chase = false,
+  className,
+}: {
+  count: number;
+  colors: string[];
+  chase?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      aria-hidden
+      className={cn("pointer-events-none flex items-center justify-between", className)}
+    >
+      {Array.from({ length: count }, (_, i) => {
+        const color = colors[i % colors.length];
+        return (
+          <span
+            key={i}
+            className={cn("size-1.5 rounded-full sm:size-2", chase ? "bulb-chase" : "fairy-bulb")}
+            style={{
+              backgroundColor: color,
+              boxShadow: `0 0 8px 1.5px ${color}`,
+              animationDelay: `${(i % 6) * 0.22}s`,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * O outdoor da home — uma tela em estrutura de verdade.
+ *
+ * Antes era uma "moldura de gravação" fina em cima de um poste: parecia print
+ * de app. Agora tem estrutura (travessa, colunas, base) e é emoldurada por fios
+ * de lâmpadas — vermelho/verde/amarelo no Natal, ciano/índigo/rosa fora dele.
+ * A tela por dentro é o Pracinha atendendo, cena a cena.
+ */
+function OutdoorDisplay({ christmas = false }: { christmas?: boolean }) {
+  const [sceneIndex, setSceneIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  const currentScene = OUTDOOR_SCENES[sceneIndex];
+
+  useEffect(() => {
+    const stepInterval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setStepIndex((prev) => {
+          const next = prev + 1;
+          if (next >= currentScene.steps.length) {
+            setSceneIndex((s) => (s + 1) % OUTDOOR_SCENES.length);
+            return 0;
+          }
+          return next;
+        });
+        setVisible(true);
+      }, 1000); // 1s para os pontinhos aparecerem antes da fala
+    }, 8000);
+
+    return () => clearInterval(stepInterval);
+  }, [currentScene.steps.length]);
+
+  const bulbs = christmas ? ["#ef4444", "#22c55e", "#facc15"] : ["#22d3ee", "#818cf8", "#f472b6"];
+
+  return (
+    <figure className="relative w-full max-w-2xl">
+      {/* Halo atrás da peça */}
+      <div
+        aria-hidden
+        className={cn(
+          "animate-aurora absolute -inset-8 -z-10 rounded-[3rem] blur-3xl",
+          christmas
+            ? "bg-gradient-to-tr from-red-500/25 via-emerald-500/10 to-amber-500/20"
+            : "bg-gradient-to-tr from-cyan-500/25 via-transparent to-violet-500/20",
+        )}
+      />
+
+      {/* Travessa superior com as lâmpadas */}
+      <div className="relative mx-auto flex h-3.5 w-[92%] items-center justify-center rounded-full bg-gradient-to-b from-zinc-600 via-zinc-700 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
+        <LightString count={16} colors={bulbs} chase className="absolute inset-x-3 -top-1.5" />
+      </div>
+
+      {/* Colunas da estrutura */}
+      <div aria-hidden className="mx-auto flex w-[92%] justify-between">
+        <span className="h-5 w-1.5 rounded-b bg-gradient-to-b from-zinc-700 to-zinc-800" />
+        <span className="h-5 w-1.5 rounded-b bg-gradient-to-b from-zinc-700 to-zinc-800" />
+      </div>
+
+      {/* Moldura da tela */}
+      <div
+        className={cn(
+          "relative rounded-2xl border-[6px] bg-gradient-to-b from-zinc-800 to-zinc-950 p-3 shadow-[0_50px_100px_-30px_rgba(0,0,0,0.85)]",
+          christmas ? "border-red-900/60" : "border-zinc-800/90",
+        )}
+      >
+        {/* Parafusos dos cantos */}
+        {["left-2 top-2", "right-2 top-2", "bottom-2 left-2", "bottom-2 right-2"].map((pos) => (
+          <span
+            key={pos}
+            aria-hidden
+            className={cn(
+              "absolute size-1.5 rounded-full bg-zinc-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)]",
+              pos,
+            )}
+          />
+        ))}
+
+        {/* Fio de luzes interno, rente à tela */}
+        <LightString count={14} colors={bulbs} className="mb-2 px-1" />
+
+        {/* A TELA — gravação de tela simulada do Pracinha */}
+        <div className="animate-aurora relative aspect-video overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-br from-gray-800 via-slate-800 to-gray-900">
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"
+          />
+          <div
+            aria-hidden
+            className="animate-aurora absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-violet-500/5"
+          />
+
+          <div className="relative flex h-full flex-col p-4 sm:p-6">
+            {/* Header da tela */}
+            <div className="mb-4 flex items-center gap-2 border-b border-white/10 pb-3">
+              <span className="relative grid size-6 place-items-center rounded bg-cyan-500 text-black">
+                <Bot className="size-3" />
+                <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-green-400 animate-pulse" />
+              </span>
+              <span className="text-xs font-bold text-gray-300">Pracinha - Assistente IA</span>
+              <span className="ml-auto flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-red-300">
+                <span className="size-1.5 animate-pulse rounded-full bg-red-500" /> ao vivo
+              </span>
+            </div>
+
+            {/* Área de chat */}
+            <div className="flex-1 space-y-3 overflow-hidden">
+              {currentScene.steps.slice(0, stepIndex + 1).map((msg, i) => (
+                <div key={i} className={i === stepIndex ? "" : "opacity-50"}>
+                  {msg.user && (
+                    <div className="flex justify-end">
+                      <div className="max-w-[80%] rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5">
+                        <p className="text-xs text-white">{msg.user}</p>
+                      </div>
+                    </div>
+                  )}
+                  {msg.bot && (
+                    <div className="flex justify-start">
+                      <div className="flex max-w-[80%] items-start gap-2">
+                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
+                          <Bot className="size-3" />
+                        </span>
+                        <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5">
+                          <p className="text-xs text-gray-300">{msg.bot}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {!visible && (
+                <div className="flex justify-start">
+                  <div className="flex max-w-[80%] items-start gap-2">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
+                      <Bot className="size-3" />
+                    </span>
+                    <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-1.5">
+                      <div className="flex items-center gap-1">
+                        <span
+                          className="size-1.5 rounded-full bg-cyan-400 animate-bounce"
+                          style={{ animationDelay: "0ms" }}
+                        />
+                        <span
+                          className="size-1.5 rounded-full bg-cyan-400 animate-bounce"
+                          style={{ animationDelay: "150ms" }}
+                        />
+                        <span
+                          className="size-1.5 rounded-full bg-cyan-400 animate-bounce"
+                          style={{ animationDelay: "300ms" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Legenda do outdoor (marquee) */}
+            <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-2.5">
+              <Sparkles className="size-3.5 shrink-0 text-amber-300" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[11px] font-black text-white">
+                  {currentScene.title}
+                </span>
+                <span className="block truncate text-[10px] text-gray-400">
+                  {currentScene.subtitle}
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1">
+                {OUTDOOR_SCENES.map((s, i) => (
+                  <span
+                    key={s.type}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all",
+                      i === sceneIndex ? "w-4 bg-cyan-400" : "w-1.5 bg-white/20",
+                    )}
+                  />
+                ))}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Fio de luzes interno, embaixo */}
+        <LightString count={14} colors={bulbs} className="mt-2 px-1" />
+      </div>
+
+      {/* Base da estrutura */}
+      <div aria-hidden className="relative mx-auto w-[70%]">
+        <div className="mx-auto flex justify-between px-8">
+          <span className="h-7 w-2 rounded-b bg-gradient-to-b from-zinc-700 to-zinc-800" />
+          <span className="h-7 w-2 rounded-b bg-gradient-to-b from-zinc-700 to-zinc-800" />
+        </div>
+        <div className="mx-auto h-2 w-40 rounded-full bg-gradient-to-b from-zinc-700 to-zinc-900 shadow-lg" />
+      </div>
+    </figure>
+  );
+}
+
+/* ============================================================
+   Conteúdo da página
+   ============================================================ */
 
 const STEPS = [
   {
     icon: Smartphone,
     title: "Monte o cardápio",
-    desc: "Fotos, preços e categorias em minutos, direto do celular.",
+    desc: "Itens, preços e categorias em minutos, direto do celular.",
   },
   {
     icon: QrCode,
@@ -185,49 +792,393 @@ const STEPS = [
   },
 ];
 
-function LandingPage() {
-  const [menuOpen, setMenuOpen] = useState(false);
+const FEATURES = [
+  {
+    icon: TrendingUp,
+    title: "Painel de gestão",
+    desc: "Veja pedidos, faturamento e ticket médio do dia em uma tela só.",
+  },
+  {
+    icon: BellRing,
+    title: "Alerta de novo pedido",
+    desc: "Som e notificação no celular na hora que o pedido cai. Não perde venda.",
+  },
+  {
+    icon: Palette,
+    title: "Sua identidade",
+    desc: "Logo, banner e cores da sua marca. Nada de cara de app de terceiro.",
+  },
+  {
+    icon: PartyPopper,
+    title: "Cardápio que veste a data",
+    desc: "Natal, Carnaval, Festa Junina e mais: no mês do feriado o cardápio se enfeita sozinho com um toque. Exclusivo do plano Anual.",
+  },
+  {
+    icon: Bike,
+    title: "Entrega com taxa",
+    desc: "Taxa por bairro ou fixa. Endereço e troco direto na comanda.",
+  },
+  {
+    icon: Clock,
+    title: "Horário de funcionamento",
+    desc: "Abre e fecha sozinho pelo seu horário. O cliente sabe na hora.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Sem comissão",
+    desc: "O que o cliente paga é seu. Aqui não tem 15–30% por pedido.",
+  },
+  {
+    icon: MessageCircle,
+    title: "Suporte Pracinha",
+    desc: "Assistente do time da Variant que responde na hora e leva o problema pro dev.",
+  },
+  {
+    icon: HeartHandshake,
+    title: "MATA FOME",
+    desc: "Diferencial opcional: um convite no cardápio para quem tá com pressa ou não tem como pagar. Você adere se quiser — o item é o seu.",
+  },
+  {
+    icon: ChefHat,
+    title: "Modo Cozinha",
+    desc: "A fila de pedidos em tela cheia, um por vez, na letra grande da bancada.",
+  },
+];
+
+const COMPARISON = [
+  { label: "Comissão por pedido", us: "0%", them: "15–30%" },
+  { label: "Seu cliente baixa um app", us: "Não, é só um link", them: "Sim, o app deles" },
+  { label: "Link e marca próprios", us: "Sim, é seu", them: "Não, fica no app" },
+  { label: "Pra começar", us: "Grátis, sem cartão", them: "Cadastro e contrato" },
+  { label: "Você fica com os dados", us: "Sim, é seu cliente", them: "Não, é deles" },
+];
+
+const FAQ = [
+  {
+    q: "Preciso pagar para começar?",
+    a: "Não. Você começa grátis, com 5 pedidos por mês. Sem cartão, sem contrato. Só paga quando o movimento pedir.",
+  },
+  {
+    q: "Como funciona a diária?",
+    a: "Você compra 24h de acesso liberado. Abre só no fim de semana? Usa a diária só nesses dias e paga menos. E é empilhável: compra quantas quiser.",
+  },
+  {
+    q: "O cardápio trava se eu não pagar?",
+    a: "Nunca. Mesmo sem pedidos grátis, seu cliente sempre consegue pedir. O pedido chega com nome, preço e endereço — a venda não se perde.",
+  },
+  {
+    q: "Preciso de app ou site próprio?",
+    a: "Não. Seu cardápio ganha um link próprio e um QR Code. Coloca no status, na bio ou no balcão e já está no ar.",
+  },
+  {
+    q: "Se der problema, com quem eu falo?",
+    a: "Com o Pracinha, o suporte do time da Variant, dentro do próprio painel. Ele responde na hora e, se for algo técnico, leva o caso direto para a engenharia com o contexto da sua tela — você não precisa explicar o erro.",
+  },
+];
+
+const TUTORIAL_STEPS = [
+  {
+    title: "Comece grátis",
+    content:
+      "Crie sua conta sem cartão. 5 pedidos por mês de graça. Se não tiver movimento, não paga nada.",
+  },
+  {
+    title: "Monte seu cardápio",
+    content:
+      "Converse com a Pracinha: ela pergunta o nome, o WhatsApp, o endereço e monta o cardápio com você. Ou tire uma foto do cardápio antigo.",
+  },
+  {
+    title: "Publique o link",
+    content: "Um link só seu e um QR Code. Coloca no status, na bio, no balcão.",
+  },
+  {
+    title: "Pague só quando usar",
+    content:
+      "Depois de 5 pedidos grátis, usa diária de " +
+      DAY_PASS_PRICE_LABEL +
+      " por 24h só quando cair pedido. Ou assina Premium se tiver movimento constante.",
+  },
+  {
+    title: "Personalize tudo",
+    content: "Logo, banner, cores da marca. Seu cardápio, 100% à sua cara.",
+  },
+];
+
+function delay(ms: number) {
+  return { animationDelay: `${ms}ms` };
+}
+
+/**
+ * Conta na navbar da landing.
+ *
+ * Antes a home mostrava "Entrar / Criar grátis" mesmo com sessão ativa, e quem
+ * já estava logado (inclusive no PWA instalado) não tinha como sair ou trocar
+ * de conta sem fechar o app. Aqui o estado fica explícito.
+ */
+function NavAccount({ className }: { className?: string }) {
+  const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleSignOut() {
+    await signOut();
+    navigate({ to: "/login", replace: true });
+  }
+
+  async function handleSwitch() {
+    await switchAccount("/admin");
+  }
+
+  if (loading) {
+    return <span className={cn("h-9 w-24 animate-pulse rounded-full bg-white/5", className)} />;
+  }
+
+  if (!user) {
+    return (
+      <div className={cn("flex items-center gap-3", className)}>
+        <Link to="/login" className="text-sm text-gray-300 transition-colors hover:text-white">
+          Entrar
+        </Link>
+        <Link
+          to="/login"
+          search={{ mode: "register" }}
+          className="sheen rounded-full bg-cyan-500 px-5 py-2 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.35)]"
+        >
+          Criar grátis
+        </Link>
+      </div>
+    );
+  }
+
+  const label = (user.user_metadata?.name as string) || user.email || user.phone || "Minha conta";
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-3 text-sm font-semibold text-gray-200 transition-colors hover:bg-white/[0.08]">
+        <span className="grid size-6 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-[10px] font-black text-black">
+          {label.charAt(0).toUpperCase()}
+        </span>
+        <span className="max-w-[110px] truncate">{label}</span>
+        <ChevronDown className="size-3.5 text-gray-500" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[190px] border-white/10 bg-[#14141d] text-gray-200"
+      >
+        <DropdownMenuItem
+          onSelect={() => navigate({ to: "/admin" })}
+          className="cursor-pointer gap-2.5 py-2 text-sm focus:bg-white/[0.06] focus:text-white"
+        >
+          <LayoutDashboard className="size-4 text-cyan-400" /> Meu painel
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => navigate({ to: "/meus-pedidos", search: { from: "" } })}
+          className="cursor-pointer gap-2.5 py-2 text-sm focus:bg-white/[0.06] focus:text-white"
+        >
+          <ReceiptText className="size-4 text-gray-400" /> Meus pedidos
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-white/[0.08]" />
+        <DropdownMenuItem
+          onSelect={handleSwitch}
+          className="cursor-pointer gap-2.5 py-2 text-sm focus:bg-white/[0.06] focus:text-white"
+        >
+          <Users className="size-4 text-gray-400" /> Trocar de conta
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={handleSignOut}
+          className="cursor-pointer gap-2.5 py-2 text-sm text-red-400 focus:bg-red-500/10 focus:text-red-300"
+        >
+          <LogOut className="size-4" /> Sair da conta
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * Enfeite natalino do "outdoor" da home.
+ *
+ * Puramente decorativo (`aria-hidden`, `pointer-events-none`) e só renderiza na
+ * janela de Natal (`isChristmasSeason`). A neve é determinística — mesmas
+ * posições a cada render, sem `Math.random` — para não brigar com a hidratação
+ * nem piscar a cada estado. O fio de lâmpadas atravessa o topo, logo abaixo da
+ * navbar, emoldurando o outdoor sem cobrir nada.
+ */
+function ChristmasHero() {
+  const flakes = useMemo(
+    () =>
+      Array.from({ length: 22 }, (_, i) => ({
+        left: `${(i * 53 + 7) % 100}%`,
+        size: 3 + (i % 3) * 2,
+        duration: `${9 + (i % 5) * 2}s`,
+        delay: `${(i % 7) * 1.3}s`,
+        drift: `${((i % 5) - 2) * 30}px`,
+        opacity: 0.4 + (i % 4) * 0.15,
+      })),
+    [],
+  );
+
+  const bulbs = ["#ef4444", "#22c55e", "#facc15"];
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+      {flakes.map((f, i) => (
+        <span
+          key={i}
+          className="snowflake"
+          style={
+            {
+              left: f.left,
+              width: f.size,
+              height: f.size,
+              animationDuration: f.duration,
+              animationDelay: f.delay,
+              "--snow-drift": f.drift,
+              "--snow-o": f.opacity,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+
+      <div className="absolute inset-x-0 top-14 flex items-start justify-between px-2 sm:top-16 sm:px-6">
+        {Array.from({ length: 18 }, (_, i) => (
+          <span key={i} className="flex flex-col items-center">
+            <span className="h-3 w-px bg-white/25 sm:h-4" />
+            <span
+              className="fairy-bulb size-2 rounded-full sm:size-2.5"
+              style={{
+                backgroundColor: bulbs[i % bulbs.length],
+                boxShadow: `0 0 8px 1px ${bulbs[i % bulbs.length]}`,
+                animationDelay: `${(i % 6) * 0.28}s`,
+              }}
+            />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * COCKPIT SEM SCROLL - aba única
+ * Fundo galáxia animado com estrelas, cometas e planetas
+ * Canto esquerdo: botões de ação
+ * Meio: slogan principal
+ * Canto direito: outdoor animado no poste
+ * Tudo abre em painéis
+ */
+function LandingPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const [panel, setPanel] = useState<LandingPanel>(null);
+
+  // O "outdoor" veste o Natal em nov/dez — a melhor época do ano para vender
+  // cardápio digital (pico do delivery nas festas).
+  const christmas = isChristmasSeason();
+
+  function openPanel(p: NonNullable<LandingPanel>) {
+    setMenuOpen(false);
+    setPanel(p);
+  }
+  const closePanel = () => setPanel(null);
+
+  return (
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden text-white selection:bg-cyan-400/30">
+      {/* Fundo galáxia animado com estrelas, cometas e planetas */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden bg-gradient-to-b from-[#0a0a1a] via-[#0f0f2a] to-[#070714]"
+      >
+        {/* Estrelas estáticas */}
+        <div className="absolute inset-0">
+          {[...Array(100)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full bg-white"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                width: `${Math.random() * 2 + 1}px`,
+                height: `${Math.random() * 2 + 1}px`,
+                opacity: Math.random() * 0.5 + 0.2,
+                animation: `twinkle ${Math.random() * 3 + 2}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Cometa animado */}
+        <div className="absolute top-20 right-10 w-32 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent rounded-full opacity-60 animate-comet">
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-cyan-300 rounded-full blur-sm" />
+        </div>
+
+        {/* Planeta animado */}
+        <div className="absolute bottom-20 left-10 w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 opacity-40 animate-planet">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-2 bg-violet-400/30 rounded-full -rotate-12" />
+        </div>
+
+        {/* Nebulosa */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-br from-cyan-500/10 to-violet-500/10 rounded-full blur-3xl animate-aurora" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl animate-aurora [animation-delay:2s]" />
+
+        {/* Natal: o céu respira vermelho/verde no lugar do ciano. */}
+        {christmas && <div className="aurora-christmas absolute inset-0 animate-aurora" />}
+      </div>
+
+      {christmas && <ChristmasHero />}
+
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
-          <Link to="/" className="flex items-center gap-2">
-            <UtensilsCrossed className="size-6 text-cyan-400" />
-            <span className="text-base font-bold tracking-tight">
+      <nav className="relative z-40 shrink-0 border-b border-white/[0.07] bg-[#07070c]/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+          <Link to="/" className="group flex items-center gap-2.5">
+            <VariantMark className="size-8 shadow-[0_0_20px_rgba(34,211,238,0.35)] transition-transform group-hover:scale-105" />
+            <span className="font-display text-sm font-extrabold tracking-tight sm:text-base">
               Cardápio <span className="text-cyan-400">Cidadela</span>
             </span>
           </Link>
 
-          <div className="hidden items-center gap-5 md:flex">
-            <a
-              href="/cardapio/cidadela"
+          <div className="hidden items-center gap-5 lg:flex">
+            <button
+              onClick={() => openPanel("cardapio")}
               className="text-sm text-gray-400 transition-colors hover:text-white"
             >
-              Ver cardápio
-            </a>
-            <Link to="/login" className="text-sm text-gray-300 transition-colors hover:text-white">
-              Entrar
-            </Link>
-            <Link
-              to="/login"
-              search={{ mode: "register" }}
-              className="sheen rounded-full bg-cyan-500 px-5 py-2 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.35)]"
+              Cardápio
+            </button>
+            <button
+              onClick={() => openPanel("templates")}
+              className="text-sm text-gray-400 transition-colors hover:text-white"
             >
-              Criar grátis
-            </Link>
+              Templates
+            </button>
+            <button
+              onClick={() => openPanel("features")}
+              className="text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              Recursos
+            </button>
+            <button
+              onClick={() => openPanel("preco")}
+              className="text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              Preços
+            </button>
+            <button
+              onClick={() => openPanel("variant")}
+              className="text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              Quem faz
+            </button>
+            <button
+              onClick={() => setTutorialOpen(true)}
+              className="flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              <BookOpen className="size-4" /> Tutorial
+            </button>
+            <NavAccount />
           </div>
 
-          <div className="flex items-center gap-1 md:hidden">
-            {/* Entrar fica visível no celular: dentro do hambúrguer ele não é
-                descoberto, e era por isso que a home só mostrava "Criar". */}
-            <Link
-              to="/login"
-              className="rounded-full px-3.5 py-2 text-sm font-semibold text-gray-300 transition-colors hover:text-white"
-            >
-              Entrar
-            </Link>
+          <div className="flex items-center gap-1 lg:hidden">
+            <NavAccount />
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="text-gray-400"
@@ -239,251 +1190,210 @@ function LandingPage() {
         </div>
 
         {menuOpen && (
-          <div className="space-y-1 border-t border-white/10 px-4 py-4 md:hidden">
-            <a
-              href="/cardapio/cidadela"
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+          <div className="grid grid-cols-2 gap-1 border-t border-white/10 px-4 py-3 lg:hidden">
+            {(
+              [
+                ["cardapio", "Cardápio"],
+                ["templates", "Templates"],
+                ["features", "Recursos"],
+                ["preco", "Preços"],
+                ["variant", "Quem faz"],
+                ["calc", "Economia"],
+                ["faq", "Dúvidas"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => openPanel(key)}
+                className="rounded-lg px-3 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+              >
+                {label}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setTutorialOpen(true);
+              }}
+              className="col-span-2 flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
             >
-              Ver cardápio real
-            </a>
-            <Link
-              to="/login"
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-lg px-3 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-            >
-              Entrar
-            </Link>
-            <Link
-              to="/login"
-              search={{ mode: "register" }}
-              className="mt-2 block rounded-full bg-cyan-500 px-5 py-3 text-center text-sm font-bold text-black"
-            >
-              Criar meu cardápio grátis
-            </Link>
+              <BookOpen className="size-4" /> Tutorial
+            </button>
           </div>
         )}
       </nav>
 
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute left-1/2 top-0 h-[480px] w-[760px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
-          <div className="animate-float absolute right-4 top-1/3 h-[320px] w-[320px] rounded-full bg-violet-500/[0.06] blur-[100px]" />
-        </div>
-
-        <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-2 lg:py-28">
-          <div className="text-center lg:text-left">
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.25em] text-cyan-400">
-              Para micro-restaurantes
-            </p>
-
-            <h1 className="text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-              Seu cardápio no ar.
-              <br />
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                Seu WhatsApp em paz.
-              </span>
-            </h1>
-
-            <p className="mx-auto mt-5 max-w-lg text-base leading-relaxed text-gray-300 sm:text-lg lg:mx-0">
-              Link próprio, QR Code e pedidos em tempo real. O cliente monta e envia sozinho — a
-              comanda chega pronta no seu painel. Sem comissão, sem app, sem gibi.
-            </p>
-
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
-              <Link
-                to="/login"
-                search={{ mode: "register" }}
-                className="sheen group flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 px-7 py-3.5 text-sm font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] sm:w-auto"
+      {/* COCKPIT - tela única sem scroll */}
+      <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          {/* CANTO ESQUERDO - Botões de ação */}
+          <div className="flex flex-col justify-center lg:col-span-4">
+            <div className="space-y-4">
+              <p
+                className={cn(
+                  "animate-reveal inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]",
+                  christmas
+                    ? "border-red-500/30 bg-red-500/[0.1] text-red-200"
+                    : "border-cyan-500/25 bg-cyan-500/[0.08] text-cyan-300",
+                )}
               >
-                Criar meu cardápio grátis
-                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <Link
-                to="/login"
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-7 py-3.5 text-sm font-semibold text-gray-300 transition-all hover:border-white/30 hover:text-white sm:w-auto"
-              >
-                Já tenho conta · Entrar
-              </Link>
-              <a
-                href="/cardapio/cidadela"
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-7 py-3.5 text-sm font-semibold text-gray-300 transition-all hover:border-white/30 hover:text-white sm:w-auto"
-              >
-                Ver cardápio real
-              </a>
-            </div>
+                {christmas ? (
+                  <>
+                    <TreePine className="size-3" /> Campanha de Natal
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="size-3" /> Para micro-restaurantes
+                  </>
+                )}
+              </p>
 
-            <p className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-gray-500 lg:justify-start">
-              <Check className="size-3.5 text-emerald-400" /> Comece grátis · 5 pedidos por mês
-              <span className="text-gray-700">•</span>
-              <Check className="size-3.5 text-emerald-400" /> Sem cartão
-            </p>
-          </div>
+              <h1 className="animate-reveal font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+                {christmas ? (
+                  <>
+                    Seu cardápio no ar em minutos{" "}
+                    <span className="text-shine bg-gradient-to-r from-red-400 via-emerald-300 to-red-400 bg-clip-text text-transparent">
+                      nesse Natal.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    Seu cardápio no ar{" "}
+                    <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
+                      em minutos.
+                    </span>
+                  </>
+                )}
+              </h1>
 
-          <LiveMenuDemo />
-        </div>
-      </section>
+              <p className="animate-reveal text-sm leading-relaxed text-gray-300">
+                {christmas ? (
+                  <>
+                    O Natal é o pico do delivery. Link próprio, QR Code e pedidos na hora —{" "}
+                    <strong className="font-bold text-white">sem comissão por pedido</strong>.
+                  </>
+                ) : (
+                  <>
+                    Link próprio, QR Code e pedidos na hora —{" "}
+                    <strong className="font-bold text-white">sem comissão por pedido</strong>.
+                  </>
+                )}
+              </p>
 
-      {/* Prova rápida — uma linha, sem parágrafos */}
-      <section className="border-y border-white/5 bg-white/[0.015]">
-        <div className="mx-auto grid max-w-6xl gap-px px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
-          {PROOF.map((p) => (
-            <div key={p.label} className="flex items-center gap-3 py-5 sm:px-4">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
-                <p.icon className="size-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-white">{p.label}</p>
-                <p className="truncate text-xs text-gray-500">{p.hint}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Como funciona — 3 passos, direto */}
-      <section className="py-20 sm:py-24">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <div className="max-w-xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-amber-300">
-              <ChefHat className="size-3.5" /> Do zero ao primeiro pedido
-            </span>
-            <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
-              Três passos. Nenhum tutorial.
-            </h2>
-          </div>
-
-          <div className="mt-12 grid gap-8 sm:grid-cols-3">
-            {STEPS.map((s, i) => (
-              <div key={s.title}>
-                <span className="text-5xl font-black text-white/[0.07]">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div className="mt-2 flex items-center gap-2 text-cyan-300">
-                  <s.icon className="size-5" />
-                  <h3 className="text-base font-bold text-white">{s.title}</h3>
-                </div>
-                <p className="mt-2 text-sm leading-relaxed text-gray-400">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Preço */}
-      <section id="preco" className="border-t border-white/5 py-20 sm:py-24">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <div className="text-center">
-            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-              Um preço. Sem pegadinha.
-            </h2>
-            <p className="mx-auto mt-3 max-w-lg text-gray-400">
-              Comece grátis. Quando o movimento crescer, um único valor libera tudo.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-5 sm:grid-cols-2">
-            <div className="rounded-3xl border border-white/[0.07] bg-white/[0.02] p-7">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Grátis</p>
-              <p className="mt-3 text-4xl font-black text-white">R$ 0</p>
-              <p className="mt-1 text-sm text-gray-400">para sempre</p>
-              <ul className="mt-6 space-y-2.5 text-sm text-gray-300">
-                {[
-                  "Cardápio completo",
-                  "5 pedidos por mês",
-                  "Link e QR Code",
-                  "Pedidos em tempo real",
-                ].map((t) => (
-                  <li key={t} className="flex items-center gap-2">
-                    <Check className="size-4 shrink-0 text-emerald-400" /> {t}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/login"
-                search={{ mode: "register" }}
-                className="mt-7 flex w-full items-center justify-center gap-2 rounded-full border border-white/15 py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.06]"
-              >
-                Começar grátis
-              </Link>
-            </div>
-
-            <div className="relative overflow-hidden rounded-3xl border border-cyan-500/30 bg-gradient-to-b from-cyan-500/[0.10] to-transparent p-7">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -right-14 -top-14 size-44 rounded-full bg-cyan-500/20 blur-3xl"
-              />
-              <div className="relative">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
-                    Premium
-                  </p>
-                  <span className="rounded-full bg-cyan-500 px-2.5 py-1 text-[10px] font-black text-black">
-                    ANUAL
-                  </span>
-                </div>
-                <p className="mt-3 text-4xl font-black text-white">{PREMIUM_PRICE_LABEL}</p>
-                <p className="mt-1 text-sm text-gray-400">
-                  ou {MONTHLY_PRICE_LABEL} · equivale a{" "}
-                  {formatMonthlyEquivalent(PREMIUM_PRICE_VALUE)} por mês no anual
-                </p>
-                <ul className="mt-6 space-y-2.5 text-sm text-gray-200">
-                  {[
-                    "Pedidos ilimitados",
-                    "Detalhes e itens liberados",
-                    "Todos os restaurantes da conta",
-                    "Cancele quando quiser",
-                  ].map((t) => (
-                    <li key={t} className="flex items-center gap-2">
-                      <Check className="size-4 shrink-0 text-cyan-300" /> {t}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href="/login?returnTo=/admin/assinatura"
-                  className="sheen mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-3 text-sm font-bold text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
+              <div className="space-y-3 pt-2">
+                <Link
+                  to="/login"
+                  search={{ mode: "register" }}
+                  className={cn(
+                    "group flex w-full items-center gap-3 rounded-2xl border-2 p-4 transition-all",
+                    christmas
+                      ? "border-red-500/40 bg-gradient-to-r from-red-500/10 to-red-500/5 hover:border-red-400/60 hover:from-red-500/20 hover:to-red-500/10"
+                      : "border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 to-cyan-500/5 hover:border-cyan-400/60 hover:from-cyan-500/20 hover:to-cyan-500/10",
+                  )}
                 >
-                  Assinar Premium <ArrowRight className="size-4" />
-                </a>
+                  <span
+                    className={cn(
+                      "grid size-12 shrink-0 place-items-center rounded-xl text-black shadow-lg",
+                      christmas ? "bg-red-500 shadow-red-500/30" : "bg-cyan-500 shadow-cyan-500/30",
+                    )}
+                  >
+                    {christmas ? <Gift className="size-6" /> : <Store className="size-6" />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-bold text-white">
+                      {christmas ? "Crie seu cardápio nesse Natal" : "Crie seu cardápio"}
+                    </p>
+                    <p className={cn("text-xs", christmas ? "text-red-200" : "text-cyan-200")}>
+                      Monte grátis em minutos
+                    </p>
+                  </div>
+                  <ArrowRight
+                    className={cn(
+                      "size-5 shrink-0 transition-transform group-hover:translate-x-1",
+                      christmas ? "text-red-300" : "text-cyan-300",
+                    )}
+                  />
+                </Link>
+
+                <Link
+                  to="/login"
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/[0.05] p-4 transition-all hover:border-white/30 hover:bg-white/[0.08]"
+                >
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15 text-gray-300">
+                    <LogIn className="size-6" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-bold text-white">Entrar</p>
+                    <p className="text-xs text-gray-400">Acesse sua conta</p>
+                  </div>
+                  <ArrowRight className="size-5 shrink-0 text-gray-400 transition-transform group-hover:translate-x-1" />
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const realMenuUrl = `${SITE_URL}/cardapio/${DEMO_STORE_SLUG}`;
+                    window.open(realMenuUrl, "_blank");
+                  }}
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/[0.05] p-4 transition-all hover:border-white/30 hover:bg-white/[0.08]"
+                >
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15 text-gray-300">
+                    <UtensilsCrossed className="size-6" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-bold text-white">Ver cardápio</p>
+                    <p className="text-xs text-gray-400">Cardápio real funcionando</p>
+                  </div>
+                  <ArrowRight className="size-5 shrink-0 text-gray-400 transition-transform group-hover:translate-x-1" />
+                </button>
+
+                <InlineSimulator onOpenFull={() => openPanel("calc")} />
+
+                {christmas && (
+                  <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pt-1 text-[11px] text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <Snowflake className="size-3 text-cyan-300" /> Pronto antes do Natal
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Check className="size-3 text-emerald-400" /> Sem comissão
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Check className="size-3 text-emerald-400" /> Sem cartão
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <PartyPopper className="size-3 text-amber-300" /> Veste a data sozinho
+                    </span>
+                  </p>
+                )}
               </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* CTA final */}
-      <section className="border-t border-white/5 py-20 sm:py-24">
-        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-            Seu próximo pedido pode chegar sozinho.
-          </h2>
-          <p className="mx-auto mt-4 max-w-lg text-gray-400">
-            Crie seu cardápio agora e mande o link no status. Leva menos tempo que tirar uma foto do
-            prato.
-          </p>
-          <div className="mt-8">
-            <Link
-              to="/login"
-              search={{ mode: "register" }}
-              className="sheen inline-flex items-center gap-2 rounded-full bg-cyan-500 px-9 py-4 text-base font-bold text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.4)]"
-            >
-              Criar meu cardápio grátis <ArrowRight className="size-5" />
-            </Link>
+          {/* CANTO DIREITO SUPERIOR - Outdoor animado */}
+          <div className="lg:col-span-8 lg:col-start-5 flex justify-end">
+            <div className="relative w-full max-w-xl">
+              <OutdoorDisplay christmas={christmas} />
+            </div>
           </div>
         </div>
-      </section>
+      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/5 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 px-4 sm:flex-row sm:px-6">
+      {/* Rodapé compacto */}
+      <footer className="relative z-10 shrink-0 border-t border-white/[0.07] py-3">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
           <div className="flex items-center gap-2">
-            <UtensilsCrossed className="size-5 text-cyan-400" />
-            <span className="text-sm font-semibold text-gray-400">
+            <VariantMark className="size-6" />
+            <span className="font-display text-xs font-extrabold text-gray-300">
               Cardápio <span className="text-cyan-400">Cidadela</span>
             </span>
           </div>
-          <div className="flex gap-6 text-xs text-gray-500">
+          <div className="flex items-center gap-4 text-[11px] text-gray-500">
+            <button
+              onClick={() => openPanel("faq")}
+              className="transition-colors hover:text-gray-300"
+            >
+              Dúvidas
+            </button>
             <Link to="/terms" className="transition-colors hover:text-gray-300">
               Termos
             </Link>
@@ -503,14 +1413,327 @@ function LandingPage() {
               </a>
             )}
           </div>
+          <p className="text-center text-[10px] text-gray-600 sm:text-right">
+            © {new Date().getFullYear()} {COMPANY.brandName} · CNPJ {COMPANY.cnpj}
+          </p>
         </div>
-        <p className="mt-6 text-center text-[11px] text-gray-600">
-          © {new Date().getFullYear()} {COMPANY.brandName} · Feito para quem vive da cozinha.
-        </p>
-        <p className="mt-1 text-center text-[11px] text-gray-600">
-          {COMPANY.legalName} · CNPJ {COMPANY.cnpj} · {COMPANY.city}/{COMPANY.state}
-        </p>
       </footer>
+
+      {/* ---- Painéis (abrem por cima, com X para fechar) ---- */}
+
+      <GuidePanel
+        open={panel === "cardapio"}
+        onOpenChange={(o) => !o && closePanel()}
+        title="Cardápio real"
+        icon={<UtensilsCrossed className="size-4" />}
+        tone="cyan"
+        width="xl"
+        description="É o cardápio que o seu cliente vê — mexa à vontade"
+      >
+        <div className="space-y-6">
+          <p className="text-center text-sm leading-relaxed text-gray-400">
+            Um link só seu, QR Code na mesa — e o pedido cai no seu painel.{" "}
+            <span className="font-bold text-white">Sem comissão por pedido.</span>
+          </p>
+          <MenuReveal />
+          <LiveStoreDemo />
+        </div>
+      </GuidePanel>
+
+      <GuidePanel
+        open={panel === "templates"}
+        onOpenChange={(o) => !o && closePanel()}
+        title="Templates"
+        icon={<LayoutTemplate className="size-4" />}
+        tone="emerald"
+        width="xl"
+        description="Não comece do zero — escolha um tema do seu ramo"
+      >
+        <TemplateGallery />
+      </GuidePanel>
+
+      <GuidePanel
+        open={panel === "variant"}
+        onOpenChange={(o) => !o && closePanel()}
+        title="Quem faz"
+        icon={<Store className="size-4" />}
+        tone="violet"
+        width="lg"
+        description={`Por que a ${VARIANT.name} existe`}
+      >
+        <VariantBand />
+      </GuidePanel>
+
+      <GuidePanel
+        open={panel === "calc"}
+        onOpenChange={(o) => !o && closePanel()}
+        title="Quanto você está perdendo?"
+        icon={<TrendingUp className="size-4" />}
+        tone="amber"
+        width="lg"
+      >
+        <LossCalculator />
+      </GuidePanel>
+
+      <GuidePanel
+        open={panel === "preco"}
+        onOpenChange={(o) => !o && closePanel()}
+        title="Escolha como pagar"
+        icon={<ReceiptText className="size-4" />}
+        tone="emerald"
+        width="xl"
+        description="Grátis para sempre · pague só quando tiver pedido"
+      >
+        <div className="space-y-5">
+          <PlanCards
+            className="grid gap-4 sm:grid-cols-3"
+            renderCta={(plan) =>
+              plan.key === "free" ? (
+                <Link
+                  to="/login"
+                  search={{ mode: "register" }}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.06]"
+                >
+                  {plan.ctaLabel}
+                </Link>
+              ) : (
+                <a
+                  href="/login?returnTo=/admin/assinatura"
+                  className={
+                    "flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold text-black transition-all " +
+                    (plan.key === "annual"
+                      ? "sheen bg-cyan-500 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
+                      : "bg-white/90 hover:bg-white")
+                  }
+                >
+                  {plan.ctaLabel} <ArrowRight className="size-4" />
+                </a>
+              )
+            }
+          />
+
+          <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 sm:flex-row">
+            <p className="text-sm text-amber-100/90">
+              <span className="font-bold text-amber-300">Diária {DAY_PASS_PRICE_LABEL}</span> · abre
+              só quando tem movimento? Libera tudo por 24h, paga só os dias que usar e empilha.
+            </p>
+            <a
+              href="/login?returnTo=/admin/assinatura"
+              className="shrink-0 rounded-full bg-amber-500 px-4 py-2 text-sm font-bold text-black transition-all hover:bg-amber-400"
+            >
+              Usar diária
+            </a>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+            <div className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.08] bg-white/[0.03] text-[11px] font-bold uppercase tracking-wider text-gray-500">
+              <div className="px-4 py-3">Por que sai mais barato</div>
+              <div className="flex items-center gap-1.5 px-4 py-3 text-cyan-300">
+                <UtensilsCrossed className="size-3.5" /> Cidadela
+              </div>
+              <div className="px-4 py-3">App de entrega</div>
+            </div>
+            {COMPARISON.map((row) => (
+              <div
+                key={row.label}
+                className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.05] text-sm last:border-0"
+              >
+                <div className="px-4 py-3 text-gray-300">{row.label}</div>
+                <div className="flex items-center gap-1.5 px-4 py-3 font-bold text-emerald-300">
+                  <Check className="size-4 shrink-0" /> {row.us}
+                </div>
+                <div className="px-4 py-3 text-gray-500">{row.them}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-5">
+            <div className="flex items-start gap-4">
+              <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-amber-500/20 text-amber-300">
+                <ShieldCheck className="size-4" />
+              </span>
+              <div>
+                <h4 className="mb-1.5 text-base font-bold text-white">Cardápio nunca trava</h4>
+                <p className="text-sm leading-relaxed text-gray-400">
+                  Mesmo com 0 pedidos grátis, seu cliente SEMPRE consegue pedir. O pedido chega com
+                  preço, endereço e nome. Não trava venda, não perde cliente.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </GuidePanel>
+
+      <GuidePanel
+        open={panel === "features"}
+        onOpenChange={(o) => !o && closePanel()}
+        title="Recursos"
+        icon={<ChefHat className="size-4" />}
+        tone="violet"
+        width="xl"
+      >
+        <div className="space-y-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {STEPS.map((s, i) => (
+              <div
+                key={s.title}
+                className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
+              >
+                <span className="grid size-10 place-items-center rounded-xl border border-cyan-500/25 bg-[#0b0b12] text-cyan-300">
+                  <s.icon className="size-5" />
+                </span>
+                <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                  Passo {i + 1}
+                </p>
+                <h3 className="mt-1 text-sm font-bold text-white">{s.title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-gray-400">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.06] p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="grid size-8 place-items-center rounded-lg bg-cyan-500/20 text-cyan-300">
+                <Bot className="size-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-white">Garçom Digital</h3>
+                <p className="text-[11px] text-gray-400">
+                  Assistente IA que responde na hora dentro do seu painel
+                </p>
+              </div>
+            </div>
+            <WaiterChat />
+          </div>
+
+          <div className="rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="grid size-8 place-items-center rounded-lg bg-violet-500/20 text-violet-300">
+                <MessageCircle className="size-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-white">Monte conversando</h3>
+                <p className="text-[11px] text-gray-400">
+                  Uma pergunta por vez, sem formulário de 20 campos
+                </p>
+              </div>
+            </div>
+            <WizardChat />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4"
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
+                  <f.icon className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white">{f.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-gray-400">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-white/[0.07] pt-6">
+            <ChatAiSection />
+          </div>
+        </div>
+      </GuidePanel>
+
+      <GuidePanel
+        open={panel === "faq"}
+        onOpenChange={(o) => !o && closePanel()}
+        title="Perguntas frequentes"
+        icon={<BookOpen className="size-4" />}
+        tone="amber"
+        width="md"
+      >
+        <div className="space-y-3">
+          {FAQ.map((item) => (
+            <details
+              key={item.q}
+              className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] px-5 py-4 open:bg-white/[0.04]"
+            >
+              <summary className="flex cursor-pointer items-center justify-between gap-4 text-sm font-bold text-white marker:content-none [&::-webkit-details-marker]:hidden">
+                {item.q}
+                <Plus className="size-4 shrink-0 text-cyan-400 transition-transform group-open:rotate-45" />
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-gray-400">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </GuidePanel>
+
+      {/* Tutorial Modal */}
+      <Dialog open={tutorialOpen} onOpenChange={setTutorialOpen}>
+        <DialogContent className="max-w-md">
+          <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+            <BookOpen className="size-5 text-cyan-400" />
+            Como funciona
+          </DialogTitle>
+          <div className="mt-4">
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-cyan-400">
+                Passo {tutorialStep + 1} de {TUTORIAL_STEPS.length}
+              </p>
+              <h3 className="mb-2 text-xl font-bold text-white">
+                {TUTORIAL_STEPS[tutorialStep].title}
+              </h3>
+              <p className="text-sm leading-relaxed text-gray-400">
+                {TUTORIAL_STEPS[tutorialStep].content}
+              </p>
+            </div>
+
+            <div className="mt-6 flex gap-2">
+              {tutorialStep > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTutorialStep(tutorialStep - 1)}
+                  className="flex-1 border-white/20 text-white hover:bg-white/10"
+                >
+                  Anterior
+                </Button>
+              )}
+              {tutorialStep < TUTORIAL_STEPS.length - 1 ? (
+                <Button
+                  onClick={() => setTutorialStep(tutorialStep + 1)}
+                  className="flex-1 bg-cyan-500 text-black hover:bg-cyan-400"
+                >
+                  Próximo
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setTutorialOpen(false);
+                    setTutorialStep(0);
+                  }}
+                  className="flex-1 bg-cyan-500 text-black hover:bg-cyan-400"
+                >
+                  Entendi!
+                </Button>
+              )}
+            </div>
+
+            <div className="mt-4 flex justify-center gap-1">
+              {TUTORIAL_STEPS.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setTutorialStep(i)}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === tutorialStep ? "w-6 bg-cyan-400" : "w-1.5 bg-white/20"
+                  }`}
+                  aria-label={`Ir para passo ${i + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

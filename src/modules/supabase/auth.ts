@@ -135,6 +135,19 @@ export async function signOut(): Promise<void> {
 }
 
 /**
+ * Troca de conta: encerra a sessão e leva para o login em modo "entrar".
+ *
+ * O `replace` evita que o botão "voltar" reabra a tela autenticada. É o mesmo
+ * `signOut`, só com um destino explícito — antes não havia como sair do app
+ * instalado (PWA) e trocar de conta sem fechar tudo.
+ */
+export async function switchAccount(returnTo?: string): Promise<void> {
+  await supabase.auth.signOut();
+  const dest = returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : "/login";
+  window.location.replace(dest);
+}
+
+/**
  * Update the user's profile (name) in the `profiles` table.
  * Returns true on success.
  */
@@ -146,6 +159,7 @@ export async function updateProfileName(name: string): Promise<{ ok: boolean; er
   if (!trimmed) return { ok: false, error: "Informe seu nome." };
 
   // Update profile table
+  await ensureProfileRow(user);
   const { error: profileError } = await supabase
     .from("profiles")
     .update({ name: trimmed, updated_at: new Date().toISOString() })
@@ -168,6 +182,29 @@ export async function updateProfileName(name: string): Promise<{ ok: boolean; er
 }
 
 /**
+ * Garante que exista uma linha em `profiles` para o usuário.
+ *
+ * Contas antigas (importadas de `admin_trials`) e cadastros em que o insert do
+ * perfil falhou por RLS (confirmação de e-mail ligada, sem sessão no signUp)
+ * ficam sem linha. Um `UPDATE` sem linha não gera erro — então o e-mail
+ * "salvava" sem gravar nada e voltava a "pendente". O insert aqui roda logado,
+ * quando a policy `WITH CHECK (auth.uid() = id)` já passa.
+ */
+async function ensureProfileRow(user: User): Promise<void> {
+  const { data } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+  if (data) return;
+
+  const phone = normalizePhone((user.user_metadata?.phone as string) || user.phone || "");
+  const name = (user.user_metadata?.name as string) || "";
+  const { error } = await supabase
+    .from("profiles")
+    .insert({ id: user.id, phone, name, role: "owner" });
+  if (error && !/duplicate/i.test(error.message ?? "")) {
+    console.warn("[auth] não foi possível criar o perfil:", error.message);
+  }
+}
+
+/**
  * Atualiza o e-mail real (opcional) usado para casar o pagamento do Mercado
  * Pago. Não mexe no login — a autenticação continua por telefone. Um valor
  * vazio remove o e-mail.
@@ -180,6 +217,7 @@ export async function updateProfileEmail(email: string): Promise<{ ok: boolean; 
   const clean = email.trim().toLowerCase();
   if (clean && !isValidEmail(clean)) return { ok: false, error: "Informe um e-mail válido." };
 
+  await ensureProfileRow(user);
   const { error } = await supabase
     .from("profiles")
     .update({ email: clean || null, updated_at: new Date().toISOString() })
@@ -298,6 +336,57 @@ export async function updatePassword(
     return { ok: false, error: "Erro ao alterar a senha." };
   }
   return { ok: true };
+}
+
+/**
+ * Registra que o dono abriu o painel agora (`profiles.last_seen_at`).
+ *
+ * É um dos sinais que mantêm a conta viva contra a limpeza de inativos: quem
+ * só lê o painel sem receber pedido também conta como ativo. Best-effort — sem
+ * a migração `supabase_inactive_accounts_migration.sql` a RPC não existe e o
+ * erro é ignorado (nada quebra).
+ */
+export async function touchLastSeen(): Promise<void> {
+  try {
+    await supabase.rpc("touch_last_seen");
+  } catch {
+    /* RPC ausente (migração não aplicada) — sem presença, sem quebrar */
+  }
+}
+
+export interface AccountPurgeStatus {
+  retentionDays: number;
+  /** Última atividade conhecida (painel, pedido ou loja online). */
+  lastActivity: string | null;
+  /** Dias restantes antes da remoção. */
+  daysLeft: number;
+}
+
+/**
+ * Situação da conta frente à limpeza de inativos, para a tela de Configurações.
+ * Devolve `null` sem a migração (feature desligada) em vez de estourar.
+ */
+export async function getAccountPurgeStatus(): Promise<AccountPurgeStatus | null> {
+  try {
+    const { data, error } = await supabase.rpc("account_purge_status", {
+      p_retention_days: 30,
+    });
+    if (error || !data) return null;
+    const row = data as {
+      ok?: boolean;
+      retention_days?: number;
+      last_activity?: string | null;
+      days_left?: number;
+    };
+    if (!row.ok) return null;
+    return {
+      retentionDays: row.retention_days ?? 30,
+      lastActivity: row.last_activity ?? null,
+      daysLeft: row.days_left ?? 30,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**

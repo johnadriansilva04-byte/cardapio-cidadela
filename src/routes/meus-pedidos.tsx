@@ -1,11 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ShoppingBag, PackageOpen, ExternalLink, ArrowLeft, RefreshCw, Clock } from "lucide-react";
 import { getMyOrders, isOrderClosed, pruneClosedOrderIds, getGuestId } from "@/lib/guestOrder";
 import { getCustomerOrders } from "@/modules/supabase/customer";
 import { useAuth } from "@/components/AuthProvider";
-import { subscribeToOrders } from "@/modules/supabase/orders";
-import { supabase } from "@/modules/supabase/client";
 import { brl, formatDate } from "@/lib/utils";
 import {
   ORDER_STATUS_LABELS,
@@ -42,15 +40,6 @@ function MyOrdersPage() {
     }
   }
   const [refreshing, setRefreshing] = useState(false);
-  const subscribedRoomsRef = useRef(new Set<string>());
-  const ordersRef = useRef<GuestOrderSummary[]>([]);
-  ordersRef.current = orders;
-
-  function applyUpdate(id: string, status: GuestOrderSummary["status"]) {
-    const found = ordersRef.current.some((o) => o.id === id);
-    if (!found) return;
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
-  }
 
   const load = useCallback(
     async (refresh = false) => {
@@ -81,32 +70,26 @@ function MyOrdersPage() {
     return () => window.removeEventListener("focus", handleFocus);
   }, [loading, load]);
 
-  // Tempo real: inscreve-se nos restaurantes dos pedidos (uma vez por sala)
+  // Atualização por polling, sem WebSocket.
+  //
+  // Antes esta tela abria um canal realtime por restaurante dos pedidos do
+  // cliente — mais uma conexão por telefone aberto, contra o limite de 200 do
+  // plano free. O `load(true)` já revalida ao voltar o foco; aqui só somamos um
+  // poll de 20s enquanto houver pedido aberto (pedido fechado não muda mais, e
+  // sem pedido aberto não há o que esperar).
   useEffect(() => {
-    const restaurantIds = [...new Set(orders.map((o) => o.restaurant_id))];
-    const channels: ReturnType<typeof supabase.channel>[] = [];
-    for (const rid of restaurantIds) {
-      if (subscribedRoomsRef.current.has(rid)) continue;
-      subscribedRoomsRef.current.add(rid);
-      try {
-        const ch = subscribeToOrders(rid, (_eventType, updated) => {
-          applyUpdate(updated.id, updated.status);
-        });
-        if (ch) channels.push(ch);
-      } catch {
-        /* canal individual falhou — segue */
-      }
-    }
+    const hasOpen = orders.some((o) => !isOrderClosed(o.status));
+    if (!hasOpen) return;
+    let alive = true;
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      if (alive) void load(true);
+    }, 20000);
     return () => {
-      channels.forEach((c) => {
-        try {
-          supabase.removeChannel(c);
-        } catch {
-          /* ignore */
-        }
-      });
+      alive = false;
+      clearInterval(poll);
     };
-  }, [orders]);
+  }, [orders, load]);
 
   if (loading) {
     // Esqueleto shimmer na silhueta da lista de pedidos.

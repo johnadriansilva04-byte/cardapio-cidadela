@@ -85,7 +85,7 @@ test.describe("assinatura sem rolagem", () => {
     await loginAsOwner(page);
     await page.goto("/admin/assinatura");
 
-    for (const label of ["O que muda", "E-mail do Mercado Pago", "Pedidos e detalhes"]) {
+    for (const label of ["O que muda", "Pedidos e detalhes"]) {
       await page
         .getByRole("button", { name: new RegExp(label) })
         .first()
@@ -101,12 +101,91 @@ test.describe("assinatura sem rolagem", () => {
   test("o e-mail interno (telefone@menufacil.local) nunca aparece na tela", async ({ page }) => {
     await loginAsOwner(page);
     await page.goto("/admin/assinatura");
+    // O e-mail do Mercado Pago vive dentro de "Pedidos e detalhes".
     await page
-      .getByRole("button", { name: /E-mail do Mercado Pago/ })
+      .getByRole("button", { name: /Pedidos e detalhes/ })
       .first()
       .click();
 
     await expect(page.getByPlaceholder("voce@email.com")).toBeVisible();
     await expect(page.getByText(/menufacil\.local/)).toHaveCount(0);
+  });
+});
+
+test.describe("estado Premium sem repetição", () => {
+  test("o cartão Premium não repete 'Assinatura Premium' nem 'Passe Premium'", async ({ page }) => {
+    const inTenDays = new Date(Date.now() + 10 * 86_400_000).toISOString();
+    await loginAsOwner(page, {
+      admin_trials: [
+        {
+          store_id: RESTAURANT_ID,
+          is_premium: true,
+          premium_expires_at: inTenDays,
+          admin_email: null,
+          mercadopago_preapproval_id: "preap-123",
+          mercadopago_payer_email: null,
+        },
+      ],
+    });
+    await page.goto("/admin/assinatura");
+
+    // O título (H1) é a única vez que o nome da tela aparece; o cartão não
+    // repete "Assinatura Premium"/"Passe Premium" (antes empilhava os dois).
+    await expect(page.getByText("Assinatura Premium", { exact: true })).toHaveCount(1);
+    await expect(page.getByText("Passe Premium")).toHaveCount(0);
+    await expect(page.getByText("Pedidos ilimitados", { exact: true })).toHaveCount(1);
+    await expectNoPageScroll(page);
+  });
+});
+
+test.describe("opções de plano", () => {
+  test("oferece diária, mensal e anual no mesmo seletor", async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto("/admin/assinatura");
+
+    // Os três períodos convivem no seletor (antes a diária vivia num rodapé à
+    // parte, escondida como "Prefere só hoje?").
+    const selector = page.locator("[aria-pressed]");
+    await expect(selector).toHaveCount(3);
+    await expect(page.getByRole("button", { name: /^Diária/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Mensal/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Anual/ })).toBeVisible();
+  });
+
+  test("escolher a diária troca o preço e a ação", async ({ page }) => {
+    await loginAsOwner(page);
+    await page.goto("/admin/assinatura");
+
+    await page.getByRole("button", { name: /^Diária/ }).click();
+    await expect(page.getByRole("button", { name: /Liberar hoje/ })).toBeVisible();
+    await expect(page.getByText(/acesso por 24h · sem assinatura/)).toBeVisible();
+    await expect(page.getByText("Quantas diárias?")).toBeVisible();
+  });
+});
+
+test.describe("e-mail do Mercado Pago", () => {
+  test("salva mesmo sem linha de perfil (não fica 'pendente' no vazio)", async ({ page }) => {
+    // Sem linha em `profiles`, o UPDATE antigo acertava zero linhas e devolvia
+    // sucesso — o e-mail parecia salvo e voltava a "pendente" no próximo
+    // carregamento. Agora a linha é criada antes do UPDATE.
+    await loginAsOwner(page);
+    await page.goto("/admin/assinatura");
+
+    await page
+      .getByRole("button", { name: /Pedidos e detalhes/ })
+      .first()
+      .click();
+    await expect(page.getByText("pendente", { exact: true })).toBeVisible();
+    await page.getByPlaceholder("voce@email.com").fill("dono@real.com");
+    await page.getByRole("button", { name: /^Salvar$/ }).click();
+    await expect(page.getByText("E-mail salvo!")).toBeVisible();
+    await expect(page.getByText("salvo", { exact: true })).toBeVisible();
+
+    const stored = await page.evaluate(
+      () =>
+        (globalThis as { __E2E_DB__?: { profiles?: Array<{ email?: string }> } }).__E2E_DB__
+          ?.profiles,
+    );
+    expect(stored?.[0]?.email).toBe("dono@real.com");
   });
 });

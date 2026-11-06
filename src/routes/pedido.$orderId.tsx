@@ -10,12 +10,8 @@ import {
   SearchX,
   ShoppingBag,
 } from "lucide-react";
-import {
-  getOrderTrackingPublic,
-  getOrderHistory,
-  subscribeToOrders,
-} from "@/modules/supabase/orders";
-import { supabase } from "@/modules/supabase/client";
+import { getOrderTrackingPublic, getOrderHistory } from "@/modules/supabase/orders";
+import { isOrderClosed } from "@/lib/guestOrder";
 import { brl, formatDate } from "@/lib/utils";
 import { ORDER_STATUS_LABELS, paymentMethodLabel } from "@/lib/types";
 import type { Order, OrderStatus } from "@/lib/types";
@@ -150,42 +146,39 @@ function OrderTrackingPage() {
     };
   }, [orderId]);
 
-  // Subscribe to status updates
-  useEffect(() => {
-    if (!order) return;
-    const sub = subscribeToOrders(order.restaurant_id, (_eventType, updated) => {
-      if (updated.id === orderId) {
-        setOrder((prev) => (prev ? { ...prev, status: updated.status } : prev));
-      }
-    });
-    return () => {
-      if (sub) {
-        supabase.removeChannel(sub);
-      }
-    };
-  }, [order, orderId]);
-
-  // Rede de segurança: o cliente depende deste status ("meu pedido saiu?").
-  // Se o WebSocket cair — celular em segundo plano, rede instável — o realtime
-  // silencia e a tela congelava no último estado. Aqui reconsultamos de tempos
-  // em tempos e ao voltar para a aba; a RPC só devolve colunas públicas.
+  // Atualização por polling, sem WebSocket.
+  //
+  // O cliente abria uma conexão realtime por pedido acompanhado; com muitos
+  // clientes esperando ao mesmo tempo, isso estourava o limite de 200 conexões
+  // simultâneas do plano free (cada telefone aberto segurava uma). O poll já
+  // existia como rede de segurança — agora é o único caminho: 0 conexões
+  // persistentes, e o cliente vê a mudança em até 20s (o pedido leva ~20 min,
+  // então a diferença é imperceptível). O ciclo para quando o pedido fecha.
   useEffect(() => {
     let alive = true;
+    let poll: number | null = null;
+
     const refresh = async () => {
       const o = await getOrderTrackingPublic(orderId);
       if (!alive || !o) return;
       setOrder((prev) => (prev ? { ...prev, ...o } : o));
       const h = await getOrderHistory(orderId);
       if (alive) setHistory(h);
+      if (isOrderClosed(o.status) && poll) {
+        clearInterval(poll);
+        poll = null;
+      }
     };
+
     const onVisible = () => {
       if (document.visibilityState === "visible") void refresh();
     };
-    const poll = window.setInterval(refresh, 20000);
+
+    poll = window.setInterval(refresh, 20000);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
-      window.clearInterval(poll);
+      if (poll) clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [orderId]);

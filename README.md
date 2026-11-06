@@ -74,8 +74,6 @@ Não usa Firebase nem variáveis de ambiente — a chave VAPID é gerada automat
 
 3. **No celular** — abra o app, toque em **“Receber alerta de pedidos”** (banner azul) e autorize. Pronto: cada pedido novo faz o celular tocar, mesmo com o app fechado.
 
-Esse projeto usa o [Lovable](https://lovable.dev) — commits pushados aparecem no editor.
-
 ## Cobrança (Mercado Pago)
 
 Três produtos, todos com o preço recalculado no servidor (o cliente nunca manda
@@ -101,14 +99,6 @@ do Mercado Pago para `https://SEU-DOMINIO/api/webhook/mercadopago`.
 > cupom não fiscal. Para emitir nota do serviço é preciso integrar um provedor
 > de NFS-e, e o enquadramento fiscal precisa comportar venda de software
 > (ver `AGENTS.md`).
-
-## Build with Lovable
-
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 

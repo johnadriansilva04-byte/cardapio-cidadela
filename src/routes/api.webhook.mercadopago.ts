@@ -240,6 +240,7 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
                     store_id: storeId,
                     is_premium: true,
                     premium_expires_at: monthlyExpires.toISOString(),
+                    premium_cycle: "monthly",
                   },
                   { onConflict: "store_id" },
                 )
@@ -273,6 +274,7 @@ export const Route = createFileRoute("/api/webhook/mercadopago")({
                   store_id: storeId,
                   is_premium: true,
                   premium_expires_at: expiresAt.toISOString(),
+                  premium_cycle: "annual",
                   mercadopago_preapproval_id: approvedId || null,
                 },
                 { onConflict: "store_id" },

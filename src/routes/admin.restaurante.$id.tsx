@@ -33,6 +33,7 @@ import { brl, cn } from "@/lib/utils";
 import { supabase } from "@/modules/supabase/client";
 import { getMenuWithProducts } from "@/modules/supabase/menu";
 import { toast } from "sonner";
+import { optimizedImageUrl } from "@/lib/imageOptimization";
 
 // "pedidos" segue aceito aqui apenas para redirecionar links antigos à rota global.
 const validTabs = ["cardapio", "pedidos", "config"] as const;
@@ -562,9 +563,24 @@ function RestaurantCardSummary({
         {restaurant.logo_url ? (
           <div className="aspect-square size-12 shrink-0 overflow-hidden rounded-xl">
             <img
-              src={restaurant.logo_url}
+              src={optimizedImageUrl(restaurant.logo_url, {
+                width: 128,
+                height: 128,
+                quality: 70,
+                resize: "cover",
+                format: "webp",
+              })}
+              data-original={restaurant.logo_url}
+              onError={(e) => {
+                const el = e.currentTarget;
+                if (el.dataset.original && el.src !== el.dataset.original) {
+                  el.src = el.dataset.original;
+                }
+              }}
               alt={restaurant.name}
               className="size-full object-cover"
+              loading="lazy"
+              decoding="async"
             />
           </div>
         ) : (

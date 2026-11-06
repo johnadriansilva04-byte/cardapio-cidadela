@@ -133,3 +133,122 @@ for (const route of ["/", "/terms", "/privacy"]) {
     await expect(page.locator("body")).toContainText("65.025.130/0001-24");
   });
 }
+
+test("a home é um bloco único: a página não rola", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  // O cockpit cabe na viewport: herói, outdoor e botões de ação ficam visíveis
+  // de uma vez. O único scroll é o de DENTRO dos painéis; o documento em si não
+  // cresce — se crescer, o visitante perde o botão de ação rolando a tela.
+  const overflow = await page.evaluate(() => {
+    const el = document.documentElement;
+    return el.scrollHeight - el.clientHeight;
+  });
+  expect(overflow).toBeLessThanOrEqual(4);
+});
+
+test("o outdoor mostra o Pracinha atendendo ao vivo", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  // A tela do outdoor tem cabeçalho e selo "ao vivo" fixos...
+  await expect(page.getByText("Pracinha - Assistente IA")).toBeVisible();
+  await expect(page.getByText(/ao vivo/i)).toBeVisible();
+
+  // ...e a legenda troca de cena sozinha (mortalidade, montagem, pedido,
+  // preços). A primeira cena é a dor que abre a página.
+  await expect(page.getByText(/Comissão de 23-30% quebra pequenos negócios/)).toBeVisible();
+});
+
+test("a calculadora de economia abre no painel e calcula", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  // O simulador vive no herói e abre o painel por cima — a página de fundo não
+  // cresce.
+  await page.getByRole("button", { name: /Calcular minha economia/ }).click();
+
+  await expect(
+    page.getByRole("heading", { name: /Quer ver quanto de dinheiro você está perdendo/ }),
+  ).toBeVisible();
+  await expect(page.getByText("Você economiza", { exact: true })).toBeVisible();
+
+  // O dono ajusta o que paga hoje e o número acompanha na hora.
+  await page.getByLabel("Quanto você paga por mês no seu cardápio atual").fill("200");
+  await expect(page.getByText("Você paga hoje", { exact: true })).toBeVisible();
+  await expect(page.getByText("Melhor plano pra você", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Comece grátis/ })).toHaveAttribute(
+    "href",
+    "/login?mode=register",
+  );
+
+  await page.getByRole("button", { name: "Fechar" }).click();
+  await expect(page.getByText("Você economiza", { exact: true })).toHaveCount(0);
+});
+
+test("os atalhos do topo abrem cada assunto em painel por cima", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  // Cardápio: o cardápio REAL, interativo, dentro do painel (sem mockup solto).
+  await page.getByRole("button", { name: "Cardápio", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /Cardápio real/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Abrir o cardápio real/i })).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  // Templates: escolher um tema troca o preview.
+  await page.getByRole("button", { name: "Templates", exact: true }).click();
+  await expect(page.getByText("Hamburgueria").first()).toBeVisible();
+  await page.getByRole("button", { name: /Pizzaria/ }).click();
+  await expect(page.getByText("Margherita").first()).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  // Preços: planos e diária.
+  await page.getByRole("button", { name: "Preços", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /Escolha como pagar/ })).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  // Recursos: passos + wizard de montagem + garçom digital, tudo no painel.
+  await page.getByRole("button", { name: "Recursos", exact: true }).click();
+  await expect(page.getByText("Monte o cardápio")).toBeVisible();
+  await expect(page.getByText("Garçom Digital").first()).toBeVisible();
+  await expect(page.getByText("Monte conversando").first()).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  // Quem faz: a identidade da Variant, agora acessível.
+  await page.getByRole("button", { name: "Quem faz", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /existe por um motivo/ })).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  // Dúvidas: perguntas frequentes.
+  await page.getByRole("button", { name: "Dúvidas", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /Perguntas frequentes/ })).toBeVisible();
+  await page.getByRole("button", { name: "Fechar" }).click();
+
+  await expect(page.getByText("Você economiza", { exact: true })).toHaveCount(0);
+});
+
+test("o botão Ver cardápio abre o cardápio real da loja", async ({ page }) => {
+  // Sem mockup na landing: o botão abre o cardápio de VERDADE, na mesma URL que
+  // o cliente da loja usa. Gravamos a chamada de window.open em vez de abrir a
+  // aba (o destino é o domínio canônico, fora do dev server).
+  await page.addInitScript(() => {
+    (window as unknown as { __OPENED__: string[] }).__OPENED__ = [];
+    window.open = ((url?: string | URL) => {
+      (window as unknown as { __OPENED__: string[] }).__OPENED__.push(String(url));
+      return null;
+    }) as typeof window.open;
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByText("Cardápio real funcionando")).toBeVisible();
+  await expect(page.getByText("Enviar pedido")).toHaveCount(0);
+  await page.getByRole("button", { name: /Ver cardápio/ }).click();
+
+  const opened = await page.evaluate(
+    () => (window as unknown as { __OPENED__: string[] }).__OPENED__,
+  );
+  expect(opened.some((u) => /\/cardapio\/dona-da-pensao$/.test(u))).toBe(true);
+});

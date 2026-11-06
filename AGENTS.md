@@ -1,16 +1,3 @@
-<!-- LOVABLE:BEGIN -->
-
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-
-<!-- LOVABLE:END -->
-
 ## Build & verification
 
 - `npm run build` (Vite + Nitro). `npx tsc --noEmit` for types.
@@ -19,7 +6,9 @@
   (`src/e2e/supabase-stub.ts`) — não precisa de projeto Supabase real. O stub
   também implementa a RPC `create_order_atomic`, então o E2E prova de ponta a
   ponta que o preço é recalculado no "servidor" e que um item indisponível
-  bloqueia o pedido. Config em `playwright.config.ts`, specs em `e2e/`.
+  bloqueia o pedido. O QueryBuilder do stub suporta `.gte/.lte/.gt/.lt` (o
+  Financeiro filtra `created_at` por faixa — sem eles a tela travava em
+  "Carregando"). Config em `playwright.config.ts`, specs em `e2e/`.
 - `npm run test` (Vitest, jsdom). Config in `vitest.config.ts`, setup in
   `src/test/setup.ts`; `@` maps to `src/`. Component tests use
   `@testing-library/react` + `@testing-library/user-event`.
@@ -193,7 +182,33 @@
 
 ## Assinatura Premium (Mercado Pago)
 
-- **Modelo atual: anual (R$ 199,99) OU diária de 24h (R$ 1,49), comprável em
+- **Pacotes são uma fonte única: `src/lib/plans.ts`.** Define Gratuito, Mensal
+  (R$ 28,99) e Anual (R$ 199,99) com a lista de recursos por chave
+  (`PLAN_FEATURES`). A landing (`index.tsx`) e a assinatura
+  (`admin.assinatura.tsx`) renderizam `PlanCards` (`src/modules/ui/PlanCards.tsx`)
+  a partir dela — não duplique a lista de recursos em JSX. A diária continua
+  sendo compra avulsa (não é pacote) e vive em `pricing.ts`.
+- **O recurso de foto é o diferencial do Anual.** Ler o cardápio por FOTO
+  (`/api/menu/scan` → Workers AI `@cf/meta/llama-3.2-11b-vision-instruct`) custa
+  token de imagem por uso, então é exclusivo do ciclo ANUAL; o Mensal monta por
+  conversa (Pracinha). O gate é no SERVIDOR: a rota lê `store_access_state` com o
+  RLS do usuário e exige `premium_cycle = 'annual'`. A UI só esconde/mostra —
+  nunca é a barreira.
+- **O ciclo do Premium vive em `admin_trials.premium_cycle`** (`'monthly'` |
+  `'annual'`), escrito só pelo webhook/sync (service role) e protegido pelo
+  `guard_admin_trials_premium` (o dono não pode gravar — senão um `PATCH
+  premium_cycle='annual'` liberaria a foto de graça). `store_access_state` expõe
+  `premium_cycle`; sem a migração
+  (`supabase_premium_cycle_migration.sql`) o campo vem nulo e o recurso fica
+  bloqueado (fail-closed). `PreapprovalInfo.cycle` deriva de `auto_recurring.frequency`
+  (12 = anual).
+- **A foto vira itens sem gravar sozinha.** `/api/menu/scan` só devolve a
+  sugestão (`parseMenuScan` valida/limpa, ≤ 40 itens); quem grava é
+  `importScannedMenu` (`src/modules/supabase/menu-scan.ts`) depois do dono
+  conferir. A foto é comprimida (`compressImageForUpload`, WebP ≤ 800px) antes de
+  sair do aparelho — reduz o token de imagem (custo) e o envio.
+
+- **Modelo atual: anual (R$ 199,99) OU diária de 24h (R$ 1,99), comprável em
   pacote.** A diária vive em `store_day_passes` (livro-razão, `mp_payment_id`
   UNIQUE → webhook idempotente) e é concedida só pela RPC SECURITY DEFINER
   `grant_day_pass(p_store, p_mp_payment_id, p_amount_cents, p_source,
@@ -212,18 +227,26 @@
   Envia `metadata.kind = 'day_pass'` + `metadata.quantity`; a concessão só
   acontece no webhook. O webhook e o sync (`mp-subscription.ts`) leem
   `quantity` do metadata e repassam à RPC.
-- **A compra de diárias aparece nos DOIS estados do plano.** O bloco de compra
-  vive em `DayPassPurchase` (componente local de `admin.assinatura.tsx`) e é
-  renderizado tanto no convite do plano gratuito quanto na tela de "diária em
-  vigor". Antes ele só existia no convite, então depois de comprar a primeira
-  diária a opção de comprar mais/empilhar desaparecia. Comprar durante o período
-  ativo é suportado de propósito (`grant_day_pass` soma as horas).
+- **A diária é uma das três opções de plano, no mesmo seletor.** `PlanOptions`
+  (componente local de `admin.assinatura.tsx`) junta **Diária (24h)**, **Mensal**
+  e **Anual** num único seletor de pílulas; o preço, a nota e o CTA acompanham a
+  escolha (`BILLING_OPTIONS`/`BILLING_NOTE`/`BILLING_BUTTON`, tipo
+  `BillingOption`). Antes a diária vivia num rodapé à parte ("Prefere só hoje?")
+  e parecia um extra escondido; o mensal/anual eram as únicas opções de plano.
+  `openPayment` desvia para o checkout da diária quando `billing === "day"` — a
+  diária não é assinatura recorrente. O seletor aparece nos DOIS estados
+  (convite do plano gratuito e "diária em vigor"); comprar durante o período
+  ativo é suportado de propósito (`grant_day_pass` soma as horas). O passo
+  "Quantas diárias?" só aparece com a diária selecionada.
 - **Pedido de nota fiscal (NFS-e).** O app não emite nota: `invoice_requests`
   (`supabase/supabase_invoice_migration.sql`) é a fila em que o dono PEDE a nota
   e o fornecedor emite. O dono só insere/lê os próprios pedidos
   (`is_restaurant_owner`); o trigger `guard_invoice_requests` (SECURITY INVOKER)
   força `status='pending'` e anula `amount_cents` para quem não é service role —
-  sem ele um `PATCH status='emitted'` tirava o pedido da fila sem nota. A
+  sem ele um `PATCH status='emitted'` tirava o pedido da fila sem nota. O
+  `requested_by` usa `COALESCE(auth.uid(), NEW.requested_by)`: a rota grava com
+  service role, onde `auth.uid()` é NULL, e o carimbo que ela já resolveu não
+  pode ser sobrescrito por NULL (a auditoria ficava vazia). A
   validação (CPF/CNPJ módulo 11, e-mail) vive em `src/lib/invoice.ts`; o acesso
   em `src/modules/supabase/invoice.ts` degrada em silêncio sem a migração (como
   `reviews.ts`). A UI é a aba "nota" do hub de assinatura.
@@ -238,16 +261,17 @@
   O pedido **já está gravado** quando o e-mail é tentado: falha de e-mail não
   desfaz o registro — a rota devolve `notified:false` e a UI avisa em vez de
   prometer a entrega. Sem a rota (deploy antigo), o cliente cai no insert direto.
-- **A ação de pedir nota tem peso de obrigação legal, não de upsell:**
-  `InvoiceButton` (âmbar, 44px) no rodapé do bloco do plano (diária e Premium) e
-  na aba de detalhes; "Minhas notas" usa a variante `secondary`. O botão fica
-  atrás de `!invoicesUnavailable` para não aparecer num banco sem a migração.
+- **A nota fiscal é obrigação legal, mas não é upsell — e por isso fica
+  discreta.** A ação mora na aba "Nota fiscal" (atalho neutro no fim do hub,
+  mesmo peso visual dos outros `GuideTile`); o cartão de estado do plano e a
+  aba "Pedidos e detalhes" não repetem o bloco de nota. Fica atrás de
+  `!invoicesUnavailable` para não aparecer num banco sem a migração.
 - Recompensas concedem **diárias** (créditos), não pedidos bônus: ver
   `supabase_day_pass_rewards_migration.sql` (`store_day_credits`,
   `reward_grants.day_credits`, `rewards.day_credits`). `redeemDayPass` troca 1
   crédito por 24h sem passar pelo Mercado Pago.
 - **Preços e env.** `src/lib/pricing.ts` é a fonte única: `PREMIUM_PRICE_VALUE`
-  (anual) e `DAY_PASS_PRICE_VALUE` (diária, padrão 1.49), configuráveis por
+  (anual) e `DAY_PASS_PRICE_VALUE` (diária, padrão 1.99), configuráveis por
   `VITE_ANNUAL_PRICE_VALUE` / `VITE_DAY_PASS_PRICE_VALUE` (+ `..._LABEL` para o
   rótulo). Nomes legados `VITE_PREMIUM_PRICE_VALUE` /
   `VITE_PREMIUM_ANNUAL_PRICE` continuam aceitos para o anual. **São `VITE_*`:
@@ -272,9 +296,90 @@
   Fica fora de `modules/supabase` de propósito: a landing precisa exibir o preço
   sem arrastar o cliente Supabase para o bundle público. `subscription.ts`
   reexporta para compatibilidade — ao mudar o preço, mude só lá.
-- Landing (`src/routes/index.tsx`) tem uma demo viva (`LiveMenuDemo`): o
-  visitante monta um pedido de verdade na própria página, sem backend. É
-  marketing interativo, não um fluxo de pedido real — não conecta em nada.
+- Landing (`src/routes/index.tsx`) é **herói-cockpit + seções visíveis**,
+  montada com componentes em `src/components/landing/`. O topo é o cockpit lado
+  a lado (texto à esquerda, abas + painel à direita) e **a página ROLA** para as
+  seções que vendem o produto. Antes era um cockpit de uma tela só
+  (`h-[100dvh] overflow-hidden`): o chat que monta a loja, o garçom digital e a
+  identidade Variant ficavam em **abas/painéis que ninguém abria** — o visitante
+  nunca via o que o produto faz. Abas do cockpit: Cardápio, Templates, Recursos.
+  Os assuntos de apoio (Preços, Economia, Dúvidas) abrem por cima em
+  `GuidePanel`, disparados pela navbar/rodapé; **"Quem faz" rola até a seção**
+  (`scrollToSection("variant")`), não abre mais painel.
+  1. `MenuReveal` — o cardápio REAL mora DENTRO de um botão-convite ("Ver
+     cardápio real"); ao tocar, o botão se abre e vira o cardápio interativo
+     (`LiveStoreDemo`). Fechado, o cardápio não existe no DOM.
+  2. `WizardChat` — a criação do restaurante por conversa, animada em loop (uma
+     pergunta por vez, o cardápio "nasce" no fim). Espelha o
+     `RestaurantChatWizard` real, mas é vitrine: sem IA, sem backend.
+  3. `WaiterChat` — o garçom virtual (Pracinha) respondendo sozinho, em ciclo.
+  4. `TemplateGallery` — templates prontos por ramo (hamburgueria, pizzaria,
+     açaí, natural, cafeteria, japonesa): escolher um tema troca o preview na
+     hora. As cores são as MESMAS do `COLOR_PRESETS`
+     (`src/lib/restaurantChat.ts`) que o wizard aplica de verdade, então o
+     preview não engana.
+  Os dados/snapshots vivem em `src/components/landing/landing-data.ts`.
+  **Nenhum mockup de celular**: o cardápio é um cartão, não uma moldura de
+  telefone — o dono odeia a cara de "print de app".
+- **Movimento e identidade da landing** (`src/styles.css`): a troca de aba
+  remonta o conteúdo com `key={view}` + `animate-panel` (subida + desfoque),
+  então a aba "abre" em vez de só aparecer. O painel tem um cabeçalho
+  "«aba» · ao vivo" com varredura (`animate-scan`) — sensação de painel ligado.
+  O fundo é autoral: `.variant-grid` (grade técnica) + `.variant-grid-nodes`
+  (nós de ciano) sobre a aurora. É a identidade da Variant (casa de tecnologia),
+  de propósito — não um gradiente de template. Tudo desliga com
+  `prefers-reduced-motion` (o bloco global zera as animações).
+- **Marca da Variant** (`src/components/brand/VariantMark.tsx`): um "V" que É o
+  corpo de uma cobra fumando — a cobra fumando é o emblema da FEB ("é mais fácil
+  uma cobra fumar do que o Brasil ir à guerra"), e a ideia de fazer o que diziam
+  ser impossível é a própria missão da Variant. `plain` = só o V (navbar,
+  rodapé); `full` = V + cabeça + cachimbo + fumaça animada (`vm-smoke`), usado no
+  painel "Quem faz". O tile é recortado por um `clipPath` com o mesmo raio, então
+  nada vaza. Não volte a um ícone genérico de garfo.
+- **Cena viva do herói** (`src/components/landing/HeroScene.tsx`): em loop, um
+  pedido nasce no cardápio do cliente e cai no painel do dono como "Novo
+  pedido". É a história do produto em cinco segundos, sem vídeo e sem peso.
+  Aparece em **qualquer largura** (ficava `hidden lg:block` e sumia abaixo de
+  1024px, deixando um buraco).
+- **A landing não tem mockup de cardápio.** A aba "Cardápio" traz só um link
+  (`Abrir o cardápio real` → `/cardapio/<slug>`, `target="_blank"`) para o
+  cardápio de verdade, servido pela URL real. Não renderize o cardápio dentro da
+  landing nem recrie um mockup: o visitante vê o produto de verdade, não uma
+  imitação (e a URL real ainda é a prova de que existe).
+- **O simulador de economia fica na cara, no herói.** `InlineSimulator` mostra
+  o campo "paga hoje", o slider de dias e a economia/ano **sem clique** — o
+  número é o argumento da página, então não pode morar atrás de um botão. O
+  painel completo (`LossCalculator`) continua existindo como aprofundamento,
+  aberto pelo botão "«plano» é o seu plano →". O rótulo do inline é "Economia
+  estimada" para não colidir com o "Você economiza" do painel.
+- **Os três diferenciais ficam em chips no herói**: "Monte a loja conversando"
+  (WizardChat), "Garçom digital no seu painel" (WaiterChat) e "0% de comissão".
+  São os recursos que vendem o produto — não os esconda dentro das abas.
+- **O que vende o produto é SEÇÃO, não aba.** `ChatAiSection` (`#chat`) mostra o
+  `WizardChat` ("monte a loja conversando") e o `WaiterChat` (garçom digital)
+  lado a lado com o texto, e `VariantBand` (`#variant`) traz a identidade da
+  Variant — marca, missão e pilares — **visíveis sem clique**. Não devolva
+  nenhum dos dois para dentro de uma aba ou de um `GuidePanel`: era exatamente
+  aí que eles se perdiam. O E2E "a home rola de propósito e nada que vende fica
+  escondido" exige os dois na tela e mede que a página rola (`overflow > 100`).
+- **O cockpit é lado a lado, não empilhado.** Texto (+ a cena viva) à esquerda,
+  cardápio à direita: `lg:flex-row` com a linha esticando até o rodapé
+  (`lg:min-h-0 lg:flex-1`) para o painel receber todo o espaço que sobra. Antes
+  o herói empilhava em cima e o painel ficava com ~200px — o cardápio cortava os
+  últimos itens. Abaixo de `lg` a página **rola** de propósito (o cockpit de uma
+  tela só não cabe num celular); o que não pode é conteúdo escondido. Regressão
+  coberta pelo E2E "em tela média o cardápio aparece inteiro, sem corte", que
+  compara `scrollHeight` e `clientHeight` do painel.
+- **Simulador "quanto você está perdendo?"** (`LossSimulator`, `#simulador`): o
+  dono informa o que paga hoje e os dias de movimento; o sistema recomenda o
+  plano (diária ou Premium) e mostra a economia no ano. O ponto de virada é
+  `DAY_PASS_BREAK_EVEN = ceil(PREMIUM_PRICE_VALUE / 12 / DAY_PASS_PRICE_VALUE)`:
+  acima dele o Premium sai mais barato que a diária todo dia. Os preços vêm de
+  `@/lib/pricing` — nunca hardcode. CTA leva a `/login?mode=register` ("conta
+  grátis, sem cartão"). Coberto por `smoke-routes.spec.ts`.
+- **Identidade da Variant** (`VARIANT` em `src/lib/company.ts`): fonte única da
+  missão (reduzir a mortalidade das pequenas empresas cortando gasto
+  operacional). A seção `#variant` e o rodapé leem daí — não duplique o texto.
 - Plano gratuito: 5 pedidos/mês; Premium é ilimitado. O estado vive em
   `admin_trials` (uma linha por restaurante, `store_id` = `restaurants.id`),
   com `is_premium`, `premium_expires_at`, `monthly_order_count`,
@@ -323,12 +428,27 @@
   receber o e-mail real (`currentEmail || user.email`) em vez do pseudo. Sem
   ele, a ativação automática pode falhar e o dono depende do "Conferir agora".
   Não volte a gravar o pseudo-e-mail interno como `admin_email`.
-- `/admin/assinatura` é um **hub de uma tela só**: preço + CTA ("Assinar") e
-  três atalhos. Cada assunto (o que muda, e-mail do MP, pedidos/detalhes) abre
-  num painel de tela cheia por cima (`Sheet`, Radix), que rola por dentro — a
-  página de fundo não cresce. Antes tudo ficava empilhado numa coluna longa e
-  era preciso rolar para achar o botão. Mantenha o CTA e os atalhos no
-  primeiro bloco, e não traga conteúdo novo para o fluxo da página.
+- **Salvar o e-mail exige garantir a linha de `profiles`.** `updateProfileEmail`
+  chamava `UPDATE profiles ... WHERE id = user.id` direto; se a linha não existir
+  (contas legadas importadas de `admin_trials`, ou cadastros em que o insert do
+  perfil falhou por RLS com a confirmação de e-mail ligada), o UPDATE acerta
+  **zero linhas e devolve `{ error: null }`** — a UI mostrava "E-mail salvo!" e o
+  campo voltava a "pendente" no próximo carregamento. `ensureProfileRow` faz
+  `select`→`insert` (logado, quando a policy `WITH CHECK (auth.uid() = id)` já
+  passa) antes do UPDATE; `updateProfileName` usa o mesmo guard. Nunca volte a
+  fazer só o `UPDATE` — sem linha, ele falha em silêncio.
+- `/admin/assinatura` é um **hub de uma tela só**: seletor de período (diária /
+  mensal / anual) + preço + CTA e os atalhos (o que muda, pedidos/detalhes, nota
+  fiscal). Cada assunto abre num painel de tela cheia por cima (`Sheet`, Radix),
+  que rola por dentro — a página de fundo não cresce. Antes tudo ficava
+  empilhado numa coluna longa e era preciso rolar para achar o botão. Mantenha o
+  CTA e os atalhos no primeiro bloco, e não traga conteúdo novo para o fluxo da
+  página.
+- **O e-mail do MP não é um atalho solto** — vive dentro de "Pedidos e
+  detalhes", junto da cota e da renovação. Ele era um tile próprio com selo
+  "pendente" âmbar competindo com o CTA; agora é um bloco dentro do painel (com
+  selo "salvo"/"pendente" discreto) e o `GuideTile` de detalhes anuncia "Cota,
+  renovação e e-mail". Não o promova de volta a atalho.
 - O **selo de plano** (`src/modules/premium/PlanBadge.tsx`) fica no cabeçalho de
   toda tela autenticada, ao lado do botão de menu: "Grátis" com a cota
   (`restantes/limite`) em tom neutro, ou "Premium" dourado com brilho e os dias
@@ -393,8 +513,8 @@
 ## Segurança e confiabilidade (não regredir)
 
 - **Defesa em camadas contra abuso/flood.** Nenhuma camada sozinha segura:
-  - *Borda (Vercel):* DDoS volumétrico e bot são absorvidos pela rede/CDN da
-    Vercel (mitigação automática em qualquer plano). Regras de WAF/firewall
+  - *Borda (Cloudflare):* DDoS volumétrico e bot são absorvidos pela rede/CDN da
+    Cloudflare (mitigação automática em qualquer plano). Regras de WAF/firewall
     customizado e "Attack Challenge" são recursos pagos — no plano atual a API
     devolve 402. Se o ataque for dirigido, é aí que se contrata (ou se coloca
     Cloudflare na frente).
@@ -432,8 +552,8 @@
   isso qualquer um geraria cobranças para a loja de terceiros.
 - `login?returnTo=` passa por `safeInternalPath` (`src/lib/utils.ts`): só caminhos
   internos (`/...`), nunca `//host` ou `https://...`. Coberto por `utils.test.ts`.
-- Erros de render do root têm boundary em pt-BR e são encaminhados para
-  `reportLovableError`; a página SSR (`src/lib/error-page.ts`) também é pt-BR.
+- Erros de render do root têm boundary em pt-BR; a página SSR
+  (`src/lib/error-page.ts`) também é pt-BR.
 - Timers de "pedido novo" (realce de 15–20s) são rastreados e limpos no unmount
   em `useOwnerOrders.ts` e `OrderManager.tsx` — sem isso o `setState` dispara em
   componente desmontado.
@@ -492,6 +612,21 @@
 
 ## Painel (admin)
 
+- **O plano gratuito dá 1 restaurante por conta; criar mais é Premium.** O gate
+  vive no BANCO: o trigger `guard_restaurant_limit` (`supabase/supabase_restaurant_limit_migration.sql`,
+  BEFORE INSERT em `restaurants`) conta os restaurantes do dono e recusa o
+  segundo quando não há Premium vigente. A policy `owner_insert` só exige
+  `owner_id = auth.uid()`, então um INSERT direto via PostgREST criaria quantos
+  quisesse — a UI sozinha seria contornável. Premium é a MESMA definição de
+  `get_order_for_owner`/`owner_locked_stores`: `is_premium` E
+  `premium_expires_at > now()` em QUALQUER loja do dono (`owner_has_premium_access`).
+  A **diária de 24h NÃO libera multi-loja** de propósito (ela dá pedidos
+  ilimitados, não várias lojas). A UI (`admin.restaurantes.tsx`) lê a RPC
+  aditiva `owner_restaurant_limit()` e, quando o dono já tem loja e não é
+  Premium, abre o `RestaurantLimitDialog` com o CTA de assinatura em vez do
+  formulário; se o INSERT escapar (Premium expirou entre a leitura e a escrita)
+  o erro do trigger também cai no diálogo. Não mova essa checagem só para o
+  cliente: o que vale é o trigger.
 - **Loja ativa é única e global** (`src/modules/store/active-store-context.tsx`).
   O `ActiveStoreProvider` vive acima das rotas em `admin.tsx`, carrega os
   restaurantes uma vez e expõe `active`/`activeId`/`setActiveId`/`reload`. Antes
@@ -553,6 +688,35 @@
   `cleanup_old_data(30)` + dois jobs `pg_cron`: limpeza diária (03:00 UTC) e
   reset do contador mensal. `order_items`/`order_status_history` caem por
   `ON DELETE CASCADE`; `admin_trials` **nunca** é apagada.
+- **Conta sem atividade há 30 dias é apagada por inteiro.**
+  `supabase/supabase_inactive_accounts_migration.sql` (idempotente) adiciona
+  `profiles.last_seen_at` e agenda o job `mata-fome-inactive-accounts`
+  (pg_cron, 04:00 UTC). A RPC `purge_inactive_accounts(30, false)` apaga
+  restaurantes (cascata em cardápio/pedidos) → perfil → `auth.users`. O que
+  mantém a conta viva (basta UM sinal recente): o dono abrir o painel
+  (`last_seen_at`, via `touch_last_seen()` chamado pelo `usePresencePing`),
+  receber pedido (`orders.created_at`) ou a loja ficar online
+  (`store_usage.day`). **Premium vigente nunca é apagado** — quem pagou não
+  perde a conta por inatividade. A tela de Configurações mostra o aviso lendo
+  `account_purge_status()` (some sem a migração). É fail-safe: sem o job, nada
+  é apagado. `delete_own_account()` continua sendo a exclusão a pedido.
+  **Pegadinha:** `admin_trials.store_id` é `varchar` (legado) e `restaurants.id`
+  é `uuid` — a checagem de Premium precisa de `t.store_id::uuid`, senão o job
+  estoura com "operator does not exist: uuid = character varying" e falha toda
+  noite. `supabase/run-sql.mjs` executa um `.sql` avulso via Management API
+  (faxinas pontuais, no padrão do `apply-all.mjs`).
+- **Produto não tem mais foto — só um tile genérico.** O cardápio público, o
+  carrinho e o painel renderizam o mesmo bloco (`UtensilsCrossed` na cor de
+  destaque / 🍔 no carrinho) em vez de `item.image_url`. A coluna
+  `products.image_url` continua no banco (dado existente, e o admin ainda a
+  carrega ao editar um produto para não apagá-la), mas saiu do payload público
+  (`PRODUCT_COLUMNS`). Motivo: a foto por produto era ~2 MB por cardápio de 30
+  itens e o **maior consumidor de egress do Supabase** — com o plano grátis
+  (~10 GB) isso limitava o app a ~3–5 lojas. Tirar a foto empurra o teto para
+  dezenas de lojas sem custo. Não reintroduza o campo de upload de foto no
+  `MenuManager` (`ImageField` foi removido; logo/capa seguem no
+  `RestaurantDialog`). Se a foto por produto voltar um dia, ela tem de vir por
+  um host sem egress cobrado (R2), não do Supabase Storage.
 - Toda imagem de restaurante (logo, banner e **produto**) passa por
   `src/lib/imageCompression.ts` antes do upload, dentro de
   `uploadRestaurantImage` — redimensiona para ≤ 800x800 e converte para WebP a
@@ -645,16 +809,19 @@
   ref antigo (`hkzhksauilonqppipjyc`) e este arquivo já citou
   `xfgmnggdgnozyrluqabv` — ambos desatualizados; confirme pelo bundle em caso de
   dúvida.
-- **Estado do banco de produção (verificado em 2026-10-31, após aplicar a
-  migração de notas):** alinhado com o repositório. As **32** tabelas existem com
-  RLS ligado; todas as RPCs (`create_order_atomic`, `get_order_for_owner`,
-  `owner_locked_stores`, `grant_day_pass`, `evaluate_rewards`, ...) estão
-  presentes; o guard `trg_guard_admin_trials_premium` é a versão endurecida
-  (SECURITY INVOKER) e `store_is_unlocked` exige `premium_expires_at > now()`; os
-  três jobs `pg_cron` (`cidadela-rewards`, `mata-fome-cleanup`,
-  `mata-fome-reset-monthly`) estão ativos. Não há mais defasagem a corrigir — se
-  um banco novo for criado, rode `apply-all.mjs`.
-- **`invoice_requests` aplicada em produção** (a 32ª tabela): RLS ligado, policies
+- **Estado do banco de produção (verificado em 2026-11-03):** alinhado com o
+  repositório. As **36** tabelas existem com RLS ligado; todas as RPCs
+  (`create_order_atomic`, `get_order_for_owner`, `owner_locked_stores`,
+  `grant_day_pass`, `evaluate_rewards`, `bump_store_usage`, `redeem_day_pass`,
+  `find_store_by_payer_email`, `legacy_trials_for_owner`, ...) estão presentes e
+  todas as chamadas `.rpc()` do código têm função correspondente; os guards
+  `trg_guard_admin_trials_premium` e `trg_guard_invoice_requests` são SECURITY
+  INVOKER (`guard_admin_trials_premium`/`guard_invoice_requests` com
+  `prosecdef=false`) e `store_is_unlocked` exige `premium_expires_at > now()`;
+  os três jobs `pg_cron` (`cidadela-rewards`, `mata-fome-cleanup`,
+  `mata-fome-reset-monthly`) estão ativos. Se um banco novo for criado, rode
+  `apply-all.mjs`.
+- **`invoice_requests` aplicada em produção**: RLS ligado, policies
   só de INSERT/SELECT para o dono, trigger `trg_guard_invoice_requests` ativo,
   `anon` sem grant, `guard_invoice_requests` SECURITY INVOKER. Se um banco novo
   for criado, a migração já está na ordem do `apply-all.mjs`.
@@ -664,17 +831,14 @@
   anon), mas o REVOKE é a segunda camada — o mesmo raciocínio do `admin_trials`.
   O fluxo de push não depende do grant de anon: a inscrição é feita logado e a
   chave pública chega pela Edge Function `push-vapid-key` (service_role).
-- **As Edge Functions não estão deployadas** (verificado em 2026-10-31): o
-  Management API devolve lista vazia e `notify-new-order`, `notify-reward` e
-  `push-vapid-key` respondem `{"code":"NOT_FOUND","message":"Requested function
-  was not found"}` mesmo com a anon key válida. `push_vapid` também está vazio.
-  Consequência: **o push de pedido novo e de recompensa nunca funcionou em
-  produção** — o dono só descobre o pedido abrindo o painel (o realtime do
-  Supabase segue funcionando). Deploy: `supabase functions deploy <slug>
-  --project-ref wlznmlsvnlgsljanbjgy` (exige `--yes`/confirmação e os secrets
-  `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` no projeto). Sem
-  isso, `push_vapid` fica vazio e nada é enviado — o app não quebra, só não
-  notifica.
+- **As Edge Functions estão deployadas** (verificado em 2026-11-03):
+  `push-vapid-key`, `notify-new-order`, `notify-reward` e `webpush-probe` existem
+  no projeto e `push_vapid` já tem a chave. O push de pedido novo/recompensa
+  depende do deploy continuar de pé — se um banco/projeto novo for criado, rode
+  `supabase functions deploy <slug> --project-ref wlznmlsvnlgsljanbjgy` (exige
+  `--yes`/confirmação e os secrets `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`,
+  `VAPID_SUBJECT`). Sem isso, `push_vapid` fica vazio e nada é enviado — o app
+  não quebra, só não notifica.
 - `supabase/apply-all.mjs` aplica **todas** as migrações na ordem correta via
   Management API (sem Docker, sem conexão direta ao Postgres — o host
   `db.<ref>.supabase.co` é IPv6-only e não resolve neste ambiente). Uso:
@@ -697,6 +861,24 @@
   policy pública: catálogo, `orders`/`order_status_history`/`cidadela_unlocks`/
   `reviews`/`order_tracking`). Não reintroduza grants amplos para `anon` nessas
   tabelas — era por aí que um visitante sem login escrevia em `admin_trials`.
+- **`order_tracking` também precisa de `security_invoker`.** Era o último furo
+  da mesma classe: a view rodava como `postgres`, e o grant default do Supabase
+  dava **ALL** para `anon`. Confirmado em produção (`set role anon; select
+  count(*) from order_tracking` → 9, todos os pedidos; `orders` → 0). Pior: a
+  view é auto-updatable, então o anon ainda podia `UPDATE`/`DELETE` qualquer
+  pedido. Correção: `security_invoker = true` + `REVOKE ALL ... FROM anon`
+  (`supabase_order_tracking_guard_migration.sql`, no `apply-all.mjs`). O
+  rastreio público continua na RPC `get_order_tracking` (id exato → colunas
+  públicas), que é o caminho que o app usa. **Toda view nova: declare o atributo
+  e não dê grant ao `anon` sem intenção.**
+- **Views precisam de `security_invoker = true`.** Diferente do RLS (que só vale
+  para tabelas), uma view sem esse atributo roda com as permissões do **dono da
+  view** e ignora o RLS por completo. `admin_restaurant_summary` e
+  `admin_today_orders` estavam assim, e com o grant default de `anon` um
+  visitante anônimo (chave `anon`, pública) lia **todos** os restaurantes — nome,
+  `owner_id` e contagens — inclusive os não publicados. Ambas agora têm
+  `security_invoker = true` e o `anon` foi revogado. Ao criar uma view nova que
+  leia tabela com RLS, declare o atributo e não dê grant ao `anon` sem intenção.
 - Verificação rápida após aplicar: todas as tabelas `public` com
   `relrowsecurity = true`; `evaluate_rewards()` roda sem erro; o job
   `cidadela-rewards` (`10 * * * *`) está ativo em `cron.job`.
@@ -716,20 +898,437 @@
   restaurante, "?" do `FinanceSummary`, "Abrir cardápio público" do card, "✕" do
   `GuidePanel`.
 
+## Custos, limites e quando migrar para o Pro
+
+Números verificados em **2026-11-03** (supabase.com/pricing,
+developers.cloudflare.com). Reconfira antes de decidir — os planos mudam.
+
+**Limites do plano gratuito (o que morde):**
+- Supabase: **5 GB de egress de origem + 5 GB de egress em cache** (dois baldes
+  separados, não um só), 500 MB de banco, 1 GB de Storage, 50.000 MAUs,
+  200 conexões de realtime simultâneas, 2M mensagens/mês, 500k invocações de
+  Edge Function, **pausa após 7 dias sem uso**, 2 projetos ativos, sem backup.
+  Com a imagem no R2, o egress de origem é só o JSON — ver "Efeito do R2".
+- Cloudflare Pages: **estático é grátis e ilimitado** (HTML/CSS/JS/imagens não
+  contam); só as **Functions** (SSR e rotas de API) consomem a cota, que é a do
+  Workers Free: **100.000 invocações/dia** (compartilhada com Workers), 10 ms de
+  CPU por invocação, 50 subrequests por chamada, 500 builds/mês. Zera 00:00 UTC.
+  No teto, o dinâmico para (erro 1027) até o reset; o estático continua.
+- Mercado Pago: Pix 0,99%; cartão 3,99% (30 dias) a 4,98% (na hora). Use ~3,5%
+  como taxa média no mix Pix + cartão.
+- Resend: 3.000 e-mails/mês.
+- Cloudflare Workers AI: **10.000 Neurons/dia** grátis (zera 00:00 UTC);
+  excedente US$ 0,011/1.000 Neurons (só no Workers Paid — no free é teto rígido).
+  Llama 3.1-8B gasta ~4.119 Neurons por 1M tokens de entrada e ~34.868 por 1M de
+  saída. Neste app a IA só roda ao criar/editar loja ou pedir suporte: **centenas
+  de conversas/dia cabem no grátis**, e no volume atual o custo é R$ 0,00.
+
+**Manutenção do banco — automatizada pelo cron `cidadela-vacuum-*`.**
+A retenção (`cleanup_old_data`) apaga pedidos todo dia às 03:00; no Postgres o
+`DELETE` **não devolve espaço** ao sistema, então o banco crescia sozinho e o
+bloat se acumulava. Medido em 2026-11-03: **140 MB com 10 pedidos** — a tabela
+`orders` tinha 24 kB de dados e um índice de 13 MB. Um `VACUUM FULL` derrubou
+para 16 MB. Agora três jobs semanais (`cidadela-vacuum-orders|items|history`,
+domingo 04:00 UTC, `supabase_maintenance_migration.sql`) rodam `VACUUM
+(ANALYZE)` e mantêm o tamanho estável sem intervenção. **Um job por tabela**:
+o pg_cron envolve o comando numa transação e recusa `VACUUM` multi-statement.
+`supabase/maintenance.sql` (VACUUM FULL) fica para quando o banco já estiver
+inchado e você quiser devolver o espaço ao disco de uma vez — é manual porque
+trava a tabela.
+
+**Consumo medido por loja/mês** (do código, não chute): cardápio público
+~15 MB; painel do dono ~14 MB (carga limitada a 300 pedidos + poll leve de
+45s). Total **~30 MB (loja leve) a ~250 MB (loja pesada)**.
+
+Medido no projeto real em 2026-11-03: **11.047 requisições REST na semana** com
+11 lojas de teste, e o cardápio de uma loja (produtos + categorias + addons +
+restaurante) pesa **12,3 KB**. Ou seja: a 5 GB de egress/mês cabem ~400.000
+aberturas de cardápio — o egress não é o problema; a pausa é.
+
+**Gatilhos de migração** (o primeiro que bater manda):
+
+| Gatilho | Limite | ~Quando |
+| --- | --- | --- |
+| Egress | 5 GB/mês (use 4 GB como alarme) | 20–40 lojas ativas |
+| Realtime | 200 conexões simultâneas | ~40 lojas (só donos; cliente virou poll) |
+| Banco | 500 MB | ~40 lojas (rode `VACUUM FULL` para não inchar) |
+| Cloudflare Functions | 100k/dia | ~400 lojas |
+| **Pausa de 7 dias** | — | contornada pelo keep-alive (grátis) |
+
+**O gatilho real é a pausa, não o egress.** Um projeto pausado derruba o app
+(503) até restaurar à mão. O `scripts/keep-alive.mjs` (workflow a cada 5 dias)
+contorna isso **de graça**: uma requisição leve, sem token, e o projeto nunca
+fica 7 dias parado. Enquanto o keep-alive rodar, a pausa não acontece.
+
+👉 **Não migre por ter cliente pagando. Migre quando a RECEITA pagar o Pro.**
+O Pro custa ~US$ 25 ≈ R$ 137/mês. Com Premium mensal a R$ 28,99, isso é
+**~5 assinantes** (5 × R$ 28,99 ≈ R$ 145). Antes disso, o Pro é prejuízo:
+com 1 assinante (R$ 28,99) e o Pro (R$ 137), você perde R$ 108/mês. Os outros
+limites (egress 5 GB, banco 500 MB, realtime 200) estão a centenas de lojas de
+distância — não são motivo para migrar agora.
+
+**Enquanto a receita não paga o Pro:** keep-alive ligado + os jobs
+`cidadela-vacuum-*` cobrem a operação no plano grátis, sem intervenção manual.
+
+## Contabilidade (medida em 2026-11-03)
+
+**Custo fixo mensal (existir, mesmo sem vender):**
+
+| Item | Valor |
+| --- | --- |
+| DAS do MEI (serviços) | R$ 86,05 |
+| Domínio | R$ 3,33 |
+| Supabase free + Cloudflare | R$ 0,00 |
+| IA (Cloudflare Workers AI, free) | R$ 0,00 |
+| **Total** | **R$ 89,38/mês** |
+
+Mais: taxa do Mercado Pago de **3,5%** sobre tudo que entra (Pix 0,99%;
+cartão 3,99–4,98%). Quando migrar, o Pro soma **R$ 137/mês**.
+
+**Líquido por venda (já com a taxa do MP):** Premium mensal R$ 27,98 ·
+Premium anual R$ 16,08/mês · diária R$ 1,92.
+
+**20 lojas:**
+
+| Cenário | Bruto/mês | Líquido (free) | Líquido (Pro) |
+| --- | --- | --- | --- |
+| Todos grátis | R$ 0,00 | −R$ 89,38 | −R$ 226,38 |
+| 10 grátis + 5 diária + 5 Premium | R$ 212,23 | **R$ 115,42** | −R$ 21,58 |
+| 5 grátis + 5 diária + 10 Premium | R$ 344,85 | **R$ 243,40** | R$ 106,40 |
+| 15 mensal + 5 anual (otimista) | R$ 518,18 | **R$ 410,66** | R$ 273,66 |
+
+Recomputado em 2026-11-03 com os preços do código (`src/lib/pricing.ts`): anual
+**R$ 199,99**, mensal **R$ 28,99**, diária **R$ 1,99**. Atenção: material antigo
+citava a diária a R$ 1,49 — está desatualizado, o valor vigente é R$ 1,99. A
+diária do cenário supõe 8 dias de movimento/mês por cliente.
+
+**O gatilho de gasto é o Pro (R$ 137/mês), e só ele.** No free, os 20 lojas dos
+cenários acima rodam com **infra R$ 0,00** — o custo fixo é só MEI + domínio
+(R$ 89,38). Migrar para o Pro antes da receita cobrir vira prejuízo: com 5
+Premium (R$ 115,42 líquido) o Pro deixa o mês **negativo em R$ 21,58**. Migre
+quando o líquido free passar de R$ 137/mês de forma recorrente — ou seja, **a
+partir do cenário de 10 Premium**. Até lá, keep-alive + os jobs de VACUUM
+seguram a operação no grátis.
+
+**A IA não muda a conta.** O Workers AI dá 10.000 Neurons/dia grátis — com o
+Llama 3.1-8B isso é ~centenas de conversas de suporte ou extrações por dia, e a
+IA só roda ao criar/editar loja ou pedir ajuda (não é por pedido nem por visita).
+No volume de 20 lojas o gasto é **R$ 0,00**; o teto diário só apertaria em uso
+muito acima disso, e aí o excedente é US$ 0,011/1.000 Neurons (~R$ 0,06 por
+1.000 Neurons). O chat de suporte reduz o custo humano, não o de infra.
+
+**Teto da diária (15/mês):** 15 × R$ 1,99 = R$ 29,85 — acima do Premium mensal
+(R$ 28,99). É de propósito: no teto, o Premium vira a opção mais barata, então o
+limite empurra o cliente de uso intenso para a assinatura em vez de deixá-lo
+pagar diária todo dia.
+
+**Ponto de equilíbrio:** no free, **4 assinantes mensais** cobrem os R$ 89,38.
+No Pro, **9 assinantes** cobrem os R$ 226,38. O Pro se paga sozinho com
+**5 assinantes mensais** (5 × R$ 27,98 = R$ 139,88 > R$ 137).
+
+**Projeção de 12 meses** (conversão lenta: 3 meses só diária, 3 com 5 Premium,
+6 com 10 Premium): bruto R$ 2.944,59, **líquido R$ 1.768,97 → média
+R$ 147,41/mês**. Os 3 primeiros meses fecham no **vermelho** (só diária não
+cobre o custo fixo), e o ano vira no mês 4.
+
+**Receita média por loja ativa** (mix 30% Premium + 30% diária ×8 dias + 40%
+grátis): **R$ 13,47/mês** bruto (R$ 13,00 líquido). É esse número que
+dimensiona a meta — para R$ 1.000/mês líquido são **~77 lojas ativas**, para
+R$ 2.000, ~154.
+
+**A diária é isca, não sustento.** 5 clientes × 8 dias = R$ 76,81 líquido,
+abaixo dos R$ 89,38 de custo fixo. Sozinha, dá prejuízo. O negócio vive do
+Premium — a diária existe para converter quem tem movimento esporádico.
+
+**Teto do MEI: R$ 81.000/ano.** São **233 Premium mensais** para estourar —
+muito longe. O MEI aguenta o ano inteiro; só perto do teto vale falar com o
+contador sobre virar ME.
+
+**O que a conta do "lucro 100%" esquece:**
+- **Taxa do Mercado Pago:** ~3,5% do bruto. Sobre R$ 518,18 são ~R$ 18/mês.
+- **DAS do MEI:** R$ 82,05–87,05/mês, sempre, mesmo sem faturar. É o custo fixo
+  real de existir formalizado — some na conta de quem só olha "infra grátis".
+- **Enquadramento:** o CNAE do MEI hoje é de vestuário (4781400), não de
+  software. Faturar SaaS nesse CNAE é risco de glosa. Ver "Identidade legal e
+  fiscal" abaixo — nada disso se resolve em código.
+
+## Efeito do R2 no teto do plano gratuito
+
+Com a imagem no R2 (egress zero), o egress do Supabase passa a ser só o JSON das
+consultas. Números reais medidos em 2026-11-04:
+
+| Cenário | Payload/visita | Egress Supabase | Visitas frias/mês no free |
+| --- | --- | --- | --- |
+| Antes (imagem no Supabase, banner 24 kB) | ~31 kB | 5 GB | **~161 mil** |
+| Depois (imagem no R2, só JSON) | ~6,6 kB | 5 GB | **~758 mil** |
+
+O R2 multiplica o teto por **~4,7×** — e a imagem ainda ganha o cache de borda
+da Cloudflare (a maioria das visitas nem chega ao R2). Em número de lojas: uma
+loja com ~100 visitas/dia consome ~0,2 GB/mês de egress; o free aguenta
+**~25 lojas ativas** só pelo egress do Supabase (antes eram ~5). Com o cache de
+borda e o SWR de 6h do cardápio (a maioria das visitas é quente, não bate no
+banco), o teto prático é maior.
+
+**R2 grátis:** 10 GB de storage, 1M escritas (Class A) e 10M leituras (Class B)
+por mês, egress zero. Cada upload é 1 Class A; cada leitura que escapa do cache
+é 1 Class B. Com 20 lojas e ~100 fotos por loja, são ~2.000 uploads e, mesmo sem
+cache, ~10M leituras — no teto, mas o cache de borda (MISS → HIT) faz a maioria
+das leituras não chegar ao R2. **Custo: R$ 0,00.**
+
+**Quando o free aperta:** o primeiro teto a estourar deixa de ser a imagem
+(resolvido) e passa a ser o **egress do JSON do Supabase** (~758 mil visitas
+frias/mês) ou, em volume muito alto, as **leituras Class B do R2** (10M/mês).
+Nenhum dos dois chega perto com dezenas de lojas. Só vale migrar para o Pro
+(R$ 137/mês) quando o egress do Supabase passar de 5 GB/mês de forma recorrente —
+o que, com o payload enxuto, é ~750 mil visitas frias/mês.
+
+## IA (Cloudflare Workers AI)
+
+- **Duas funções, um token só.** `CLOUDFLARE_AI_TOKEN` (server-only) habilita:
+  (1) transformar o texto livre do dono em campos do formulário de restaurante e
+  (2) o chat de suporte. O cliente vive em `src/api/lib/ai.ts`, que chama a API
+  REST do Workers AI (`/accounts/{id}/ai/run/{model}`, modelo
+  `llama-3.1-8b-instruct`) — **não** o binding `env.AI`, que não chega ao
+  handler no Pages via Nitro.
+- **A IA é opcional em tudo.** Sem o token, `runAi` devolve `null` e quem chama
+  cai no fallback: o formulário usa a extração determinística
+  (`parseRestaurantText`) e o chat devolve um texto-guia com o e-mail de suporte.
+  Nada quebra, nada trava — só perde o "entender texto livre".
+- **⚠️ Resposta JSON do Workers AI vem como OBJETO, não string.** O
+  `llama-3.1-8b-fast-v2` devolve `result.response` já parseado quando a saída é
+  JSON (prosa continua vindo como string). O código só aceitava string, então
+  **toda** resposta JSON era descartada em silêncio e o chamador caía no
+  fallback — a IA parecia desligada (`ai:false`) mesmo com o token certo e HTTP
+  200. `extractAiText` (`ai.ts`) normaliza os dois formatos (`response`
+  string/objeto) e também `choices[0].message.content` (formato OpenAI); usada
+  por `runAi` e `runAiVision`, com teste próprio. Diagnóstico: o
+  `wrangler pages deployment tail` mostrava `logs: []` (o `runAi` nem era
+  chamado) e um `runAi("Responda: pong")` dentro do Worker devolvia `Pong!` —
+  provando que token e rede estavam certos e o problema era o parse.
+- **Antes de culpar o token, confira o formato da resposta.** O token
+  `CLOUDFLARE_AI_TOKEN` (server-only) é lido via `readEnv`, que funciona no
+  Pages (o `env` do handler chega por `process.env`); `SUPABASE_SERVICE_ROLE_KEY`
+  pelo mesmo caminho já funcionava. Um teste de `GET` que só imprime
+  `Boolean(readEnv(key))` por chave confirma a env sem vazar valor.
+- **A visão vai DENTRO de `messages`.** O modelo de visão
+  (`llama-3.2-11b-vision-instruct`) recusa `image` como campo de topo:
+  `AiError 3030: Unable to add image when there are no user-supplied nor
+  system-supplied messages`. O formato aceito é a imagem no `content` da
+  mensagem, como `image_url` (`buildVisionBody` em `ai.ts`, com teste próprio).
+  Com o campo errado a foto falhava mesmo com o token certo — devolvia
+  `scan_failed`. O modelo de visão também exige aceitar a licença da Meta UMA
+  vez por conta (`POST {model}` com `{"prompt":"agree"}`); sem isso devolve
+  `AiError 5016 Model Agreement`. Já aceito na conta de produção.
+- **Custo é irrelevante neste volume.** O Workers AI tem cota diária gratuita e
+  só é chamado quando o dono cria/edita a loja ou pede ajuda — não é por pedido
+  nem por visita. Centenas de conversas/dia cabem no gratuito.
+- **A IA nunca escreve no banco.** `extractRestaurantFields` só SUGERE valores
+  que preenchem o formulário (só campos vazios — nunca sobrescreve o que o dono
+  digitou). Quem salva é o `createRestaurant` de sempre. E a heurística
+  determinística tem prioridade sobre o modelo: é previsível e não alucina.
+- `extractJson` recorta do primeiro `{` ao último `}` antes de parsear: o
+  modelo às vezes cerca o JSON de prosa mesmo instruído a devolver só o objeto.
+- Rotas: `POST /api/restaurant/extract` (só sugere) e `POST /api/support/chat`
+  (responde E encaminha o relato por e-mail via Resend). As duas exigem
+  `Authorization: Bearer` — endpoint com custo de IA não pode ficar aberto.
+- **O Pracinha também monta o pedido do CLIENTE (texto → carrinho).** No
+  cardápio público, o botão "Pedir por texto" (na barra de categorias) abre
+  `src/components/cardapio/PracinhaOrderChat.tsx`: o cliente escreve "2 x-burger
+  sem cebola e um guaraná" e as linhas entram no carrinho de sempre.
+  - `POST /api/order/draft` (`api.order.draft.ts`) recebe `{ restaurantId, text }`,
+    carrega produtos/adicionais disponíveis do restaurante e devolve
+    `{ lines, unmatched, ai, reply }`.
+  - **A IA NUNCA define preço.** Ela só devolve `product_id`/`quantity`/`addon_ids`/
+    `notes`; `reconcileOrderDraft` descarta qualquer id fora do catálogo e limita
+    a quantidade a 50. O preço segue sendo recalculado pela RPC
+    `create_order_atomic` — uma alucinação não muda quanto o cliente paga.
+  - `parseOrderDeterministic` (`src/api/lib/order-draft.ts`) roda SEMPRE e casa
+    por nome (token + prefixo, sem acento), quantidade (número ou por extenso) e
+    observações ("sem cebola"); a IA só entra para sinônimos, e sem
+    `CLOUDFLARE_AI_TOKEN` o recurso continua funcionando. Coberto por
+    `order-draft.test.ts` (inclui o teste de que nenhuma linha traz preço).
+  - O componente não escreve no carrinho direto: devolve as linhas por `onAdd`,
+    e o `Cardapio` aplica com o `addToCart` de sempre.
+  - **É recurso PREMIUM (não inclui a diária).** O gate REAL é no servidor:
+    `POST /api/order/draft` checa `isStorePremium` (`src/api/lib/premium.ts`,
+    `is_premium` + `premium_expires_at > now()`) e devolve **403** para loja sem
+    Premium. O botão só é mostrado quando a RPC pública `store_is_premium`
+    (`supabase_garcom_premium_migration.sql`, também no fim do `schema.sql`)
+    devolve `true` — o cardápio é anônimo e não enxerga `admin_trials`; a RPC
+    devolve SÓ um booleano. Se a RPC faltar (banco antigo), o botão fica
+    escondido e nada quebra. Coberto pelo E2E `public-menu.spec.ts`
+    ("loja grátis não vê 'Pedir por texto'").
+  - **Fallback offline.** O parser determinístico vive em `src/lib/order-draft.ts`
+    (client-safe) e roda no NAVEGADOR quando a rota não responde (offline/deploy
+    antigo), usando o cardápio já carregado. `api/lib/order-draft.ts` só tem o
+    prompt/leitura da IA e reexporta o resto. Um 403 (sem Premium) NÃO cai no
+    fallback — é recusa intencional do servidor. O E2E prova o fallback
+    abortando a rota.
+
+- **O Pracinha é a identidade do suporte.** Nome em homenagem aos pracinhas da
+  FEB (1944-45); ele se apresenta como **colaborador da Variant**, não como
+  "robô". O system prompt está em `api.support.chat.ts` — mantenha esse tom.
+- O chat (`src/components/support/SupportChat.tsx`) é aberto pelo botão
+  "Suporte" no rodapé do sidebar do admin. Ele responde na hora e, **quando o
+  caso é escalado**, o relato vai por e-mail para `INVOICE_NOTIFY_EMAIL`
+  (best-effort: sem `RESEND_API_KEY` a resposta sai, só o e-mail não).
+- **Escalação em dois gatilhos:** a IA termina a resposta com `[ESCALAR]` (a
+  marca é removida do texto exibido) **ou** o dono toca "Enviar para o time".
+  O e-mail só sai na escalação — mandar a cada mensagem gastaria a cota do
+  Resend (3.000/mês) com conversa fiada.
+- **O e-mail termina com o PROMPT PARA O DEV.** `src/api/lib/dev-report.ts`
+  monta o relato (loja, conta, página, dispositivo, conversa/stack) e o bloco
+  que você copia e cola no OpenHands para corrigir. É determinístico — não
+  depende de uma segunda chamada de IA para existir.
+- **A IA não lê o repositório — ela não "vê o código".** O que ela faz é capturar
+  o relato + o contexto e transformar num prompt que um agente COM acesso ao
+  código executa. Não prometa "a IA conserta sozinha" na UI.
+- **Erro de código também vira relato.** `src/lib/reportError.ts` (cliente) é
+  chamado pelo error boundary do root e pelos listeners globais
+  (`unhandledrejection`/`error`); `src/api/lib/server-error-report.ts` cobre
+  SSR/rotas de API, ligado no `errorMiddleware` de `src/start.ts`. A rota
+  `POST /api/support/error` monta o mesmo relato com stack e prompt.
+  - Dedupe por mensagem em janela de 10 min (mapa por isolate, melhor-esforço)
+    — sem isso um erro em loop viraria centenas de e-mails.
+  - O reporte de servidor só roda com `NODE_ENV=production`; o dev local não
+    dispara e-mail.
+  - `reportError` nunca lança e nunca bloqueia a tela.
+
+## Deploy (Cloudflare Pages)
+
+- **Alvo é Cloudflare Pages, não Vercel.** O plano Hobby da Vercel restringe uso
+  a projetos pessoais não-comerciais, e um SaaS por assinatura é uso comercial —
+  o deploy podia ser pausado. O build sai em `dist/` (`_worker.js` + `assets/`)
+  via `nitro.config.ts` com `preset: "cloudflare-pages"`. `vercel.json` não
+  existe mais.
+- Projeto Pages: `cardapio-cidadela` (account `5123773a9dbba0599ba001539d5c3cbe`),
+  servindo `cardapio.pracinha.online` (CNAME → `cardapio-cidadela.pages.dev`,
+  proxied). O domínio vive no Cloudflare, na mesma zona `pracinha.online`.
+- **Auto-deploy no push da `main`**: `.github/workflows/deploy-cloudflare.yml`
+  roda `npm ci` → `npm run build` → `wrangler pages deploy dist`. As `VITE_*`
+  vêm dos secrets do repositório (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
+  — entram no bundle no BUILD, então mudá-las exige novo deploy.
+- O workflow instala **npm 11** antes do `npm ci`: o Node 22 traz npm 10, que
+  recusa o lock gerado pelo npm 11 (`Missing: lru-cache@... from lock file`).
+- `nodejs_compat` já vem no `wrangler.json` gerado pelo Nitro — sem ele o
+  `process.env` das rotas de API (`readEnv`) não existe e a cobrança quebra.
+- Secrets de runtime (server-only, não `VITE_*`) vivem no projeto Pages, não no
+  workflow: `SUPABASE_SERVICE_ROLE_KEY`, `MERCADOPAGO_ACCESS_TOKEN`,
+  `MERCADOPAGO_WEBHOOK_SECRET`, `RESEND_API_KEY`. Sem eles o app sobe e degrada
+  em silêncio; o webhook do MP é o que exige o service role.
+- **O canal de e-mail está LIGADO e testado (2026-11-04).** Env do Pages:
+  `RESEND_API_KEY`, `EMAIL_FROM=Cardápio Cidadela
+  <no-reply@cardapio.pracinha.online>` e `INVOICE_NOTIFY_EMAIL=variantfeb@gmail.com`.
+  Um POST de teste em `/api/support/error` devolve `{"ok":true}` e o Resend
+  registra `delivered` para `variantfeb@gmail.com`. Suporte, erro automático e
+  pedido de nota chegam.
+- **O domínio `cardapio.pracinha.online` está verificado no Resend.** São 3
+  registros na zona `pracinha.online` (TXT `resend._domainkey.cardapio` + CNAME
+  `rsend.cardapio` e `send.cardapio`, ambos **DNS only**). Com o domínio
+  verificado dá para enviar de `no-reply@cardapio.pracinha.online` para
+  **qualquer** destinatário; sem ele o Resend só entrega para o dono da conta
+  (`403 validation_error`). Se um dia recriar o domínio, o `EMAIL_FROM` precisa
+  acompanhar o novo endereço.
+- **O token da Cloudflare precisa das 3 permissões certas, e elas não são
+  óbvias.** Para este projeto o token tem que ter:
+  - `Cloudflare Pages` → **Edit** (deploy);
+  - `DNS` → **Edit** na zona `pracinha.online` (criar registros). **Não** é
+    `Configurações de DNS` (`zone_dns_settings`) — essa só mexe em SOA/TTL/modo
+    e o `POST /dns_records` continua dando `10000`;
+  - `Workers AI` → **Read** (foto/chat).
+  Sem `Zone Read` o `GET /zones` devolve lista vazia mesmo com o DNS liberado —
+  não use esse endpoint para concluir que o DNS não funciona; teste direto em
+  `GET /zones/{zone_id}/dns_records` com o `zone_tag` que vem do domínio Pages.
+- **Dois tokens da Cloudflare, papéis diferentes.** `CLOUDFLARE_API_TOKEN`
+  (secret do GitHub) é o de DEPLOY: precisa de **Cloudflare Pages: Edit** (a
+  permissão `Pages Read` só vê o projeto e o deploy falha com
+  `Authentication error [code: 10000]`). `CLOUDFLARE_AI_TOKEN` é o de RUNTIME:
+  só **Workers AI: Read**, e vive nas env do Pages. Confundir os dois foi o que
+  deixou o deploy quebrado sem ninguém perceber (o site continuou no ar servindo
+  o último build bom).
+- **Gravar uma env do Pages sem apagar as outras.** O `PATCH` de
+  `deployment_configs.production.env_vars` **substitui o mapa inteiro**, e a
+  leitura não devolve o valor das secrets. Use
+  `wrangler pages secret put <NOME> --project-name=cardapio-cidadela` — mexe só
+  na chave pedida. O workflow `.github/workflows/set-pages-secret.yml` faz isso
+  para o `CLOUDFLARE_AI_TOKEN`.
+- **Armadilha de runtime:** `src/lib/error-capture.ts` é importado no servidor e
+  registrava listeners do navegador (`error`/`unhandledrejection` com
+  `useCapture`). O runtime do Workers rejeita o 3º argumento de
+  `addEventListener` ("useCapture must be false") e derruba o SSR inteiro. O
+  bloco agora exige `typeof window !== "undefined"`.
+- O token de API da Cloudflare precisa de **DNS: Zona → Editar** + **Cloudflare
+  Pages: Conta → Editar**, com **Zone Resources → Include → pracinha.online**.
+  Sem o "Zone Resources" o token lista 0 zonas e tudo responde "Authentication
+  error", mesmo com as permissões certas.
+- **A URL do webhook no painel do Mercado Pago precisa ser a do domínio
+  canônico**: `https://cardapio.pracinha.online/api/webhook/mercadopago`. Ela
+  ficou apontada para `cardapio-cidadela.vercel.app` por muito tempo, que agora
+  devolve 404 (o build é alvo Cloudflare), então o MP notificava no vazio e a
+  loja nunca liberava sozinha. Trocar de host exige reeditar o painel: a config
+  de webhook do MP **não** é acessível pela API (`/v1/webhooks` responde
+  `resource not found`).
+- O `PATCH` de `deployment_configs.production.env_vars` no Pages **substitui o
+  mapa inteiro**, não faz merge — ao adicionar uma secret, reenvie o conjunto
+  completo (as `plain_text` somem se você mandar só a nova).
+
+## Backup dos dados (Supabase → Cloudflare R2)
+
+- **O Supabase free não tem backup automático.** A rede de segurança é o
+  workflow `.github/workflows/backup-r2.yml`, que roda todo dia às 03:30 UTC e
+  exporta as tabelas do app para o bucket R2 `cardapio-cidadela-backups` (10 GB
+  grátis, na conta Cloudflare do projeto). Os scripts são
+  `scripts/backup-to-r2.mjs` e `scripts/restore-from-r2.mjs`
+  (`npm run backup` / `npm run restore`); a documentação completa, com os
+  secrets e o passo a passo de recuperação, está em **`scripts/BACKUP.md`**.
+- **O workflow precisa do secret `SUPABASE_SERVICE_ROLE_KEY`** (Settings →
+  Secrets), que o deploy **não** usa — sem ele o backup falha. O
+  `CLOUDFLARE_API_TOKEN` existente precisa da permissão **Workers R2: Edit**.
+- **O dump tem dados de clientes: o bucket é privado.** Não crie domínio
+  público nem `r2.dev` para ele. O restore é upsert por `id` (não apaga nada),
+  mas rode primeiro sem `--confirm` para ver o plano.
+- Fotos **não** entram no dump (ficam no Storage e são re-baixáveis); o que é
+  salvo é o **cardápio** e o **estado de assinatura/saldos**, que são o que dói
+  perder. O dump é texto compactado (dezenas de KB).
+- **Retenção: 3 dias.** O bucket guarda hoje + ontem + anteontem; o R2 apaga o
+  resto sozinho pela lifecycle rule `expire-old`, reaplicada pelo workflow a
+  cada execução (`scripts/r2-lifecycle.mjs`, idempotente). Para mudar o número
+  de dias, veja `scripts/BACKUP.md` (seção Retenção).
+
 ## Domínio, acompanhamento e performance do cardápio
 
+- **A vitrine da landing é o cardápio REAL da Variant, não um mock.** O
+  `LiveStoreDemo` (`src/components/landing/LiveStoreDemo.tsx`) começa com um
+  snapshot estático (`DEMO_SNAPSHOT`, em `landing-data.ts`) e logo troca pelos
+  dados de `getLandingDemoStore()` (`src/modules/supabase/landing-demo.ts`), que
+  lê a loja `dona-da-pensao` por slug. Trocar a foto, o preço ou um item no
+  painel muda a home sozinha — sem deploy. O botão "Ver cardápio real" aponta
+  para `/cardapio/dona-da-pensao` (a mesma loja), então a vitrine e o cardápio
+  público mostram a mesma coisa. O snapshot existe só para não piscar em branco
+  antes da resposta; se o banco falhar, ele segura a página. A área de itens
+  rola por dentro (`max-h-[46vh]`) para uma categoria cheia não esticar o
+  telefone. **A landing agora ROLA de propósito** (seções vivas empilhadas); o
+  E2E `smoke-routes.spec.ts` deixou de exigir "sem rolagem" e passou a provar
+  que o cardápio só aparece DENTRO do botão.
 - **O link compartilhado usa o domínio canônico, não o host do navegador.**
   `currentOrigin()` (`src/lib/site.ts`) devolve `SITE_URL`
   (`cardapio.pracinha.online`) em produção e só mantém a origem local quando ela
   é `localhost`/`127.0.0.1` (dev). Antes devolvia `window.location.origin`, então
-  quem abrisse o painel pelo `*.vercel.app` compartilhava o endereço da Vercel.
+  quem abrisse o painel pelo `*.pages.dev` compartilhava o endereço do provedor.
   `SharePanel` e `StorePulseBar` usam isso; o `/mobile` tem um botão de
   compartilhar (Web Share API com fallback para copiar/WhatsApp).
-- **O cliente não pode depender só do realtime no acompanhamento.** O
-  `/pedido/$orderId` assina os UPDATEs, mas se o WebSocket cair (celular em
-  segundo plano, rede instável) a tela congelava. Há um poll de 20s + revalidação
-  no `visibilitychange` como rede de segurança — a RPC `get_order_tracking` só
-  devolve colunas públicas.
+- **O cliente acompanha por polling, sem realtime.** O `/pedido/$orderId` e o
+  `/meus-pedidos` **não abrem WebSocket**. O realtime no lado do cliente custava
+  **uma conexão por telefone aberto**, e o plano free limita a 200 conexões
+  simultâneas: com 20 lojas e ~10 clientes esperando por loja ao mesmo tempo,
+  batia no teto (20 donos + 200 clientes = 220) e as conexões novas eram
+  recusadas. Agora o poll de 20s é o único caminho — 0 conexões persistentes,
+  e a mudança de status aparece em até 20s (o pedido leva ~20 min, então a
+  diferença é imperceptível). A RPC `get_order_tracking` só devolve colunas
+  públicas, então o poll não expõe nada a mais. O ciclo **para quando o pedido
+  fecha** (entregue/cancelado não muda mais). Não reintroduza `subscribeToOrders`
+  nessas duas telas — o dono continua com realtime (poucas conexões), mas o
+  cliente multiplica por telefone.
 - **Alerta que não pode falhar.** `useOwnerPendingOrders` (o sino/contador do
   mobile) mantém um `Set` de ids conhecidos: o poll de 15s compara com a lista
   atual e dispara o alerta para o que o realtime não entregou. Também revalida no
@@ -739,6 +1338,71 @@
   `availableAddonsByProduct` e `cartQtyByProduct` são `useMemo` com `Map`:
   filtrar `products` por categoria dentro do `.map` (duas vezes) e refazer o
   reduce do carrinho por produto era O(categorias × produtos) por quadro.
+
+- **Cache SWR do cardápio público.** `src/modules/supabase/menuCache.ts` guarda
+  o último payload (restaurante + categorias + produtos + bairros + adicionais)
+  em `localStorage`, por slug, com TTL de 24h. `Cardapio.tsx` hidrata do cache no
+  primeiro paint e revalida em segundo plano; o realtime regrava o cache, então a
+  próxima abertura (mesmo offline) já nasce atualizada. É o corte de egress mais
+  direto: o segundo acesso do mesmo cliente não consulta o Supabase para montar a
+  tela. Sem cache, o comportamento é o de sempre. Ao mudar o formato do payload,
+  suba `CACHE_VERSION` (senão o snapshot velho é lido com campos faltando).
+- **Imagens do Storage são cache-first no service worker.** `public/sw.js`
+  (`VERSION` v3) guarda as fotos do bucket `restaurant-images` numa cache
+  separada, com teto de 200 arquivos. As URLs têm timestamp no nome (imutáveis),
+  então cache-first é seguro e evita rebaixar a mesma foto a cada visita. Não
+  cacheia navegação nem `/api/` — pedido nunca vem de cache velho.
+- **Pedidos do dono numa consulta só.** `getOrdersByRestaurants(ids)` faz um
+  `.in("restaurant_id", ids)` em vez de uma consulta por loja. Era N+1 no
+  `useOwnerOrders` (mobile) e no `OrderManager` (admin), repetido a cada poll de
+  15s. A consulta é limitada a `ORDERS_PAGE_LIMIT` (300) pedidos mais recentes —
+  sem o teto, o egress crescia com o histórico de 30 dias a cada recarga do
+  painel. O poll de segurança usa `getOrderStatusesByRestaurants` (só `id,status`,
+  mesmo teto) e só rebaixa os pedidos completos quando algo mudou; ambos ignoram
+  a aba escondida. A migração `supabase/supabase_perf_indexes_migration.sql`
+  adiciona o índice `(restaurant_id, created_at DESC)` que essas consultas
+  ordenadas usam, mais os índices de cardápio, e uma limpeza de imagens órfãs no
+  Storage.
+
+## Custos: limites reais e quando migrar
+
+- **Cloudflare Pages (free): o teto é de Function, não de banda.** O site estático
+  tem banda ilimitada, mas **todo HTML é renderizado por Worker** (o app é SSR,
+  `src/start.ts`), e a Function soma na cota do Workers free: **100.000
+  requisições/dia** (e 10 ms de CPU por requisição). Um page view = 1 invocação.
+  Logo, o gatilho de custo nº 1 é **~100 mil page views/dia** — muito acima do
+  que 20 clientes geram. `/api/*` também é Function.
+- **Supabase (free): o teto real é egress (5 GB/mês) e conexões realtime (200).**
+  Banco 500 MB, Storage 1 GB. Como a retenção já apaga pedidos > 30 dias, o banco
+  não enche; o que enche é tráfego de saída (imagens + JSON do cardápio) e picos
+  de conexão. Por isso o cache SWR (egress) e o cache de imagem no SW (egress)
+  valem mais que qualquer tuning de banco.
+- **Free vs Pro do Supabase.** Pro = US$ 25/mês (≈ R$ 137) e o único motivo
+  inegociável para migrar é **uptime + backup**. O projeto free **pausa após
+  7 dias sem atividade** — o keep-alive já contorna isso de graça. Então o Pro
+  não se paga sozinho: **só migre quando a receita cobrir os R$ 137/mês**
+  (~5 assinantes mensais). Antes disso é prejuízo, não investimento.
+- **Ordem de gatilhos para migrar:** (1) egress > ~4 GB/mês ou pico realtime
+  > ~150 → rever cache antes de pagar; (2) 2º projeto free em uso → consolidar;
+  (3) **receita recorrente ≥ R$ 137/mês** (≈ 5 assinantes) → Pro, aí o backup
+  diário vira argumento de venda e não custo; (4) 100k page views/dia →
+  Workers pago (US$ 5/mês, 10M req).
+- **Workers AI (free): 10.000 neurons/dia; a foto do cardápio é barata.** O
+  modelo de visão (`@cf/meta/llama-3.2-11b-vision-instruct`, 4.410 neurons/M de
+  entrada e 61.493/M de saída) gasta ~100 neurons por leitura → ~100 leituras/dia
+  grátis, ~3.000/mês. Acima disso, ~US$ 0,0011 por foto. Ou seja, o gate anual
+  da foto é **posicionamento de preço, não economia** — o custo só aparece se o
+  recurso virar autoatendimento público em massa. Confirme o número no dashboard
+  (Cloudflare → Workers AI), que é onde a cota é medida.
+- **Índices redundantes são custo de escrita.** Um índice de coluna única cujo
+  prefixo já está num composto não é usado pelo planejador — só custa INSERT/
+  UPDATE. `supabase_index_cleanup_migration.sql` remove os que a auditoria de
+  produção achou (`idx_orders_store_created` era duplicata exata de
+  `idx_orders_restaurant_created`; `idx_orders_restaurant`,
+  `idx_categories_restaurant`, `idx_products_restaurant`, `idx_orders_guest`
+  eram prefixos cobertos). Ao criar um índice novo, confira se um composto
+  existente já atende antes de duplicar.
+
 
 ## Painel: organização da fila de pedidos (UX)
 
@@ -777,6 +1441,11 @@
 - O Dashboard (`admin.index.tsx`) abre com os KPIs de **hoje** (pedidos,
   faturamento, ticket) e o seletor de período (7/30/90 dias) vive junto do
   gráfico, que é o que ele filtra. Não devolva o período para a barra do topo.
+- Os gráficos de barra do Financeiro (`admin.financeiro.tsx`) usam
+  `maxBarSize={48}`. Com um só dia de dados o recharts estica a única barra para
+  a largura toda e ela vira um quadrado azul gigante; o teto de largura a
+  mantém um retângulo fino de pé. Regressão coberta por
+  `e2e/financeiro.spec.ts`.
 
 ## Login: "Criar conta" com sessão ativa
 
@@ -811,13 +1480,13 @@
 - `COMPANY.fiscal` reúne os dados que a NFS-e exige (logradouro, CEP, código
   IBGE do município, inscrição municipal, CNAE, item da LC 116, alíquota do ISS,
   e-mail) e estão **vazios** de propósito: `missingFiscalFields` lista o que
-  falta e a aba "Pedidos e detalhes" da assinatura mostra o que está pendente.
+  falta e a aba "Nota fiscal" da assinatura mostra o que está pendente.
   Preencher **não** liga a emissão — só evita perder o dado quando a integração
   for feita. Não apresente esses campos como "emissão de nota" na UI.
-- A aba "Pedidos e detalhes" (`admin.assinatura.tsx`) traz um bloco "Nota
-  fiscal" com razão social + CNPJ e o caminho para pedir o documento pelo canal
-  de suporte enquanto a emissão não existe. É o mínimo para o dono não descobrir
-  na hora de faturar que a cobrança não veio com nota.
+- A aba "Pedidos e detalhes" (`admin.assinatura.tsx`) é só o resumo do plano
+  (restaurante, status, limite, renovação). O bloco fiscal (razão social + CNPJ,
+  dados pendentes e o caminho para pedir a nota) mora na aba "Nota fiscal" — não
+  duplique esse conteúdo aqui.
 - **Alerta fiscal:** o CNAE principal do MEI é 4781400 (vestuário) e não há CNAE
   de desenvolvimento de software/serviços de TI. Emitir nota de SaaS nesse
   enquadramento é risco de glosa; o caminho usual é abrir ME (não MEI) com CNAE
@@ -835,3 +1504,169 @@
      depois de publicar (o CNPJ não existe no bundle antigo — conferir em
      `/terms`).
 
+## Egress: o teto real do plano gratuito
+
+- **O gargalo é o EGRESS de Storage (5 GB/mês), não o banco nem a Cloudflare.**
+  Medido em 2026-11-03: banco 16 MB / 500 MB (3,2%), Storage 1,19 MB / 1 GB
+  (0,12%), REST ~1.600 req/dia, auth ~30/dia. Nada disso chega perto do teto —
+  o que estoura primeiro é servir imagem grande demais para muita gente.
+- **Toda imagem do app deve passar pela URL transformada do Storage**
+  (`optimizedImageUrl` / `SmartImage`), nunca o arquivo cru. A transformação
+  (`/render/image/`) converte para WebP no tamanho pedido: um banner de 729 kB
+  virava 24 kB (**30× menos**). O card do admin (`RestaurantCardCompact`),
+  os avatares (`AccountMenu`, `admin.config`, `admin.restaurante.$id`) e o
+  cardápio público usam isso; sobrou só `<img>` cru no preview do
+  `RestaurantDialog` (arquivo local antes do upload) e nos QR Codes (externos).
+- **Fallback obrigatório.** A transformação é recurso pago do Supabase; onde ela
+  estiver desligada o `<img>` precisa voltar à URL original (`onError` com
+  `data-original`), senão a imagem some. `SmartImage` já faz a cadeia
+  transformada → original → jpeg → fallback.
+- **`srcset` 1x/2x** (`imageSrcSet`) evita que uma tela retina peça o dobro de
+  pixels à toa (logo de 160 pedia 320). Só entra em host do Storage; imagem
+  externa passa intacta.
+- **Trocar logo/banner apaga o arquivo antigo** (`deleteRestaurantImageByUrl`,
+  agora usado no `RestaurantDialog`). A URL é imutável (timestamp no nome),
+  então sem isso o bucket só acumulava órfãos. O cron `mata-fome-images`
+  (`supabase_perf_indexes_migration.sql` → `cleanup_orphan_images`) limpa o que
+  escapar, com janela de 7 dias.
+- **Cache do cardápio público é SWR de 6h** (`MENU_CACHE_FRESH_MS`). A
+  revalidação (`Cardapio.tsx`) só bate no banco quando o snapshot venceu — antes
+  rebatia os quatro payloads a cada 5 min mesmo com o cache fresco, o pior dos
+  dois mundos. `getMenuWithProducts` também deduplica consultas em voo por
+  restaurante (`inflightMenu`).
+- **O flag Premium também vive no snapshot.** Cada visita disparava a RPC
+  `store_is_premium` só para decidir se mostra o botão do garçom digital — mesmo
+  quando o cache fresco já evitava todo o resto. Agora o `isPremium` é gravado
+  junto do snapshot (`menuCache.ts`, `CACHE_VERSION` 3) e uma abertura com cache
+  fresco faz **zero** requisições ao Supabase; `load()` e a revalidação de
+  segundo plano atualizam o valor.
+- **Preço da cota em número de aberturas.** Payload do menu ~6,6 kB por visita
+  fria; com banner WebP de 24 kB, cada visita gasta ~31 kB. Os 5 GB do plano
+  gratuito cobrem ~160 mil visitas frias/mês (mais, porque o cache do navegador
+  evita a maioria). O que derruba a conta é imagem crua de centenas de kB — aí
+  são ~7 mil aberturas e o mês acaba.
+
+## Imagens no Cloudflare R2 (egress zero)
+
+- **Imagem saiu do Supabase Storage e foi para o R2.** O Supabase dá 5 GB/mês de
+  egress e imagem é o que mais sai; no R2 o egress é **zero** e o domínio
+  público (`images.pracinha.online`, bucket `cardapio-cidadela-images`) é
+  *proxied* pela Cloudflare, que cacheia na borda (MISS → HIT, `max-age=14400`).
+  A foto é servida do cache sem tocar o R2 nem a cota do Supabase. É o que
+  estica o grátis de ~20 para centenas de lojas.
+- **O binding `IMAGES` vem do `wrangler.json` da raiz.** O Nitro lê esse arquivo
+  e faz merge no config gerado (`defu`); sem declará-lo ali, o
+  `wrangler pages deploy` **limpa** o `r2_buckets` do projeto a cada deploy e
+  `/api/image/upload` responde 503. Não remova o `r2_buckets` do `wrangler.json`
+  nem confie só no painel: o deploy sobrescreve.
+- **Como a rota lê o binding:** `request.runtime.cloudflare.env.IMAGES`
+  (`getImagesBinding` em `src/api/lib/r2-images.ts`). Testado no runtime do
+  Pages (put/get/delete). Sem o binding (dev local, deploy antigo) as rotas
+  devolvem 503 e o cliente cai no Supabase Storage — nada quebra.
+- **Rotas server-side com posse confirmada.** `POST /api/image/upload` e
+  `POST /api/image/delete` exigem `Authorization: Bearer <token>` e confirmam
+  que a loja pertence ao usuário pelo RLS do próprio token (como o
+  create-link). O delete só age sob o prefixo `<restaurantId>/` — não dá para
+  apagar imagem de outra conta. Teto: 30 uploads/min e 60 deletes/min por IP.
+- **`storage.ts` tenta o R2 e cai no Storage.** `uploadRestaurantImage` posta em
+  `/api/image/upload`; em 503/rota ausente usa o bucket `restaurant-images` de
+  sempre. A compressão no navegador (WebP ≤ 800x800, q70) continua antes de
+  qualquer envio.
+- **Cache imutável.** O nome carrega timestamp, então o `put` no R2 manda
+  `Cache-Control: public, max-age=31536000, immutable`; o service worker
+  (`cidadela-v4`) também cacheia `images.pracinha.online`.
+- **Cache SWR do cardápio é `v2`** (`CACHE_VERSION` em `menuCache.ts`). O bump
+  foi necessário porque os clientes guardavam as URLs antigas do Supabase por até
+  6h (janela fresca) e não pegariam a migração sozinhos.
+- **Migração:** `scripts/migrate-images-to-r2.mjs` (idempotente) copia os objetos
+  do Storage para o R2 e reescreve as URLs em `restaurants`/`products`. Rodado em
+  produção em 2026-11-04: 7 objetos (~1 MB, loja "Dona da Pensão") movidos e as
+  URLs do banco reescritas.
+- **Limpeza de órfãos do Storage continua** (`cleanup_orphan_images`), mas agora
+  as URLs apontam para o R2, então objetos que ainda existirem no Supabase
+  viram órfãos e são removidos na janela de 7 dias. O bucket do Supabase fica
+  vazio com o tempo.
+
+## Landing: cockpit de uma tela (aba única, sem rolagem)
+
+- **A home (`src/routes/index.tsx`) NÃO rola.** O herói (cockpit lado a lado:
+  botões de ação à esquerda, outdoor à direita) + rodapé cabem na viewport
+  (`h-[100dvh] overflow-hidden`). Cada assunto abre num **painel por cima**
+  (`GuidePanel`, o mesmo do `/admin/assinatura`) com X para fechar. O E2E
+  `smoke-routes.spec.ts` → "a home é um bloco único: a página não rola" mede
+  `scrollHeight - clientHeight <= 4`. **Não reintroduza rolagem de página** — o
+  que vende o produto mora dentro dos painéis, que rolam por dentro; a página em
+  si não cresce.
+- **Todo recurso tem painel próprio, e nenhum componente pode ficar órfão.** O
+  hub (nav desktop `lg:flex` + menu mobile `lg:hidden`) abre: **Cardápio**
+  (`MenuReveal` + `LiveStoreDemo`, o cardápio REAL interativo), **Templates**
+  (`TemplateGallery`), **Recursos** (`STEPS` + `WaiterChat` + `WizardChat` +
+  `FEATURES` + `ChatAiSection`), **Preços** (`PlanCards` + diária), **Quem faz**
+  (`VariantBand`), **Economia** (`LossCalculator`) e **Dúvidas** (FAQ); o
+  **Tutorial** abre num `Dialog`. Os componentes de seção (`ChatAiSection`,
+  `VariantBand`) foram reescritos como `div` (sem `mt-14 scroll-mt-20`, que só
+  faz sentido em página que rola) e são renderizados DENTRO do painel. Se um
+  componente aparece definido mas sem uso, é bug: ele existia para um painel.
+- **O outdoor** (`OutdoorDisplay`, dentro do próprio `index.tsx`) é uma peça de
+  rua com ESTRUTURA de verdade (travessa, colunas, base), emoldurada por fios de
+  lâmpadas (`LightString` + `fairy-bulb`/`bulb-chase`). Dentro da tela, o
+  Pracinha atende cena a cena (problema → montagem → pedido → preço), com
+  legenda e indicador de cena. Na janela de Natal (`isChristmasSeason`) as
+  lâmpadas viram vermelho/verde/amarelo; fora dela, ciano/índigo/rosa. As cenas
+  são `OUTDOOR_SCENES` — o texto do outdoor vive lá, não em JSX solto.
+- O botão "Ver cardápio" do herói abre o cardápio de verdade
+  (`/cardapio/<slug>`) em outra aba; o painel "Cardápio" traz o mesmo cardápio
+  interativo embutido (`LiveStoreDemo`). Nenhum mockup de celular.
+- Os assuntos de apoio abrem em painel por cima (`GuidePanel`). O botão
+  "Calcular minha economia" do herói abre o painel de Economia; o número é o
+  argumento, não o adjetivo.
+- **O fundo** é um céu/galáxia animado (`absolute inset-0 overflow-hidden` no
+  root `h-[100dvh] overflow-hidden`). O `overflow-hidden` no root é o que
+  segura os blobs com `-left/-right` negativos (sem scroll horizontal); mantenha
+  o par root-clip + blobs.
+- A navbar é `relative z-40`; o `ChristmasHero` (neve determinística + fio de
+  lâmpadas) é `absolute inset-0 z-20`, `aria-hidden` e `pointer-events-none`.
+
+## MATA FOME (movimento solidário opcional)
+
+- A loja **adere por opção** (`restaurants.mata_fome_enabled`) e o cardápio
+  público ganha a faixa "Tá com pressa? Escolha seu MATA FOME". É genérico de
+  propósito: o cliente escolhe **qualquer item** do cardápio (um belisque ou uma
+  refeição para quem não tem como pagar). Não padronize um produto/combo — o
+  item e o preço são os da casa. `restaurants.mata_fome_note` é um recado
+  opcional (quando/limite).
+- A copy vive em `src/lib/mataFome.ts` (`MATA_FOME`, `isMataFomeOn`,
+  `mataFomeNote`) para valer no cardápio e no painel; a faixa pública fica em
+  `Cardapio.tsx` (logo acima da barra de categorias) e o opt-in no
+  `RestaurantDialog` (aba de funcionamento). Colunas/migração:
+  `supabase/supabase_mata_fome_migration.sql` (também no `schema.sql`).
+- Não confunda com o job de cron `mata-fome-*` de `supabase_inactive_accounts_migration.sql`
+  (limpeza de contas inativas) — nome parecido, assunto diferente.
+- O SELECT público (`getRestaurantBySlug`) pede as colunas novas, mas cai para
+  um SELECT legado sem elas se a migração não tiver rodado (`isMissingColumnError`)
+  — o cardápio nunca deixa de abrir por causa disso.
+
+## Limites reais (free tier) e onde o gargalo aparece
+
+- **Supabase Free**: 500 MB de banco, **5 GB de egress** (+5 GB cached egress),
+  1 GB de Storage, **200 conexões Realtime simultâneas**, 2 milhões de mensagens
+  Realtime, 500 mil invocações de Edge Function. Estoura o egress → o projeto
+  entra em **read-only** até o próximo ciclo. É o teto que realmente limita.
+- **Cloudflare Workers/Pages Free**: **100.000 requisições/dia**, **10 ms de CPU**
+  por requisição, 128 MB por isolate, 20.000 arquivos por site. Cada abertura de
+  cardápio que chega ao Worker conta — por isso o shell do cardápio público e a
+  landing ganham cache de borda (`src/lib/edgeCache.ts` + `edgeCacheMiddleware`
+  em `src/start.ts`): HTML que não muda por visitante vira HIT na CDN e não
+  consome a cota. Painel, mobile, pedido e `/api` **não** entram no cache; HTML
+  com `Set-Cookie` também nunca é cacheado.
+- O `preconnect` do `<head>` (`src/routes/__root.tsx`) abre DNS+TLS para o
+  Supabase e o R2 antes do primeiro fetch — corta latência no 4G.
+- As fotos vão para o **R2** (`images.pracinha.online`, egress zero) via
+  `src/api/lib/r2-images.ts`; o Supabase Storage é só o caminho legado/fallback.
+- O cardápio público **não usa Realtime** de propósito (era uma conexão por
+  visitante contra o teto de 200): usa SWR em `localStorage` (`menuCache.ts`) e
+  revalida ao voltar para a aba. O painel do dono usa Realtime + poll de 45s
+  como rede de segurança (`useOwnerOrders.ts`).
+- Consultas de leitura quente pedem **colunas explícitas** (nunca `select("*")`
+  em payload público): `CATEGORY_COLUMNS`, `PRODUCT_COLUMNS`, `ADDON_COLUMNS`
+  (`menu.ts`), `PUBLIC_RESTAURANT_COLUMNS` (`restaurants.ts`).

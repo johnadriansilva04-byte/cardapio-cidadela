@@ -14,12 +14,22 @@ import {
   ChevronUp,
   Info,
   Sparkles,
+  HeartHandshake,
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
-import { getRestaurantBySlug, getNeighborhoods } from "@/modules/supabase/restaurants";
+import {
+  getRestaurantBySlug,
+  getNeighborhoods,
+  isRestaurantPremium,
+} from "@/modules/supabase/restaurants";
 import { getMenuWithProducts, getAddonsByRestaurant } from "@/modules/supabase/menu";
-import { supabase } from "@/modules/supabase/client";
+import {
+  readMenuCache,
+  writeMenuCache,
+  clearMenuCache,
+  MENU_CACHE_FRESH_MS,
+} from "@/modules/supabase/menuCache";
 import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
 import { brl, hexToRgba, newComanda } from "@/lib/utils";
@@ -34,6 +44,8 @@ import type {
   SelectedAddon,
 } from "@/lib/types";
 import CartSheet from "./CartSheet";
+import PracinhaOrderChat from "./PracinhaOrderChat";
+import type { DraftLine } from "@/modules/supabase/order-draft";
 import CheckoutModal from "./CheckoutModal";
 import type { CheckoutForm } from "./CheckoutModal";
 import PaymentScreen from "./PaymentScreen";
@@ -46,6 +58,8 @@ import { useActiveOrderCount } from "@/modules/customer/useActiveOrderCount";
 import { ReviewsSection } from "@/components/reviews/ReviewsSection";
 import { CidadelaBadge } from "./CidadelaBadge";
 import { SmartImage } from "@/components/ui/SmartImage";
+import { MATA_FOME, isMataFomeOn, mataFomeNote } from "@/lib/mataFome";
+import { optimizedImageUrl, IMAGE_SIZES } from "@/lib/imageOptimization";
 import {
   normalizeOperatingHours,
   isOpenNow,
@@ -88,6 +102,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
   const [addonModalProduct, setAddonModalProduct] = useState<Product | null>(null);
   const [editingCartItemIndex, setEditingCartItemIndex] = useState<number | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [orderChatOpen, setOrderChatOpen] = useState(false);
+  const [isPremiumStore, setIsPremiumStore] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -96,13 +112,36 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   useEffect(() => {
     let alive = true;
+
+    // SWR: hidrata do cache local na hora (se houver) e revalida em segundo
+    // plano. Cache dentro da janela "fresca" é servido sozinho, sem tocar na
+    // rede — o realtime cobre qualquer mudança e evita rebaixar o cardápio
+    // inteiro a cada abertura do link.
+    const cached = readMenuCache(slug);
+    if (cached) {
+      setRestaurant(cached.restaurant);
+      setCategories(cached.categories);
+      setProducts(cached.products);
+      setNeighborhoods(cached.neighborhoods);
+      setProductAddons(cached.addons);
+      if (typeof cached.isPremium === "boolean") setIsPremiumStore(cached.isPremium);
+      setLoading(false);
+      if (cached.categories.length > 0) setActiveCat((prev) => prev || cached.categories[0].id);
+      if (Date.now() - cached.cachedAt < MENU_CACHE_FRESH_MS)
+        return () => {
+          alive = false;
+        };
+    }
+
     async function load() {
       try {
-        setLoading(true);
         setLoadError(null);
+        if (!cached) setLoading(true);
         const r = await getRestaurantBySlug(slug);
         if (!alive) return;
         if (!r) {
+          // O slug deixou de existir: o cache não pode continuar servindo.
+          clearMenuCache(slug);
           setRestaurant(null);
           setCategories([]);
           setProducts([]);
@@ -116,14 +155,26 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
           getAddonsByRestaurant(r.id),
         ]);
         if (!alive) return;
+        const premium = await isRestaurantPremium(r.id);
+        if (!alive) return;
         setCategories(cats);
         setProducts(prods);
         setNeighborhoods(nbrs);
         setProductAddons(pas);
+        setIsPremiumStore(premium);
         if (cats.length > 0) setActiveCat((prev) => prev || cats[0].id);
+        writeMenuCache(slug, {
+          restaurant: r,
+          categories: cats,
+          products: prods,
+          neighborhoods: nbrs,
+          addons: pas,
+          isPremium: premium,
+        });
       } catch (e) {
         console.error("[public menu] load", e);
-        if (alive) setLoadError("Falha ao carregar cardápio. Verifique sua conexão.");
+        // Com cache servido, uma falha de rede não é erro para o cliente.
+        if (alive && !cached) setLoadError("Falha ao carregar cardápio. Verifique sua conexão.");
       } finally {
         if (alive) setLoading(false);
       }
@@ -146,6 +197,39 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     discardCartIfForeign(restaurantId);
   }, [restaurantId, discardCartIfForeign]);
 
+  // O garçom digital é Premium-only. O cardápio público não enxerga
+  // `admin_trials` (RLS do dono), então pergunta o booleano pela RPC pública.
+  // O gate de verdade é o 403 em /api/order/draft; aqui é só para não mostrar um
+  // botão que vai falhar.
+  //
+  // Quando o snapshot já traz o flag (cache fresco), não bate na RPC de novo:
+  // era uma requisição por visita só para decidir se mostra um botão.
+  useEffect(() => {
+    if (!restaurantId) return;
+    if (typeof readMenuCache(slug)?.isPremium === "boolean") return;
+    let alive = true;
+    void isRestaurantPremium(restaurantId).then((v) => {
+      if (alive) setIsPremiumStore(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [restaurantId, slug]);
+
+  // Revalidação do cardápio público — SEM Realtime.
+  //
+  // Cada visitante com o menu aberto segurava uma conexão Realtime só para saber
+  // se o dono editou o cardápio — algo raro. O plano gratuito tem teto de
+  // conexões simultâneas (200), então isso viraria o gargalo bem antes do egress.
+  //
+  // A revalidação respeita a janela fresca do cache (`MENU_CACHE_FRESH_MS`):
+  // enquanto o snapshot é fresco, NÃO bate no banco. Antes o intervalo de 5 min
+  // rebaixava os quatro payloads a cada 5 min mesmo com o cache fresco de 6h —
+  // o pior dos dois mundos (cache servido no paint e rede chamada por cima).
+  // Agora o menu se revalida só quando o snapshot venceu, ao voltar para a aba
+  // ou no intervalo (o que vier primeiro). Um preço alterado aparece na próxima
+  // abertura após a janela fresca — o contrato do SWR, e o dono raramente muda
+  // preço no meio do expediente.
   useEffect(() => {
     if (!restaurantId) return;
     const rid: string = restaurantId;
@@ -153,70 +237,50 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
     async function refreshMenu() {
       if (!alive) return;
+      // Cache ainda fresco: servir o snapshot é o suficiente, sem tocar a rede.
+      const cached = readMenuCache(slug);
+      if (cached && Date.now() - cached.cachedAt < MENU_CACHE_FRESH_MS) return;
       try {
         const { categories: cats, products: prods } = await getMenuWithProducts(rid);
         const pas = await getAddonsByRestaurant(rid);
         if (!alive) return;
+        const premium = await isRestaurantPremium(rid);
+        if (!alive) return;
         setCategories(cats);
         setProducts(prods);
         setProductAddons(pas);
-      } catch {
-        /* ignore */
-      }
-    }
-    async function refreshRestaurant() {
-      if (!alive) return;
-      try {
-        const r = await getRestaurantBySlug(slug);
-        if (!alive || !r) return;
-        setRestaurant(r);
+        setIsPremiumStore(premium);
+        // Mantém o cache local em dia, para a próxima abertura (mesmo offline)
+        // já nascer atualizada.
+        const current = readMenuCache(slug);
+        if (current) {
+          writeMenuCache(slug, {
+            restaurant: current.restaurant,
+            categories: cats,
+            products: prods,
+            neighborhoods: current.neighborhoods,
+            addons: pas,
+            isPremium: premium,
+          });
+        }
       } catch {
         /* ignore */
       }
     }
 
-    const channel = supabase
-      .channel(`public-menu-${restaurantId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "categories",
-          filter: `restaurant_id=eq.${rid}`,
-        },
-        refreshMenu,
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "products",
-          filter: `restaurant_id=eq.${rid}`,
-        },
-        refreshMenu,
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "product_addons",
-          filter: `restaurant_id=eq.${rid}`,
-        },
-        refreshMenu,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "restaurants", filter: `id=eq.${rid}` },
-        refreshRestaurant,
-      )
-      .subscribe();
+    function onVisibility() {
+      if (document.visibilityState === "visible") void refreshMenu();
+    }
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") void refreshMenu();
+    }, 5 * 60_000);
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       alive = false;
-      supabase.removeChannel(channel);
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [restaurantId, slug]);
 
@@ -321,6 +385,21 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
 
   // O botão principal adiciona o item direto ao carrinho; os adicionais são
   // escolhidos pelo botão secundário "+ adicionais".
+  // Aplica no carrinho as linhas que o Pracinha montou. Os adicionais são
+  // resolvidos pelos ids reais do cardápio — o preço segue o do catálogo.
+  function handlePracinhaAdd(lines: DraftLine[]) {
+    for (const line of lines) {
+      const product = products.find((p) => p.id === line.product_id);
+      if (!product) continue;
+      const catalog = addonsForProduct(product.id);
+      const selected: SelectedAddon[] = line.addon_ids
+        .map((id) => catalog.find((a) => a.id === id))
+        .filter((a): a is NonNullable<typeof a> => Boolean(a))
+        .map((a) => ({ addon_id: a.id, name: a.name, price: a.price }));
+      for (let i = 0; i < line.quantity; i++) addToCart(product, selected, line.notes);
+    }
+  }
+
   function handleAddSimple(product: Product) {
     addToCart(product);
   }
@@ -462,6 +541,23 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       ? `${restaurant.name} — Cardápio Digital`
       : "Cardápio Digital — Cardápio Cidadela";
   }, [restaurant]);
+
+  // O banner cru pode passar de 700 KB (PNG). A transformação do Storage serve
+  // a mesma arte em WebP com ~30 KB — e é usada nos dois layers (blur + nítida).
+  // `optimizedImageUrl` devolve a URL original quando a transformação não está
+  // habilitada, então não quebra em projeto sem o recurso.
+  const bannerSrc = useMemo(
+    () =>
+      restaurant?.banner_url
+        ? optimizedImageUrl(restaurant.banner_url, {
+            width: IMAGE_SIZES.banner,
+            quality: 72,
+            resize: "cover",
+            format: "webp",
+          })
+        : "",
+    [restaurant?.banner_url],
+  );
 
   const accent = restaurant?.primary_color || "#06b6d4";
   const accent2 = restaurant?.secondary_color || "#8b5cf6";
@@ -653,7 +749,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                 aria-hidden
                 className="pointer-events-none absolute inset-0 scale-110 opacity-50 blur-2xl"
                 style={{
-                  backgroundImage: `url(${restaurant.banner_url})`,
+                  backgroundImage: `url(${bannerSrc})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}
@@ -664,7 +760,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                 aria-hidden
                 className="pointer-events-none absolute inset-0"
                 style={{
-                  backgroundImage: `url(${restaurant.banner_url})`,
+                  backgroundImage: `url(${bannerSrc})`,
                   backgroundSize: "contain",
                   backgroundPosition: "center center",
                   backgroundRepeat: "no-repeat",
@@ -699,8 +795,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               <SmartImage
                 src={restaurant.logo_url}
                 alt={restaurant.name}
-                width={112}
-                height={112}
+                width={IMAGE_SIZES.logo}
+                height={IMAGE_SIZES.logo}
                 eager
                 imgClassName="size-full object-cover"
                 fallback={
@@ -859,9 +955,62 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         </div>
       )}
 
+      {/* MATA FOME — movimento opcional da loja. Genérico de propósito: o
+          cliente escolhe QUALQUER item do cardápio (um belisque ou uma
+          refeição para quem não tem como pagar). Só aparece se o dono aderiu. */}
+      {isMataFomeOn(restaurant) && (
+        <div className="relative z-10 mx-auto mt-3 max-w-2xl px-4">
+          <div
+            className="flex items-start gap-3 rounded-xl border px-3.5 py-3"
+            style={{
+              borderColor: hexToRgba(accent, 0.3),
+              background: `linear-gradient(135deg, ${hexToRgba(accent, 0.12)} 0%, transparent 70%)`,
+            }}
+          >
+            <div
+              className="grid size-9 shrink-0 place-items-center rounded-lg"
+              style={{ backgroundColor: hexToRgba(accent, 0.16) }}
+            >
+              <HeartHandshake className="size-4.5" style={{ color: accent }} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p
+                className="flex flex-wrap items-center gap-1.5 text-xs font-black uppercase tracking-wide"
+                style={{ color: accent }}
+              >
+                {MATA_FOME.badge}
+                <span className="font-semibold normal-case tracking-normal text-gray-300">
+                  · {MATA_FOME.title}
+                </span>
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                {MATA_FOME.subtitle}
+              </p>
+              {mataFomeNote(restaurant) && (
+                <p className="mt-1 text-[11px] font-semibold text-gray-300">
+                  {mataFomeNote(restaurant)}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Categorias — sticky */}
       <div className="sticky top-0 z-20 mt-3 border-y border-white/5 bg-[#07070b]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {isPremiumStore && (
+            <button
+              onClick={() => setOrderChatOpen(true)}
+              className="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black text-black shadow-lg transition-transform active:scale-95"
+              style={{
+                backgroundColor: accent,
+                boxShadow: `0 4px 16px ${hexToRgba(accent, 0.35)}`,
+              }}
+            >
+              <Sparkles className="size-3.5" /> Pedir por texto
+            </button>
+          )}
           {categories.map((c) => {
             const catProducts = productsByCategory.get(c.id) ?? [];
             const isActive = activeCat === c.id;
@@ -963,39 +1112,18 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                             />
                           )}
 
-                          {item.image_url ? (
-                            <div className="aspect-square size-[68px] shrink-0 overflow-hidden rounded-lg">
-                              <SmartImage
-                                src={item.image_url}
-                                alt={item.name}
-                                width={136}
-                                height={136}
-                                resize="cover"
-                                imgClassName="size-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
-                                fallback={
-                                  <div
-                                    className="grid size-full place-items-center border"
-                                    style={{
-                                      borderColor: hexToRgba(accent, 0.22),
-                                      backgroundColor: hexToRgba(accent, 0.07),
-                                    }}
-                                  >
-                                    <UtensilsCrossed className="size-5" style={{ color: accent }} />
-                                  </div>
-                                }
-                              />
-                            </div>
-                          ) : (
-                            <div
-                              className="grid size-[68px] shrink-0 place-items-center rounded-lg border"
-                              style={{
-                                borderColor: hexToRgba(accent, 0.22),
-                                backgroundColor: hexToRgba(accent, 0.07),
-                              }}
-                            >
-                              <UtensilsCrossed className="size-5" style={{ color: accent }} />
-                            </div>
-                          )}
+                          {/* Tile genérico: o app não usa mais foto por produto
+                              (só logo e capa da loja). Um único bloco substitui
+                              o par imagem/fallback e evita egress de Storage. */}
+                          <div
+                            className="grid size-[68px] shrink-0 place-items-center rounded-lg border"
+                            style={{
+                              borderColor: hexToRgba(accent, 0.22),
+                              backgroundColor: hexToRgba(accent, 0.07),
+                            }}
+                          >
+                            <UtensilsCrossed className="size-5" style={{ color: accent }} />
+                          </div>
 
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-bold leading-tight text-white">
@@ -1135,6 +1263,20 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             </button>
           </div>
         </div>
+      )}
+
+      {orderChatOpen && isPremiumStore && (
+        <PracinhaOrderChat
+          restaurantId={restaurant?.id ?? ""}
+          menu={{ products, addons: productAddons }}
+          accent={accent}
+          onAdd={handlePracinhaAdd}
+          onClose={() => setOrderChatOpen(false)}
+          onOpenCart={() => {
+            setOrderChatOpen(false);
+            setCartOpen(true);
+          }}
+        />
       )}
 
       {cartOpen && (

@@ -1,0 +1,37 @@
+name: Setup Resend DNS (one-off)
+
+# Adiciona os registros do Resend na zona pracinha.online, de forma idempotente
+# (só cria o que não existe). Usa o CLOUDFLARE_API_TOKEN do repositório — se ele
+# não tiver "Zone: DNS Edit" a API responde 403 e o passo falha visivelmente.
+on:
+  workflow_dispatch:
+
+jobs:
+  dns:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add Resend records
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ZONE=$(curl -s "https://api.cloudflare.com/client/v4/zones?name=pracinha.online" \
+            -H "Authorization: Bearer $CF" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['result'][0]['id'] if d.get('success') and d['result'] else '')")
+          echo "zone id: ${ZONE:-<vazio>}"
+          if [ -z "$ZONE" ]; then echo "Sem acesso à zona pracinha.online (token sem Zone: DNS Edit)"; exit 1; fi
+
+          add() {
+            local type="$1" name="$2" content="$3" proxied="$4"
+            local existing
+            existing=$(curl -s "https://api.cloudflare.com/client/v4/zones/$ZONE/dns_records?type=$type&name=$name" \
+              -H "Authorization: Bearer $CF" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('result',[])) if d.get('success') else 'err')")
+            if [ "$existing" != "0" ]; then echo "$type $name já existe ($existing)"; return 0; fi
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE/dns_records" \
+              -H "Authorization: Bearer $CF" -H "Content-Type: application/json" \
+              -d "{\"type\":\"$type\",\"name\":\"$name\",\"content\":\"$content\",\"proxied\":$proxied,\"ttl\":1}" \
+              | python3 -c "import sys,json;d=json.load(sys.stdin);print('$type $name ->', 'ok' if d.get('success') else d.get('errors'))"
+          }
+
+          add TXT "resend._domainkey.cardapio.pracinha.online" "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDcqeNmodF7Ohvvf5PjC+azzufEC19sxKFGtR7jYRAKmtpLDatPTMEx9QDsXOV6/CQO8CMn+DosDaL/gJMXag0GZpcKlqH4ogULSxVYmFkhUqscLjXRQXNIV6F7/Wad3ZDH+yDs/KQQSV+3fMWr7pTV15YR5n1ntomUv+TSdJz81wIDAQAB" false
+          add CNAME "rsend.cardapio.pracinha.online" "rsend-sae1.forge.rmta.net" false
+          add CNAME "send.cardapio.pracinha.online" "send.forge.rmta.net" false

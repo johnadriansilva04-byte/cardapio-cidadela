@@ -1,0 +1,53 @@
+name: Backup (Supabase → Cloudflare R2)
+
+# O plano gratuito do Supabase não tem backup automático. Este workflow exporta
+# os dados do app (cardápio, assinaturas, saldos) e guarda um .json.gz no R2 —
+# 10 GB grátis, na mesma conta Cloudflare do deploy.
+#
+# Rodar à mão: Actions → "Backup (Supabase → Cloudflare R2)" → Run workflow.
+# Restaurar: veja scripts/README.md (seção "Recuperar de um backup").
+on:
+  schedule:
+    # Todo dia às 03:30 UTC (00:30 BRT) — antes do job de retenção das 03:00
+    # já rodou, então o dump tem o dia fechado.
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: backup-r2
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm install -g npm@11
+      - run: npm ci
+
+      - name: Export e upload para o R2
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          BACKUP_R2_BUCKET: cardapio-cidadela-backups
+        run: node scripts/backup-to-r2.mjs
+
+      # Mantém só os N dias mais recentes; o R2 apaga o resto sozinho. Fica no
+      # workflow para a regra nunca depender de alguém lembrar de configurá-la.
+      - name: Aplicar retenção (mantém os últimos 3 dias)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          BACKUP_R2_BUCKET: cardapio-cidadela-backups
+          BACKUP_RETENTION_DAYS: "3"
+        run: node scripts/r2-lifecycle.mjs

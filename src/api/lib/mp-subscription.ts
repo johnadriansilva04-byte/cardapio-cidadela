@@ -112,6 +112,8 @@ export async function applyPreapproval(
         store_id: storeId,
         is_premium: true,
         premium_expires_at: expiresAt,
+        // O ciclo decide o acesso à leitura por foto (exclusiva do anual).
+        premium_cycle: info.cycle || "monthly",
         mercadopago_preapproval_id: info.id,
         mercadopago_payer_email: info.payerEmail || null,
       },

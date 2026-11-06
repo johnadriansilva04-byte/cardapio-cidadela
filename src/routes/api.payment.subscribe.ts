@@ -106,12 +106,20 @@ export const Route = createFileRoute("/api/payment/subscribe")({
         const payerEmail = ((profileRow?.email as string | null) || "").trim();
         const realEmail = payerEmail && !payerEmail.includes("@menufacil.local") ? payerEmail : "";
 
+        // O Mercado Pago EXIGE `payer_email` para criar uma assinatura
+        // recorrente (preapproval). O login é por telefone, então sem um e-mail
+        // real cadastrado a API devolve 400 — devolvemos um código claro para a
+        // UI pedir o e-mail em vez de estourar um 500 opaco.
+        if (!realEmail) {
+          return json({ error: "payer_email_required" }, 400);
+        }
+
         const annual = billing === "annual";
         const result = await createPreapproval({
           reason: `Cardápio Cidadela Premium (${annual ? "anual" : "mensal"}) - ${restaurantName}`,
           externalReference: storeId,
           unitPrice: annual ? PREMIUM_PRICE_VALUE : MONTHLY_PRICE_VALUE,
-          payerEmail: realEmail || undefined,
+          payerEmail: realEmail,
           backUrl,
           notificationUrl,
           frequencyType: "months",

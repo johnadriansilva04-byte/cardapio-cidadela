@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  DAY_PASS_MONTHLY_LIMIT,
+  DAY_PASS_PRICE_VALUE,
   MONTHLY_PRICE_LABEL,
   MONTHLY_PRICE_VALUE,
   PREMIUM_PRICE_LABEL,
@@ -54,5 +56,20 @@ describe("defaults de produção", () => {
     expect(PREMIUM_PRICE_LABEL).toBe("R$ 199,99/ano");
     expect(MONTHLY_PRICE_VALUE).toBe(28.99);
     expect(MONTHLY_PRICE_LABEL).toBe("R$ 28,99/mês");
+  });
+
+  it("a diária custa R$ 1,99", () => {
+    expect(DAY_PASS_PRICE_VALUE).toBe(1.99);
+  });
+
+  /**
+   * O teto mensal existe para a diária não virar assinatura mais cara: em
+   * `DAY_PASS_MONTHLY_LIMIT` dias, o gasto tem de superar o Premium mensal —
+   * é isso que faz o cliente migrar sozinho. Se alguém mexer no preço ou no
+   * limite, este teste avisa que a alavanca de conversão quebrou.
+   */
+  it("o teto mensal de diárias custa mais que o Premium mensal", () => {
+    const tetoEmReais = DAY_PASS_PRICE_VALUE * DAY_PASS_MONTHLY_LIMIT;
+    expect(tetoEmReais).toBeGreaterThan(MONTHLY_PRICE_VALUE);
   });
 });

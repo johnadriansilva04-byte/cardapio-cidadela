@@ -34,6 +34,10 @@ export interface Restaurant {
   pix_key: string;
   delivery_fee?: number;
   operating_hours?: OperatingHours | null;
+  /** Movimento MATA FOME: a loja adere (opcional) e o cardápio mostra os itens. */
+  mata_fome_enabled?: boolean;
+  /** Recado do dono sobre o movimento (quando/limite). Vazio = sem recado. */
+  mata_fome_note?: string;
   created_at: string;
   updated_at: string;
 }
@@ -202,8 +206,17 @@ export interface SubscriptionStatus {
   dayPassUntil: string | null;
   /** Diárias ganhas por recompensa, ainda não resgatadas. */
   dayPassCredits: number;
+  /** Diárias COMPRADAS neste mês (não conta as ganhas por recompensa). */
+  dayPassMonthUsed: number;
+  /** Teto mensal de diárias compradas (a partir dele o Premium sai mais barato). */
+  dayPassMonthLimit: number;
   /** Origem do acesso atual: 'annual' | 'day' | 'free'. */
   accessSource: "annual" | "day" | "free";
+  /**
+   * Ciclo do Premium vigente: 'monthly' | 'annual' | null.
+   * A leitura de cardápio por foto é exclusiva do ciclo anual.
+   */
+  premiumCycle: "monthly" | "annual" | null;
 }
 
 // --- Cidadela ---

@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { optimizedImageUrl, type ImageTransformOptions } from "@/lib/imageOptimization";
+import {
+  optimizedImageUrl,
+  imageSrcSet,
+  type ImageTransformOptions,
+} from "@/lib/imageOptimization";
 
 export interface SmartImageProps {
   src: string;
@@ -16,7 +20,7 @@ export interface SmartImageProps {
   fallback?: React.ReactNode;
   eager?: boolean;
   /** Formato alternativo para fallback (ex: 'jpeg', 'png'). */
-  fallbackFormat?: 'jpeg' | 'png';
+  fallbackFormat?: "jpeg" | "png";
 }
 
 /**
@@ -38,9 +42,15 @@ export function SmartImage({
   imgClassName,
   fallback,
   eager = false,
-  fallbackFormat = 'jpeg',
+  fallbackFormat = "jpeg",
 }: SmartImageProps) {
-  const optimized = optimizedImageUrl(src, { width, height, quality, resize, format: 'webp' });
+  const optimized = optimizedImageUrl(src, { width, height, quality, resize, format: "webp" });
+  // `srcset` 1x/2x: sem ele, uma tela retina pedia a mesma URL em dobro de
+  // pixels (logo de 160 virava 320). Só entra quando há largura sugerida e o
+  // host é o Storage do Supabase — imagem externa não tem transformação.
+  const srcSet = width
+    ? imageSrcSet(src, width, { height, quality, resize, format: "webp" })
+    : undefined;
   const [currentSrc, setCurrentSrc] = useState(optimized);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(!eager);
@@ -65,7 +75,13 @@ export function SmartImage({
 
     // Tenta fallback format se ainda não tentou
     if (!triedFallback && fallbackFormat) {
-      const fallbackUrl = optimizedImageUrl(src, { width, height, quality, resize, format: fallbackFormat });
+      const fallbackUrl = optimizedImageUrl(src, {
+        width,
+        height,
+        quality,
+        resize,
+        format: fallbackFormat,
+      });
       if (fallbackUrl !== currentSrc) {
         setCurrentSrc(fallbackUrl);
         setTriedFallback(true);
@@ -88,6 +104,7 @@ export function SmartImage({
   return (
     <img
       src={currentSrc}
+      srcSet={!triedOriginal && !triedFallback ? srcSet : undefined}
       alt={alt}
       width={width}
       height={height}
@@ -95,7 +112,11 @@ export function SmartImage({
       decoding="async"
       onError={handleError}
       onLoad={handleLoad}
-      className={cn(imgClassName ?? className, loading && "opacity-0", !loading && "opacity-100 transition-opacity duration-300")}
+      className={cn(
+        imgClassName ?? className,
+        loading && "opacity-0",
+        !loading && "opacity-100 transition-opacity duration-300",
+      )}
     />
   );
 }

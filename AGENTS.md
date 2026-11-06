@@ -1609,3 +1609,47 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
 
 
 
+
+## MATA FOME (movimento solidário opcional)
+
+- A loja **adere por opção** (`restaurants.mata_fome_enabled`) e o cardápio
+  público ganha a faixa "Tá com pressa? Escolha seu MATA FOME". É genérico de
+  propósito: o cliente escolhe **qualquer item** do cardápio (um belisque ou uma
+  refeição para quem não tem como pagar). Não padronize um produto/combo — o
+  item e o preço são os da casa. `restaurants.mata_fome_note` é um recado
+  opcional (quando/limite).
+- A copy vive em `src/lib/mataFome.ts` (`MATA_FOME`, `isMataFomeOn`,
+  `mataFomeNote`) para valer no cardápio e no painel; a faixa pública fica em
+  `Cardapio.tsx` (logo acima da barra de categorias) e o opt-in no
+  `RestaurantDialog` (aba de funcionamento). Colunas/migração:
+  `supabase/supabase_mata_fome_migration.sql` (também no `schema.sql`).
+- Não confunda com o job de cron `mata-fome-*` de `supabase_inactive_accounts_migration.sql`
+  (limpeza de contas inativas) — nome parecido, assunto diferente.
+- O SELECT público (`getRestaurantBySlug`) pede as colunas novas, mas cai para
+  um SELECT legado sem elas se a migração não tiver rodado (`isMissingColumnError`)
+  — o cardápio nunca deixa de abrir por causa disso.
+
+## Limites reais (free tier) e onde o gargalo aparece
+
+- **Supabase Free**: 500 MB de banco, **5 GB de egress** (+5 GB cached egress),
+  1 GB de Storage, **200 conexões Realtime simultâneas**, 2 milhões de mensagens
+  Realtime, 500 mil invocações de Edge Function. Estoura o egress → o projeto
+  entra em **read-only** até o próximo ciclo. É o teto que realmente limita.
+- **Cloudflare Workers/Pages Free**: **100.000 requisições/dia**, **10 ms de CPU**
+  por requisição, 128 MB por isolate, 20.000 arquivos por site. Cada abertura de
+  cardápio que chega ao Worker conta — por isso o shell do cardápio público e a
+  landing ganham cache de borda (`src/lib/edgeCache.ts` + `edgeCacheMiddleware`
+  em `src/start.ts`): HTML que não muda por visitante vira HIT na CDN e não
+  consome a cota. Painel, mobile, pedido e `/api` **não** entram no cache; HTML
+  com `Set-Cookie` também nunca é cacheado.
+- O `preconnect` do `<head>` (`src/routes/__root.tsx`) abre DNS+TLS para o
+  Supabase e o R2 antes do primeiro fetch — corta latência no 4G.
+- As fotos vão para o **R2** (`images.pracinha.online`, egress zero) via
+  `src/api/lib/r2-images.ts`; o Supabase Storage é só o caminho legado/fallback.
+- O cardápio público **não usa Realtime** de propósito (era uma conexão por
+  visitante contra o teto de 200): usa SWR em `localStorage` (`menuCache.ts`) e
+  revalida ao voltar para a aba. O painel do dono usa Realtime + poll de 45s
+  como rede de segurança (`useOwnerOrders.ts`).
+- Consultas de leitura quente pedem **colunas explícitas** (nunca `select("*")`
+  em payload público): `CATEGORY_COLUMNS`, `PRODUCT_COLUMNS`, `ADDON_COLUMNS`
+  (`menu.ts`), `PUBLIC_RESTAURANT_COLUMNS` (`restaurants.ts`).

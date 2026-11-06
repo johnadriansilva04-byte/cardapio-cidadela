@@ -14,6 +14,7 @@ import {
   ChevronUp,
   Info,
   Sparkles,
+  HeartHandshake,
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { usePlatformStore } from "@/modules/core/store";
@@ -57,6 +58,7 @@ import { useActiveOrderCount } from "@/modules/customer/useActiveOrderCount";
 import { ReviewsSection } from "@/components/reviews/ReviewsSection";
 import { CidadelaBadge } from "./CidadelaBadge";
 import { SmartImage } from "@/components/ui/SmartImage";
+import { MATA_FOME, isMataFomeOn, mataFomeNote } from "@/lib/mataFome";
 import { optimizedImageUrl, IMAGE_SIZES } from "@/lib/imageOptimization";
 import {
   normalizeOperatingHours,
@@ -950,6 +952,47 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* MATA FOME — movimento opcional da loja. Genérico de propósito: o
+          cliente escolhe QUALQUER item do cardápio (um belisque ou uma
+          refeição para quem não tem como pagar). Só aparece se o dono aderiu. */}
+      {isMataFomeOn(restaurant) && (
+        <div className="relative z-10 mx-auto mt-3 max-w-2xl px-4">
+          <div
+            className="flex items-start gap-3 rounded-xl border px-3.5 py-3"
+            style={{
+              borderColor: hexToRgba(accent, 0.3),
+              background: `linear-gradient(135deg, ${hexToRgba(accent, 0.12)} 0%, transparent 70%)`,
+            }}
+          >
+            <div
+              className="grid size-9 shrink-0 place-items-center rounded-lg"
+              style={{ backgroundColor: hexToRgba(accent, 0.16) }}
+            >
+              <HeartHandshake className="size-4.5" style={{ color: accent }} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p
+                className="flex flex-wrap items-center gap-1.5 text-xs font-black uppercase tracking-wide"
+                style={{ color: accent }}
+              >
+                {MATA_FOME.badge}
+                <span className="font-semibold normal-case tracking-normal text-gray-300">
+                  · {MATA_FOME.title}
+                </span>
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                {MATA_FOME.subtitle}
+              </p>
+              {mataFomeNote(restaurant) && (
+                <p className="mt-1 text-[11px] font-semibold text-gray-300">
+                  {mataFomeNote(restaurant)}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

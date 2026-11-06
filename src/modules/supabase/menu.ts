@@ -8,6 +8,11 @@ import type { Category, Product, ProductAddon, RestaurantAddon } from "@/lib/typ
 // capa da loja têm foto), então o campo é peso morto no payload público.
 const CATEGORY_COLUMNS = "id, name, sort_order";
 const PRODUCT_COLUMNS = "id, category_id, name, description, price, available, sort_order";
+// Colunas que o cardápio/adicionais realmente leem. `restaurant_id` e
+// `created_at` ficam de fora: o cardápio público já conhece a loja e não usa a
+// data, então trazer as duas em cada adicional é egress por visita que não vira
+// tela. Mesmo raciocínio de CATEGORY_COLUMNS/PRODUCT_COLUMNS.
+const ADDON_COLUMNS = "id, product_id, name, price, available, sort_order";
 
 /**
  * Dedupe de consultas em voo por restaurante.
@@ -267,7 +272,7 @@ export async function getProductAddons(productId: string): Promise<ProductAddon[
 export async function getAddonsByRestaurant(restaurantId: string): Promise<ProductAddon[]> {
   const { data, error } = await supabase
     .from("product_addons")
-    .select("*")
+    .select(ADDON_COLUMNS)
     .eq("restaurant_id", restaurantId)
     .order("sort_order", { ascending: true });
   if (error) {

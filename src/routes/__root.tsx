@@ -14,6 +14,8 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { captureInstallPrompt, registerServiceWorker } from "@/modules/pwa/install";
 import { reportError } from "@/lib/reportError";
+import { supabaseOrigin } from "@/modules/supabase/client";
+import { R2_PUBLIC_BASE } from "@/api/lib/r2-images";
 
 function NotFoundComponent() {
   return (
@@ -106,6 +108,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      // Abre DNS + TLS antes da primeira consulta: o cardápio fala com o
+      // Supabase e as fotos vêm do R2. Sem isso, o handshake acontece só quando
+      // o efeito de carga dispara, somando latência no 4G do balcão.
+      ...(supabaseOrigin()
+        ? [{ rel: "preconnect", href: supabaseOrigin()!, crossOrigin: "anonymous" as const }]
+        : []),
+      { rel: "preconnect", href: R2_PUBLIC_BASE, crossOrigin: "anonymous" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       {
         rel: "preconnect",

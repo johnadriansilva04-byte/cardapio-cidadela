@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Clock,
   Gift,
+  HeartHandshake,
   LayoutDashboard,
   LayoutTemplate,
   LogIn,
@@ -18,6 +19,7 @@ import {
   Menu,
   MessageCircle,
   Palette,
+  PartyPopper,
   Plus,
   QrCode,
   ReceiptText,
@@ -711,6 +713,11 @@ const FEATURES = [
     desc: "Logo, banner e cores da sua marca. Nada de cara de app de terceiro.",
   },
   {
+    icon: PartyPopper,
+    title: "Cardápio que veste a data",
+    desc: "Natal, Carnaval, Festa Junina e mais: no mês do feriado o cardápio se enfeita sozinho com um toque. Exclusivo do plano Anual.",
+  },
+  {
     icon: Bike,
     title: "Entrega com taxa",
     desc: "Taxa por bairro ou fixa. Endereço e troco direto na comanda.",
@@ -729,6 +736,11 @@ const FEATURES = [
     icon: MessageCircle,
     title: "Suporte Pracinha",
     desc: "Assistente do time da Variant que responde na hora e leva o problema pro dev.",
+  },
+  {
+    icon: HeartHandshake,
+    title: "MATA FOME",
+    desc: "Diferencial opcional: um convite no cardápio para quem tá com pressa ou não tem como pagar. Você adere se quiser — o item é o seu.",
   },
   {
     icon: ChefHat,
@@ -1241,6 +1253,9 @@ function LandingPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <Check className="size-3 text-emerald-400" /> Sem cartão
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <PartyPopper className="size-3 text-amber-300" /> Veste a data sozinho
                     </span>
                   </p>
                 )}

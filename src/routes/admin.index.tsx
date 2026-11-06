@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { RestaurantCardCompact } from "@/components/admin/RestaurantCardCompact";
 import { StorePulseBar } from "@/components/admin/StorePulseBar";
+import { SeasonalThemesCard } from "@/components/admin/SeasonalThemesCard";
 import { LoadingState } from "@/modules/ui/Feedback";
 import { RestaurantDialog, type RestaurantFormValues } from "@/components/admin/RestaurantDialog";
 import { OrdersDonut } from "@/components/admin/OrdersDonut";
@@ -72,6 +73,7 @@ function AdminDashboardOverview() {
   const [subDay, setSubDay] = useState(false);
   const [subDayUntil, setSubDayUntil] = useState<string | null>(null);
   const [subCredits, setSubCredits] = useState(0);
+  const [premiumCycle, setPremiumCycle] = useState<"monthly" | "annual" | null>(null);
 
   // Contagem de produtos por restaurante (dados reais) para enriquecer os cards
   const [productCounts, setProductCounts] = useState<Record<string, number>>({});
@@ -149,6 +151,7 @@ function AdminDashboardOverview() {
       setSubDay(false);
       setSubDayUntil(null);
       setSubCredits(0);
+      setPremiumCycle(null);
       return;
     }
     let cancelled = false;
@@ -161,6 +164,7 @@ function AdminDashboardOverview() {
         setSubDay(s.dayPassActive);
         setSubDayUntil(s.dayPassUntil);
         setSubCredits(s.dayPassCredits);
+        setPremiumCycle(s.premiumCycle);
       })
       .catch(() => {
         if (!cancelled) setSubUsed(null);
@@ -240,6 +244,8 @@ function AdminDashboardOverview() {
         pix_key: values.pix_key,
         delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
         operating_hours: serializeHours(values.operating_hours),
+        mata_fome_enabled: values.mata_fome_enabled,
+        mata_fome_note: values.mata_fome_note.trim(),
       });
       if (!r) {
         toast.error(createError ?? "Erro ao criar restaurante.");
@@ -273,6 +279,8 @@ function AdminDashboardOverview() {
         status: values.status,
         pix_key: values.pix_key,
         delivery_fee: parseFloat(values.delivery_fee.replace(",", ".")) || 0,
+        mata_fome_enabled: values.mata_fome_enabled,
+        mata_fome_note: values.mata_fome_note.trim(),
       });
       if (!ok) {
         toast.error("Erro ao salvar.");
@@ -346,6 +354,16 @@ function AdminDashboardOverview() {
           restaurant={activeRestaurant}
           toggling={togglingId === activeRestaurant.id}
           onToggle={() => handleTogglePublish(activeRestaurant)}
+        />
+      )}
+
+      {/* Datas comemorativas: no mês do feriado o Pracinha oferece vestir o
+          cardápio (exclusivo do plano Anual). Fora da janela, vira um atalho. */}
+      {activeRestaurant && (
+        <SeasonalThemesCard
+          restaurant={activeRestaurant}
+          canUse={premiumCycle === "annual"}
+          onUpgrade={() => navigate({ to: "/admin/assinatura" })}
         />
       )}
 

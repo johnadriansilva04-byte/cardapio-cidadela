@@ -41,12 +41,16 @@ CREATE TABLE IF NOT EXISTS restaurants (
   pix_key TEXT DEFAULT '',
   delivery_fee NUMERIC(10,2) DEFAULT 0,
   operating_hours JSONB,
+  mata_fome_enabled BOOLEAN DEFAULT false,
+  mata_fome_note TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 -- Migração segura: garante colunas de entrega em bancos criados por versões antigas do schema
 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS delivery_fee NUMERIC(10,2) DEFAULT 0;
 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS operating_hours JSONB;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS mata_fome_enabled BOOLEAN DEFAULT false;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS mata_fome_note TEXT DEFAULT '';
 -- Backfill: linhas antigas sem horário ganham padrão 17:00 — 00:00 todos os dias
 UPDATE restaurants
 SET operating_hours = '{

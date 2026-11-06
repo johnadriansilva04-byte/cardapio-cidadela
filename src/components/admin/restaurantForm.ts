@@ -26,6 +26,8 @@ export type RestaurantFormValues = {
   pix_key: string;
   delivery_fee: string;
   operating_hours: OperatingHours;
+  mata_fome_enabled: boolean;
+  mata_fome_note: string;
 };
 
 /** Retorno do envio: o id é necessário para enviar as imagens recém-escolhidas. */
@@ -50,5 +52,7 @@ export function buildInitialFormValues(restaurant: Restaurant | null): Restauran
     operating_hours: restaurant?.operating_hours
       ? normalizeOperatingHours(restaurant.operating_hours)
       : { ...DEFAULT_OPERATING_HOURS },
+    mata_fome_enabled: restaurant?.mata_fome_enabled === true,
+    mata_fome_note: restaurant?.mata_fome_note ?? "",
   };
 }

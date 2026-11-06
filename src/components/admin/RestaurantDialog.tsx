@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   AlertCircle,
   Clock,
+  HeartHandshake,
   ImageIcon,
   Loader2,
   Palette,
@@ -17,7 +18,9 @@ import {
   Upload,
   Wallet,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import OperatingHoursConfig from "@/components/admin/OperatingHoursConfig";
+import { MATA_FOME } from "@/lib/mataFome";
 import { RestaurantChatWizard } from "@/components/admin/RestaurantChatWizard";
 import { uploadRestaurantImage, deleteRestaurantImageByUrl } from "@/modules/supabase/storage";
 import type { DraftNeighborhood } from "@/lib/restaurantChat";
@@ -651,6 +654,36 @@ export function RestaurantDialog({
                       value={form.operating_hours}
                       onChange={(h) => patch({ operating_hours: h })}
                     />
+                  </Section>
+
+                  <Section
+                    icon={<HeartHandshake className="size-3.5" />}
+                    title={MATA_FOME.badge}
+                    hint={MATA_FOME.toggleHint}
+                  >
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3.5 py-3">
+                      <span className="text-sm font-semibold text-gray-200">
+                        {MATA_FOME.toggleLabel}
+                      </span>
+                      <Switch
+                        checked={form.mata_fome_enabled}
+                        onCheckedChange={(v) => patch({ mata_fome_enabled: v })}
+                      />
+                    </div>
+                    {form.mata_fome_enabled && (
+                      <div>
+                        <Label htmlFor="rest-mata-fome-note" className="text-gray-300">
+                          Recado para o cliente (opcional)
+                        </Label>
+                        <Input
+                          id="rest-mata-fome-note"
+                          value={form.mata_fome_note}
+                          onChange={(e) => patch({ mata_fome_note: e.target.value })}
+                          placeholder="Ex: até as 19h, 1 por pessoa"
+                          className={`mt-1.5 ${fieldClass}`}
+                        />
+                      </div>
+                    )}
                   </Section>
 
                   <Section icon={<Palette className="size-3.5" />} title="Aparência">

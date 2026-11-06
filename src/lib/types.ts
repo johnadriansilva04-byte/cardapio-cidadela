@@ -34,6 +34,10 @@ export interface Restaurant {
   pix_key: string;
   delivery_fee?: number;
   operating_hours?: OperatingHours | null;
+  /** Movimento MATA FOME: a loja adere (opcional) e o cardápio mostra os itens. */
+  mata_fome_enabled?: boolean;
+  /** Recado do dono sobre o movimento (quando/limite). Vazio = sem recado. */
+  mata_fome_note?: string;
   created_at: string;
   updated_at: string;
 }

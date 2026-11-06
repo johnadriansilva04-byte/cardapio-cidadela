@@ -6,6 +6,7 @@ import {
   Crown,
   ExternalLink,
   Gift,
+  PartyPopper,
   Infinity as InfinityIcon,
   Loader2,
   Lock,
@@ -113,6 +114,11 @@ const PREMIUM_BENEFITS: { icon: LucideIcon; title: string; text: string }[] = [
     title: "Confirmação automática",
     text: "Pix, cartão ou boleto aprovam e o Premium liga sozinho, sem espera.",
   },
+  {
+    icon: PartyPopper,
+    title: "Datas comemorativas",
+    text: "Exclusivo do Anual: no mês do feriado o Pracinha oferece vestir o cardápio — Natal, Carnaval, Festa Junina e mais — com um toque, sem configurar nada.",
+  },
 ];
 
 /**
@@ -140,6 +146,12 @@ const PLAN_COMPARISON: PlanComparisonRow[] = [
   },
   {
     feature: "Cardápio por FOTO (IA)",
+    free: <PlanNo />,
+    monthly: <PlanNo />,
+    annual: <PlanCheck />,
+  },
+  {
+    feature: "Temas de datas comemorativas",
     free: <PlanNo />,
     monthly: <PlanNo />,
     annual: <PlanCheck />,

@@ -11,20 +11,45 @@ let _adminTrialsAvailable: boolean | null = null;
 // desnecessária. É o mesmo raciocínio de CATEGORY_COLUMNS/PRODUCT_COLUMNS.
 const PUBLIC_RESTAURANT_COLUMNS =
   "id, name, slug, description, phone, whatsapp, address, logo_url, banner_url, " +
+  "primary_color, secondary_color, status, pix_key, delivery_fee, operating_hours, " +
+  "mata_fome_enabled, mata_fome_note";
+
+// Colunas que exigem a migração do MATA FOME. Num banco sem elas o SELECT
+// inteiro falha e o cardápio não abre, então o carregamento público tenta de
+// novo sem elas — o menu continua de pé, só sem o movimento.
+const MATA_FOME_COLUMNS = ["mata_fome_enabled", "mata_fome_note"];
+const PUBLIC_RESTAURANT_COLUMNS_LEGACY =
+  "id, name, slug, description, phone, whatsapp, address, logo_url, banner_url, " +
   "primary_color, secondary_color, status, pix_key, delivery_fee, operating_hours";
+
+function isMissingColumnError(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  const msg = String(error.message ?? "").toLowerCase();
+  const code = String(error.code ?? "");
+  return MATA_FOME_COLUMNS.some((c) => msg.includes(c)) || code === "PGRST204" || code === "42703";
+}
 
 /**
  * Resolve a slug to a restaurant
  */
 export async function getRestaurantBySlug(slug: string): Promise<Restaurant | null> {
-  const { data, error } = await supabase
+  const first = await supabase
     .from("restaurants")
     .select(PUBLIC_RESTAURANT_COLUMNS)
     .eq("slug", slug)
     .maybeSingle();
 
-  if (error || !data) return null;
-  return data as unknown as Restaurant;
+  if (!first.error && first.data) return first.data as unknown as Restaurant;
+  if (!isMissingColumnError(first.error)) return null;
+
+  const retry = await supabase
+    .from("restaurants")
+    .select(PUBLIC_RESTAURANT_COLUMNS_LEGACY)
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (retry.error || !retry.data) return null;
+  return retry.data as unknown as Restaurant;
 }
 
 /**
@@ -89,6 +114,8 @@ export type CreateRestaurantInput = {
   pix_key?: string;
   delivery_fee?: number;
   operating_hours?: unknown;
+  mata_fome_enabled?: boolean;
+  mata_fome_note?: string;
 };
 
 /**
@@ -121,6 +148,8 @@ export async function createRestaurant(
     ["pix_key", "pix_key"],
     ["delivery_fee", "delivery_fee"],
     ["operating_hours", "operating_hours"],
+    ["mata_fome_enabled", "mata_fome_enabled"],
+    ["mata_fome_note", "mata_fome_note"],
   ];
   for (const [from, to] of optional) {
     const v = input[from];
@@ -289,6 +318,8 @@ export async function updateRestaurant(
       | "operating_hours"
       | "slug"
       | "delivery_fee"
+      | "mata_fome_enabled"
+      | "mata_fome_note"
     >
   >,
 ): Promise<boolean> {
@@ -296,27 +327,37 @@ export async function updateRestaurant(
   const { error } = await supabase.from("restaurants").update(payload).eq("id", id);
 
   if (error) {
-    // Graceful fallback: se a migration de operating_hours ainda não foi rodada,
-    // o campo ainda não existe no DB e o update falha. Tenta sem ele.
+    // Graceful fallback: se uma migração ainda não foi rodada, a coluna não
+    // existe e o update inteiro falha. Remove só as colunas novas citadas (ou
+    // todas elas, num erro genérico de coluna) e tenta de novo — o resto do
+    // payload é preservado.
     const msg = String(error.message ?? "").toLowerCase();
     const code = String((error as unknown as { code?: string }).code ?? "");
-    const isMissingColumn =
-      msg.includes("operating_hours") ||
-      msg.includes("column") ||
-      code === "PGRST204" ||
-      code === "42703";
-    if (isMissingColumn && "operating_hours" in payload) {
-      const { operating_hours: _omit, ...rest } = payload;
-      console.warn(
-        "[restaurants] operating_hours column missing — retrying without it. Rode supabase_operating_hours_migration.sql",
-        error,
-      );
-      const { error: retryError } = await supabase.from("restaurants").update(rest).eq("id", id);
-      if (retryError) {
-        console.error("Error updating restaurant (retry):", retryError);
-        return false;
+    const isMissingColumn = msg.includes("column") || code === "PGRST204" || code === "42703";
+    if (isMissingColumn) {
+      const optionalColumns = ["operating_hours", ...MATA_FOME_COLUMNS];
+      const rest: Record<string, unknown> = { ...payload };
+      let dropped = false;
+      for (const col of optionalColumns) {
+        if (!(col in rest)) continue;
+        // Sem nome no erro, assume que a coluna nova é a ausente.
+        if (msg.includes(col) || !optionalColumns.some((c) => msg.includes(c))) {
+          delete rest[col];
+          dropped = true;
+        }
       }
-      return true;
+      if (dropped) {
+        console.warn(
+          "[restaurants] coluna ausente — tentando sem ela. Rode as migrações pendentes.",
+          error,
+        );
+        const { error: retryError } = await supabase.from("restaurants").update(rest).eq("id", id);
+        if (retryError) {
+          console.error("Error updating restaurant (retry):", retryError);
+          return false;
+        }
+        return true;
+      }
     }
     console.error("Error updating restaurant:", error);
     return false;

@@ -1587,38 +1587,36 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
   viram órfãos e são removidos na janela de 7 dias. O bucket do Supabase fica
   vazio com o tempo.
 
-## Landing: página que ROLA com seções visíveis
+## Landing: cockpit de uma tela (aba única, sem rolagem)
 
-- **A home (`src/routes/index.tsx`) ROLA de propósito.** Herói (cockpit lado a
-  lado: texto + simulador à esquerda, painel de abas à direita), depois as seções
-  que vendem o produto empilhadas e visíveis — outdoor, "três passos", chat+IA
-  (`#chat`), Variant (`#variant`), preços (`#planos`). Antes era um cockpit de
-  uma tela só e o que vendia o produto ficava em abas que ninguém abria. O E2E
-  `smoke-routes.spec.ts` → "a home rola de propósito e nada que vende fica
-  escondido" exige `scrollHeight - clientHeight > 100` e as seções na tela.
-- O painel de abas do herói (`HeroPanel`, Cardápio/Templates/Recursos) é o
-  produto na mão do visitante: cada aba entra com `key={view}` + `animate-panel`.
-  A aba "Cardápio" NÃO renderiza um mockup — é um link ("Abrir o cardápio real")
-  para o cardápio de verdade (`/cardapio/<slug>`), em outra aba.
-- **O simulador fica na cara, no herói** (`InlineSimulator`): campo "paga hoje",
-  slider de dias e a economia/ano, sem clique. O painel completo
-  (`LossCalculator`) abre pelo botão "«plano» é o seu plano". O rótulo é
-  "Economia estimada" para não colidir com o "Você economiza" do painel.
-- **O outdoor** (`src/components/landing/OutdoorBillboard.tsx`) é uma peça de
-  rua com ESTRUTURA de verdade (travessa, colunas, base), emoldurada por um fio
-  de lâmpadas (`LightString` + `fairy-bulb`/`bulb-chase`). Dentro da tela, o
+- **A home (`src/routes/index.tsx`) NÃO rola.** O herói (cockpit lado a lado:
+  botões de ação à esquerda, outdoor à direita) + rodapé cabem na viewport
+  (`h-[100dvh] overflow-hidden`). Cada assunto (Economia, Preços, Recursos,
+  Dúvidas, Tutorial) abre num **painel por cima** (`GuidePanel`, o mesmo do
+  `/admin/assinatura`) com X para fechar. O E2E `smoke-routes.spec.ts` → "a home
+  é um bloco único: a página não rola" mede `scrollHeight - clientHeight <= 4`.
+  **Não reintroduza rolagem de página** — o que vende o produto (montagem por
+  conversa, garçom digital, Variant) mora dentro dos painéis, que rolam por
+  dentro; a página em si não cresce.
+- **O outdoor** (`OutdoorDisplay`, dentro do próprio `index.tsx`) é uma peça de
+  rua com ESTRUTURA de verdade (travessa, colunas, base), emoldurada por fios de
+  lâmpadas (`LightString` + `fairy-bulb`/`bulb-chase`). Dentro da tela, o
   Pracinha atende cena a cena (problema → montagem → pedido → preço), com
   legenda e indicador de cena. Na janela de Natal (`isChristmasSeason`) as
-  lâmpadas viram vermelho/verde/amarelo; fora dela, ciano/índigo/rosa.
-- Os assuntos de apoio (Economia, Preços, Recursos, Dúvidas) abrem em painel por
-  cima (`GuidePanel`); **"Quem faz" rola até a seção** (`scrollToSection("variant")`),
-  não abre painel.
-- **O fundo** é `.variant-grid` + `.variant-grid-nodes` (malha técnica) sobre a
-  aurora, dentro de um `absolute inset-0 -z-10 overflow-hidden`. O root é
-  `min-h-[100dvh] overflow-x-hidden` (o `overflow-x-hidden` impede o scroll
-  horizontal dos blobs; o eixo Y fica livre para a página rolar).
-- A navbar é `sticky top-0 z-40`. O CTA do herói é único por intenção (criar
-  conta grátis / entrar), sem repetir a mesma ação em vários cards.
+  lâmpadas viram vermelho/verde/amarelo; fora dela, ciano/índigo/rosa. As cenas
+  são `OUTDOOR_SCENES` — o texto do outdoor vive lá, não em JSX solto.
+- O cardápio **não** é renderizado na landing (nada de mockup): o botão
+  "Ver cardápio" abre o cardápio de verdade (`/cardapio/<slug>`) em outra aba.
+- Os assuntos de apoio abrem em painel por cima (`GuidePanel`): Economia
+  (`LossCalculator`), Preços (`PlanCards` + diária), Recursos (garçom digital +
+  montagem por conversa), Dúvidas (FAQ). O botão "Calcular minha economia" do
+  herói abre o painel de Economia; o número é o argumento, não o adjetivo.
+- **O fundo** é um céu/galáxia animado (`absolute inset-0 overflow-hidden` no
+  root `h-[100dvh] overflow-hidden`). O `overflow-hidden` no root é o que
+  segura os blobs com `-left/-right` negativos (sem scroll horizontal); mantenha
+  o par root-clip + blobs.
+- A navbar é `relative z-40`; o `ChristmasHero` (neve determinística + fio de
+  lâmpadas) é `absolute inset-0 z-20`, `aria-hidden` e `pointer-events-none`.
 
 ## MATA FOME (movimento solidário opcional)
 

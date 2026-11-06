@@ -43,7 +43,9 @@ import { SITE_URL } from "@/lib/site";
 import { DEMO_STORE_SLUG } from "@/modules/supabase/landing-demo";
 import { useAuth } from "@/components/AuthProvider";
 import { switchAccount } from "@/modules/supabase/auth";
-import { OutdoorBillboard } from "@/components/landing/OutdoorBillboard";
+import { SmartImage } from "@/components/ui/SmartImage";
+import { DEMO_SNAPSHOT } from "@/components/landing/landing-data";
+import { LiveStoreDemo } from "@/components/landing/LiveStoreDemo";
 import { WaiterChat } from "@/components/landing/WaiterChat";
 import { WizardChat } from "@/components/landing/WizardChat";
 import { TemplateGallery } from "@/components/landing/TemplateGallery";
@@ -84,16 +86,48 @@ export const Route = createFileRoute("/")({
 });
 
 /* ============================================================
-   A conta da perda — isolada para o herói e o painel mostrarem
-   o MESMO número. O argumento da página é o número, não o adjetivo.
+   Cardápio real — link direto
+   Nada de mockup na página. O botão manda o visitante para o
+   cardápio de verdade (a mesma URL que o cliente da loja abre).
+   ============================================================ */
+
+function MenuReveal() {
+  const realMenuUrl = `${SITE_URL}/cardapio/${DEMO_STORE_SLUG}`;
+  return (
+    <div className="mx-auto w-full max-w-md text-center">
+      <a
+        href={realMenuUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="sheen group inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-6 py-4 text-base font-black text-black shadow-[0_20px_50px_-20px_rgba(34,211,238,0.7)] transition-all hover:-translate-y-0.5 hover:bg-cyan-400"
+      >
+        Abrir o cardápio real
+        <ArrowRight className="size-5 transition-transform group-hover:translate-x-0.5" />
+      </a>
+      <p className="mt-3 text-[11px] text-gray-500">
+        Abre em outra aba — é o cardápio de verdade, do lado de cá.
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================
+   Simulador "quanto você está perdendo?"
+   Uma pergunta provocadora, o dono informa o que paga hoje e o
+   sistema recomenda o melhor plano + a economia no ano.
    ============================================================ */
 
 /** Acima disso, o Premium anual fica mais barato que pagar diária todo dia. */
 const DAY_PASS_BREAK_EVEN = Math.ceil(PREMIUM_PRICE_VALUE / 12 / DAY_PASS_PRICE_VALUE);
 
+/** Valores iniciais do simulador — R$ 59,00 como solicitado. */
 const LOSS_DEFAULT_SPEND = 59;
 const LOSS_DEFAULT_DAYS = 8;
 
+/**
+ * A conta da perda, isolada para o herói e o painel mostrarem o MESMO número.
+ * O argumento da página é o número, não o adjetivo.
+ */
 function computeLossPlan(spend: number, days: number) {
   const monthlyPremium = PREMIUM_PRICE_VALUE / 12;
   const monthlyDayPass = days * DAY_PASS_PRICE_VALUE;
@@ -116,80 +150,24 @@ function computeLossPlan(spend: number, days: number) {
 }
 
 /**
- * Simulador de economia do herói.
+ * Simulador compacto do herói — SEMPRE ABRE O PAINEL FULL.
  *
- * Fica na cara, sem clique: o dono informa o que paga hoje e os dias de
- * movimento, e o número da economia aparece na hora. O painel completo
- * (LossCalculator) abre pelo botão "«plano» é o seu plano".
+ * O visitante primeiro entende o produto. Depois, se quiser, calcula economia.
  */
 function InlineSimulator({ onOpenFull }: { onOpenFull: () => void }) {
-  const [spend, setSpend] = useState(LOSS_DEFAULT_SPEND);
-  const [days, setDays] = useState(LOSS_DEFAULT_DAYS);
-  const { plan, yearlySaved, payingNothing } = useMemo(
-    () => computeLossPlan(spend, days),
-    [spend, days],
-  );
-
   return (
-    <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-b from-rose-500/[0.08] to-transparent p-4">
-      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-rose-300">
-        <TrendingUp className="size-3.5" /> Simulador de economia
-      </p>
-
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="text-[11px] font-semibold text-gray-400">Paga hoje (R$)</span>
-          <input
-            type="number"
-            min={0}
-            max={5000}
-            step={10}
-            value={spend}
-            onChange={(e) => setSpend(Math.max(0, Number(e.target.value) || 0))}
-            aria-label="Quanto você paga hoje por mês"
-            className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 font-display text-lg font-black text-white outline-none focus:border-rose-400/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-          />
-        </label>
-        <label className="block">
-          <span className="flex items-baseline justify-between text-[11px] font-semibold text-gray-400">
-            Dias abertos{" "}
-            <span className="font-display text-sm font-black text-cyan-300">{days}</span>
-          </span>
-          <input
-            type="range"
-            min={1}
-            max={30}
-            step={1}
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            aria-label="Dias de movimento por mês"
-            className="mt-3 w-full accent-cyan-400"
-          />
-        </label>
-      </div>
-
-      <div className="mt-3 flex items-baseline justify-between rounded-xl border border-emerald-500/25 bg-emerald-500/[0.07] px-3 py-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">
-          Economia estimada
-        </span>
-        <span className="font-display text-lg font-black text-emerald-300">
-          {payingNothing ? "—" : `${brl(yearlySaved)}/ano`}
-        </span>
-      </div>
-
-      <button
-        type="button"
-        onClick={onOpenFull}
-        className="group mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/[0.09]"
-      >
-        {plan.name} é o seu plano
-        <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={onOpenFull}
+      className="group w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-rose-500/40 bg-gradient-to-r from-rose-500/10 to-rose-500/5 p-4 transition-all hover:border-rose-400/60 hover:from-rose-500/20 hover:to-rose-500/10"
+    >
+      <TrendingUp className="size-5 text-rose-300" />
+      <span className="text-sm font-bold text-white">Calcular minha economia</span>
+      <ArrowRight className="size-5 shrink-0 text-rose-300 transition-transform group-hover:translate-x-1" />
+    </button>
   );
 }
 
-/** Calculadora completa — abre no painel por cima, com o número já calculado. */
 function LossCalculator() {
   const [spend, setSpend] = useState(LOSS_DEFAULT_SPEND);
   const [days, setDays] = useState(LOSS_DEFAULT_DAYS);
@@ -200,122 +178,152 @@ function LossCalculator() {
 
   return (
     <div className="relative">
-      <div className="text-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/25 bg-rose-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-rose-300">
-          <TrendingUp className="size-3.5" /> Faça a conta
-        </span>
-        <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
-          Quer ver quanto de dinheiro você está perdendo?
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-sm text-gray-400">
-          Diz quanto você paga por mês no cardápio de hoje. Em 5 segundos eu mostro o melhor plano
-          pra você — e quanto sobra no seu bolso.
-        </p>
-      </div>
-
-      <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#0b0b12]/80 p-6 sm:p-8">
-        <label className="block">
-          <span className="text-sm font-bold text-white">
-            Quanto você paga por mês no seu cardápio atual?
+      <div className="relative">
+        <div className="text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/25 bg-rose-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-rose-300">
+            <TrendingUp className="size-3.5" /> Faça a conta
           </span>
-          <div className="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 focus-within:border-cyan-400/60">
-            <span className="font-display text-xl font-black text-gray-500">R$</span>
-            <input
-              type="number"
-              min={0}
-              max={5000}
-              step={10}
-              value={spend}
-              onChange={(e) => setSpend(Math.max(0, Number(e.target.value) || 0))}
-              className="w-full bg-transparent font-display text-2xl font-black text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              aria-label="Quanto você paga por mês no seu cardápio atual"
-            />
-          </div>
-          <span className="mt-2 block text-xs text-gray-500">
-            Pode ser app de entrega, sistema de PDV, planilha — o que você usa hoje.
-          </span>
-        </label>
-
-        <label className="mt-7 block">
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm font-bold text-white">
-              Quantos dias por mês você abre a loja?
-            </span>
-            <span className="font-display text-xl font-black text-cyan-300">
-              {days} {days === 1 ? "dia" : "dias"}
-            </span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={30}
-            step={1}
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="mt-3 w-full accent-cyan-400"
-            aria-label="Quantos dias por mês você abre a loja"
-          />
-        </label>
-
-        <div className="animate-pop-in mt-7">
-          {payingNothing ? (
-            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
-              <p className="font-display text-xl font-black text-emerald-300">
-                Você já não paga nada hoje. 🎉
-              </p>
-              <p className="mt-2 text-sm text-gray-400">
-                Então comece pelo plano grátis: 5 pedidos por mês, sem cartão. Quando o movimento
-                crescer, a diária ou o Premium entram sozinhos.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
-                    Você paga hoje
-                  </p>
-                  <p className="mt-2 font-display text-3xl font-black text-rose-300">
-                    {brl(spend)}
-                    <span className="text-sm font-bold text-gray-500"> /mês</span>
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.08] p-5">
-                  <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
-                    Melhor plano pra você
-                  </p>
-                  <p className="mt-2 font-display text-3xl font-black text-white">{plan.name}</p>
-                  <p className="text-sm font-bold text-gray-400">{brl(plan.cost)}/mês</p>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
-                <p className="text-xs font-bold uppercase tracking-widest text-emerald-300">
-                  Você economiza
-                </p>
-                <p className="mt-1 font-display text-4xl font-black text-emerald-300">
-                  {brl(yearlySaved)}
-                  <span className="text-base font-bold text-gray-500"> /ano</span>
-                </p>
-                <p className="mt-1 text-sm text-gray-400">
-                  {brl(monthlySaved)} por mês no seu bolso.
-                </p>
-              </div>
-
-              <p className="mt-4 text-center text-sm text-gray-400">{plan.why}</p>
-            </>
-          )}
-
-          <Link
-            to="/login"
-            search={{ mode: "register" }}
-            className="sheen mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-4 text-base font-black text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.45)]"
-          >
-            {plan.cta} <ArrowRight className="size-5" />
-          </Link>
-          <p className="mt-3 text-center text-xs text-gray-500">
-            Comece já — abra sua conta grátis, sem cartão. Leva menos de 2 minutos.
+          <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
+            Quer ver quanto de dinheiro você está perdendo?
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-gray-400">
+            Diz quanto você paga por mês no cardápio de hoje. Em 5 segundos eu mostro o melhor plano
+            pra você — e quanto sobra no seu bolso.
           </p>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#0b0b12]/80 p-6 sm:p-8">
+          {/* Pergunta 1 — a provocação */}
+          <label className="block">
+            <span className="text-sm font-bold text-white">
+              Quanto você paga por mês no seu cardápio atual?
+            </span>
+            <div className="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 focus-within:border-cyan-400/60">
+              <span className="font-display text-xl font-black text-gray-500">R$</span>
+              <input
+                type="number"
+                min={0}
+                max={5000}
+                step={10}
+                value={spend}
+                onChange={(e) => {
+                  setSpend(Math.max(0, Number(e.target.value) || 0));
+                }}
+                className="w-full bg-transparent font-display text-2xl font-black text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                aria-label="Quanto você paga por mês no seu cardápio atual"
+              />
+            </div>
+            <span className="mt-2 block text-xs text-gray-500">
+              Pode ser app de entrega, sistema de PDV, planilha — o que você usa hoje.
+            </span>
+          </label>
+
+          {/* Pergunta 2 — dias de movimento */}
+          <label className="mt-7 block">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-bold text-white">
+                Quantos dias por mês você abre a loja?
+              </span>
+              <span className="font-display text-xl font-black text-cyan-300">
+                {days} {days === 1 ? "dia" : "dias"}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={30}
+              step={1}
+              value={days}
+              onChange={(e) => {
+                setDays(Number(e.target.value));
+              }}
+              className="mt-3 w-full accent-cyan-400"
+              aria-label="Quantos dias por mês você abre a loja"
+            />
+          </label>
+
+          <div className="animate-pop-in mt-7">
+            {payingNothing ? (
+              <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
+                <p className="font-display text-xl font-black text-emerald-300">
+                  Você já não paga nada hoje. 🎉
+                </p>
+                <p className="mt-2 text-sm text-gray-400">
+                  Então comece pelo plano grátis: 5 pedidos por mês, sem cartão. Quando o movimento
+                  crescer, a diária ou o Premium entram sozinhos.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                      Você paga hoje
+                    </p>
+                    <p className="mt-2 font-display text-3xl font-black text-rose-300">
+                      {brl(spend)}
+                      <span className="text-sm font-bold text-gray-500"> /mês</span>
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.08] p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
+                      Melhor plano pra você
+                    </p>
+                    <p className="mt-2 font-display text-3xl font-black text-white">{plan.name}</p>
+                    <p className="text-sm font-bold text-gray-400">{brl(plan.cost)}/mês</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] p-6 text-center">
+                  <p className="text-xs font-bold uppercase tracking-widest text-emerald-300">
+                    Você economiza
+                  </p>
+                  <p className="mt-1 font-display text-4xl font-black text-emerald-300">
+                    {brl(yearlySaved)}
+                    <span className="text-base font-bold text-gray-500"> /ano</span>
+                  </p>
+                  <p className="mt-1 text-sm text-gray-400">
+                    {brl(monthlySaved)} por mês no seu bolso.
+                  </p>
+                </div>
+
+                <p className="mt-4 text-center text-sm text-gray-400">{plan.why}</p>
+              </>
+            )}
+
+            <Link
+              to="/login"
+              search={{ mode: "register" }}
+              className="sheen mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-cyan-500 py-4 text-base font-black text-black transition-all hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.45)]"
+            >
+              {plan.cta} <ArrowRight className="size-5" />
+            </Link>
+            <p className="mt-3 text-center text-xs text-gray-500">
+              Comece já — abra sua conta grátis, sem cartão. Leva menos de 2 minutos.
+            </p>
+
+            <div className="mt-8 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+              <div className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.08] bg-white/[0.03] text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <div className="px-4 py-3">Por que sai mais barato</div>
+                <div className="flex items-center gap-1.5 px-4 py-3 text-cyan-300">
+                  <UtensilsCrossed className="size-3.5" /> Cidadela
+                </div>
+                <div className="px-4 py-3">App de entrega</div>
+              </div>
+              {COMPARISON.map((row) => (
+                <div
+                  key={row.label}
+                  className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.05] text-sm last:border-0"
+                >
+                  <div className="px-4 py-3 text-gray-300">{row.label}</div>
+                  <div className="flex items-center gap-1.5 px-4 py-3 font-bold text-emerald-300">
+                    <Check className="size-4 shrink-0" /> {row.us}
+                  </div>
+                  <div className="px-4 py-3 text-gray-500">{row.them}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -325,6 +333,7 @@ function LossCalculator() {
 /* ============================================================
    Monte a loja conversando (chat + IA) — SEÇÃO VISÍVEL
    O wizard de criação e o garçom digital são o que vende o produto.
+   Antes viviam em abas ("Montagem"/"Pracinha") que ninguém abria.
    ============================================================ */
 
 const CHAT_HIGHLIGHTS = [
@@ -343,7 +352,7 @@ const WAITER_HIGHLIGHTS = [
 
 function ChatAiSection() {
   return (
-    <section id="chat" className="scroll-mt-20">
+    <section id="chat" className="mt-14 scroll-mt-20">
       <div className="mx-auto max-w-2xl text-center">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/25 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-300">
           <MessageCircle className="size-3.5" /> Monte a loja conversando
@@ -357,7 +366,7 @@ function ChatAiSection() {
         </p>
       </div>
 
-      <div className="mt-10 grid items-center gap-8 lg:grid-cols-2">
+      <div className="mt-8 grid items-center gap-8 lg:grid-cols-2">
         <div className="order-2 lg:order-1">
           <h3 className="font-display text-lg font-extrabold sm:text-xl">
             Seu cardápio nasce <span className="text-violet-300">numa conversa.</span>
@@ -378,7 +387,7 @@ function ChatAiSection() {
         </div>
       </div>
 
-      <div className="mt-14 grid items-center gap-8 lg:grid-cols-2">
+      <div className="mt-12 grid items-center gap-8 lg:grid-cols-2">
         <div className="order-1">
           <WaiterChat />
         </div>
@@ -406,12 +415,12 @@ function ChatAiSection() {
 /* ============================================================
    Variant — quem está por trás (SEÇÃO VISÍVEL)
    A identidade é parte da venda: o dono precisa saber em quem
-   está confiando.
+   está confiando. Antes ficava só no painel "Quem faz".
    ============================================================ */
 
 function VariantBand() {
   return (
-    <section id="variant" className="scroll-mt-20">
+    <section id="variant" className="mt-14 scroll-mt-20">
       <div className="rounded-3xl border border-white/[0.07] bg-white/[0.02] p-6 sm:p-10">
         <div className="grid items-center gap-8 lg:grid-cols-[auto_1fr]">
           <div className="mx-auto lg:mx-0">
@@ -456,6 +465,309 @@ function VariantBand() {
         </p>
       </div>
     </section>
+  );
+}
+
+/* ============================================================
+   OUTDOOR - apresentação dinâmica das features
+   Textos alternantes mostrando benefícios no canto direito
+   ============================================================ */
+
+const OUTDOOR_SCENES = [
+  {
+    type: "mortalidade",
+    title: "Variant existe por um motivo",
+    subtitle: "Comissão de 23-30% quebra pequenos negócios",
+    steps: [
+      { bot: "Eu sou o Pracinha. A Variant existe porque 80% dos restaurantes fecham em 3 anos." },
+      { bot: "Não é falta de cliente. É comissão de 23-30% nos apps que come sua margem." },
+      { bot: "Pizza de R$ 50: você recebe R$ 30. Margem líquida de 3-5% é prejuízo silencioso." },
+      {
+        bot: "Zero comissão por pedido. Só paga R$ 1,99 quando tiver movimento. Sua margem volta pra você.",
+      },
+      {
+        bot: "Cada loja que sobe é um fornecedor, um funcionário, uma família que não perde renda.",
+      },
+    ],
+  },
+  {
+    type: "montagem",
+    title: "Monte conversando",
+    subtitle: "Sem formulário de 20 campos",
+    steps: [
+      { bot: "Vamos começar! Qual é o nome do seu restaurante?" },
+      { user: "Variant Burger" },
+      { bot: "Legal! E qual é o WhatsApp para receber pedidos?" },
+      { user: "(48) 99999-9999" },
+      { bot: "Perfeito. Qual é o endereço?" },
+      { user: "Rua das Flores, 123 - Centro" },
+      { bot: "Cardápio pronto! Criei 3 categorias com 8 itens." },
+    ],
+  },
+  {
+    type: "pedido",
+    title: "Garçom digital IA",
+    subtitle: "Responde na hora no seu painel",
+    steps: [
+      { user: "Quanto custa o X-Burger?" },
+      { bot: "R$ 29,00 com cheddar fresco." },
+      { user: "Tem batata?" },
+      { bot: "Sim! Batata rústica por R$ 18,00." },
+      { user: "Quero um com cebola" },
+      { bot: "Anotei: X-Burger com cebola. Algo mais?" },
+      { user: "Só isso" },
+      { bot: "Pedido anotado! Total: R$ 47,00. Já chega pra cozinha." },
+    ],
+  },
+  {
+    type: "precos",
+    title: "Só paga quando usar",
+    subtitle: "Diária, Mensal ou Anual",
+    steps: [
+      { bot: "Vou explicar os planos quando você precisar." },
+      { user: "Diária é só quando usar?" },
+      { bot: "Sim! R$ 1,99 libera 24h. Só quando tiver pedido." },
+      { user: "E Premium?" },
+      { bot: "R$ 28,99/mês é ilimitado. Tem movimento constante?" },
+      { user: "Tem foto por IA?" },
+      { bot: "Anual R$ 199,99/ano inclui foto por IA! Leve o cardápio antigo, eu leio." },
+    ],
+  },
+];
+
+/** Fio de lâmpadas: a "luz de Natal" que emoldura o outdoor. */
+function LightString({
+  count,
+  colors,
+  chase = false,
+  className,
+}: {
+  count: number;
+  colors: string[];
+  chase?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      aria-hidden
+      className={cn("pointer-events-none flex items-center justify-between", className)}
+    >
+      {Array.from({ length: count }, (_, i) => {
+        const color = colors[i % colors.length];
+        return (
+          <span
+            key={i}
+            className={cn("size-1.5 rounded-full sm:size-2", chase ? "bulb-chase" : "fairy-bulb")}
+            style={{
+              backgroundColor: color,
+              boxShadow: `0 0 8px 1.5px ${color}`,
+              animationDelay: `${(i % 6) * 0.22}s`,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * O outdoor da home — uma tela em estrutura de verdade.
+ *
+ * Antes era uma "moldura de gravação" fina em cima de um poste: parecia print
+ * de app. Agora tem estrutura (travessa, colunas, base) e é emoldurada por fios
+ * de lâmpadas — vermelho/verde/amarelo no Natal, ciano/índigo/rosa fora dele.
+ * A tela por dentro é o Pracinha atendendo, cena a cena.
+ */
+function OutdoorDisplay({ christmas = false }: { christmas?: boolean }) {
+  const [sceneIndex, setSceneIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  const currentScene = OUTDOOR_SCENES[sceneIndex];
+
+  useEffect(() => {
+    const stepInterval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setStepIndex((prev) => {
+          const next = prev + 1;
+          if (next >= currentScene.steps.length) {
+            setSceneIndex((s) => (s + 1) % OUTDOOR_SCENES.length);
+            return 0;
+          }
+          return next;
+        });
+        setVisible(true);
+      }, 1000); // 1s para os pontinhos aparecerem antes da fala
+    }, 8000);
+
+    return () => clearInterval(stepInterval);
+  }, [currentScene.steps.length]);
+
+  const bulbs = christmas ? ["#ef4444", "#22c55e", "#facc15"] : ["#22d3ee", "#818cf8", "#f472b6"];
+
+  return (
+    <figure className="relative w-full max-w-2xl">
+      {/* Halo atrás da peça */}
+      <div
+        aria-hidden
+        className={cn(
+          "animate-aurora absolute -inset-8 -z-10 rounded-[3rem] blur-3xl",
+          christmas
+            ? "bg-gradient-to-tr from-red-500/25 via-emerald-500/10 to-amber-500/20"
+            : "bg-gradient-to-tr from-cyan-500/25 via-transparent to-violet-500/20",
+        )}
+      />
+
+      {/* Travessa superior com as lâmpadas */}
+      <div className="relative mx-auto flex h-3.5 w-[92%] items-center justify-center rounded-full bg-gradient-to-b from-zinc-600 via-zinc-700 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]">
+        <LightString count={16} colors={bulbs} chase className="absolute inset-x-3 -top-1.5" />
+      </div>
+
+      {/* Colunas da estrutura */}
+      <div aria-hidden className="mx-auto flex w-[92%] justify-between">
+        <span className="h-5 w-1.5 rounded-b bg-gradient-to-b from-zinc-700 to-zinc-800" />
+        <span className="h-5 w-1.5 rounded-b bg-gradient-to-b from-zinc-700 to-zinc-800" />
+      </div>
+
+      {/* Moldura da tela */}
+      <div
+        className={cn(
+          "relative rounded-2xl border-[6px] bg-gradient-to-b from-zinc-800 to-zinc-950 p-3 shadow-[0_50px_100px_-30px_rgba(0,0,0,0.85)]",
+          christmas ? "border-red-900/60" : "border-zinc-800/90",
+        )}
+      >
+        {/* Parafusos dos cantos */}
+        {["left-2 top-2", "right-2 top-2", "bottom-2 left-2", "bottom-2 right-2"].map((pos) => (
+          <span
+            key={pos}
+            aria-hidden
+            className={cn(
+              "absolute size-1.5 rounded-full bg-zinc-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)]",
+              pos,
+            )}
+          />
+        ))}
+
+        {/* Fio de luzes interno, rente à tela */}
+        <LightString count={14} colors={bulbs} className="mb-2 px-1" />
+
+        {/* A TELA — gravação de tela simulada do Pracinha */}
+        <div className="animate-aurora relative aspect-video overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-br from-gray-800 via-slate-800 to-gray-900">
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"
+          />
+          <div
+            aria-hidden
+            className="animate-aurora absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-violet-500/5"
+          />
+
+          <div className="relative flex h-full flex-col p-4 sm:p-6">
+            {/* Header da tela */}
+            <div className="mb-4 flex items-center gap-2 border-b border-white/10 pb-3">
+              <span className="relative grid size-6 place-items-center rounded bg-cyan-500 text-black">
+                <Bot className="size-3" />
+                <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-green-400 animate-pulse" />
+              </span>
+              <span className="text-xs font-bold text-gray-300">Pracinha - Assistente IA</span>
+              <span className="ml-auto flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-red-300">
+                <span className="size-1.5 animate-pulse rounded-full bg-red-500" /> ao vivo
+              </span>
+            </div>
+
+            {/* Área de chat */}
+            <div className="flex-1 space-y-3 overflow-hidden">
+              {currentScene.steps.slice(0, stepIndex + 1).map((msg, i) => (
+                <div key={i} className={i === stepIndex ? "" : "opacity-50"}>
+                  {msg.user && (
+                    <div className="flex justify-end">
+                      <div className="max-w-[80%] rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5">
+                        <p className="text-xs text-white">{msg.user}</p>
+                      </div>
+                    </div>
+                  )}
+                  {msg.bot && (
+                    <div className="flex justify-start">
+                      <div className="flex max-w-[80%] items-start gap-2">
+                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
+                          <Bot className="size-3" />
+                        </span>
+                        <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5">
+                          <p className="text-xs text-gray-300">{msg.bot}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {!visible && (
+                <div className="flex justify-start">
+                  <div className="flex max-w-[80%] items-start gap-2">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-cyan-500 text-black">
+                      <Bot className="size-3" />
+                    </span>
+                    <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-1.5">
+                      <div className="flex items-center gap-1">
+                        <span
+                          className="size-1.5 rounded-full bg-cyan-400 animate-bounce"
+                          style={{ animationDelay: "0ms" }}
+                        />
+                        <span
+                          className="size-1.5 rounded-full bg-cyan-400 animate-bounce"
+                          style={{ animationDelay: "150ms" }}
+                        />
+                        <span
+                          className="size-1.5 rounded-full bg-cyan-400 animate-bounce"
+                          style={{ animationDelay: "300ms" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Legenda do outdoor (marquee) */}
+            <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-2.5">
+              <Sparkles className="size-3.5 shrink-0 text-amber-300" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[11px] font-black text-white">
+                  {currentScene.title}
+                </span>
+                <span className="block truncate text-[10px] text-gray-400">
+                  {currentScene.subtitle}
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1">
+                {OUTDOOR_SCENES.map((s, i) => (
+                  <span
+                    key={s.type}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all",
+                      i === sceneIndex ? "w-4 bg-cyan-400" : "w-1.5 bg-white/20",
+                    )}
+                  />
+                ))}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Fio de luzes interno, embaixo */}
+        <LightString count={14} colors={bulbs} className="mt-2 px-1" />
+      </div>
+
+      {/* Base da estrutura */}
+      <div aria-hidden className="relative mx-auto w-[70%]">
+        <div className="mx-auto flex justify-between px-8">
+          <span className="h-7 w-2 rounded-b bg-gradient-to-b from-zinc-700 to-zinc-800" />
+          <span className="h-7 w-2 rounded-b bg-gradient-to-b from-zinc-700 to-zinc-800" />
+        </div>
+        <div className="mx-auto h-2 w-40 rounded-full bg-gradient-to-b from-zinc-700 to-zinc-900 shadow-lg" />
+      </div>
+    </figure>
   );
 }
 
@@ -593,11 +905,16 @@ const TUTORIAL_STEPS = [
   },
 ];
 
+function delay(ms: number) {
+  return { animationDelay: `${ms}ms` };
+}
+
 /**
  * Conta na navbar da landing.
  *
- * A home mostra o estado real: quem está logado vê "Meu painel / Sair", não
- * "Entrar / Criar grátis".
+ * Antes a home mostrava "Entrar / Criar grátis" mesmo com sessão ativa, e quem
+ * já estava logado (inclusive no PWA instalado) não tinha como sair ou trocar
+ * de conta sem fechar o app. Aqui o estado fica explícito.
  */
 function NavAccount({ className }: { className?: string }) {
   const { user, loading, signOut } = useAuth();
@@ -678,36 +995,6 @@ function NavAccount({ className }: { className?: string }) {
   );
 }
 
-/* ============================================================
-   Cardápio real — link direto
-   Nada de mockup na página. O botão manda o visitante para o
-   cardápio de verdade (a mesma URL que o cliente da loja abre).
-   ============================================================ */
-
-function MenuReveal() {
-  const realMenuUrl = `${SITE_URL}/cardapio/${DEMO_STORE_SLUG}`;
-  return (
-    <div className="mx-auto w-full max-w-md text-center">
-      <a
-        href={realMenuUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="sheen group inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-6 py-4 text-base font-black text-black shadow-[0_20px_50px_-20px_rgba(34,211,238,0.7)] transition-all hover:-translate-y-0.5 hover:bg-cyan-400"
-      >
-        Abrir o cardápio real
-        <ArrowRight className="size-5 transition-transform group-hover:translate-x-0.5" />
-      </a>
-      <p className="mt-3 text-[11px] text-gray-500">
-        Abre em outra aba — é o cardápio de verdade, do lado de cá.
-      </p>
-    </div>
-  );
-}
-
-/* ============================================================
-   Painel de abas do herói — o produto na mão do visitante.
-   ============================================================ */
-
 const TABS = [
   { key: "cardapio", label: "Cardápio", icon: UtensilsCrossed },
   { key: "templates", label: "Templates", icon: LayoutTemplate },
@@ -716,90 +1003,15 @@ const TABS = [
 
 type LandingView = (typeof TABS)[number]["key"];
 
-function HeroPanel() {
-  const [view, setView] = useState<LandingView>("cardapio");
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b0b12]/80 shadow-[0_40px_90px_-30px_rgba(0,0,0,0.9)] backdrop-blur-sm">
-      <div className="relative flex items-center gap-2 border-b border-white/[0.07] px-3 py-2.5">
-        <div
-          aria-hidden
-          className="animate-scan pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-cyan-400/10 to-transparent"
-        />
-        <span className="relative flex items-center gap-1.5">
-          {TABS.map((t) => {
-            const on = view === t.key;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setView(t.key)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
-                  on
-                    ? "bg-cyan-500 text-black"
-                    : "bg-white/[0.04] text-gray-400 hover:bg-white/[0.08] hover:text-white",
-                )}
-              >
-                <t.icon className="size-3.5" /> {t.label}
-              </button>
-            );
-          })}
-        </span>
-        <span className="relative ml-auto flex shrink-0 items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-          <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
-          {TABS.find((t) => t.key === view)?.label} · ao vivo
-        </span>
-      </div>
-
-      <div key={view} className="animate-panel min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-        {view === "cardapio" && (
-          <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-            <span className="grid size-14 place-items-center rounded-2xl bg-cyan-500/15 text-cyan-300">
-              <UtensilsCrossed className="size-6" />
-            </span>
-            <div>
-              <p className="font-display text-lg font-black text-white">
-                O cardápio de verdade, aberto agora
-              </p>
-              <p className="mt-1 text-sm text-gray-400">
-                Sem mockup: é o cardápio real que um cliente abre pelo link.
-              </p>
-            </div>
-            <MenuReveal />
-          </div>
-        )}
-
-        {view === "templates" && <TemplateGallery />}
-
-        {view === "recursos" && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {FEATURES.slice(0, 6).map((f) => (
-              <div
-                key={f.title}
-                className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-3.5"
-              >
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300">
-                  <f.icon className="size-4" />
-                </span>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-white">{f.title}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-gray-400">{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   Enfeite natalino da home.
-   Puramente decorativo e só renderiza na janela de Natal.
-   ============================================================ */
-
+/**
+ * Enfeite natalino do "outdoor" da home.
+ *
+ * Puramente decorativo (`aria-hidden`, `pointer-events-none`) e só renderiza na
+ * janela de Natal (`isChristmasSeason`). A neve é determinística — mesmas
+ * posições a cada render, sem `Math.random` — para não brigar com a hidratação
+ * nem piscar a cada estado. O fio de lâmpadas atravessa o topo, logo abaixo da
+ * navbar, emoldurando o outdoor sem cobrir nada.
+ */
 function ChristmasHero() {
   const flakes = useMemo(
     () =>
@@ -855,20 +1067,22 @@ function ChristmasHero() {
   );
 }
 
-/* ============================================================
-   Página
-   ============================================================ */
-
-function scrollToSection(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
+/**
+ * COCKPIT SEM SCROLL - aba única
+ * Fundo galáxia animado com estrelas, cometas e planetas
+ * Canto esquerdo: botões de ação
+ * Meio: slogan principal
+ * Canto direito: outdoor animado no poste
+ * Tudo abre em painéis
+ */
 function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [panel, setPanel] = useState<LandingPanel>(null);
 
+  // O "outdoor" veste o Natal em nov/dez — a melhor época do ano para vender
+  // cardápio digital (pico do delivery nas festas).
   const christmas = isChristmasSeason();
 
   function openPanel(p: NonNullable<LandingPanel>) {
@@ -877,27 +1091,53 @@ function LandingPage() {
   }
   const closePanel = () => setPanel(null);
 
-  function goToVariant() {
-    setMenuOpen(false);
-    scrollToSection("variant");
-  }
-
   return (
-    <div className="relative flex min-h-[100dvh] flex-col overflow-x-hidden text-white selection:bg-cyan-400/30">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden text-white selection:bg-cyan-400/30">
+      {/* Fundo galáxia animado com estrelas, cometas e planetas */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-gradient-to-b from-[#0a0a1a] via-[#0f0f2a] to-[#070714]"
+        className="pointer-events-none absolute inset-0 overflow-hidden bg-gradient-to-b from-[#0a0a1a] via-[#0f0f2a] to-[#070714]"
       >
-        <div className="variant-grid absolute inset-0" />
-        <div className="variant-grid-nodes absolute inset-0" />
-        <div className="animate-aurora absolute left-1/4 top-1/4 size-96 rounded-full bg-gradient-to-br from-cyan-500/10 to-violet-500/10 blur-3xl" />
-        <div className="animate-aurora absolute bottom-1/4 right-1/4 size-80 rounded-full bg-gradient-to-br from-blue-500/10 to-cyan-500/10 blur-3xl [animation-delay:2s]" />
+        {/* Estrelas estáticas */}
+        <div className="absolute inset-0">
+          {[...Array(100)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full bg-white"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                width: `${Math.random() * 2 + 1}px`,
+                height: `${Math.random() * 2 + 1}px`,
+                opacity: Math.random() * 0.5 + 0.2,
+                animation: `twinkle ${Math.random() * 3 + 2}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Cometa animado */}
+        <div className="absolute top-20 right-10 w-32 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent rounded-full opacity-60 animate-comet">
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-cyan-300 rounded-full blur-sm" />
+        </div>
+
+        {/* Planeta animado */}
+        <div className="absolute bottom-20 left-10 w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-violet-700 opacity-40 animate-planet">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-2 bg-violet-400/30 rounded-full -rotate-12" />
+        </div>
+
+        {/* Nebulosa */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-br from-cyan-500/10 to-violet-500/10 rounded-full blur-3xl animate-aurora" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl animate-aurora [animation-delay:2s]" />
+
+        {/* Natal: o céu respira vermelho/verde no lugar do ciano. */}
         {christmas && <div className="aurora-christmas absolute inset-0 animate-aurora" />}
       </div>
 
       {christmas && <ChristmasHero />}
 
-      <nav className="sticky top-0 z-40 shrink-0 border-b border-white/[0.07] bg-[#07070c]/80 backdrop-blur-xl">
+      {/* Navbar */}
+      <nav className="relative z-40 shrink-0 border-b border-white/[0.07] bg-[#07070c]/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
           <Link to="/" className="group flex items-center gap-2.5">
             <VariantMark className="size-8 shadow-[0_0_20px_rgba(34,211,238,0.35)] transition-transform group-hover:scale-105" />
@@ -908,10 +1148,10 @@ function LandingPage() {
 
           <div className="hidden items-center gap-5 md:flex">
             <button
-              onClick={() => openPanel("features")}
+              onClick={() => openPanel("preco")}
               className="text-sm text-gray-400 transition-colors hover:text-white"
             >
-              Recursos
+              Preços
             </button>
             <button
               onClick={() => openPanel("calc")}
@@ -920,16 +1160,10 @@ function LandingPage() {
               Economia
             </button>
             <button
-              onClick={() => openPanel("preco")}
+              onClick={() => openPanel("features")}
               className="text-sm text-gray-400 transition-colors hover:text-white"
             >
-              Preços
-            </button>
-            <button
-              onClick={goToVariant}
-              className="text-sm text-gray-400 transition-colors hover:text-white"
-            >
-              Quem faz
+              Recursos
             </button>
             <button
               onClick={() => setTutorialOpen(true)}
@@ -956,9 +1190,9 @@ function LandingPage() {
           <div className="grid grid-cols-2 gap-1 border-t border-white/10 px-4 py-3 md:hidden">
             {(
               [
-                ["features", "Recursos"],
-                ["calc", "Economia"],
                 ["preco", "Preços"],
+                ["calc", "Economia"],
+                ["features", "Recursos"],
                 ["faq", "Dúvidas"],
               ] as const
             ).map(([key, label]) => (
@@ -970,12 +1204,6 @@ function LandingPage() {
                 {label}
               </button>
             ))}
-            <button
-              onClick={goToVariant}
-              className="rounded-lg px-3 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-            >
-              Quem faz
-            </button>
             <button
               onClick={() => {
                 setMenuOpen(false);
@@ -989,220 +1217,164 @@ function LandingPage() {
         )}
       </nav>
 
-      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <section className="grid w-full grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-10">
-          <div className="flex flex-col justify-center lg:col-span-5">
-            <p
-              className={cn(
-                "animate-reveal inline-flex w-fit items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]",
-                christmas
-                  ? "border-red-500/30 bg-red-500/[0.1] text-red-200"
-                  : "border-cyan-500/25 bg-cyan-500/[0.08] text-cyan-300",
-              )}
-            >
-              {christmas ? (
-                <>
-                  <TreePine className="size-3" /> Campanha de Natal
-                </>
-              ) : (
-                <>
-                  <Sparkles className="size-3" /> Para micro-restaurantes
-                </>
-              )}
-            </p>
-
-            <h1 className="animate-reveal font-display mt-4 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
-              {christmas ? (
-                <>
-                  Seu cardápio no ar em minutos{" "}
-                  <span className="text-shine bg-gradient-to-r from-red-400 via-emerald-300 to-red-400 bg-clip-text text-transparent">
-                    nesse Natal.
-                  </span>
-                </>
-              ) : (
-                <>
-                  Seu cardápio no ar{" "}
-                  <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
-                    em minutos.
-                  </span>
-                </>
-              )}
-            </h1>
-
-            <p className="animate-reveal mt-4 text-sm leading-relaxed text-gray-300 sm:text-base">
-              Link próprio, QR Code e pedidos na hora —{" "}
-              <strong className="font-bold text-white">sem comissão por pedido</strong>. O cliente
-              pede sozinho pelo celular; você só recebe.
-            </p>
-
-            <div className="animate-reveal mt-5 flex flex-col gap-3 sm:flex-row">
-              <Link
-                to="/login"
-                search={{ mode: "register" }}
+      {/* COCKPIT - tela única sem scroll */}
+      <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid w-full grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          {/* CANTO ESQUERDO - Botões de ação */}
+          <div className="flex flex-col justify-center lg:col-span-4">
+            <div className="space-y-4">
+              <p
                 className={cn(
-                  "sheen group flex flex-1 items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-base font-black text-black transition-all hover:-translate-y-0.5",
+                  "animate-reveal inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]",
                   christmas
-                    ? "bg-red-500 hover:bg-red-400 hover:shadow-[0_0_40px_rgba(239,68,68,0.45)]"
-                    : "bg-cyan-500 hover:bg-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.45)]",
+                    ? "border-red-500/30 bg-red-500/[0.1] text-red-200"
+                    : "border-cyan-500/25 bg-cyan-500/[0.08] text-cyan-300",
                 )}
               >
-                {christmas ? <Gift className="size-5" /> : <Store className="size-5" />}
-                {christmas ? "Crie seu cardápio nesse Natal" : "Criar meu cardápio grátis"}
-                <ArrowRight className="size-5 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <Link
-                to="/login"
-                className="flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-3.5 text-base font-bold text-white transition-colors hover:bg-white/[0.08]"
-              >
-                <LogIn className="size-5" /> Entrar
-              </Link>
-            </div>
-
-            <p className="animate-reveal mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
-              <span className="flex items-center gap-1">
-                <Check className="size-3 text-emerald-400" /> Sem cartão
-              </span>
-              <span className="flex items-center gap-1">
-                <Check className="size-3 text-emerald-400" /> 5 pedidos grátis/mês
-              </span>
-              <span className="flex items-center gap-1">
-                <Check className="size-3 text-emerald-400" /> No ar em minutos
-              </span>
-            </p>
-
-            <div className="animate-reveal mt-5">
-              <InlineSimulator onOpenFull={() => openPanel("calc")} />
-            </div>
-          </div>
-
-          <div className="lg:col-span-7">
-            <HeroPanel />
-          </div>
-        </section>
-
-        <section id="outdoor" className="mt-16 scroll-mt-20">
-          <div className="grid items-center gap-8 lg:grid-cols-[1fr_1.05fr]">
-            <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/[0.08] px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-cyan-300">
-                <Bot className="size-3.5" /> Pracinha ao vivo
-              </span>
-              <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
-                O produto funcionando, <span className="text-cyan-300">sem print de app.</span>
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-gray-400 sm:text-base">
-                Do problema que fecha a loja ao pedido que chega na cozinha: é o Pracinha
-                trabalhando, cena a cena, do lado de cá do balcão.
-              </p>
-              <ul className="mt-5 space-y-2">
-                {[
-                  "Zero comissão por pedido — a margem volta pra você",
-                  "Cardápio montado por conversa, sem formulário",
-                  "Pedido caindo no painel na hora",
-                ].map((t) => (
-                  <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
-                    <Check className="mt-0.5 size-4 shrink-0 text-cyan-400" /> {t}
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => openPanel("features")}
-                className="group mt-6 inline-flex items-center gap-2 text-sm font-bold text-cyan-300 transition-colors hover:text-cyan-200"
-              >
-                Ver todos os recursos
-                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </button>
-            </div>
-            <OutdoorBillboard christmas={christmas} />
-          </div>
-        </section>
-
-        <section className="mt-16">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-              Do zero ao pedido em <span className="text-cyan-300">três passos.</span>
-            </h2>
-          </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            {STEPS.map((s, i) => (
-              <div
-                key={s.title}
-                className="card-lift relative rounded-3xl border border-white/[0.07] bg-white/[0.02] p-6"
-              >
-                <span className="absolute right-5 top-5 font-display text-4xl font-black text-white/[0.06]">
-                  {i + 1}
-                </span>
-                <span className="grid size-11 place-items-center rounded-2xl bg-cyan-500/10 text-cyan-300">
-                  <s.icon className="size-5" />
-                </span>
-                <h3 className="mt-4 text-base font-bold text-white">{s.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="mt-16">
-          <ChatAiSection />
-        </div>
-
-        <div className="mt-16">
-          <VariantBand />
-        </div>
-
-        <section id="planos" className="mt-16 scroll-mt-20">
-          <div className="mx-auto max-w-2xl text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-emerald-300">
-              <ReceiptText className="size-3.5" /> Preços
-            </span>
-            <h2 className="font-display mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
-              Comece grátis. <span className="text-emerald-300">Pague só quando tiver pedido.</span>
-            </h2>
-          </div>
-          <div className="mt-8">
-            <PlanCards
-              className="grid gap-5 sm:grid-cols-3"
-              renderCta={(plan) =>
-                plan.key === "free" ? (
-                  <Link
-                    to="/login"
-                    search={{ mode: "register" }}
-                    className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.06]"
-                  >
-                    {plan.ctaLabel}
-                  </Link>
+                {christmas ? (
+                  <>
+                    <TreePine className="size-3" /> Campanha de Natal
+                  </>
                 ) : (
-                  <a
-                    href="/login?returnTo=/admin/assinatura"
-                    className={
-                      "flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold text-black transition-all " +
-                      (plan.key === "annual"
-                        ? "sheen bg-cyan-500 hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"
-                        : "bg-white/90 hover:bg-white")
-                    }
+                  <>
+                    <Sparkles className="size-3" /> Para micro-restaurantes
+                  </>
+                )}
+              </p>
+
+              <h1 className="animate-reveal font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+                {christmas ? (
+                  <>
+                    Seu cardápio no ar em minutos{" "}
+                    <span className="text-shine bg-gradient-to-r from-red-400 via-emerald-300 to-red-400 bg-clip-text text-transparent">
+                      nesse Natal.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    Seu cardápio no ar{" "}
+                    <span className="text-shine bg-gradient-to-r from-cyan-300 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
+                      em minutos.
+                    </span>
+                  </>
+                )}
+              </h1>
+
+              <p className="animate-reveal text-sm leading-relaxed text-gray-300">
+                {christmas ? (
+                  <>
+                    O Natal é o pico do delivery. Link próprio, QR Code e pedidos na hora —{" "}
+                    <strong className="font-bold text-white">sem comissão por pedido</strong>.
+                  </>
+                ) : (
+                  <>
+                    Link próprio, QR Code e pedidos na hora —{" "}
+                    <strong className="font-bold text-white">sem comissão por pedido</strong>.
+                  </>
+                )}
+              </p>
+
+              <div className="space-y-3 pt-2">
+                <Link
+                  to="/login"
+                  search={{ mode: "register" }}
+                  className={cn(
+                    "group flex w-full items-center gap-3 rounded-2xl border-2 p-4 transition-all",
+                    christmas
+                      ? "border-red-500/40 bg-gradient-to-r from-red-500/10 to-red-500/5 hover:border-red-400/60 hover:from-red-500/20 hover:to-red-500/10"
+                      : "border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 to-cyan-500/5 hover:border-cyan-400/60 hover:from-cyan-500/20 hover:to-cyan-500/10",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid size-12 shrink-0 place-items-center rounded-xl text-black shadow-lg",
+                      christmas ? "bg-red-500 shadow-red-500/30" : "bg-cyan-500 shadow-cyan-500/30",
+                    )}
                   >
-                    {plan.ctaLabel} <ArrowRight className="size-4" />
-                  </a>
-                )
-              }
-            />
+                    {christmas ? <Gift className="size-6" /> : <Store className="size-6" />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-bold text-white">
+                      {christmas ? "Crie seu cardápio nesse Natal" : "Crie seu cardápio"}
+                    </p>
+                    <p className={cn("text-xs", christmas ? "text-red-200" : "text-cyan-200")}>
+                      Monte grátis em minutos
+                    </p>
+                  </div>
+                  <ArrowRight
+                    className={cn(
+                      "size-5 shrink-0 transition-transform group-hover:translate-x-1",
+                      christmas ? "text-red-300" : "text-cyan-300",
+                    )}
+                  />
+                </Link>
+
+                <Link
+                  to="/login"
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/[0.05] p-4 transition-all hover:border-white/30 hover:bg-white/[0.08]"
+                >
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15 text-gray-300">
+                    <LogIn className="size-6" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-bold text-white">Entrar</p>
+                    <p className="text-xs text-gray-400">Acesse sua conta</p>
+                  </div>
+                  <ArrowRight className="size-5 shrink-0 text-gray-400 transition-transform group-hover:translate-x-1" />
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const realMenuUrl = `${SITE_URL}/cardapio/${DEMO_STORE_SLUG}`;
+                    window.open(realMenuUrl, "_blank");
+                  }}
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/[0.05] p-4 transition-all hover:border-white/30 hover:bg-white/[0.08]"
+                >
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white/15 text-gray-300">
+                    <UtensilsCrossed className="size-6" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-bold text-white">Ver cardápio</p>
+                    <p className="text-xs text-gray-400">Cardápio real funcionando</p>
+                  </div>
+                  <ArrowRight className="size-5 shrink-0 text-gray-400 transition-transform group-hover:translate-x-1" />
+                </button>
+
+                <InlineSimulator onOpenFull={() => openPanel("calc")} />
+
+                {christmas && (
+                  <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pt-1 text-[11px] text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <Snowflake className="size-3 text-cyan-300" /> Pronto antes do Natal
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Check className="size-3 text-emerald-400" /> Sem comissão
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Check className="size-3 text-emerald-400" /> Sem cartão
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <PartyPopper className="size-3 text-amber-300" /> Veste a data sozinho
+                    </span>
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 sm:flex-row">
-            <p className="text-sm text-amber-100/90">
-              <span className="font-bold text-amber-300">Diária {DAY_PASS_PRICE_LABEL}</span> — abre
-              só quando tem movimento? Libera tudo por 24h, paga só os dias que usar e empilha.
-            </p>
-            <a
-              href="/login?returnTo=/admin/assinatura"
-              className="shrink-0 rounded-full bg-amber-500 px-4 py-2 text-sm font-bold text-black transition-all hover:bg-amber-400"
-            >
-              Usar diária
-            </a>
+
+          {/* CANTO DIREITO SUPERIOR - Outdoor animado */}
+          <div className="lg:col-span-8 lg:col-start-5 flex justify-end">
+            <div className="relative w-full max-w-xl">
+              <OutdoorDisplay christmas={christmas} />
+            </div>
           </div>
-        </section>
+        </div>
       </main>
 
-      <footer className="relative z-10 shrink-0 border-t border-white/[0.07] py-6">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 sm:flex-row sm:px-6">
+      {/* Rodapé compacto */}
+      <footer className="relative z-10 shrink-0 border-t border-white/[0.07] py-3">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6">
           <div className="flex items-center gap-2">
             <VariantMark className="size-6" />
             <span className="font-display text-xs font-extrabold text-gray-300">
@@ -1240,6 +1412,8 @@ function LandingPage() {
           </p>
         </div>
       </footer>
+
+      {/* ---- Painéis (abrem por cima, com X para fechar) ---- */}
 
       <GuidePanel
         open={panel === "calc"}
@@ -1288,6 +1462,19 @@ function LandingPage() {
               )
             }
           />
+
+          <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 sm:flex-row">
+            <p className="text-sm text-amber-100/90">
+              <span className="font-bold text-amber-300">Diária {DAY_PASS_PRICE_LABEL}</span> · abre
+              só quando tem movimento? Libera tudo por 24h, paga só os dias que usar e empilha.
+            </p>
+            <a
+              href="/login?returnTo=/admin/assinatura"
+              className="shrink-0 rounded-full bg-amber-500 px-4 py-2 text-sm font-bold text-black transition-all hover:bg-amber-400"
+            >
+              Usar diária
+            </a>
+          </div>
 
           <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
             <div className="grid grid-cols-[1.5fr_1fr_1fr] border-b border-white/[0.08] bg-white/[0.03] text-[11px] font-bold uppercase tracking-wider text-gray-500">
@@ -1410,6 +1597,7 @@ function LandingPage() {
         </div>
       </GuidePanel>
 
+      {/* Tutorial Modal */}
       <Dialog open={tutorialOpen} onOpenChange={setTutorialOpen}>
         <DialogContent className="max-w-md">
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">

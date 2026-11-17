@@ -4,6 +4,7 @@ import {
   matchProduct,
   parseOrderDeterministic,
   reconcileOrderDraft,
+  suggestProducts,
   type MenuAddon,
   type MenuProduct,
 } from "@/lib/order-draft";
@@ -33,6 +34,29 @@ describe("matchProduct", () => {
 
   it("não casa item fora do cardápio", () => {
     expect(matchProduct("um hot dog", PRODUCTS)).toBeNull();
+  });
+
+  it("ignora stopwords (um/uma/da/de) no casamento", () => {
+    expect(matchProduct("quero um x-burger", PRODUCTS)?.id).toBe("p1");
+    expect(matchProduct("uma pizza da casa", PRODUCTS)?.id).toBe("p3");
+  });
+});
+
+describe("suggestProducts", () => {
+  it("sugere itens que compartilham um token do nome mesmo sem casar", () => {
+    // "calabresa" é token de "Pizza Calabresa" (âncora "pizza"), então não casa
+    // no matchProduct — mas vira sugestão tocável.
+    expect(matchProduct("quero calabresa", PRODUCTS)).toBeNull();
+    const s = suggestProducts("quero calabresa", PRODUCTS);
+    expect(s.map((p) => p.id)).toContain("p3");
+  });
+
+  it("sem pista de conteúdo, devolve os primeiros itens", () => {
+    expect(suggestProducts("um", PRODUCTS).length).toBeGreaterThan(0);
+  });
+
+  it("não sugere nada quando o texto não tem pista", () => {
+    expect(suggestProducts("xyzabc", PRODUCTS)).toEqual([]);
   });
 });
 

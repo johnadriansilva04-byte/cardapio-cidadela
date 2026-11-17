@@ -87,4 +87,26 @@ describe("CustomerBottomNav", () => {
     const classes = nav.innerHTML;
     expect(classes).toContain("safe-area-inset-bottom");
   });
+
+  it("sem chat habilitado, não mostra o botão do Pracinha", () => {
+    renderNav();
+    expect(screen.queryByRole("button", { name: /Pedir por chat/ })).not.toBeInTheDocument();
+  });
+
+  it("com chat habilitado, mostra o botão central e avisa o cardápio ao tocar", async () => {
+    const user = userEvent.setup();
+    const onOpenChat = vi.fn();
+    renderNav({ chatEnabled: true, onOpenChat });
+    const fab = screen.getByRole("button", { name: /Pedir por chat/ });
+    expect(fab).toBeInTheDocument();
+    await user.click(fab);
+    expect(onOpenChat).toHaveBeenCalledTimes(1);
+  });
+
+  it("mantém as três abas quando o chat está no centro", () => {
+    renderNav({ chatEnabled: true, onOpenChat: vi.fn() });
+    expect(screen.getByRole("button", { name: /cardápio/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /meus pedidos/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /entrar/i })).toBeInTheDocument();
+  });
 });

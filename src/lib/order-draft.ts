@@ -48,6 +48,73 @@ function norm(s: string): string {
     .trim();
 }
 
+/**
+ * Palavras que aparecem no pedido mas NUNCA são nome de item. Sem ignorá-las, o
+ * match por prefixo casava "um" com qualquer nome que começasse por "um" e o
+ * cliente ouvia "não achei 'um'". Aqui elas não contam como âncora nem somam
+ * pontos no match.
+ */
+const STOPWORDS = new Set([
+  "um",
+  "uma",
+  "uns",
+  "umas",
+  "o",
+  "a",
+  "os",
+  "as",
+  "do",
+  "da",
+  "dos",
+  "das",
+  "de",
+  "no",
+  "na",
+  "nos",
+  "nas",
+  "em",
+  "e",
+  "com",
+  "sem",
+  "para",
+  "pra",
+  "por",
+  "favor",
+  "quero",
+  "queria",
+  "gostaria",
+  "vou",
+  "vamos",
+  "tambem",
+  "mais",
+  "bem",
+  "pouco",
+  "muito",
+  "extra",
+  "ao",
+  "ponto",
+  "meio",
+  "me",
+  "mim",
+  "dois",
+  "duas",
+  "tres",
+  "quatro",
+  "cinco",
+  "seis",
+  "sete",
+  "oito",
+  "nove",
+  "dez",
+  "obrigado",
+  "obrigada",
+]);
+
+/** Token que pode ser nome de item: 3+ letras e fora das stopwords. */
+function isContentToken(t: string): boolean {
+  return t.length >= 3 && !STOPWORDS.has(t);
+}
+
 /** Um token do texto casa com um token do nome? Prefixo, para "pizzas"≈"pizza". */
 function tokenMatch(a: string, b: string): boolean {
   if (a === b) return true;
@@ -63,16 +130,17 @@ function tokenMatch(a: string, b: string): boolean {
  */
 export function matchProduct(text: string, products: MenuProduct[]): MenuProduct | null {
   const hayTokens = norm(text).split(" ").filter(Boolean);
+  if (hayTokens.length === 0) return null;
   let best: MenuProduct | null = null;
   let bestScore = 0;
   for (const p of products) {
     const nameTokens = norm(p.name).split(" ").filter(Boolean);
-    const anchor = nameTokens.find((t) => t.length >= 3);
+    const anchor = nameTokens.find((t) => isContentToken(t));
     if (!anchor) continue;
     if (!hayTokens.some((t) => tokenMatch(t, anchor))) continue;
     let score = 0;
     for (const nt of nameTokens) {
-      if (nt.length < 3) continue;
+      if (!isContentToken(nt)) continue;
       if (hayTokens.some((t) => tokenMatch(t, nt))) score++;
     }
     if (score > bestScore) {
@@ -99,15 +167,29 @@ const WORD_QTY: Record<string, number> = {
   dez: 10,
 };
 
-function parseQuantity(segment: string): number {
-  const m = segment.match(/(\d+)\s*(x|un|unid|unidade)?\b/);
-  if (m) {
-    const n = Math.floor(Number(m[1]));
-    if (n >= 1 && n <= 50) return n;
+/**
+ * Quantidade do trecho. Prioriza o número dito ANTES do item ("2 x-burger",
+ * "duas pizzas"); se não houver, aceita um número solto depois do nome
+ * ("x-burger 2"). Sem isso o número depois do nome virava 1 item.
+ */
+function parseQuantity(segment: string, product: MenuProduct | null): number {
+  const chunks = [segment];
+  if (product) {
+    const firstWord = product.name.split(" ")[0];
+    if (firstWord) {
+      const idx = norm(segment).indexOf(norm(firstWord));
+      if (idx > 0) chunks.unshift(segment.slice(0, idx));
+    }
   }
-  const words = norm(segment).split(" ");
-  for (const w of words) {
-    if (WORD_QTY[w]) return WORD_QTY[w];
+  for (const chunk of chunks) {
+    const m = chunk.match(/(\d+)\s*(x|un|unid|unidade)?\b/i);
+    if (m) {
+      const n = Math.floor(Number(m[1]));
+      if (n >= 1 && n <= 50) return n;
+    }
+    for (const w of norm(chunk).split(" ")) {
+      if (WORD_QTY[w]) return WORD_QTY[w];
+    }
   }
   return 1;
 }
@@ -117,32 +199,43 @@ function parseAddons(segment: string, addons: MenuAddon[]): string[] {
   const hayTokens = norm(segment).split(" ").filter(Boolean);
   const found: string[] = [];
   for (const a of addons) {
-    const n = norm(a.name);
-    if (n.length < 3) continue;
-    if (hayTokens.some((t) => tokenMatch(t, n))) found.push(a.id);
+    const nameTokens = norm(a.name).split(" ").filter(Boolean);
+    const anchor = nameTokens.find((t) => isContentToken(t));
+    if (!anchor) continue;
+    if (hayTokens.some((t) => tokenMatch(t, anchor))) found.push(a.id);
   }
   return found;
 }
 
 /** Observações úteis ("sem cebola", "bem passado", "sem gelo"). */
 function parseNotes(segment: string): string {
-  const m = segment.match(/\b(sem|bem|pouco|muito|com|extra)\b[^,.;]*/i);
+  const m = segment.match(/\b(sem|bem|pouco|muito|extra|ao ponto)\b[^,.;]*/i);
   return m ? m[0].trim().slice(0, 120) : "";
 }
 
 /**
- * Parser determinístico: quebra o texto por vírgula/" e " e casa cada trecho
- * com um produto. É o que garante que o recurso funciona sem IA — e sem rede.
+ * Quebra o pedido em trechos por pontuação e pelos conectores que separam itens
+ * ("e", "mais", "também"). O " e " só quebra quando o que vem depois parece um
+ * item novo (número ou artigo), para não partir "pão e queijo".
+ */
+function splitSegments(text: string): string[] {
+  return text
+    .split(/[,;\n]|\be\b(?=\s+(?:\d|um|uma|dois|duas|tres|três|o|a)\b)|\b(?:mais|também|tambem)\b/i)
+    .map((s) => (s ?? "").trim())
+    .filter(Boolean);
+}
+
+/**
+ * Parser determinístico: quebra o texto por vírgula/conectores e casa cada
+ * trecho com um produto. É o que garante que o recurso funciona sem IA — e sem
+ * rede.
  */
 export function parseOrderDeterministic(
   text: string,
   products: MenuProduct[],
   addons: MenuAddon[],
 ): OrderDraftResult {
-  const segments = text
-    .split(/[,;\n]|\be\b(?=\s+\d|\s+(um|uma|dois|duas|tres|três|o|a)\b)/i)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const segments = splitSegments(text);
 
   const lines: OrderDraftLine[] = [];
   const unmatched: string[] = [];
@@ -151,10 +244,12 @@ export function parseOrderDeterministic(
   for (const seg of segments) {
     const product = matchProduct(seg, products);
     if (!product) {
-      unmatched.push(seg);
+      // Só vira "não achei" se sobrar palavra de conteúdo — trecho com só
+      // conectores/stopwords não vira reclamação.
+      if (norm(seg).split(" ").some(isContentToken)) unmatched.push(seg);
       continue;
     }
-    const qty = parseQuantity(seg);
+    const qty = parseQuantity(seg, product);
     const productAddons = addons.filter((a) => !a.product_id || a.product_id === product.id);
     const addonIds = parseAddons(seg, productAddons);
     const notes = parseNotes(seg);
@@ -206,6 +301,31 @@ export function reconcileOrderDraft(
 export interface OrderDraftDisplayLine extends OrderDraftLine {
   name: string;
   addon_names: string[];
+}
+
+/**
+ * Sugestões para quando o texto não casa com nada: os produtos cujo nome
+ * compartilha algum token de conteúdo com o que o cliente escreveu. Vira os
+ * "chips" que o cliente toca para adicionar — assim o chat nunca é um beco sem
+ * saída ("não achei" e pronto).
+ */
+export function suggestProducts(text: string, products: MenuProduct[], limit = 6): MenuProduct[] {
+  const hayTokens = norm(text)
+    .split(" ")
+    .filter((t) => isContentToken(t));
+  if (hayTokens.length === 0) return products.slice(0, limit);
+  const scored: { p: MenuProduct; score: number }[] = [];
+  for (const p of products) {
+    const nameTokens = norm(p.name).split(" ").filter(Boolean);
+    let score = 0;
+    for (const nt of nameTokens) {
+      if (!isContentToken(nt)) continue;
+      if (hayTokens.some((t) => tokenMatch(t, nt))) score++;
+    }
+    if (score > 0) scored.push({ p, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit).map((s) => s.p);
 }
 
 /** Frase curta do Pracinha para mostrar na conversa. */

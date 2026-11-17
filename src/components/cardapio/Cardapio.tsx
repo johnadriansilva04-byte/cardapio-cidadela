@@ -999,18 +999,6 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
       {/* Categorias — sticky */}
       <div className="sticky top-0 z-20 mt-3 border-y border-white/5 bg-[#07070b]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl gap-2 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {isPremiumStore && (
-            <button
-              onClick={() => setOrderChatOpen(true)}
-              className="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black text-black shadow-lg transition-transform active:scale-95"
-              style={{
-                backgroundColor: accent,
-                boxShadow: `0 4px 16px ${hexToRgba(accent, 0.35)}`,
-              }}
-            >
-              <Sparkles className="size-3.5" /> Pedir por texto
-            </button>
-          )}
           {categories.map((c) => {
             const catProducts = productsByCategory.get(c.id) ?? [];
             const isActive = activeCat === c.id;
@@ -1411,6 +1399,8 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         pendingCount={activeOrderCount}
         isAuthenticated={Boolean(user)}
         onNavigate={handleTab}
+        chatEnabled={isPremiumStore}
+        onOpenChat={() => setOrderChatOpen(true)}
       />
     </div>
   );

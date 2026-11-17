@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Loader2, MessageCircle, Send, Sparkles, User, X } from "lucide-react";
+import { Bot, Loader2, MessageCircle, Plus, Send, Sparkles, User, X } from "lucide-react";
 import { draftOrder, type DraftLine } from "@/modules/supabase/order-draft";
-import type { MenuAddon, MenuProduct } from "@/lib/order-draft";
+import { suggestProducts, type MenuAddon, type MenuProduct } from "@/lib/order-draft";
 import { hexToRgba } from "@/lib/utils";
 
 /**
@@ -12,6 +12,10 @@ import { hexToRgba } from "@/lib/utils";
  * que o cardápio aplica no carrinho de sempre (mesmo `addToCart`). Assim o
  * preço, os adicionais e o checkout continuam exatamente no caminho validado
  * pelo servidor — o chat é só uma forma mais fácil de escolher.
+ *
+ * Nunca é um beco sem saída: quando o texto não casa, o Pracinha oferece os
+ * itens mais próximos como chips que o cliente toca e o item entra no carrinho
+ * na hora. Escrever é opcional — dá para pedir só tocando.
  */
 
 const EXAMPLES = [
@@ -45,11 +49,27 @@ export default function PracinhaOrderChat({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [added, setAdded] = useState(0);
+  const [suggestions, setSuggestions] = useState<MenuProduct[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [turns, sending]);
+  }, [turns, sending, suggestions]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  function pushAssistant(content: string) {
+    setTurns((t) => [...t, { role: "assistant", content }]);
+  }
+
+  /** Chips tocáveis: o que casa com o texto; sem pista, os primeiros itens. */
+  function offerItems(text: string) {
+    const matches = suggestProducts(text, menu.products);
+    setSuggestions(matches.length > 0 ? matches : menu.products.slice(0, 6));
+  }
 
   async function submit(text: string) {
     const content = text.trim();
@@ -57,40 +77,69 @@ export default function PracinhaOrderChat({
     setTurns((t) => [...t, { role: "user", content }]);
     setInput("");
     setSending(true);
-    const draft = await draftOrder(restaurantId, content, menu);
-    setSending(false);
+    let draft = null;
+    try {
+      draft = await draftOrder(restaurantId, content, menu);
+    } finally {
+      setSending(false);
+    }
     if (!draft) {
-      setTurns((t) => [
-        ...t,
-        {
-          role: "assistant",
-          content: "Não consegui falar com o cardápio agora. Toca nos itens ou tente de novo.",
-        },
-      ]);
+      pushAssistant(
+        "Não consegui falar com o cardápio agora. Toca num item abaixo ou tente de novo.",
+      );
+      offerItems(content);
       return;
     }
-    setTurns((t) => [...t, { role: "assistant", content: draft.reply }]);
+    pushAssistant(draft.reply);
     if (draft.lines.length > 0) {
       onAdd(draft.lines);
-      setAdded((n) => n + draft.lines.length);
+      setAdded((n) => n + draft.lines.reduce((s, l) => s + l.quantity, 0));
+      setSuggestions([]);
+    } else {
+      // Nada casou: em vez de só recusar, oferece itens tocáveis.
+      offerItems(content);
     }
+  }
+
+  /** Chip tocado = item no carrinho. O cliente pode pedir só tocando. */
+  function pickProduct(product: MenuProduct) {
+    onAdd([
+      {
+        product_id: product.id,
+        quantity: 1,
+        addon_ids: [],
+        notes: "",
+        name: product.name,
+        addon_names: [],
+      },
+    ]);
+    setAdded((n) => n + 1);
+    pushAssistant(`Adicionei ${product.name} ao carrinho. Quer mais alguma coisa?`);
+    inputRef.current?.focus();
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur sm:items-center sm:p-4">
       <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-[24px] border border-white/10 bg-[#0b0b12] shadow-2xl sm:rounded-[24px]">
-        <header className="relative flex shrink-0 items-center gap-3 border-b border-white/[0.07] px-5 py-4">
+        <header
+          className="relative flex shrink-0 items-center gap-3 border-b border-white/[0.07] px-5 py-4"
+          style={{
+            backgroundImage: `linear-gradient(135deg, ${hexToRgba(accent, 0.18)} 0%, transparent 65%)`,
+          }}
+        >
           <span
-            className="grid size-9 shrink-0 place-items-center rounded-xl text-white"
-            style={{ backgroundColor: accent }}
+            className="grid size-10 shrink-0 place-items-center rounded-2xl text-black shadow-lg"
+            style={{
+              backgroundImage: `linear-gradient(140deg, ${accent} 0%, ${hexToRgba(accent, 0.7)} 100%)`,
+            }}
           >
-            <MessageCircle className="size-4" />
+            <MessageCircle className="size-5" />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-black text-white">
-              Pracinha <span className="font-normal text-gray-500">· pedir por texto</span>
+              Pracinha <span className="font-normal text-gray-400">· pedir por chat</span>
             </p>
-            <p className="text-[11px] text-gray-500">Escreve que eu monto seu pedido</p>
+            <p className="text-[11px] text-gray-500">Escreve ou toca nos itens que eu monto</p>
           </div>
           <button
             onClick={onClose}
@@ -104,9 +153,9 @@ export default function PracinhaOrderChat({
         <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {turns.length === 0 && (
             <div className="space-y-3">
-              <p className="text-sm text-gray-400">
-                Oi! Escreve o que você quer do jeito que falaria no balcão. Eu anoto e monto o
-                carrinho pra você conferir.
+              <p className="text-sm text-gray-300">
+                Oi! Escreve o que você quer do jeito que falaria no balcão — ou toca num item. Eu
+                monto o carrinho pra você conferir.
               </p>
               <div className="flex flex-wrap gap-2">
                 {EXAMPLES.map((s) => (
@@ -134,10 +183,10 @@ export default function PracinhaOrderChat({
               <span
                 className={
                   "mt-0.5 grid size-7 shrink-0 place-items-center rounded-full " +
-                  (t.role === "user" ? "bg-white/10 text-gray-300" : "text-white")
+                  (t.role === "user" ? "bg-white/10 text-gray-300" : "text-black")
                 }
                 style={
-                  t.role === "assistant" ? { backgroundColor: hexToRgba(accent, 0.25) } : undefined
+                  t.role === "assistant" ? { backgroundColor: hexToRgba(accent, 0.9) } : undefined
                 }
               >
                 {t.role === "user" ? <User className="size-3.5" /> : <Bot className="size-3.5" />}
@@ -161,13 +210,33 @@ export default function PracinhaOrderChat({
               <Loader2 className="size-3.5 animate-spin" /> Montando…
             </div>
           )}
+
+          {suggestions.length > 0 && (
+            <div className="space-y-2 pl-9">
+              <p className="text-[11px] font-semibold text-gray-500">Toque para adicionar:</p>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => pickProduct(p)}
+                    className="flex items-center gap-1.5 rounded-full border bg-white/[0.05] px-3 py-1.5 text-[11px] font-semibold text-gray-200 transition-colors hover:text-white"
+                    style={{ borderColor: hexToRgba(accent, 0.3) }}
+                  >
+                    <Plus className="size-3" style={{ color: accent }} />
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {added > 0 && (
           <button
             type="button"
             onClick={onOpenCart}
-            className="mx-4 mb-2 flex items-center justify-center gap-2 rounded-full py-3 text-sm font-black text-black"
+            className="mx-4 mb-2 flex items-center justify-center gap-2 rounded-full py-3 text-sm font-black text-black animate-pop-in"
             style={{ backgroundColor: accent }}
           >
             <Sparkles className="size-4" /> Ver meu pedido ({added})
@@ -182,6 +251,7 @@ export default function PracinhaOrderChat({
           className="flex shrink-0 items-center gap-2 border-t border-white/[0.07] px-4 py-3"
         >
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ex.: 2 x-burger sem cebola e um guaraná"
@@ -189,12 +259,12 @@ export default function PracinhaOrderChat({
           />
           <button
             type="submit"
-            disabled={sending || !input.trim()}
+            disabled={!input.trim()}
             aria-label="Enviar"
             className="grid size-10 shrink-0 place-items-center rounded-full text-black disabled:opacity-50"
             style={{ backgroundColor: accent }}
           >
-            <Send className="size-4" />
+            {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </button>
         </form>
       </div>

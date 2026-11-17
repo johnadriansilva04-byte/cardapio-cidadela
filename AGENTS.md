@@ -1132,9 +1132,15 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
   (responde E encaminha o relato por e-mail via Resend). As duas exigem
   `Authorization: Bearer` — endpoint com custo de IA não pode ficar aberto.
 - **O Pracinha também monta o pedido do CLIENTE (texto → carrinho).** No
-  cardápio público, o botão "Pedir por texto" (na barra de categorias) abre
+  cardápio público, o botão "Pedir por chat" fica no CENTRO da barra inferior
+  fixa (`CustomerBottomNav`, ao lado de Cardápio/Meus pedidos/Perfil; props
+  `chatEnabled`/`onOpenChat`) e abre
   `src/components/cardapio/PracinhaOrderChat.tsx`: o cliente escreve "2 x-burger
-  sem cebola e um guaraná" e as linhas entram no carrinho de sempre.
+  sem cebola e um guaraná" e as linhas entram no carrinho de sempre. Antes era
+  uma pílula pequena perdida na barra de categorias — o botão é o jeito mais
+  fácil de montar o pedido, então tem de ser o mais visível da tela (gradiente +
+  pulse + selo "IA"). Fica inline, não flutuante, para não colidir com a barra
+  do carrinho.
   - `POST /api/order/draft` (`api.order.draft.ts`) recebe `{ restaurantId, text }`,
     carrega produtos/adicionais disponíveis do restaurante e devolve
     `{ lines, unmatched, ai, reply }`.
@@ -1147,6 +1153,14 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
     observações ("sem cebola"); a IA só entra para sinônimos, e sem
     `CLOUDFLARE_AI_TOKEN` o recurso continua funcionando. Coberto por
     `order-draft.test.ts` (inclui o teste de que nenhuma linha traz preço).
+  - **O parser ignora stopwords** (`um/uma/o/a/da/de/do/em/com/quero/...`): elas
+    não são âncora nem pontuam no `matchProduct`, e um trecho só com elas não
+    vira "não achei". Sem isso, "quero um x-burger" casava "um" e o cliente
+    ouvia "Não achei 'um'". `splitSegments` também quebra por `mais`/`também`.
+  - **O chat nunca é beco sem saída.** Quando o texto não casa, mostra "Toque
+    para adicionar" com chips de `suggestProducts` (itens que compartilham token
+    com o texto; sem pista, os primeiros do cardápio) — o toque joga o item no
+    carrinho. Escrever é opcional; dá para pedir só tocando.
   - O componente não escreve no carrinho direto: devolve as linhas por `onAdd`,
     e o `Cardapio` aplica com o `addToCart` de sempre.
   - **É recurso PREMIUM (não inclui a diária).** O gate REAL é no servidor:
@@ -1157,7 +1171,7 @@ o que, com o payload enxuto, é ~750 mil visitas frias/mês.
     devolve `true` — o cardápio é anônimo e não enxerga `admin_trials`; a RPC
     devolve SÓ um booleano. Se a RPC faltar (banco antigo), o botão fica
     escondido e nada quebra. Coberto pelo E2E `public-menu.spec.ts`
-    ("loja grátis não vê 'Pedir por texto'").
+    ("loja grátis não vê o botão 'Pedir por chat'").
   - **Fallback offline.** O parser determinístico vive em `src/lib/order-draft.ts`
     (client-safe) e roda no NAVEGADOR quando a rota não responde (offline/deploy
     antigo), usando o cardápio já carregado. `api/lib/order-draft.ts` só tem o

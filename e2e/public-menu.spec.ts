@@ -272,10 +272,10 @@ test("abre a página pública de acompanhamento de um pedido", async ({ page }) 
 });
 
 test.describe("garçom digital (Pracinha) — Premium-only", () => {
-  test("loja grátis não vê 'Pedir por texto'", async ({ page }) => {
+  test("loja grátis não vê o botão 'Pedir por chat'", async ({ page }) => {
     await page.goto(`/cardapio/${SLUG}`);
     await expect(page.getByText("X-Burger").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /Pedir por texto/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Pedir por chat/ })).toHaveCount(0);
   });
 
   test("loja Premium vê o botão e o chat monta o carrinho", async ({ page }) => {
@@ -308,8 +308,8 @@ test.describe("garçom digital (Pracinha) — Premium-only", () => {
     await page.route("**/api/order/draft", (route) => route.abort());
 
     await page.goto(`/cardapio/${SLUG}`);
-    await page.getByRole("button", { name: /Pedir por texto/ }).click();
-    await expect(page.getByText(/Escreve que eu monto seu pedido/)).toBeVisible();
+    await page.getByRole("button", { name: /Pedir por chat/ }).click();
+    await expect(page.getByText(/Escreve ou toca nos itens/)).toBeVisible();
 
     await page.getByPlaceholder(/2 x-burger sem cebola/).fill("2 x-burger");
     await page.getByRole("button", { name: "Enviar" }).click();
@@ -317,5 +317,78 @@ test.describe("garçom digital (Pracinha) — Premium-only", () => {
     await expect(page.getByText(/Anotei: 2× X-Burger/)).toBeVisible();
     await page.getByRole("button", { name: /Ver meu pedido/ }).click();
     await expect(page.getByText("Seu pedido").first()).toBeVisible();
+  });
+
+  test("não trava com conectores: 'um'/'da' não viram 'não achei'", async ({ page }) => {
+    const inTenDays = new Date(Date.now() + 10 * 86_400_000).toISOString();
+    await seed(page, {
+      restaurants: [
+        {
+          id: "11111111-1111-1111-1111-111111111111",
+          owner_id: "owner-1",
+          slug: SLUG,
+          name: "Cidadela Teste",
+          status: "published",
+          primary_color: "#06b6d4",
+          secondary_color: "#8b5cf6",
+          operating_hours: null,
+          created_at: new Date().toISOString(),
+        },
+      ],
+      admin_trials: [
+        {
+          store_id: "11111111-1111-1111-1111-111111111111",
+          is_premium: true,
+          premium_expires_at: inTenDays,
+        },
+      ],
+    });
+    await page.route("**/api/order/draft", (route) => route.abort());
+
+    await page.goto(`/cardapio/${SLUG}`);
+    await page.getByRole("button", { name: /Pedir por chat/ }).click();
+    await page.getByPlaceholder(/2 x-burger sem cebola/).fill("quero um x-burger");
+    await page.getByRole("button", { name: "Enviar" }).click();
+
+    await expect(page.getByText(/Anotei: 1× X-Burger/)).toBeVisible();
+    // O "um" do pedido NÃO pode aparecer como item não encontrado.
+    await expect(page.getByText(/Não achei/)).toHaveCount(0);
+  });
+
+  test("quando nada casa, oferece itens tocáveis em vez de travar", async ({ page }) => {
+    const inTenDays = new Date(Date.now() + 10 * 86_400_000).toISOString();
+    await seed(page, {
+      restaurants: [
+        {
+          id: "11111111-1111-1111-1111-111111111111",
+          owner_id: "owner-1",
+          slug: SLUG,
+          name: "Cidadela Teste",
+          status: "published",
+          primary_color: "#06b6d4",
+          secondary_color: "#8b5cf6",
+          operating_hours: null,
+          created_at: new Date().toISOString(),
+        },
+      ],
+      admin_trials: [
+        {
+          store_id: "11111111-1111-1111-1111-111111111111",
+          is_premium: true,
+          premium_expires_at: inTenDays,
+        },
+      ],
+    });
+    await page.route("**/api/order/draft", (route) => route.abort());
+
+    await page.goto(`/cardapio/${SLUG}`);
+    await page.getByRole("button", { name: /Pedir por chat/ }).click();
+    await page.getByPlaceholder(/2 x-burger sem cebola/).fill("xyzabc");
+    await page.getByRole("button", { name: "Enviar" }).click();
+
+    await expect(page.getByText(/Toque para adicionar/)).toBeVisible();
+    // Toca no item sugerido: entra no carrinho e o chat confirma.
+    await page.getByRole("button", { name: "X-Burger" }).last().click();
+    await expect(page.getByText(/Adicionei X-Burger/)).toBeVisible();
   });
 });

@@ -7,6 +7,13 @@ import { buildInitialFormValues } from "@/components/admin/restaurantForm";
 import type { RestaurantFormValues } from "@/components/admin/restaurantForm";
 import type { DraftNeighborhood } from "@/lib/restaurantChat";
 
+vi.mock("@/lib/neighborhoodLookup", () => ({
+  searchNeighborhoodsByCity: vi.fn(async () => ({
+    city: { cityName: "Florianópolis", stateCode: "SC", osmId: 1, lat: 0, lon: 0 },
+    neighborhoods: ["Centro", "Trindade"],
+  })),
+}));
+
 /**
  * Harness que guarda o formulário de verdade: cada resposta do chat precisa
  * aparecer no objeto que o diálogo salvaria.
@@ -83,29 +90,101 @@ describe("RestaurantChatWizard", () => {
     expect(formJson().whatsapp).toBe("");
   });
 
-  it("coleta bairros com taxa e mostra os chips", async () => {
+  it('aceita "não" no telefone opcional sem acusar telefone inválido', async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    // Nome → slogan(pula) → WhatsApp → telefone(pula) → endereço(pula) → entrega(pula)
     await answer(user, "Cantina");
     await skip(user);
-    await answer(user, "48999999999");
-    await skip(user);
-    await skip(user);
-    await skip(user);
+    await screen.findByText(/qual whatsapp vai receber/i);
+    await answer(user, "48999880030");
+    expect(formJson().whatsapp).toBe("5548999880030");
 
-    expect(await screen.findByText(/cobrar diferente por bairro/i)).toBeInTheDocument();
-    await answer(user, "Centro 5");
-    await answer(user, "Trindade 8,50");
+    await screen.findByText(/telefone fixo de contato/i);
+    await answer(user, "não");
+
+    expect(screen.queryByText(/telefone inválido/i)).not.toBeInTheDocument();
+    expect(formJson().phone).toBe("");
+    expect(await screen.findByText(/onde você fica/i)).toBeInTheDocument();
+  });
+
+  it("busca os bairros da cidade, deixa marcar e define a taxa", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await answer(user, "Cantina");
+    await skip(user); // slogan
+    await answer(user, "48999880030");
+    await skip(user); // telefone
+    await skip(user); // endereço
+
+    await screen.findByText(/de quais bairros você entrega/i);
+    await answer(user, "Florianópolis SC");
+
+    // A busca traz os bairros e já marca todos.
+    expect(await screen.findByText(/2 bairros em Florianópolis/i)).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/taxa de entrega para centro/i), "5");
+    // Desmarca Trindade: só o Centro deve entrar.
+    await user.click(screen.getByRole("button", { name: /trindade/i }));
+    await user.click(screen.getByRole("button", { name: /usar 1 bairro/i }));
 
     const hoods = hoodsJson();
-    expect(hoods).toHaveLength(2);
-    expect(hoods[0]).toEqual({ name: "Centro", fee: "5.00" });
-    expect(hoods[1]).toEqual({ name: "Trindade", fee: "8.50" });
-
-    await user.click(screen.getByRole("button", { name: /pronto, é isso/i }));
+    expect(hoods).toEqual([{ name: "Centro", fee: "5.00" }]);
     expect(await screen.findByText(/qual sua chave pix/i)).toBeInTheDocument();
+  });
+
+  it("cai no modo manual quando a busca não devolve bairros", async () => {
+    const lookup = await import("@/lib/neighborhoodLookup");
+    vi.mocked(lookup.searchNeighborhoodsByCity).mockResolvedValueOnce({
+      city: { cityName: "Florianópolis", stateCode: "SC", osmId: 1, lat: 0, lon: 0 },
+      neighborhoods: [],
+    });
+
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await answer(user, "Cantina");
+    await skip(user); // slogan
+    await answer(user, "48999880030");
+    await skip(user); // telefone
+    await skip(user); // endereço
+
+    await screen.findByText(/de quais bairros você entrega/i);
+    await answer(user, "Florianópolis SC");
+
+    // Sem lista automática a tela não trava: ela pede os bairros por escrito.
+    expect(await screen.findByText(/não encontrei a lista de bairros/i)).toBeInTheDocument();
+    expect(screen.getByText(/escreva os bairros que você atende/i)).toBeInTheDocument();
+
+    await answer(user, "Centro 5\nTrindade 8,50");
+    expect(hoodsJson()).toEqual([
+      { name: "Centro", fee: "5.00" },
+      { name: "Trindade", fee: "8.50" },
+    ]);
+    // A taxa padrão passa a ser a maior das informadas (bairro fora da lista).
+    expect(formJson().delivery_fee).toBe("8.50");
+    expect(await screen.findByText(/qual sua chave pix/i)).toBeInTheDocument();
+  });
+
+  it("cai no modo manual quando a busca automática falha", async () => {
+    const lookup = await import("@/lib/neighborhoodLookup");
+    vi.mocked(lookup.searchNeighborhoodsByCity).mockRejectedValueOnce(new Error("offline"));
+
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await answer(user, "Cantina");
+    await skip(user);
+    await answer(user, "48999880030");
+    await skip(user);
+    await skip(user);
+
+    await screen.findByText(/de quais bairros você entrega/i);
+    await answer(user, "Florianópolis");
+
+    expect(await screen.findByText(/busca automática está fora do ar/i)).toBeInTheDocument();
+    await answer(user, "Centro");
+    expect(hoodsJson()).toEqual([{ name: "Centro", fee: "" }]);
   });
 
   it("a escolha de tema preenche as duas cores e a revisão mostra o resumo", async () => {
@@ -118,11 +197,13 @@ describe("RestaurantChatWizard", () => {
     await answer(user, "48999999999");
     await skip(user);
     await skip(user);
-    await skip(user);
-    // Bairros: adiciona um e conclui.
-    await screen.findByText(/cobrar diferente por bairro/i);
-    await answer(user, "Centro 5");
-    await user.click(screen.getByRole("button", { name: /pronto, é isso/i }));
+    // Bairros: busca a cidade, marca um e conclui.
+    await screen.findByText(/de quais bairros você entrega/i);
+    await answer(user, "Florianópolis SC");
+    await screen.findByText(/2 bairros em Florianópolis/i);
+    await user.type(screen.getByLabelText(/taxa de entrega para centro/i), "5");
+    await user.click(screen.getByRole("button", { name: /trindade/i }));
+    await user.click(screen.getByRole("button", { name: /usar 1 bairro/i }));
     // PIX: pula.
     await screen.findByText(/qual sua chave pix/i);
     await skip(user);

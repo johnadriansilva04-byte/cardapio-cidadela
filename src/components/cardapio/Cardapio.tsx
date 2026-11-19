@@ -32,7 +32,14 @@ import {
 } from "@/modules/supabase/menuCache";
 import { createOrder } from "@/modules/supabase/orders";
 import { useAuth } from "@/components/AuthProvider";
-import { brl, hexToRgba, newComanda } from "@/lib/utils";
+import {
+  brl,
+  buildWhatsAppMessage,
+  hexToRgba,
+  newComanda,
+  waDigits,
+  whatsAppUrl,
+} from "@/lib/utils";
 import { getOrCreateGuestId, rememberOrderId } from "@/lib/guestOrder";
 import type {
   Product,
@@ -465,6 +472,11 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
     submittingRef.current = true;
     setSubmitting(true);
     setCheckoutError("");
+    // Abre a aba do WhatsApp AQUI, no gesto do clique: depois de um `await` o
+    // navegador bloqueia o popup e o pedido nunca chegava à loja. A aba é
+    // preenchida com a mensagem assim que o pedido existir.
+    const waTab = restaurant.whatsapp ? window.open("about:blank", "_blank") : null;
+    if (waTab) waTab.opener = null;
     try {
       const orderItems = lines.map((l) => {
         const notesParts: string[] = [];
@@ -518,6 +530,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
             ? error.message
             : "Não foi possível concluir o pedido agora. Confira sua conexão e tente novamente.";
         setCheckoutError(friendly);
+        waTab?.close();
         return;
       }
       rememberOrderId(order.id);
@@ -528,6 +541,33 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
         items: orderItems.map((i, idx) => ({ id: `${idx}`, ...i })),
         payment_method: form.payment_method,
       };
+      // Leva o pedido para o WhatsApp da loja na aba que já foi aberta no
+      // clique. O painel do dono é o caminho principal; isto é a cópia que ele
+      // vê no celular. Se o navegador bloquear a aba, o SuccessModal ainda
+      // oferece o botão.
+      if (waTab) {
+        waTab.location.href = whatsAppUrl(
+          restaurant.whatsapp,
+          buildWhatsAppMessage(
+            {
+              comanda: order.comanda,
+              customer_name: order.customer_name,
+              customer_phone: order.customer_phone,
+              total: order.total,
+              order_items: normalized.items,
+              observations: order.observations ?? "",
+              payment_method: form.payment_method,
+              delivery_type: form.delivery_type,
+              delivery_address: form.delivery_address,
+              customer_complement: form.customer_complement,
+              customer_neighborhood: form.customer_neighborhood,
+              customer_city: form.customer_city,
+              delivery_fee: deliveryFee,
+            },
+            restaurant.name,
+          ),
+        );
+      }
       if (form.payment_method === "pix") setPendingOrder(normalized);
       else setSuccessOrder(normalized);
     } finally {
@@ -926,7 +966,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                   <div className="space-y-1.5">
                     {restaurant.whatsapp && (
                       <a
-                        href={`https://wa.me/${restaurant.whatsapp.replace(/\D/g, "")}`}
+                        href={`https://wa.me/${waDigits(restaurant.whatsapp)}`}
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center gap-2 text-xs text-emerald-300 hover:text-emerald-200"
@@ -983,9 +1023,7 @@ export default function PublicMenu({ slug }: PublicMenuProps) {
                   · {MATA_FOME.title}
                 </span>
               </p>
-              <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
-                {MATA_FOME.subtitle}
-              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-gray-400">{MATA_FOME.subtitle}</p>
               {mataFomeNote(restaurant) && (
                 <p className="mt-1 text-[11px] font-semibold text-gray-300">
                   {mataFomeNote(restaurant)}

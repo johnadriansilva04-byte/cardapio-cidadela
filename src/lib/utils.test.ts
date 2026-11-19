@@ -10,6 +10,8 @@ import {
   safeInternalPath,
   sendToWhatsApp,
   statusLabel,
+  waDigits,
+  whatsAppUrl,
 } from "@/lib/utils";
 
 describe("brl", () => {
@@ -170,6 +172,27 @@ describe("buildWhatsAppMessage", () => {
     expect(msg).toContain("Retirada no balcão");
     expect(msg).not.toContain("Taxa de entrega");
   });
+
+  it("leva o telefone do cliente para a loja poder responder", () => {
+    const msg = buildWhatsAppMessage({ ...order, customer_phone: "(48) 99988-0030" }, "Loja A");
+    expect(msg).toContain("📞 (48) 99988-0030");
+  });
+
+  it("omite a linha de telefone quando o pedido não tem número", () => {
+    const msg = buildWhatsAppMessage({ ...order, customer_phone: "" }, "Loja A");
+    expect(msg).not.toContain("📞");
+  });
+});
+
+describe("whatsAppUrl", () => {
+  it("monta o link com DDI e a mensagem codificada", () => {
+    const url = whatsAppUrl("(48) 99988-0030", "Pedido #7 & cia");
+    expect(url.startsWith("https://wa.me/5548999880030?text=")).toBe(true);
+    expect(url).toContain(encodeURIComponent("Pedido #7 & cia"));
+    // Nada de caractere cru que o WhatsApp interprete errado.
+    expect(url).not.toContain(" ");
+    expect(url).not.toContain("(");
+  });
 });
 
 describe("sendToWhatsApp", () => {
@@ -184,8 +207,16 @@ describe("sendToWhatsApp", () => {
     sendToWhatsApp("(11) 99999-9999", "Olá!");
     window.open = original;
 
-    expect(opened[0]).toContain("https://wa.me/11999999999?");
+    expect(opened[0]).toContain("https://wa.me/5511999999999?");
     expect(opened[0]).toContain(encodeURIComponent("Olá!"));
+  });
+
+  it("waDigits adiciona o DDI 55 e nunca duplica", () => {
+    expect(waDigits("(48) 99988-0030")).toBe("5548999880030");
+    expect(waDigits("48999880030")).toBe("5548999880030");
+    expect(waDigits("5548999880030")).toBe("5548999880030");
+    expect(waDigits("4833334444")).toBe("554833334444");
+    expect(waDigits("")).toBe("");
   });
 });
 

@@ -78,15 +78,27 @@ test.describe("chat de criação", () => {
     await dialog.getByRole("textbox").fill("(48) 99999-9999");
     await dialog.getByRole("button", { name: /Enviar resposta/i }).click();
 
-    // Telefone, endereço, entrega, bairros, PIX: pular os opcionais
+    // Telefone, endereço, bairros, PIX: pular os opcionais
     await dialog.getByRole("button", { name: /^Pular$/i }).click(); // telefone
     await dialog.getByRole("button", { name: /^Pular$/i }).click(); // endereço
-    await dialog.getByRole("button", { name: /^Pular$/i }).click(); // entrega
-    // Bairros: adiciona um e conclui.
-    await expect(dialog).toContainText(/cobrar diferente por bairro/i);
-    await dialog.getByRole("textbox").fill("Centro 5");
+    // Bairros: digita a cidade. Se a busca automática (OpenStreetMap) estiver
+    // disponível, o dono marca os bairros na lista; se não, digita um por linha.
+    // A tela nunca fica sem saída — é o que o teste garante.
+    await expect(dialog).toContainText(/de quais bairros você entrega/i);
+    await dialog.getByRole("textbox").fill("Florianópolis SC");
     await dialog.getByRole("button", { name: /Enviar resposta/i }).click();
-    await dialog.getByRole("button", { name: /Pronto, é isso/i }).click();
+
+    const pickedList = dialog.getByText(/bairros em Florianópolis/i);
+    const manualHint = dialog.getByText(/escreva os bairros que você atende/i);
+    await expect(pickedList.or(manualHint)).toBeVisible({ timeout: 30000 });
+
+    if (await pickedList.isVisible()) {
+      await dialog.getByRole("button", { name: /^Usar /i }).click();
+    } else {
+      await dialog.getByRole("textbox").fill("Centro 5\nTrindade 8,50");
+      await dialog.getByRole("button", { name: /Enviar resposta/i }).click();
+    }
+
     await dialog.getByRole("button", { name: /^Pular$/i }).click(); // PIX
 
     // Horário e tema.

@@ -4,7 +4,9 @@ import {
   COLOR_PRESETS,
   HOURS_PRESETS,
   isReviewStep,
+  isSkipAnswer,
   normalizeDeliveryFee,
+  parseCityInput,
   parseNeighborhoodLine,
   normalizeWhatsapp,
   validateAnswer,
@@ -65,6 +67,38 @@ describe("validateAnswer", () => {
   it("aceita vazio em passo opcional", () => {
     expect(validateAnswer(description, "").ok).toBe(true);
   });
+
+  it("aceita uma negativa como 'pulei' no passo opcional", () => {
+    const phone = CHAT_STEPS.find((s) => s.field === "phone")!;
+    for (const no of [
+      "não",
+      "nao",
+      "Não.",
+      "pular",
+      "nenhum",
+      "-",
+      "não tenho",
+      "não, obrigado",
+      "NÃO TENHO FIXO",
+    ]) {
+      const res = validateAnswer(phone, no);
+      expect(res.ok).toBe(true);
+      expect(res.skipped).toBe(true);
+      expect(res.value).toBe("");
+    }
+    // Um número no texto continua sendo telefone, não negativa.
+    expect(isSkipAnswer("não, é 48 3333-4444")).toBe(false);
+    // Mas num passo obrigatório a negativa não pula: vira resposta literal.
+    const nameRes = validateAnswer(name, "não");
+    expect(nameRes.skipped).toBeFalsy();
+    expect(nameRes.value).toBe("não");
+  });
+
+  it("não aceita 'não' como telefone inválido quando o passo é obrigatório", () => {
+    const res = validateAnswer(whatsapp, "não");
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/inválido/i);
+  });
 });
 
 describe("CHAT_STEPS", () => {
@@ -91,6 +125,23 @@ describe("CHAT_STEPS", () => {
     expect(isReviewStep(0)).toBe(false);
     expect(isReviewStep(CHAT_STEPS.length - 1)).toBe(false);
     expect(isReviewStep(CHAT_STEPS.length)).toBe(true);
+  });
+});
+
+describe("parseCityInput", () => {
+  it("separa cidade e UF quando a UF é real", () => {
+    expect(parseCityInput("Florianópolis SC")).toEqual({ city: "Florianópolis", uf: "SC" });
+    expect(parseCityInput("São Paulo - SP")).toEqual({ city: "São Paulo", uf: "SP" });
+    expect(parseCityInput("blumenau/sc")).toEqual({ city: "blumenau", uf: "SC" });
+  });
+
+  it("mantém a cidade inteira quando não há UF válida", () => {
+    expect(parseCityInput("Florianópolis")).toEqual({ city: "Florianópolis", uf: "" });
+    expect(parseCityInput("Rio de Janeiro")).toEqual({ city: "Rio de Janeiro", uf: "" });
+  });
+
+  it("devolve null para entrada vazia", () => {
+    expect(parseCityInput("   ")).toBeNull();
   });
 });
 

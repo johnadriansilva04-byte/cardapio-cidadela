@@ -121,6 +121,53 @@ test("cria pedido com os itens e o preço corretos", async ({ page }) => {
   expect(history.some((h) => h.status === "received")).toBe(true);
 });
 
+test("manda o pedido para o WhatsApp da loja ao confirmar", async ({ page }) => {
+  await page.goto(`/cardapio/${SLUG}`);
+  await resetOrders(page);
+  // Substitui window.open antes do clique: o app abre a aba no gesto e só
+  // depois aponta para o wa.me. Sem o stub, a aba sairia para a rede.
+  await page.evaluate(() => {
+    const opened: string[] = [];
+    (window as unknown as { __WA__: string[] }).__WA__ = opened;
+    (window as unknown as { open: unknown }).open = () => {
+      const target = {
+        opener: null as unknown,
+        location: {
+          set href(value: string) {
+            opened.push(value);
+          },
+        },
+        close() {},
+      };
+      return target as unknown as Window;
+    };
+  });
+
+  await page
+    .getByRole("button", { name: /Adicionar X-Burger/ })
+    .first()
+    .click();
+  await page.getByRole("button", { name: /Ver pedido/ }).click();
+  await page.getByRole("button", { name: /Continuar/ }).click();
+  await fillCheckout(page);
+  await page.getByRole("button", { name: /Confirmar pedido/ }).click();
+
+  await expect.poll(async () => (await readDb(page, "orders")).length).toBeGreaterThan(0);
+  const orders = (await readDb(page, "orders")) as Record<string, unknown>[];
+  const comanda = String(orders[0].comanda);
+
+  // A aba do WhatsApp recebe o número da LOJA (com DDI) e o pedido inteiro.
+  const opened = await page.evaluate(() => (window as unknown as { __WA__: string[] }).__WA__);
+  expect(opened).toHaveLength(1);
+  expect(opened[0].startsWith("https://wa.me/5511999999999?text=")).toBe(true);
+  const text = decodeURIComponent(opened[0].split("text=")[1]);
+  expect(text).toContain(comanda);
+  expect(text).toContain("X-Burger");
+  expect(text).toContain("Fulano de Tal");
+  // O telefone do cliente vai junto, para a loja conseguir responder.
+  expect(text).toContain("11999998888");
+});
+
 test("ignora o preço forjado pelo cliente e usa o do servidor", async ({ page }) => {
   await page.goto(`/cardapio/${SLUG}`);
   // Espera o cardápio carregar: só então o stub (e o __E2E_CLIENT__) existe.

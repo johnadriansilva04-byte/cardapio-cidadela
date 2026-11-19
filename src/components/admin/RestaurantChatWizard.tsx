@@ -13,10 +13,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   CHAT_STEPS,
   COLOR_PRESETS,
   HOURS_PRESETS,
+  normalizeDeliveryFee,
+  parseCityInput,
   parseNeighborhoodLine,
   validateAnswer,
   type ChatStep,
@@ -97,7 +100,16 @@ export function RestaurantChatWizard({
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const nextId = useRef(0);
+
+  // Passo de bairros: busca por cidade (OpenStreetMap) e seleção com taxa.
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [foundNeighborhoods, setFoundNeighborhoods] = useState<string[] | null>(null);
+  const [foundCity, setFoundCity] = useState("");
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  /** Busca indisponível (Overpass fora do ar): o dono digita os bairros. */
+  const [manualMode, setManualMode] = useState(false);
 
   const atReview = stepIndex >= steps.length;
   const step: ChatStep | null = atReview ? null : steps[stepIndex];
@@ -144,17 +156,18 @@ export function RestaurantChatWizard({
     }
     const value = res.value ?? "";
 
-    // Passo de lista (bairros): cada linha vira um bairro; termina no "Pronto".
-    if (step.kind === "list") {
-      const parsed = parseNeighborhoodLine(value);
-      if (!parsed) {
-        setError("Escreva o nome do bairro. Ex: Centro 5.");
+    if (res.skipped) {
+      advance("Pular");
+      return;
+    }
+
+    // Passo de bairros: o texto é a cidade; a busca preenche a lista.
+    if (step.kind === "neighborhoods") {
+      if (manualMode) {
+        submitManualNeighborhoods(value);
         return;
       }
-      onNeighborhoodsChange([...neighborhoods, parsed]);
-      pushBubble("user", parsed.fee ? `${parsed.name} — R$ ${parsed.fee}` : parsed.name);
-      setInput("");
-      setError(null);
+      void searchCity(value);
       return;
     }
 
@@ -166,6 +179,111 @@ export function RestaurantChatWizard({
     else if (step.field === "delivery_fee") onPatch({ delivery_fee: value });
     else if (step.field === "pix_key") onPatch({ pix_key: value });
     advance(value || "—");
+  }
+
+  /** Geocodifica a cidade e busca os bairros no OpenStreetMap. */
+  async function searchCity(raw: string) {
+    const parsed = parseCityInput(raw);
+    if (!parsed) {
+      setError("Digite o nome da cidade. Ex: Florianópolis.");
+      return;
+    }
+    setError(null);
+    setLookupBusy(true);
+    setFoundNeighborhoods(null);
+    try {
+      // Carregado sob demanda: o buscador arrasta o Nominatim/Overpass e o chat
+      // precisa abrir instantaneamente, mesmo sem rede.
+      const { searchNeighborhoodsByCity } = await import("@/lib/neighborhoodLookup");
+      const res = await searchNeighborhoodsByCity(parsed.city, parsed.uf);
+      if (!res.city) {
+        setError(
+          "Não achei essa cidade. Confira o nome ou tente com a UF, ex: “Florianópolis SC”.",
+        );
+        return;
+      }
+      if (res.neighborhoods.length === 0) {
+        // Sem lista automática não há beco sem saída: o dono digita os bairros.
+        setManualMode(true);
+        setInput("");
+        setFoundCity(res.city.cityName);
+        setError(
+          `Não encontrei a lista de bairros de ${res.city.cityName}. Digite os seus abaixo, um por linha.`,
+        );
+        return;
+      }
+      setFoundCity(res.city.cityName);
+      setFoundNeighborhoods(res.neighborhoods);
+      // Já marca todos: o dono desmarca o que não atende.
+      setPicked(Object.fromEntries(res.neighborhoods.map((n) => [n, ""])));
+    } catch {
+      setManualMode(true);
+      setInput("");
+      setError("A busca automática está fora do ar. Digite os bairros abaixo, um por linha.");
+    } finally {
+      setLookupBusy(false);
+    }
+  }
+
+  function togglePicked(name: string) {
+    setPicked((prev) => {
+      const next = { ...prev };
+      if (name in next) delete next[name];
+      else next[name] = "";
+      return next;
+    });
+  }
+
+  /**
+   * Plano B da busca: "Centro 5", "Trindade 8,50" ou só o nome, um por linha.
+   * Usa o mesmo parser do modo antigo, então a taxa é opcional.
+   */
+  function submitManualNeighborhoods(raw: string) {
+    const entries = raw
+      .split(/[\n;]+/)
+      .map((line) => parseNeighborhoodLine(line))
+      .filter((n): n is DraftNeighborhood => Boolean(n));
+    if (entries.length === 0) {
+      setError("Escreva o nome do bairro. Ex: Centro 5.");
+      return;
+    }
+    onNeighborhoodsChange([...neighborhoods, ...entries]);
+    const fees = entries.map((n) => Number(n.fee)).filter((f) => Number.isFinite(f) && f > 0);
+    if (fees.length > 0) {
+      onPatch({ delivery_fee: normalizeDeliveryFee(String(Math.max(...fees))) ?? "" });
+    }
+    setError(null);
+    setInput("");
+    setManualMode(false);
+    advance(`${entries.length} bairro(s): ${entries.map((n) => n.name).join(", ")}`);
+  }
+  function confirmNeighborhoods() {
+    const chosen = Object.entries(picked).map(([name, fee]) => ({
+      name,
+      fee: fee.trim() ? (normalizeDeliveryFee(fee) ?? "") : "",
+    }));
+    const cleaned = chosen.filter((n) => n.name.trim());
+    // Junta com o que já foi escolhido antes (voltar e buscar outra cidade).
+    const merged = [
+      ...neighborhoods.filter((n) => !cleaned.some((c) => c.name === n.name)),
+      ...cleaned,
+    ];
+    onNeighborhoodsChange(merged);
+
+    // A taxa padrão é a MAIOR entre os bairros escolhidos: quem digitar um
+    // bairro fora da lista paga essa, em vez de entrega grátis. Sem isso a
+    // taxa padrão ficaria em zero (o passo "quanto cobra de entrega" saiu).
+    const fees = merged.map((n) => Number(n.fee)).filter((f) => Number.isFinite(f) && f > 0);
+    if (fees.length > 0)
+      onPatch({ delivery_fee: normalizeDeliveryFee(String(Math.max(...fees))) ?? "" });
+
+    advance(
+      merged.length === 0
+        ? "Nenhum bairro"
+        : `${merged.length} bairro(s): ${merged.map((n) => n.name).join(", ")}`,
+    );
+    setFoundNeighborhoods(null);
+    setPicked({});
   }
 
   function pickChoice(choiceValue: string, label: string) {
@@ -181,17 +299,13 @@ export function RestaurantChatWizard({
     advance(label);
   }
 
-  function finishList() {
-    advance(neighborhoods.length === 0 ? "Nenhum bairro" : `${neighborhoods.length} bairro(s)`);
-  }
-
   function skipStep() {
     if (!step) return;
-    if (step.kind === "list") {
-      finishList();
-      return;
-    }
     advance("Pular");
+    setFoundNeighborhoods(null);
+    setPicked({});
+    setManualMode(false);
+    setError(null);
   }
 
   function back() {
@@ -200,6 +314,9 @@ export function RestaurantChatWizard({
     setStepIndex((i) => Math.max(0, i - 1));
     setInput("");
     setError(null);
+    setFoundNeighborhoods(null);
+    setPicked({});
+    setManualMode(false);
   }
 
   /** Abreviações do resumo mostrado na revisão. */
@@ -211,7 +328,7 @@ export function RestaurantChatWizard({
         { label: "WhatsApp", value: form.whatsapp },
         { label: "Telefone", value: form.phone },
         { label: "Endereço", value: form.address },
-        { label: "Entrega", value: form.delivery_fee ? `R$ ${form.delivery_fee}` : "" },
+        { label: "Taxa padrão", value: form.delivery_fee ? `R$ ${form.delivery_fee}` : "" },
         {
           label: "Bairros",
           value: neighborhoods.length
@@ -357,9 +474,136 @@ export function RestaurantChatWizard({
             </div>
           )}
 
-          {(step?.kind === "text" || step?.kind === "number" || step?.kind === "list") && (
+          {(step?.kind === "text" || step?.kind === "number" || step?.kind === "neighborhoods") && (
             <div className="space-y-2">
-              {step.kind === "list" && neighborhoods.length > 0 && (
+              <div className="flex items-end gap-2">
+                {step.kind === "neighborhoods" && manualMode ? (
+                  <Textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(e) => {
+                      setInput(e.target.value);
+                      setError(null);
+                    }}
+                    rows={3}
+                    placeholder={"Centro 5\nTrindade 8,50\nCampeche"}
+                    className="min-h-20 border-white/10 bg-white/[0.04] text-white placeholder:text-gray-600 focus-visible:ring-cyan-500/40"
+                  />
+                ) : (
+                  <Input
+                    ref={inputRef}
+                    type={step.kind === "number" ? "number" : "text"}
+                    inputMode={step.kind === "number" ? "decimal" : undefined}
+                    value={input}
+                    onChange={(e) => {
+                      setInput(e.target.value);
+                      setError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        submitText();
+                      }
+                    }}
+                    placeholder={step.placeholder}
+                    className="border-white/10 bg-white/[0.04] text-white placeholder:text-gray-600 focus-visible:ring-cyan-500/40"
+                  />
+                )}
+                <Button
+                  type="button"
+                  onClick={submitText}
+                  disabled={!input.trim() || lookupBusy}
+                  aria-label="Enviar resposta"
+                  className="shrink-0 text-black disabled:opacity-50"
+                  style={{ backgroundColor: accent }}
+                >
+                  {lookupBusy ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                </Button>
+              </div>
+
+              {step.kind === "neighborhoods" && manualMode && (
+                <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-2.5 py-2 text-[11px] leading-relaxed text-amber-200">
+                  Escreva os bairros que você atende, um por linha — a taxa é opcional (“Centro 5”
+                  ou só “Centro”). Dá para ajustar depois em Restaurantes.
+                </p>
+              )}
+
+              {step.kind === "neighborhoods" && foundNeighborhoods && (
+                <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+                  <p className="px-1 text-[11px] text-gray-400">
+                    {foundNeighborhoods.length} bairros em {foundCity}. Marque os que você atende e
+                    coloque a taxa de cada um.
+                  </p>
+                  <ul className="max-h-52 space-y-1 overflow-y-auto pr-0.5">
+                    {[...foundNeighborhoods]
+                      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                      .map((name) => {
+                        const checked = name in picked;
+                        return (
+                          <li
+                            key={name}
+                            className={
+                              "flex items-center gap-2 rounded-lg px-2 py-1.5 " +
+                              (checked ? "bg-white/[0.06]" : "")
+                            }
+                          >
+                            <button
+                              type="button"
+                              onClick={() => togglePicked(name)}
+                              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                            >
+                              <span
+                                className={
+                                  "grid size-4 shrink-0 place-items-center rounded border " +
+                                  (checked
+                                    ? "border-transparent text-black"
+                                    : "border-white/20 bg-transparent")
+                                }
+                                style={checked ? { backgroundColor: accent } : undefined}
+                              >
+                                {checked && <Check className="size-3" />}
+                              </span>
+                              <span className="truncate text-xs text-gray-200">{name}</span>
+                            </button>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <span className="text-[11px] text-gray-500">R$</span>
+                              <Input
+                                value={picked[name] ?? ""}
+                                onChange={(e) => {
+                                  const fee = e.target.value;
+                                  // Digitar a taxa já marca o bairro: quem começa
+                                  // pelo valor não precisa descobrir que o campo
+                                  // só abre depois do clique.
+                                  setPicked((prev) => ({ ...prev, [name]: fee }));
+                                }}
+                                inputMode="decimal"
+                                placeholder="0,00"
+                                aria-label={`Taxa de entrega para ${name}`}
+                                className="h-7 w-16 border-white/10 bg-white/[0.04] px-2 text-xs text-white placeholder:text-gray-600"
+                              />
+                            </div>
+                          </li>
+                        );
+                      })}
+                  </ul>
+                  <Button
+                    type="button"
+                    onClick={confirmNeighborhoods}
+                    className="w-full text-black"
+                    style={{ backgroundColor: accent }}
+                  >
+                    <Check className="mr-1.5 size-4" /> Usar{" "}
+                    {Object.keys(picked).length > 0 ? `${Object.keys(picked).length} ` : ""}
+                    bairro(s)
+                  </Button>
+                </div>
+              )}
+
+              {step.kind === "neighborhoods" && neighborhoods.length > 0 && (
                 <ul className="flex flex-wrap gap-1.5">
                   {neighborhoods.map((n, i) => (
                     <li
@@ -372,46 +616,6 @@ export function RestaurantChatWizard({
                     </li>
                   ))}
                 </ul>
-              )}
-              <div className="flex items-center gap-2">
-                <Input
-                  ref={inputRef}
-                  type={step.kind === "number" ? "number" : "text"}
-                  inputMode={step.kind === "number" ? "decimal" : undefined}
-                  value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    setError(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      submitText();
-                    }
-                  }}
-                  placeholder={step.placeholder}
-                  className="border-white/10 bg-white/[0.04] text-white placeholder:text-gray-600 focus-visible:ring-cyan-500/40"
-                />
-                <Button
-                  type="button"
-                  onClick={submitText}
-                  disabled={!input.trim()}
-                  aria-label="Enviar resposta"
-                  className="shrink-0 text-black disabled:opacity-50"
-                  style={{ backgroundColor: accent }}
-                >
-                  <Send className="size-4" />
-                </Button>
-              </div>
-              {step.kind === "list" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={finishList}
-                  className="w-full border-white/10 bg-white/[0.04] text-gray-200 hover:bg-white/[0.08]"
-                >
-                  <Check className="mr-1.5 size-4" /> {step.doneLabel ?? "Pronto"}
-                </Button>
               )}
             </div>
           )}
@@ -443,7 +647,7 @@ export function RestaurantChatWizard({
               <ArrowLeft className="size-3" /> Voltar
             </button>
             <div className="flex items-center gap-3">
-              {step?.optional && step.kind !== "list" && (
+              {step?.optional && (
                 <button
                   type="button"
                   onClick={skipStep}

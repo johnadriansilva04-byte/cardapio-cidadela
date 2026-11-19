@@ -7,6 +7,7 @@
 // quem prefere revisar tudo de uma vez.
 
 import { DEFAULT_OPERATING_HOURS, type OperatingHours } from "@/lib/operatingHours";
+import { UF_NAMES } from "@/lib/brazilStates";
 
 /** Campo do formulário que um passo alimenta. `null` = passo de revisão. */
 export type ChatField =
@@ -35,14 +36,12 @@ export interface ChatStep {
   hint?: string;
   placeholder?: string;
   /**
-   * `number` só muda o teclado; `list` é um passo repetível (bairros) que
-   * aceita várias linhas até o dono dizer "pronto".
+   * `number` só muda o teclado; `neighborhoods` busca os bairros da cidade e
+   * deixa o dono marcar quais atende (com a taxa de cada um).
    */
-  kind: "text" | "number" | "choice" | "list";
+  kind: "text" | "number" | "choice" | "neighborhoods";
   optional?: boolean;
   choices?: ChatChoice[];
-  /** Rótulo do botão que encerra um passo `list`. */
-  doneLabel?: string;
 }
 
 export const CHAT_STEPS: ChatStep[] = [
@@ -66,15 +65,15 @@ export const CHAT_STEPS: ChatStep[] = [
     id: "whatsapp",
     field: "whatsapp",
     question: "Qual WhatsApp vai receber os pedidos?",
-    hint: "Com DDD. É o número que o cliente usa para falar com você.",
+    hint: "Com DDD. É por aqui que os pedidos chegam — o botão de enviar o pedido abre a conversa com este número.",
     placeholder: "(48) 99999-9999",
     kind: "text",
   },
   {
     id: "phone",
     field: "phone",
-    question: "Tem um telefone fixo ou outro contato?",
-    hint: "Opcional — pode pular se só usa o WhatsApp.",
+    question: "Quer deixar um telefone fixo de contato?",
+    hint: "Opcional — só para o cliente tirar dúvidas. Os pedidos vão para o WhatsApp acima.",
     placeholder: "(48) 3333-4444",
     kind: "text",
     optional: true,
@@ -89,23 +88,13 @@ export const CHAT_STEPS: ChatStep[] = [
     optional: true,
   },
   {
-    id: "delivery_fee",
-    field: "delivery_fee",
-    question: "Quanto você cobra de entrega?",
-    hint: "Opcional. Pode ajustar por bairro no próximo passo.",
-    placeholder: "Ex: 5",
-    kind: "number",
-    optional: true,
-  },
-  {
     id: "neighborhoods",
     field: "neighborhoods",
-    question: "Quer cobrar diferente por bairro? Digite o bairro e o valor, um por vez.",
-    hint: "Ex: “Centro 5”. Quando terminar, toque em Pronto. Opcional.",
-    placeholder: "Ex: Centro 5",
-    kind: "list",
+    question: "De quais bairros você entrega?",
+    hint: "Digite a cidade e eu busco os bairros. Você marca os que atende e define a taxa de cada um.",
+    placeholder: "Ex: Florianópolis",
+    kind: "neighborhoods",
     optional: true,
-    doneLabel: "Pronto, é isso",
   },
   {
     id: "pix_key",
@@ -186,11 +175,29 @@ export function isReviewStep(index: number): boolean {
 export function firstIncompleteStep(values: Record<string, unknown>): number {
   for (let i = 0; i < CHAT_STEPS.length; i++) {
     const field = CHAT_STEPS[i].field;
-    if (!field || CHAT_STEPS[i].kind === "choice" || CHAT_STEPS[i].kind === "list") continue;
+    if (!field || (CHAT_STEPS[i].kind !== "text" && CHAT_STEPS[i].kind !== "number")) continue;
     const v = values[field];
     if (v === undefined || v === null || String(v).trim() === "") return i;
   }
   return CHAT_STEPS.length;
+}
+
+/**
+ * Separa a cidade da UF no que o dono digita: "Florianópolis SC",
+ * "Florianópolis - SC", "florianopolis/sc". A UF é opcional — o geocoder
+ * devolve o estado de qualquer forma. Só é tratada como UF quando há um
+ * separador e as duas letras são uma UF real: sem isso, "Florianópolis"
+ * terminaria com "is" e a cidade viraria "Florianópol".
+ */
+export function parseCityInput(raw: string): { city: string; uf: string } | null {
+  const value = raw.trim().replace(/\s+/g, " ");
+  if (!value) return null;
+  const match = /^(.*?)[\s,/-]+([A-Za-z]{2})$/.exec(value);
+  if (match && match[1].trim().length >= 2) {
+    const uf = match[2].toUpperCase();
+    if (UF_NAMES[uf]) return { city: match[1].trim(), uf };
+  }
+  return { city: value, uf: "" };
 }
 
 export const HOURS_PRESETS: Record<string, OperatingHours> = {
@@ -245,26 +252,65 @@ export function normalizeDeliveryFee(raw: string): string | null {
   return n.toFixed(2);
 }
 
+/** Respostas que significam "não tenho / pula" num passo opcional. */
+const SKIP_WORDS = new Set([
+  "nao",
+  "não",
+  "n",
+  "pular",
+  "pula",
+  "pode pular",
+  "nenhum",
+  "nenhuma",
+  "nada",
+  "sem",
+  "nao tenho",
+  "não tenho",
+  "nao tenho nenhum",
+  "-",
+  "—",
+]);
+
+/** `true` quando a resposta é uma negativa/recusa num passo opcional. */
+export function isSkipAnswer(raw: string): boolean {
+  const value = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[.!?]+$/, "")
+    .replace(/\s+/g, " ");
+  if (SKIP_WORDS.has(value)) return true;
+  // "não tenho", "não, obrigado", "não tem"… Sem dígito não há dado a salvar,
+  // então a negativa é sempre um pulo — antes ela caía na validação de número
+  // e virava "Telefone inválido", como se o dono tivesse errado a digitação.
+  if (/\d/.test(value)) return false;
+  return /^(n[aã]o|nunca|nem)\b/.test(value);
+}
+
 export interface AnswerResult {
   ok: boolean;
   /** Mensagem de erro para mostrar no chat quando `ok` é `false`. */
   error?: string;
   /** Valor normalizado (para `whatsapp`/`delivery_fee`) ou o texto cru. */
   value?: string;
+  /** `true` quando o dono respondeu "não" e o passo foi pulado. */
+  skipped?: boolean;
 }
 
 /**
  * Valida e normaliza a resposta de um passo de texto.
  *
  * Devolve `error` em vez de lançar: o chat mostra a mensagem na hora e deixa o
- * dono corrigir, sem perder o que ele digitou. Passos opcionais aceitam vazio.
+ * dono corrigir, sem perder o que ele digitou. Passos opcionais aceitam vazio
+ * e também uma negativa ("não", "pular") — antes um "não" no telefone caía na
+ * validação de número e virava "Telefone inválido", como se ele tivesse errado.
  */
 export function validateAnswer(step: ChatStep, raw: string): AnswerResult {
   const value = raw.trim();
   if (!value) {
-    if (step.optional) return { ok: true, value: "" };
+    if (step.optional) return { ok: true, value: "", skipped: true };
     return { ok: false, error: "Preciso dessa informação para continuar." };
   }
+  if (step.optional && isSkipAnswer(value)) return { ok: true, value: "", skipped: true };
   if (step.field === "whatsapp") {
     const n = normalizeWhatsapp(value);
     if (!n)
@@ -279,9 +325,17 @@ export function validateAnswer(step: ChatStep, raw: string): AnswerResult {
   if (step.field === "name" && value.length < 2) {
     return { ok: false, error: "O nome precisa de pelo menos 2 letras." };
   }
+  if (step.kind === "neighborhoods" && value.length < 2) {
+    return { ok: false, error: "Digite o nome da cidade. Ex: Florianópolis." };
+  }
   if (step.field === "phone") {
     const digits = value.replace(/\D/g, "");
-    if (digits.length < 8) return { ok: false, error: "Telefone inválido. Ex: (48) 3333-4444." };
+    if (digits.length < 8) {
+      return {
+        ok: false,
+        error: "Telefone inválido. Ex: (48) 3333-4444. Se não tiver, toque em Pular.",
+      };
+    }
     return { ok: true, value };
   }
   return { ok: true, value };

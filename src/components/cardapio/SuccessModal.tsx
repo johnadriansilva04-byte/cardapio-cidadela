@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { CheckCircle2, MessageCircle, Eye, Star } from "lucide-react";
-import { brl, sendToWhatsApp } from "@/lib/utils";
+import { brl, buildWhatsAppMessage, sendToWhatsApp } from "@/lib/utils";
 
 function soberaniaPoints(total: number): number {
   // 1 ponto de soberania a cada R$ 30 em compras.
@@ -74,14 +74,16 @@ export default function SuccessModal({
           <span
             key={i}
             className="confetti-piece"
-            style={{
-              left: c.left,
-              animationDelay: c.delay,
-              backgroundColor: c.color,
-              width: c.size,
-              height: c.size * 1.4,
-              "--cx": c.drift,
-            } as React.CSSProperties}
+            style={
+              {
+                left: c.left,
+                animationDelay: c.delay,
+                backgroundColor: c.color,
+                width: c.size,
+                height: c.size * 1.4,
+                "--cx": c.drift,
+              } as React.CSSProperties
+            }
           />
         ))}
       </div>
@@ -123,27 +125,68 @@ export default function SuccessModal({
         )}
 
         <div className="mt-5 space-y-2">
+          {restaurantWhatsapp && (
+            <button
+              onClick={() => {
+                // Manda o pedido COMPLETO para a loja. Antes o botão só dizia
+                // "acabei de fazer o pedido #X", sem itens nem endereço — o
+                // dono não recebia o pedido por WhatsApp de jeito nenhum.
+                sendToWhatsApp(
+                  restaurantWhatsapp,
+                  buildWhatsAppMessage(
+                    {
+                      comanda: order.comanda,
+                      customer_name: order.customer_name,
+                      customer_phone: order.customer_phone,
+                      total: order.total,
+                      order_items: order.items.map((i) => ({
+                        product_name: i.product_name,
+                        quantity: i.quantity,
+                        total: i.total,
+                      })),
+                      observations: order.observations,
+                      payment_method: order.payment_method,
+                      delivery_type: order.delivery_type,
+                      delivery_address: order.delivery_address ?? "",
+                      customer_complement: order.customer_complement,
+                      customer_neighborhood: order.customer_neighborhood,
+                      customer_city: order.customer_city,
+                      delivery_fee: order.delivery_fee ?? 0,
+                    },
+                    restaurantName,
+                  ),
+                );
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-3 text-sm font-black text-black shadow-lg transition-all hover:bg-green-400"
+            >
+              <MessageCircle className="size-4" /> Enviar pedido no WhatsApp
+            </button>
+          )}
+
           <a
             href={`/pedido/${order.id}`}
-            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-black text-white shadow-lg transition-all hover:brightness-110"
-            style={{
-              backgroundColor: restaurantAccent,
-              boxShadow: `0 6px 20px ${restaurantAccent}55`,
-            }}
+            className={
+              restaurantWhatsapp
+                ? "flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.08]"
+                : "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-black text-white shadow-lg transition-all hover:brightness-110"
+            }
+            style={
+              restaurantWhatsapp
+                ? undefined
+                : {
+                    backgroundColor: restaurantAccent,
+                    boxShadow: `0 6px 20px ${restaurantAccent}55`,
+                  }
+            }
           >
             <Eye className="size-4" /> Acompanhar pedido
           </a>
 
           {restaurantWhatsapp && (
-            <button
-              onClick={() => {
-                const msg = `Olá! Acabei de fazer o pedido ${order.comanda} no ${restaurantName}.`;
-                sendToWhatsApp(restaurantWhatsapp, msg);
-              }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-green-500/40 bg-green-500/5 py-3 text-sm font-semibold text-green-400 transition-colors hover:bg-green-500/10"
-            >
-              <MessageCircle className="size-4" /> Falar com o restaurante
-            </button>
+            <p className="text-center text-[11px] leading-relaxed text-gray-500">
+              Abrimos o WhatsApp da loja com o pedido completo. Se a aba não abriu, toque acima para
+              mandar.
+            </p>
           )}
 
           <button

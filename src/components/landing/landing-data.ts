@@ -129,6 +129,7 @@ export const WIZARD_SCRIPT: { q: string; a: string }[] = [
   { q: "Quer um slogan ou uma descrição curta?", a: "Massas artesanais desde 2018" },
   { q: "Qual WhatsApp vai receber os pedidos?", a: "(48) 99999-9999" },
   { q: "Onde você fica? Rua, número e bairro.", a: "Rua das Flores, 123 — Centro" },
+  { q: "De quais bairros você entrega?", a: "Florianópolis SC — Centro, Trindade" },
   { q: "Quando você atende?", a: "Ter a dom · 18h às 23h" },
 ];
 

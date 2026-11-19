@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { Restaurant } from "@/lib/types";
 import { currentOrigin } from "@/lib/site";
+import { waDigits } from "@/lib/utils";
 
 export function SharePanel({ restaurant }: { restaurant: Restaurant }) {
   const [copied, setCopied] = useState(false);
@@ -48,7 +49,7 @@ export function SharePanel({ restaurant }: { restaurant: Restaurant }) {
   }
 
   function openWhatsApp() {
-    const digits = (restaurant.whatsapp || "").replace(/\D/g, "");
+    const digits = waDigits(restaurant.whatsapp);
     const url = digits
       ? `https://wa.me/${digits}?text=${encodeURIComponent(whatsappMessage)}`
       : `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;

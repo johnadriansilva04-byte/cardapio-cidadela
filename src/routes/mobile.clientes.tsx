@@ -7,7 +7,7 @@ import { PageHeader } from "@/modules/ui/PageHeader";
 import { HeaderIconButton, SearchField, SegmentedControl } from "@/modules/ui/Controls";
 import { aggregateCustomers } from "@/modules/mobile/orders";
 import { useMobileStore } from "@/modules/mobile/store-context";
-import { brl, cn } from "@/lib/utils";
+import { brl, cn, waDigits } from "@/lib/utils";
 
 export const Route = createFileRoute("/mobile/clientes")({
   head: () => ({
@@ -149,7 +149,7 @@ function MobileCustomersPage() {
       ) : (
         <div className="space-y-3">
           {visible.map((customer) => {
-            const whatsapp = customer.phone.replace(/\D/g, "");
+            const whatsapp = waDigits(customer.phone);
             const average = customer.totalSpent / customer.totalOrders;
             return (
               <ExpandableSection

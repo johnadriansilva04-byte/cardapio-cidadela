@@ -333,6 +333,7 @@ export function buildWhatsAppMessage(
   order: {
     comanda: string;
     customer_name: string;
+    customer_phone?: string;
     total: number;
     order_items?: { product_name: string; quantity: number; total: number; notes?: string }[];
     observations: string;
@@ -357,6 +358,7 @@ export function buildWhatsAppMessage(
     `━━━━━━━━━━━━━━`,
     "",
     `👤 *Cliente:* ${order.customer_name}`,
+    ...(order.customer_phone ? [`📞 ${order.customer_phone}`] : []),
     isDelivery ? "🛵 *Entrega a domicílio*" : "🏪 *Retirada no balcão*",
     ...deliveryLines,
     `💳 ${order.payment_method.toUpperCase()}`,
@@ -384,11 +386,29 @@ export function buildWhatsAppMessage(
 }
 
 /**
+ * Número pronto para o `wa.me`: só dígitos e com DDI 55 quando veio sem ele.
+ *
+ * Duas armadilhas aqui: `wa.me` recusa número formatado ("(48) 99988-0030"
+ * abre uma página de erro) e, sem o DDI, o link cai numa conversa que não
+ * existe — o pedido nunca chega na loja. Números com 10 ou 11 dígitos são
+ * brasileiros sem DDI; qualquer outro tamanho passa intacto.
+ */
+export function waDigits(raw: string | null | undefined): string {
+  const digits = (raw ?? "").replace(/\D/g, "");
+  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+  return digits;
+}
+
+/**
+ * URL do `wa.me` com o número normalizado e a mensagem já codificada.
+ */
+export function whatsAppUrl(whatsappNumber: string, message: string): string {
+  return `https://wa.me/${waDigits(whatsappNumber)}?text=${encodeURIComponent(message)}`;
+}
+
+/**
  * Open WhatsApp with order message
  */
 export function sendToWhatsApp(whatsappNumber: string, message: string) {
-  // wa.me exige só dígitos; números salvos como "(11) 99999-9999" quebravam o link.
-  const digits = whatsappNumber.replace(/\D/g, "");
-  const url = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-  window.open(url, "_blank");
+  window.open(whatsAppUrl(whatsappNumber, message), "_blank");
 }
